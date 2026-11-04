@@ -42,7 +42,10 @@ class AdminLogin(QDialog):
         try:
             cloud=AlfaCloud()
             cloud.sign_in(self.email.text(),self.password.text())
-            status=cloud.read_status()
+            # One authenticated server request checks workspace admin role.
+            # The old read_status() issued four separate table reads at login;
+            # any transient timeout incorrectly looked like invalid credentials.
+            status=admin_request(cloud,'admin_status')
             if not status.get('access') or status.get('role')!='admin':
                 raise RuntimeError('Bu hesap ALFA ERP yöneticisi değil.')
             self.password.clear()
