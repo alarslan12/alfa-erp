@@ -317,12 +317,13 @@ class AlfaMain(QMainWindow):
             count=len(conflicts)
             reason=str(conflicts[-1].get('reason') or 'Bilinmeyen işlem çakışması')
             self.cloud_badge.setText(f'⚠ {count} geçmiş çakışma' if online
-                else f'◌ Çevrimdışı · {count} eski çakışma')
+                else f'◌ Eşitleme hatası · {count} eski kayıt')
             self.cloud_badge.setToolTip(
-                'Bunlar daha önce reddedilmiş ve arşivlenmiş işlemlerdir; '
+                ('Bulut bağlı.\n' if online else 'Güncel eşitleme hatası: '+message[:190]+'\n')
+                +'Bunlar daha önce reddedilmiş ve arşivlenmiş işlemlerdir; '
                 'şu anda bekleyen kuyruk sayısı değildir.\n'
                 'Ayarlar → İşlem günlüğü → Eski bulut hatalarını incele.\n'
-                +reason[:240])
+                +reason[:220])
             previous=getattr(self,'_last_conflict_notice',None)
             self._last_conflict_notice=count
             if previous is not None and count>previous:
