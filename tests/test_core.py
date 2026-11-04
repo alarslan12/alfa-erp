@@ -71,6 +71,45 @@ class DatabaseTests(unittest.TestCase):
             for event in second['events']])
         self.assertEqual(self.db.pending_count, 0)
 
+    def test_cloud_imported_order_clicks_use_status_and_targeted_progress(self):
+        """Actual server-snapshot order shape, not only a locally created order."""
+        cloud_id=str(uuid.uuid4())
+        self.db.cloud_epoch='ci-existing'
+        payload={
+          'epoch':'ci-existing','orders_revision':1,
+          'orders':[{'id':cloud_id,'order_number':71,'status':'havuz',
+            'platform':'Manuel','shipping_reference':'TEST-71',
+            'order_type':'','gross_amount':125,'version':14,
+            'created_at':'2026-11-04T10:00:00Z','deleted_at':None}],
+          'items':[{'id':str(uuid.uuid4()),'order_id':cloud_id,
+            'book_code':self.book,'book_name_snapshot':'Kitap',
+            'print_type':'SB','page_count_snapshot':100,'quantity':2,
+            'prepared_count':0,'boxed_count':0}]
+        }
+        self.db.apply_cloud_snapshot(payload)
+        order=next(x for x in self.db.siparisler if x.get('bulut_id')==cloud_id)
+        class OfflineCloud:pass
+        self.db.cloud_api=OfflineCloud()
+        self.db.siparis_durumunu_degistir(order,'aktif')
+        batch=self.db.next_outbox_batch()
+        self.assertEqual(batch['kind'],'status')
+        self.assertEqual(batch['events'][0]['to_status'],'aktif')
+        self.db.confirm_outbox(batch,[{'op_id':batch['events'][0]['op_id'],
+            'order_id':cloud_id,'version':15}])
+        self.db.siparis_ilerleme_degistir(order,self.book,'SB',1,1)
+        batch=self.db.next_outbox_batch()
+        self.assertEqual(batch['kind'],'progress')
+        self.assertEqual(batch['events'][0]['target_ready'],1)
+        self.assertEqual(batch['events'][0]['target_boxed'],1)
+        self.assertEqual(batch['events'][0]['base_ready'],0)
+        self.db.confirm_outbox(batch,[{'op_id':batch['events'][0]['op_id'],
+            'order_id':cloud_id,'version':16}])
+        self.db.siparis_durumunu_degistir(order,'havuz')
+        batch=self.db.next_outbox_batch()
+        self.assertEqual(batch['kind'],'status')
+        self.assertEqual(batch['events'][0]['from_status'],'aktif')
+        self.assertEqual(batch['events'][0]['to_status'],'havuz')
+
     def test_failed_operation_is_quarantined_not_infinite_retry(self):
         order = self.new_order(connected=True)
         batch = self.db.next_outbox_batch()
