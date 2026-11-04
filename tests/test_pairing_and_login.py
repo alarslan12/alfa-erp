@@ -19,11 +19,7 @@ class EnrollmentAndLoginTests(unittest.TestCase):
     def test_generic_staff_installer_can_pair_without_ticket(self):
         from cihaz_eslestir import PairDialog
         modal=PairDialog()
-        try:
-            self.assertIn('48',modal.code.parent().window().findChild(type(modal.code)).placeholderText() if modal.code else '48')
-        except AssertionError:
-            # Placeholder wording is not part of the security contract.
-            pass
+        self.assertIn('cihaz',modal.windowTitle().lower())
         modal.code.setText('A'*48)
         mock_reply={'device_token':'C'*64}
         with patch('cihaz_eslestir.api',return_value=mock_reply) as request,patch('cihaz_eslestir.save_token') as save:
