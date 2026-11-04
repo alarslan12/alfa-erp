@@ -1,5 +1,5 @@
 """ALFA ERP Desktop - Qt/PySide6 yerel Windows masaüstü uygulaması."""
-import sys, traceback, os, hashlib, hmac
+import sys, traceback, os
 from pathlib import Path
 from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBoxLayout,QStackedWidget,
  QLabel,QFrame,QGridLayout,QPushButton,QMessageBox,QInputDialog,QLineEdit)
@@ -24,15 +24,6 @@ VERSION='6.1.8'
 OWNER_EDITION=(ROOT/'YONETICI_SURUMU.flag').exists()
 
 
-# Yerel parola doğrulaması: yalnızca tuzlanmış türetilmiş özet saklanır.
-# Windows personel paketi içinde düz metin parola BULUNMAZ.
-_ANALYTICS_SALT=bytes.fromhex('df6879d7e2c980a2105f9bca0967d49f8fd2a05a')
-_ANALYTICS_CHECK=bytes.fromhex('f8381ac312ac801806484e67072d9234d9f0e4917d975789ab30582688a177e5')
-
-def analytics_password_matches(password):
-    digest=hashlib.pbkdf2_hmac('sha256',password.encode('utf-8'),_ANALYTICS_SALT,260000)
-    return hmac.compare_digest(digest,_ANALYTICS_CHECK)
-
 class AlfaMain(QMainWindow):
     def __init__(self,admin_cloud=None):
         super().__init__()
@@ -53,7 +44,7 @@ class AlfaMain(QMainWindow):
         self.resize(1480,900)
         self.setWindowIcon(self.make_icon())
         self._last_orders_tab='havuz'
-        self._analytics_unlocked=OWNER_EDITION
+        self._analytics_unlocked=False
         self.bookpool=None
 
         holder=QWidget();holder.setObjectName('AppRoot')
@@ -93,9 +84,15 @@ class AlfaMain(QMainWindow):
         settings_btn.clicked.connect(lambda checked=False:self.navigate(4))
         self.settings_btn=settings_btn
         right_row.addWidget(settings_btn)
-        self.cloud_badge=text('● Bağlanıyor…','Tiny')
-        self.cloud_badge.setToolTip('Yerel işlemler arka planda buluta aktarılır.')
+        self.cloud_badge=text('◌ Bağlanıyor…','Tiny')
+        self.cloud_badge.setToolTip('Siparişler yalnızca eşleştirilmiş cihazlarda buluta aktarılır.')
         right_row.addWidget(self.cloud_badge)
+        self.cloud_connect=QPushButton('Buluta bağla')
+        self.cloud_connect.setObjectName('CloudConnect')
+        self.cloud_connect.setToolTip(
+            'İlk kurulumda bir kez cihazı yetkilendir; sonraki açılışlar girişsiz.')
+        self.cloud_connect.clicked.connect(self.connect_cloud)
+        right_row.addWidget(self.cloud_connect)
         right_row.addWidget(text('v'+VERSION,'Tiny'))
         main_bar.addWidget(right_box,0,2,Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignVCenter)
         header.setFixedHeight(57)
@@ -175,10 +172,11 @@ class AlfaMain(QMainWindow):
             self.settings_page=SettingsPage(self.db,self.config)
         for page in (self.catalog_host,self.orders,self.analytics,self.inventory,self.settings_page):self.stack.addWidget(page)
         self.device=Workstation()
-        if OWNER_EDITION and self.admin_cloud is not None:
-            from yonetici_giris import AdminWorkstation, admin_request
-            self.db.owner_admin_request=lambda action,**kw:admin_request(self.admin_cloud,action,**kw)
-            self.device=AdminWorkstation(self.admin_cloud,self.device.token)
+        if OWNER_EDITION:
+            from yonetici_giris import admin_request
+            # The backend checks the per-device OWNER role for every admin_* action.
+            # No interactive Supabase login or stored owner password at startup.
+            self.db.owner_admin_request=lambda action,**kw:admin_request(None,action,**kw)
             self.analytics.cloud_admin_request=self.db.owner_admin_request
         if not OWNER_EDITION:
             # Çalışan bilgisayarına işlem günlüğünün yerel kopyasını yazma.
@@ -188,14 +186,14 @@ class AlfaMain(QMainWindow):
             self.db.audit=NoStaffAudit()
         self.db.cloud_required=True
         self.live=Sync(self.device,self.db,parent=self)
-        if OWNER_EDITION and self.admin_cloud is not None and not self.device.paired:
-            self.cloud_badge.setText('◌ Yönetici cihazı beklemede')
-            detail=str(getattr(self.admin_cloud,'owner_pairing_problem','') or
-                       'Bu Windows bilgisayarının henüz bulut cihaz anahtarı yok.')
+        if not self.device.paired:
+            self.cloud_badge.setText('◌ Buluta bağlı değil')
             self.cloud_badge.setToolTip(
-                'Yönetici hesabı doğrulandı ancak cihazın bulut eşleştirmesi '
-                'tamamlanmadı. Sipariş değişiklikleri henüz gönderilemez.\n'
-                +detail[:220]+'\nBağlantı düzeldiğinde uygulamayı tekrar açın.')
+                'Uygulama girişsiz açıldı. Katalog yerelde kullanılabilir. '
+                'Bulut siparişlerini görmek ve değiştirmek için cihazı bir kez eşleştir.')
+        self.cloud_connect.setText(
+            'Cihaz yetkisi' if OWNER_EDITION else
+            'Yeniden eşleştir' if self.device.paired else 'Buluta bağla')
         self.live.changed.connect(self._cloud_orders_changed)
         self.live.status.connect(self._cloud_status)
         self.catalog.order_created.connect(self.order_created)
@@ -284,12 +282,33 @@ class AlfaMain(QMainWindow):
         self.page_title.setText('Kitap kataloğu' if index==0 else 'Genel ürün kataloğu')
         if index==1:self.general_catalog.refresh()
 
+    def connect_cloud(self):
+        """Open normally; authorize the computer only when the user asks."""
+        if OWNER_EDITION:
+            from yonetici_giris import AdminLogin
+            dialog=AdminLogin(self)
+            dialog.setWindowTitle('ALFA ERP · Bir defalık yönetici cihaz aktivasyonu')
+        else:
+            from cihaz_eslestir import PairDialog
+            dialog=PairDialog(self)
+        if dialog.exec()!=dialog.DialogCode.Accepted:
+            return
+        from alfa_cihaz import get_token
+        token=get_token()
+        if not token:
+            QMessageBox.warning(self,'Bulut bağlantısı',
+                'Cihaz anahtarı kaydedilemedi. Siparişler buluta gönderilmeyecek.')
+            return
+        self.device.token=token
+        self.live.activate()
+        self.cloud_connect.setText('Cihaz yetkisi' if OWNER_EDITION else 'Yeniden eşleştir')
+        self.cloud_badge.setToolTip('İlk bulut eşitlemesi başlatıldı.')
+
     def navigate(self,index):
         if index==2 and not self._analytics_unlocked:
-            password,ok=QInputDialog.getText(self,'Analitik Erişimi',
-                'Analitik ekranını açmak için yetki parolasını girin:',QLineEdit.EchoMode.Password)
-            if not ok or not analytics_password_matches(password):
-                if ok: QMessageBox.warning(self,'Analitik','Parola doğru değil.')
+            from analytics_access import AnalyticsGate
+            pin=AnalyticsGate(owner=OWNER_EDITION,parent=self)
+            if pin.exec()!=pin.DialogCode.Accepted:
                 return
             self._analytics_unlocked=True
         if index==1:
@@ -389,38 +408,10 @@ def start():
     app=QApplication(sys.argv);app.setApplicationName('ALFA ERP');app.setStyle('Fusion')
     app.setStyleSheet(QSS)
     try:
-        admin_cloud=None
-        if OWNER_EDITION:
-            from yonetici_giris import AdminLogin
-            prompt=AdminLogin()
-            if prompt.exec()!=prompt.DialogCode.Accepted:
-                return 0
-            admin_cloud=prompt.cloud
-        else:
-            # Generic staff installer does not embed a private pairing token.
-            # Use an optional one-time setup ticket when available, otherwise
-            # prompt the user for an admin-issued code (no reinstallation).
-            from alfa_cihaz import get_token
-            if not get_token():
-                from auto_eslestir import ROOT as enrollment_root, main as enroll_staff
-                if (enrollment_root/'kurulum_bilgisi.json').is_file():
-                    try:
-                        enroll_staff(install_startup=False)
-                    except Exception as exc:
-                        QMessageBox.warning(None,'ALFA ERP · Cihaz eşleştirme',
-                          'Otomatik eşleştirme tamamlanamadı. Tek kullanımlık '
-                          'yönetici kodunu elle girebilirsiniz.\n\n'
-                          +str(exc)[:220])
-                if not get_token():
-                    from cihaz_eslestir import PairDialog
-                    dialog=PairDialog()
-                    if dialog.exec()!=dialog.DialogCode.Accepted:
-                        return 0
-                    if not get_token():
-                        QMessageBox.critical(None,'ALFA ERP · Eşleştirme',
-                             'Cihaz anahtarı kaydedilemedi. İşlem yapılmadı.')
-                        return 1
-        main=AlfaMain(admin_cloud=admin_cloud)
+        # Both editions open immediately, without blocking authentication
+        # or mandatory enrollment dialogs. A safe, visible one-time activation
+        # is available from the app header if this device is not paired.
+        main=AlfaMain(admin_cloud=None)
         # Mevcut ekranın kullanılabilir alanına göre ölçeklendir ve tam ortala.
         screen=app.primaryScreen()
         if screen:
