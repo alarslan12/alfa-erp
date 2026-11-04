@@ -36,6 +36,21 @@ class AdminLogin(QDialog):
         self.button=QPushButton('Yönetici olarak aç')
         self.button.clicked.connect(self.authenticate)
         col.addWidget(self.button);self.password.returnPressed.connect(self.authenticate)
+        self.diagnostic_button=QPushButton('Supabase bağlantısını kontrol et')
+        self.diagnostic_button.clicked.connect(self.check_connection)
+        col.addWidget(self.diagnostic_button)
+
+    def check_connection(self):
+        self.diagnostic_button.setEnabled(False)
+        try:
+            AlfaCloud().health()
+            self.message.setText(
+                'Supabase Auth sunucusuna HTTPS bağlantısı başarılı. '
+                'Yönetici hesabınla yeniden giriş yapabilirsin.')
+        except Exception as exc:
+            self.message.setText('Bağlantı tanısı: '+str(exc)[:260])
+        finally:
+            self.diagnostic_button.setEnabled(True)
 
     def authenticate(self):
         self.button.setEnabled(False)
