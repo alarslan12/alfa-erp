@@ -81,6 +81,10 @@ jobs:
             Set-Content -Encoding utf8 output\SHA256SUMS.txt
           Copy-Item .\ALFA_TEMIZ_KURULUM.ps1 output\ALFA_TEMIZ_KURULUM.ps1
           Copy-Item .\ALFA_TEMIZ_KURULUM.bat output\ALFA_TEMIZ_KURULUM.bat
+          Copy-Item .\assets\icons\alfa_personel.ico output\alfa_personel.ico
+          Copy-Item .\assets\icons\alfa_yonetici.ico output\alfa_yonetici.ico
+          Copy-Item .\assets\icons\alfa_personel.png output\alfa_personel.png
+          Copy-Item .\assets\icons\alfa_yonetici.png output\alfa_yonetici.png
       - uses: actions/upload-artifact@v4
         with:
           name: ALFA_ERP_V620_Windows_Installers
