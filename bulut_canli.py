@@ -61,6 +61,10 @@ class Sync(QObject):
         self.last_pulse = None
         self.force_pull = True
         self.retry_after = 0
+        self._pull_retry_after = 0
+        self._consecutive_pull_failures = 0
+        self._last_orders_verified = 0
+        self._last_pending_count = db.pending_count
         self.current_batch = None
         self.isolate_batch=False
         self._last_status = None
@@ -92,10 +96,31 @@ class Sync(QObject):
             self._last_status=state
             self.status.emit(online, message)
 
+    def _revision_request(self, now=None):
+        """Periodic authoritative order refresh, without re-downloading books.
+
+        Prevents a deleted or edited order being hidden indefinitely when an
+        older optimistic outbox action temporarily blocked its application.
+        """
+        now = time.monotonic() if now is None else now
+        if self.last_pulse is None:
+            return None, True
+        known = dict(self.last_pulse)
+        if self.force_pull or now-self._last_orders_verified >= 45:
+            known['orders_revision'] = -1
+        return known, False
+
     def pull(self):
-        if not self.client.paired or self.pull_task is not None:
+        if (not self.client.paired or self.pull_task is not None or
+                time.monotonic() < self._pull_retry_after):
             return
-        worker=Pull(self.client,self.last_pulse,self.force_pull,parent=self)
+        # Outbox work was acknowledged/quarantined: previously skipped cloud
+        # tombstones must be re-checked even if the revision did not change.
+        if self.db.pending_count < self._last_pending_count:
+            self.force_pull = True
+        self._last_pending_count = self.db.pending_count
+        known,initial=self._revision_request()
+        worker=Pull(self.client,known,initial,parent=self)
         self.pull_task=worker
 
         def finish(payload):
@@ -104,21 +129,33 @@ class Sync(QObject):
                 snapshot=payload.get('snapshot')
                 if snapshot is not None:
                     changes=self.db.apply_cloud_snapshot(snapshot)
+                    if 'orders' in snapshot and 'items' in snapshot:
+                        self._last_orders_verified=time.monotonic()
                     if changes:
                         self._recent_until = time.monotonic()+18
                         self.changed.emit(changes)
                     self.force_pull=False
                 self.last_pulse=payload['pulse']
+                self._consecutive_pull_failures=0
+                self._pull_retry_after=0
                 self._retune_poll()
                 pending=self.db.pending_count
                 self._status(True, f'Bulut bağlı · {pending} işlem sırada' if pending else 'Bulut bağlı')
             except Exception as exc:
-                self._status(False,str(exc)[:200])
+                self.force_pull=True
+                self._consecutive_pull_failures+=1
+                self._pull_retry_after=time.monotonic()+min(
+                    30,3*self._consecutive_pull_failures)
+                self._status(False,'Eşitleme uygulanamadı: '+str(exc)[:170])
 
         def fail(message,status=0):
             self.pull_task=None
+            self.force_pull=True
+            self._consecutive_pull_failures+=1
+            self._pull_retry_after=time.monotonic()+min(
+                30,3*self._consecutive_pull_failures)
             self._retune_poll()
-            self._status(False, 'Bağlantı bekleniyor: '+message)
+            self._status(False, 'Bulut eşitlemesi beklemede: '+message[:160])
         worker.done.connect(finish)
         worker.failed.connect(fail)
         worker.finished.connect(worker.deleteLater)
@@ -145,7 +182,9 @@ class Sync(QObject):
                 self.retry_after=0
                 # Server revision changes after each accepted business write.
                 # The next delta sync will fetch it without cold-reading books.
-                self.force_pull=False
+                # An order changed on the server. Re-read it regardless of
+                # what revision the last concurrent pull might have observed.
+                self.force_pull=True
                 self._recent_until = time.monotonic()+18
                 self._retune_poll()
                 self._status(True, f'Bulut bağlı · {self.db.pending_count} işlem sırada'
@@ -158,7 +197,7 @@ class Sync(QObject):
         def fail(message,status=0):
             self.push_task=None
             self.force_pull=True
-            if status in (400,401,403,404,409,413,422):
+            if status in (400,409,413,422):
                 # One failing event must not roll back an entire group's work.
                 size=len(batch.get('events',batch.get('edits',[])))
                 if size>1:
@@ -175,9 +214,11 @@ class Sync(QObject):
                     f'{self.db.pending_count} işlem bekliyor')
                 QTimer.singleShot(150,self.pull)
                 return
-            # Recoverable network error: no modal popup, no data loss.
-            self.retry_after=time.monotonic()+min(30,4+len(self.db._conflicts))
-            self._status(False,'Bağlantı geçici beklemede · kuyruk korunuyor')
+            # Network/timeouts/503 and revoked keys are NOT permanent poison
+            # actions. Preserve the exact op_id so retries stay idempotent.
+            self.retry_after=time.monotonic()+min(45,6+len(self.db._conflicts))
+            self._status(False,'Bulut işlemi geçici beklemede: '+
+                message[:150]+' · kuyruk korunuyor')
         worker.done.connect(finish)
         worker.failed.connect(fail)
         worker.finished.connect(worker.deleteLater)
