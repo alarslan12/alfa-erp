@@ -78,10 +78,21 @@ class Sync(QObject):
         self.sender.setInterval(350)
         self.sender.timeout.connect(self.push)
         if client.paired:
-            db.cloud_api = client
-            self.timer.start()
-            self.sender.start()
-            QTimer.singleShot(100, self.pull)
+            self.activate()
+
+    def activate(self):
+        """Start sync once on an enrolled workstation, including after setup."""
+        if not self.client.paired:
+            self._status(False,'Cihaz eşleştirilmedi; bulut işlemleri kapalı')
+            return
+        self.db.cloud_api=self.client
+        self.force_pull=True
+        self._pull_retry_after=0
+        self.retry_after=0
+        if not self.timer.isActive():self.timer.start()
+        if not self.sender.isActive():self.sender.start()
+        self._status(False,'Cihaz eşleşti · ilk bulut eşitlemesi başlıyor')
+        QTimer.singleShot(100,self.pull)
 
     def _retune_poll(self):
         # Frequent changes receive fast checks; an idle window is inexpensive.
