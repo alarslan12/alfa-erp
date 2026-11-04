@@ -38,8 +38,8 @@ class SyncResilienceTests(unittest.TestCase):
         self.assertEqual(known['catalog_revision'],4)
         self.assertEqual(self.sync.last_pulse['orders_revision'],101)
 
-    def test_auto_reconcile_orders_after_45_seconds(self):
-        known,initial=self.sync._revision_request(now=146.0)
+    def test_auto_reconcile_orders_after_five_minutes(self):
+        known,initial=self.sync._revision_request(now=401.0)
         self.assertFalse(initial)
         self.assertEqual(known['orders_revision'],-1)
         self.assertEqual(known['catalog_revision'],4)

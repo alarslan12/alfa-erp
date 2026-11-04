@@ -63,6 +63,7 @@ class Sync(QObject):
         self.retry_after = 0
         self._pull_retry_after = 0
         self._consecutive_pull_failures = 0
+        self._consecutive_push_failures = 0
         self._last_orders_verified = 0
         self._last_pending_count = db.pending_count
         self.current_batch = None
@@ -70,8 +71,9 @@ class Sync(QObject):
         self._last_status = None
         self.timer = QTimer(self)
         self._recent_until = time.monotonic() + 16
-        self._active_poll_ms = 2100 + (id(self) % 350)
-        self._idle_poll_ms = 5500 + (id(self) % 950)
+        # Free-tier safety: reduce repetitive polling on multiple machines.
+        self._active_poll_ms = 30000 + (id(self) % 5000)
+        self._idle_poll_ms = 90000 + (id(self) % 15000)
         self.timer.setInterval(self._active_poll_ms)
         self.timer.timeout.connect(self.pull)
         self.sender = QTimer(self)
@@ -117,7 +119,8 @@ class Sync(QObject):
         if self.last_pulse is None:
             return None, True
         known = dict(self.last_pulse)
-        if self.force_pull or now-self._last_orders_verified >= 45:
+        # Revision checks are light; full reconciliation is periodic only.
+        if self.force_pull or now-self._last_orders_verified >= 300:
             known['orders_revision'] = -1
         return known, False
 
@@ -156,7 +159,7 @@ class Sync(QObject):
                 self.force_pull=True
                 self._consecutive_pull_failures+=1
                 self._pull_retry_after=time.monotonic()+min(
-                    30,3*self._consecutive_pull_failures)
+                    600,30*(2**min(self._consecutive_pull_failures-1,4)))
                 self._status(False,'Eşitleme uygulanamadı: '+str(exc)[:170])
 
         def fail(message,status=0):
@@ -164,7 +167,8 @@ class Sync(QObject):
             self.force_pull=True
             self._consecutive_pull_failures+=1
             self._pull_retry_after=time.monotonic()+min(
-                30,3*self._consecutive_pull_failures)
+                600,(60 if status in (429,500,502,503,504) else 30)*
+                (2**min(self._consecutive_pull_failures-1,4)))
             self._retune_poll()
             self._status(False, 'Bulut eşitlemesi beklemede: '+message[:160])
         worker.done.connect(finish)
@@ -190,6 +194,7 @@ class Sync(QObject):
             try:
                 self.db.confirm_outbox(batch,results)
                 self.isolate_batch=False
+                self._consecutive_push_failures=0
                 self.retry_after=0
                 # Server revision changes after each accepted business write.
                 # The next delta sync will fetch it without cold-reading books.
@@ -227,7 +232,9 @@ class Sync(QObject):
                 return
             # Network/timeouts/503 and revoked keys are NOT permanent poison
             # actions. Preserve the exact op_id so retries stay idempotent.
-            self.retry_after=time.monotonic()+min(45,6+len(self.db._conflicts))
+            self._consecutive_push_failures+=1
+            self.retry_after=time.monotonic()+min(
+                600,45*(2**min(self._consecutive_push_failures-1,4)))
             self._status(False,'Bulut işlemi geçici beklemede: '+
                 message[:150]+' · kuyruk korunuyor')
         worker.done.connect(finish)

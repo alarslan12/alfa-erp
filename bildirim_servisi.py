@@ -46,8 +46,10 @@ class Service:
         except (OSError,ValueError,KeyError,TypeError):
             self.seen=None;self.last_order_number=0;self.last_epoch=''
         self.worker=None;self.popup=None;self.last_revision=None
+        self._consecutive_failures=0
+        self._normal_poll_ms=45000+(id(self)%10000)
         # Notifications need new order numbers, not full books/inventory snapshots.
-        self.timer=QTimer();self.timer.setInterval(4200+(id(self)%650));self.timer.timeout.connect(self.poll)
+        self.timer=QTimer();self.timer.setInterval(self._normal_poll_ms);self.timer.timeout.connect(self.poll)
         self.timer.start();QTimer.singleShot(500,self.poll)
     def poll(self):
         if not self.client.paired:self.client=Workstation()
@@ -55,6 +57,9 @@ class Service:
         work=Reader(self.client,self.last_revision,self.last_order_number);self.worker=work
         def success(result):
             self.worker=None
+            self._consecutive_failures=0
+            if self.timer.interval()!=self._normal_poll_ms:
+                self.timer.setInterval(self._normal_poll_ms)
             try:
                 self.last_revision=result['pulse']
                 rows=result.get('orders')
@@ -84,7 +89,11 @@ class Service:
                     numbers=[str(x.get('order_number')) for x in fresh]
                     self.notify(', '.join('#'+n for n in numbers[:5]),len(fresh))
             except (OSError,ValueError,TypeError,KeyError):pass
-        def fail(message):self.worker=None;self.tray.setToolTip('ALFA ERP · '+message[:60])
+        def fail(message):
+            self.worker=None
+            self._consecutive_failures+=1
+            self.timer.setInterval(min(600000,60000*(2**min(self._consecutive_failures-1,4))))
+            self.tray.setToolTip('ALFA ERP · '+message[:60])
         work.done.connect(success);work.error.connect(fail);work.finished.connect(work.deleteLater);work.start()
     def notify(self,numbers,count):
         caption=f'{count} yeni sipariş · {numbers}'
