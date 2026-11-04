@@ -10,7 +10,7 @@
 - Kitap sipariş ekranı korunur. Katalog üstünden Kitap Kataloğu / Genel Ürünler arasında geçiş yapılır.
 - Genel Ürünler: bütün bilgisayarlarda ortak ürün kartları, arama, kategori, etiket, fiyat ve görsel.
 - Yeni ürün kataloğa stok 0 ve `in_inventory=false` olarak kaydedilir.
-- Envanter: "Katalogdan envantere ekle"; ürün seçme, yeni toplam adet, satış fiyatı, maliyet belirleme.
+- Envanter: "Katalogdan envantere ekle"; ürün seçme, yeni toplam adet, satış fiyatı, maliyet belirleme. Aranmış metin yanlış ürünün kaydına dönüşmesin diye listeden kesin seçim gereklidir.
 - Mevcut stoklu ürünler `in_inventory=true` olarak korunur; başlangıçta envanterden kaybolmaz.
 - Katalogdaki ürünler sipariş kitap satırlarıyla karıştırılmaz.
 - Yeni ürünler veritabanında saklanır, envanter değişiklik sayacı sayesinde diğer bilgisayarlarda görünür.
