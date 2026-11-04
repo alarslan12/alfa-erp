@@ -90,6 +90,18 @@ if ($diffExitCode -ne 0) {
     Write-Host 'Degisiklik yok, mevcut commit kullaniliyor.'
 }
 Exec $git @('branch','-M','main')
+
+# GitHub repository was initialized independently with a README commit.
+# Reconcile the histories without using force push or discarding remote commits.
+Write-Host 'GitHub deposundaki son degisiklikler aliniyor...'
+Exec $git @('fetch','origin','main')
+$alreadyContainsRemote = ProbeNative $git @('merge-base','--is-ancestor','origin/main','HEAD')
+if ($alreadyContainsRemote -ne 0) {
+    Write-Host 'GitHub ilk commit ile yerel proje gecmisi guvenle birlestiriliyor...'
+    # -X ours keeps the local version of conflicting text, including README;
+    # non-conflicting remote files are preserved. Remote history stays intact.
+    Exec $git @('merge','--allow-unrelated-histories','-X','ours','--no-edit','origin/main')
+}
 Write-Host 'Proje GitHub main dalina yukleniyor...'
 Exec $git @('push','-u','origin','main')
 
