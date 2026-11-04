@@ -137,6 +137,21 @@ class ERPDatabase:
             'revision':self._next_revision})
 
     @property
+    def unreviewed_cloud_conflicts(self):
+        return [x for x in self._conflicts if not x.get('reviewed_at')]
+
+    def mark_cloud_conflicts_reviewed(self):
+        """Acknowledge archived errors only; never discard failed work evidence."""
+        stamp=datetime.now().astimezone().isoformat(timespec='seconds')
+        count=0
+        for entry in self._conflicts:
+            if not entry.get('reviewed_at'):
+                entry['reviewed_at']=stamp
+                count+=1
+        if count:self._write_outbox()
+        return count
+
+    @property
     def pending_count(self):
         return len(self._pending)+len(self._progress_events)+len(self._status_events)
 
