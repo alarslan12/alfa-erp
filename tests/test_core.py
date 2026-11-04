@@ -150,6 +150,47 @@ class DatabaseTests(unittest.TestCase):
                 'inventory_revision':2,'inventory_products':[]})
         self.assertEqual(len(self.db.siparisler),1)
 
+    def test_product_catalog_master_and_inventory_membership(self):
+        self.db.cloud_epoch='ci-catalog'
+        self.assertEqual(self.db.siparisler,[])
+        updates=self.db.apply_cloud_snapshot({
+            'epoch':'ci-catalog','inventory_revision':22,
+            'inventory_products':[{'id':'test-master','sku':'EPSON-TEST',
+                'title':'Yazıcı','quantity':0,'sale_price':275.50,
+                'active':True,'in_inventory':False}],
+            'inventory_sales':[]
+        })
+        self.assertEqual(self.db.inventory_products[0]['in_inventory'],False)
+        self.assertIn('__envanter__',updates)
+        self.assertEqual(self.db.siparisler,[])
+        updates=self.db.apply_cloud_snapshot({
+            'epoch':'ci-catalog','inventory_revision':23,
+            'inventory_products':[{'id':'test-master','sku':'EPSON-TEST',
+                'title':'Yazıcı','quantity':3,'sale_price':310,
+                'active':True,'in_inventory':True}],
+            'inventory_sales':[]
+        })
+        self.assertEqual(self.db.inventory_products[0]['quantity'],3)
+        self.assertTrue(self.db.inventory_products[0]['in_inventory'])
+        self.assertIn('__envanter__',updates)
+
+    def test_review_cloud_conflicts_preserves_archived_events_and_queue(self):
+        self.new_order(connected=True)
+        self.db._conflicts=[
+            {'at':'2026-11-04T12:00:00Z','reason':'old 409',
+             'batch':{'kind':'progress','events':[{'op_id':'legacy'}]}}
+        ]
+        self.assertEqual(len(self.db.unreviewed_cloud_conflicts),1)
+        self.assertEqual(self.db.pending_count,1)
+        self.assertEqual(self.db.mark_cloud_conflicts_reviewed(),1)
+        self.assertEqual(len(self.db.unreviewed_cloud_conflicts),0)
+        self.assertEqual(self.db.pending_count,1)
+        from database import ERPDatabase
+        reopened=ERPDatabase(ROOT/'KİTAPS.xlsx',data_dir=self.tmp.name)
+        self.assertEqual(len(reopened._conflicts),1)
+        self.assertTrue(reopened._conflicts[0]['reviewed_at'])
+        self.assertEqual(reopened.pending_count,1)
+
     def test_reopen_pending_queue_after_restart(self):
         self.new_order(connected=True)
         from database import ERPDatabase
