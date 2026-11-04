@@ -1,7 +1,7 @@
 """Admin-issued one-time pairing code, no staff email or password."""
 import sys,os,socket,subprocess
 from pathlib import Path
-from PySide6.QtWidgets import QApplication,QWidget,QVBoxLayout,QLabel,QLineEdit,QPushButton,QMessageBox
+from PySide6.QtWidgets import QApplication,QWidget,QVBoxLayout,QLabel,QLineEdit,QPushButton,QMessageBox,QDialog
 from alfa_cihaz import api,save_token,get_token,DeviceError
 ROOT=Path(__file__).resolve().parent
 def pythonw():
@@ -23,6 +23,52 @@ def enable_startup():
     subprocess.run(['powershell.exe','-NoProfile','-NonInteractive','-Command',script],check=True,
                    creationflags=0x08000000)
     subprocess.Popen([str(pythonw()),str(ROOT/'bildirim_servisi.py')],creationflags=0x08000000)
+class PairDialog(QDialog):
+    """Pair a freshly installed generic staff app without rebuilding Setup.exe."""
+    def __init__(self,parent=None):
+        super().__init__(parent)
+        self.setWindowTitle('ALFA ERP · İlk cihaz eşleştirmesi')
+        self.setMinimumWidth(460)
+        self.setModal(True)
+        col=QVBoxLayout(self);col.setSpacing(11)
+        introduction=QLabel(
+            'Bu bilgisayar henüz bulut sistemine eşleştirilmemiş.\\n'
+            'Yönetici uygulamasında Ayarlar → Bilgisayarlar → Yeni cihaz kodu '
+            'seçeneğinden tek kullanımlık kod oluşturup buraya girin.')
+        introduction.setWordWrap(True);col.addWidget(introduction)
+        col.addWidget(QLabel('Bilgisayar adı'))
+        self.computer=QLineEdit(socket.gethostname()[:120])
+        col.addWidget(self.computer)
+        col.addWidget(QLabel('Tek kullanımlık 48 karakterli cihaz kodu'))
+        self.code=QLineEdit()
+        self.code.setPlaceholderText('Yöneticiden alınan tek kullanımlık kod')
+        col.addWidget(self.code)
+        self.message=QLabel('')
+        self.message.setWordWrap(True);col.addWidget(self.message)
+        row=QVBoxLayout()
+        self.confirm=QPushButton('Bu bilgisayarı eşleştir ve ALFA ERP\'yi aç')
+        self.confirm.clicked.connect(self.pair_now)
+        row.addWidget(self.confirm)
+        cancel=QPushButton('Vazgeç')
+        cancel.clicked.connect(self.reject)
+        row.addWidget(cancel);col.addLayout(row)
+
+    def pair_now(self):
+        code=self.code.text().strip().replace(' ','').upper()
+        if len(code)!=48 or any(c not in '0123456789ABCDEF' for c in code):
+            self.message.setText('Lütfen yöneticinin oluşturduğu 48 karakterli kodu girin.')
+            return
+        self.confirm.setEnabled(False)
+        try:
+            reply=api('pair',code=code,device_name=self.computer.text().strip()[:120])
+            save_token(reply['device_token'])
+            self.code.clear()
+            self.accept()
+        except Exception as exc:
+            self.message.setText('Cihaz eşleştirilemedi: '+str(exc)[:200])
+        finally:
+            self.confirm.setEnabled(True)
+
 class Pair(QWidget):
     def __init__(self):
         super().__init__();self.resize(480,260);self.setWindowTitle('ALFA ERP · Cihaz Eşleştirme')
