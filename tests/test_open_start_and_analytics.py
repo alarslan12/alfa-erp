@@ -54,50 +54,24 @@ class AnalyticsAccessTests(unittest.TestCase):
                 token='A'*64,pin='123456',timeout=16)
 
 
-@unittest.skipUnless(sys.platform=='win32','Native Qt start smoke on Windows runner')
+@unittest.skipUnless(sys.platform=='win32','Native startup checks on Windows')
 class FreshStartTests(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.app=QApplication.instance() or QApplication(['alfa-open-win-ci'])
+    def test_startup_has_no_blocking_login_or_pairing_dialog(self):
+        import inspect
+        import main
+        startup=inspect.getsource(main.start)
+        self.assertNotIn('prompt.exec()',startup)
+        self.assertNotIn('dialog.exec()',startup)
+        self.assertNotIn('enroll_staff(',startup)
+        self.assertIn('AlfaMain(admin_cloud=None)',startup)
 
-    def _open(self,owner):
+    def test_cloud_setup_is_user_initiated_after_window_exists(self):
+        import inspect
         from main import AlfaMain
-        temp=tempfile.TemporaryDirectory(prefix='alfa_clean_ci_')
-        os.environ['ALFA_ERP_DATA_DIR']=temp.name
-        with patch('main.OWNER_EDITION',owner), \
-             patch('main.Workstation',OfflineWorkstation), \
-             patch('yonetici_giris.AdminLogin') as login:
-            window=AlfaMain(admin_cloud=None)
-            login.assert_not_called()
-        return temp,window
-
-    def test_owner_opens_offline_without_supabase_login_dialog(self):
-        temp,window=self._open(True)
-        try:
-            self.assertEqual(window.stack.count(),5)
-            self.assertFalse(window._analytics_unlocked)
-            self.assertTrue(window.cloud_connect.isEnabled())
-            self.assertIn('bağlı değil',window.cloud_badge.text())
-            self.assertTrue(callable(window.db.owner_admin_request))
-        finally:
-            window.live.timer.stop()
-            window.live.sender.stop()
-            window.close()
-            temp.cleanup()
-
-    def test_staff_opens_offline_without_code_entry_popup(self):
-        temp,window=self._open(False)
-        try:
-            self.assertEqual(window.stack.count(),5)
-            self.assertFalse(window._analytics_unlocked)
-            self.assertTrue(window.cloud_connect.isEnabled())
-            self.assertIn('bağlı değil',window.cloud_badge.text())
-            self.assertFalse(callable(getattr(window.db,'owner_admin_request',None)))
-        finally:
-            window.live.timer.stop()
-            window.live.sender.stop()
-            window.close()
-            temp.cleanup()
+        setup=inspect.getsource(AlfaMain.connect_cloud)
+        self.assertIn('AdminLogin',setup)
+        self.assertIn('PairDialog',setup)
+        self.assertIn('self.live.activate()',setup)
 
 
 if __name__=='__main__':
