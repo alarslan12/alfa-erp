@@ -36,7 +36,7 @@ if($Edition -eq 'personel') {
  Run $Virtual @('-m','PyInstaller','--noconfirm','--clean','--onedir','--windowed',
   '--name','AlfaERP','--add-data','KİTAPS.xlsx;.','--add-data','katalog.json;.',
   '--add-data','assets;assets','--hidden-import=auto_eslestir',
-  '--hidden-import=ekran_ayarlar_calisan','personel_uygulama.py')
+  '--hidden-import=ekran_ayarlar_calisan','main.py')
  Run $Virtual @('-m','PyInstaller','--noconfirm','--clean','--onedir','--windowed',
   '--name','AlfaBildirim','bildirim_servisi.py')
  $iss='alfa_personel.iss'
