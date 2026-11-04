@@ -407,8 +407,16 @@ class ERPDatabase:
 
     def apply_cloud_snapshot(self,payload):
         from mobil_siparis_donusum import convert_mobile_order
-        if not isinstance(payload,dict) or not isinstance(payload.get('orders'),list) or not isinstance(payload.get('items'),list):
+        if not isinstance(payload,dict):
             raise ValueError('Bulut yanıtı geçersiz.')
+        # Revision-aware snapshots omit unchanged order rows entirely.
+        # Keep the existing local orders; only process books/inventory/accounting.
+        if 'orders' not in payload and 'items' not in payload:
+            if str(payload.get('epoch') or '') != str(self.cloud_epoch or ''):
+                raise ValueError('Bulut sıfırlaması tam sipariş verisi gerektiriyor.')
+            payload = {**payload, 'orders':[], 'items':[]}
+        if not isinstance(payload.get('orders'),list) or not isinstance(payload.get('items'),list):
+            raise ValueError('Bulut sipariş verisi geçersiz.')
         # Bulut çalışma alanı nesil kimliği değişince eski yerel test verilerini
         # yeniden içe aktarma veya güncelleme. Önce geri alınabilir yedekle.
         new_epoch=str(payload.get('epoch') or '')
