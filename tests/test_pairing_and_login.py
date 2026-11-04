@@ -51,6 +51,7 @@ class EnrollmentAndLoginTests(unittest.TestCase):
         form.email.setText('operator@example.invalid')
         form.password.setText('dummy-password-not-saved')
         with patch('yonetici_giris.AlfaCloud',return_value=cloud), \
+             patch('yonetici_giris.get_token',return_value='A'*64), \
              patch('yonetici_giris.admin_request') as edge:
             form.authenticate()
             self.assertFalse(form.button.isEnabled())
