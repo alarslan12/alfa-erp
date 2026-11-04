@@ -12,6 +12,7 @@ from ekran_kitap_havuzu import SiparisKitapHavuzu
 from tema import QSS
 from ekran_analitik import AnalitikView
 from ekran_envanter import EnvanterView
+from urun_katalogu import GeneralProductCatalog
 from ekran_ayarlar import SettingsPage
 from alfa_cihaz import Workstation
 from bulut_canli import Sync
@@ -141,6 +142,28 @@ class AlfaMain(QMainWindow):
         self.body.addWidget(self.stack,1)
         root.addWidget(content,1)
         self.catalog=KatalogView(self.db,self.covers)
+        self.general_catalog=GeneralProductCatalog(self.db)
+        self.catalog_host=QWidget()
+        self.catalog_host.setObjectName('CatalogHost')
+        catalog_root=QVBoxLayout(self.catalog_host)
+        catalog_root.setContentsMargins(0,0,0,0)
+        catalog_root.setSpacing(6)
+        catalog_choices=QHBoxLayout()
+        catalog_choices.setSpacing(7)
+        self.catalog_tabs=[]
+        for number,label in enumerate(('▦  Kitap Kataloğu','▤  Genel Ürünler')):
+            tab=button(label,'SettingsNav')
+            tab.setCheckable(True)
+            tab.clicked.connect(lambda checked=False,n=number:self.select_catalog(n))
+            self.catalog_tabs.append(tab)
+            catalog_choices.addWidget(tab)
+        catalog_choices.addStretch()
+        catalog_root.addLayout(catalog_choices)
+        self.catalog_view=QStackedWidget()
+        self.catalog_view.addWidget(self.catalog)
+        self.catalog_view.addWidget(self.general_catalog)
+        catalog_root.addWidget(self.catalog_view,1)
+        self.catalog_tabs[0].setChecked(True)
         self.title_line.insertWidget(1,self.catalog.toolbar,1)
         self.orders=SiparisView(self.db,self.covers,self.open_book_pool,admin_mode=OWNER_EDITION)
         self.analytics=AnalitikView(self.db,lambda sid:self.orders.open_editor(sid,'track'))
@@ -150,7 +173,7 @@ class AlfaMain(QMainWindow):
             self.settings_page=OwnerSettingsPage(self.db,self.config,self.admin_cloud)
         else:
             self.settings_page=SettingsPage(self.db,self.config)
-        for page in (self.catalog,self.orders,self.analytics,self.inventory,self.settings_page):self.stack.addWidget(page)
+        for page in (self.catalog_host,self.orders,self.analytics,self.inventory,self.settings_page):self.stack.addWidget(page)
         self.device=Workstation()
         if OWNER_EDITION and self.admin_cloud is not None:
             from yonetici_giris import AdminWorkstation, admin_request
@@ -240,9 +263,18 @@ class AlfaMain(QMainWindow):
         self.settings_btn.setChecked(index==4)
         self.orders_subbar.setVisible(index==1)
         self.title_widget.setVisible(index==0)
-        self.catalog.toolbar.setVisible(index==0)
+        self.catalog.toolbar.setVisible(index==0 and self.catalog_view.currentIndex()==0)
         for key,tab in self.subnav.items():
             tab.setChecked(index==1 and key==sub)
+
+    def select_catalog(self,index):
+        """Keep the printed-book ordering UI intact; offer a separate shared product master."""
+        self.catalog_view.setCurrentIndex(index)
+        for n,tab in enumerate(self.catalog_tabs):
+            tab.setChecked(n==index)
+        self.catalog.toolbar.setVisible(self.stack.currentIndex()==0 and index==0)
+        self.page_title.setText('Kitap kataloğu' if index==0 else 'Genel ürün kataloğu')
+        if index==1:self.general_catalog.refresh()
 
     def navigate(self,index):
         if index==2 and not self._analytics_unlocked:
@@ -271,6 +303,7 @@ class AlfaMain(QMainWindow):
             self.catalog.update_cart()
         if '__envanter__' in ids:
             self.inventory.refresh()
+            self.general_catalog.refresh()
         if any(x not in ('__katalog__','__muhasebe__','__envanter__') for x in ids):
             self.orders.refresh()
             if self.bookpool and self.bookpool.isVisible():self.bookpool.refresh()
