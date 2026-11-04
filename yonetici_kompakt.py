@@ -3,12 +3,14 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parent
 import tempfile,uuid
 from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QLabel,QLineEdit,
-    QPushButton,QFileDialog,QMessageBox,QTableWidget,QTableWidgetItem,QAbstractItemView)
+    QPushButton,QFileDialog,QMessageBox,QTableWidget,QTableWidgetItem,QAbstractItemView,
+    QFrame,QHeaderView)
 from PySide6.QtCore import Qt,QThread,Signal
 from ekran_ayarlar import SettingsPage
 from database import ERPDatabase
 from widgets import button
 from yonetici_giris import admin_request
+from yonetici_gunluk import AuditFeed
 
 class RequestJob(QThread):
     success=Signal(object)
@@ -22,6 +24,7 @@ class RequestJob(QThread):
 class OwnerSettingsPage(SettingsPage):
     def __init__(self,db,config,cloud):
         super().__init__(db,config)
+        self.setObjectName('OwnerSettings')
         self.cloud=cloud
         self.jobs=set()
         # The standard settings only had two tabs; keep those, add three owner tools.
@@ -48,7 +51,7 @@ class OwnerSettingsPage(SettingsPage):
         work.finished.connect(work.deleteLater);work.start()
 
     def catalog_page(self):
-        page=QWidget();col=QVBoxLayout(page)
+        page=QWidget();page.setObjectName('OwnerToolPage');col=QVBoxLayout(page)
         col.addWidget(QLabel('Excel katalog güncellemesi · tüm bilgisayarlar ve mobil katalog'))
         row=QHBoxLayout();pick=QPushButton('Excel seç');pick.clicked.connect(self.pick_catalog)
         row.addWidget(pick);self.upload_btn=QPushButton('Buluta güncelle')
@@ -83,22 +86,38 @@ class OwnerSettingsPage(SettingsPage):
              lambda err:(self.catalog_note.setText(err),self.upload_btn.setEnabled(True)))
 
     def devices_page(self):
-        page=QWidget();col=QVBoxLayout(page)
-        col.addWidget(QLabel('Personel bilgisayarları · tek kullanımlık eşleştirme'))
-        top=QHBoxLayout();new=QPushButton('Yeni cihaz kodu');new.clicked.connect(self.create_code)
+        page=QWidget();page.setObjectName('OwnerToolPage');col=QVBoxLayout(page)
+        heading=QLabel('BAĞLI BİLGİSAYARLAR');heading.setObjectName('OwnerHeading')
+        col.addWidget(heading)
+        sub=QLabel('Cihazları görüntüle, yeni personel bilgisayarı ekle veya erişimi iptal et.')
+        sub.setObjectName('OwnerMuted');sub.setWordWrap(True);col.addWidget(sub)
+        top=QHBoxLayout();new=QPushButton('Yeni cihaz kodu')
+        new.setObjectName('OwnerPrimary');new.clicked.connect(self.create_code)
         reload=QPushButton('Yenile');reload.clicked.connect(self.refresh_devices)
         package=QPushButton('Hazır Setup ile personel paketi hazırla')
         package.clicked.connect(self.export_staff_package)
         top.addWidget(new);top.addWidget(reload);top.addWidget(package);col.addLayout(top)
-        self.code_note=QLineEdit();self.code_note.setReadOnly(True)
+        self.code_note=QLineEdit();self.code_note.setObjectName('OwnerCode')
+        self.code_note.setReadOnly(True)
         self.code_note.setPlaceholderText('Yeni cihaz için tek kullanımlık kod')
         col.addWidget(self.code_note)
         self.device_table=QTableWidget(0,3)
+        self.device_table.setObjectName('OwnerDeviceTable')
         self.device_table.setHorizontalHeaderLabels(['Bilgisayar','Durum','Son bağlantı'])
         self.device_table.horizontalHeader().setStretchLastSection(True)
+        self.device_table.horizontalHeader().setMinimumSectionSize(100)
+        self.device_table.horizontalHeader().setSectionResizeMode(0,QHeaderView.ResizeMode.Stretch)
+        self.device_table.horizontalHeader().setSectionResizeMode(1,QHeaderView.ResizeMode.ResizeToContents)
+        self.device_table.setAlternatingRowColors(True)
+        self.device_table.setShowGrid(False)
+        self.device_table.verticalHeader().hide()
+        self.device_table.verticalHeader().setDefaultSectionSize(46)
+        self.device_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.device_table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.device_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         col.addWidget(self.device_table)
-        revoke=QPushButton('Seçili cihaz erişimini iptal et');revoke.clicked.connect(self.revoke)
+        revoke=QPushButton('Seçili cihaz erişimini iptal et')
+        revoke.setObjectName('OwnerDanger');revoke.clicked.connect(self.revoke)
         col.addWidget(revoke);return page
 
     def export_staff_package(self):
@@ -148,36 +167,96 @@ class OwnerSettingsPage(SettingsPage):
                   lambda _r:self.refresh_devices())
 
     def audit_page(self):
-        page=QWidget();col=QVBoxLayout(page)
-        head=QHBoxLayout();head.addWidget(QLabel('Bulut işlem günlüğü · tek kayıt kaynağı'))
-        refresh=QPushButton('Yenile');refresh.clicked.connect(self.refresh_audit)
-        head.addWidget(refresh);col.addLayout(head)
-        self.audit_table=QTableWidget(0,4)
-        self.audit_table.setHorizontalHeaderLabels(['Tarih','Bilgisayar/Kaynak','İşlem','Detay'])
-        self.audit_table.horizontalHeader().setStretchLastSection(True)
-        self.audit_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        col.addWidget(self.audit_table);return page
+        page=QWidget();page.setObjectName('OwnerToolPage')
+        layout=QVBoxLayout(page);layout.setContentsMargins(12,12,12,8)
+        actions=QHBoxLayout();actions.addStretch(1)
+        refresh=QPushButton('↻ İşlem günlüğünü yenile')
+        refresh.setObjectName('OwnerPrimary');refresh.clicked.connect(self.refresh_audit)
+        actions.addWidget(refresh);layout.addLayout(actions)
+        self.audit_feed=AuditFeed(page);layout.addWidget(self.audit_feed,1)
+        return page
 
     def refresh_audit(self):
-        def display(payload):
-            entries=[]
-            for x in payload.get('device_activity',[]):
-                entries.append((str(x.get('created_at','')),
-                  str(x.get('device_name','')),
-                  str(x.get('action','')),
-                  ', '.join(x.get('order_ids') or [])[:100]))
-            for x in payload.get('audit_events',[]):
-                entries.append((str(x.get('created_at','')),
-                  str(x.get('entity_name','')),
-                  str(x.get('action','')),
-                  ', '.join(x.get('changed_fields') or [])[:100]))
-            entries.sort(reverse=True);entries=entries[:400]
-            self.audit_table.setRowCount(len(entries))
-            for i,row in enumerate(entries):
-                for j,val in enumerate(row):self.audit_table.setItem(i,j,QTableWidgetItem(val))
-        self._job(lambda:admin_request(self.cloud,'admin_audit'),display)
+        self._job(lambda:admin_request(self.cloud,'admin_audit'),
+                  lambda payload:self.audit_feed.set_entries(payload,self.db.siparisler))
+
+    def _apply_owner_theme(self):
+        # Three palettes keep the same hierarchy and contrast in every theme.
+        palettes={
+            'koyu':dict(bg='#111f30',card='#1c3045',input='#17283a',
+              text='#edf5fd',muted='#b3c5d6',border='#455d77',
+              head='#253d54',hover='#29465f',selection='#36566f',
+              major='#f0c27b',minor='#84d9c2',button='#28485f',
+              action='#327e94',danger='#723d46'),
+            'acik':dict(bg='#f6f1e8',card='#fffaf3',input='#fbf7ef',
+              text='#24384f',muted='#526679',border='#cbbca7',
+              head='#ecdfce',hover='#f0e3d0',selection='#e5d3b6',
+              major='#96571e',minor='#166c62',button='#f0e4d2',
+              action='#e1b878',danger='#f0d5cf'),
+            'kontrast':dict(bg='#080f1b',card='#152840',input='#102037',
+              text='#ffffff',muted='#deedff',border='#91adcb',
+              head='#233f5b',hover='#2d5577',selection='#355a7a',
+              major='#ffe28e',minor='#80ffdc',button='#2a4b68',
+              action='#355f7b',danger='#87424b')
+        }
+        p=palettes.get(self.config.get('tema','koyu'),palettes['koyu'])
+        self.setStyleSheet("""
+        QWidget#OwnerToolPage, QWidget#OwnerAuditHost {
+            background:%(bg)s;color:%(text)s;
+        }
+        QWidget#OwnerToolPage QLabel {color:%(text)s;}
+        QLabel#OwnerHeading {color:%(text)s;font-size:16px;font-weight:900;padding:5px 0;}
+        QLabel#OwnerMuted {color:%(muted)s;font-size:11px;}
+        QLabel#OwnerAuditTitle {color:%(text)s;font-size:13px;font-weight:850;}
+        QLabel#OwnerBody {color:%(text)s;font-size:12px;}
+        QFrame#OwnerAuditCard {
+            background:%(card)s;border:1px solid %(border)s;
+            border-radius:12px;
+        }
+        QFrame#OwnerAuditCard:hover {border-color:%(major)s;background:%(hover)s;}
+        QLabel#OwnerAuditIcon {
+            background:%(head)s;border:1px solid %(border)s;
+            border-radius:11px;font-size:19px;font-weight:900;color:%(text)s;
+        }
+        QLabel#OwnerAuditIcon[level="major"] {color:%(major)s;}
+        QLabel#OwnerAuditIcon[level="minor"] {color:%(minor)s;}
+        QLabel#OwnerLevel {
+            color:%(text)s;background:%(head)s;
+            padding:4px 9px;border:1px solid %(border)s;
+            border-radius:8px;font-size:10px;font-weight:850;
+        }
+        QLabel#OwnerLevel[level="major"] {color:%(major)s;}
+        QLabel#OwnerLevel[level="minor"] {color:%(minor)s;}
+        QPushButton#OwnerFilter, QPushButton#OwnerPrimary, QPushButton#OwnerDanger {
+            background:%(button)s;color:%(text)s;border:1px solid %(border)s;
+            border-radius:9px;min-height:34px;padding:5px 13px;font-weight:700;
+        }
+        QPushButton#OwnerPrimary {background:%(action)s;}
+        QPushButton#OwnerDanger {background:%(danger)s;}
+        QPushButton#OwnerFilter:hover, QPushButton#OwnerPrimary:hover,
+        QPushButton#OwnerDanger:hover {border-color:%(major)s;background:%(hover)s;}
+        QPushButton#OwnerFilter:checked {border:2px solid %(major)s;background:%(selection)s;}
+        QTableWidget#OwnerDeviceTable {
+            background:%(card)s;color:%(text)s;
+            alternate-background-color:%(input)s;gridline-color:%(border)s;
+            border:1px solid %(border)s;border-radius:10px;
+            selection-background-color:%(selection)s;selection-color:%(text)s;
+        }
+        QTableWidget#OwnerDeviceTable QHeaderView::section {
+            background:%(head)s;color:%(text)s;
+            padding:11px;border:0;border-bottom:1px solid %(border)s;font-weight:800;
+        }
+        QLineEdit#OwnerCode {
+            background:%(input)s;color:%(text)s;
+            border:1px solid %(border)s;padding:10px;border-radius:8px;
+        }
+        QScrollArea#OwnerAuditScroll {
+            background:%(bg)s;border:0;
+        }
+        """ %% p)
 
     def show_tab(self,index):
         super().show_tab(index)
+        self._apply_owner_theme()
         if index==3:self.refresh_devices()
         if index==4:self.refresh_audit()
