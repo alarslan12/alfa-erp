@@ -45,21 +45,27 @@ while (Test-Path -LiteralPath $destination) {
   $destination=Join-Path $backups ('Onceki_Cihaz_Verisi_'+$stamp+'_'+$suffix)
   $suffix++
 }
-$tokenBytes=$null
-$originalToken=Join-Path $DataRoot 'alfa_cihaz.bin'
-if (-not $NoPairing -and (Test-Path -LiteralPath $originalToken)) {
-  $tokenBytes=[System.IO.File]::ReadAllBytes($originalToken)
+$tokenBytes=@{}
+if (-not $NoPairing) {
+  foreach ($tokenFile in @('alfa_cihaz.bin','alfa_owner_cihaz.bin')) {
+    $existing=Join-Path $DataRoot $tokenFile
+    if (Test-Path -LiteralPath $existing) {
+      $tokenBytes[$tokenFile]=[System.IO.File]::ReadAllBytes($existing)
+    }
+  }
 }
 if (Test-Path -LiteralPath $DataRoot) {
   Move-Item -LiteralPath $DataRoot -Destination $destination -ErrorAction Stop
   Write-Host ('Archived existing local state in: '+$destination)
 }
 New-Item -ItemType Directory -Force -Path $DataRoot | Out-Null
-if ($null -ne $tokenBytes) {
-  [System.IO.File]::WriteAllBytes((Join-Path $DataRoot 'alfa_cihaz.bin'),$tokenBytes)
-  Write-Host 'Windows pairing token copied to clean data folder.'
+if ($tokenBytes.Count -gt 0) {
+  foreach ($name in $tokenBytes.Keys) {
+    [System.IO.File]::WriteAllBytes((Join-Path $DataRoot $name),$tokenBytes[$name])
+  }
+  Write-Host 'Existing staff/owner device authorizations were preserved.'
 } else {
-  Write-Host 'No existing pairing token copied; staff device may need enrollment.'
+  Write-Host 'No device authorization copied; first-time cloud activation is available in app.'
 }
 Write-Host ('Clean local folder ready: '+$DataRoot)
 Write-Host 'Cloud data and backups were NOT deleted.'
