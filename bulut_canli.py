@@ -17,12 +17,13 @@ class Pull(QThread):
 
     def run(self):
         try:
-            pulse = self.client.pulse()
-            if self.force or self.last != pulse:
-                snapshot = self.client.snapshot()
-            else:
-                snapshot = None
-            self.done.emit({'pulse':pulse,'snapshot':snapshot})
+            # One round trip: validated pulse + only the changed sections.
+            payload = self.client.sync(known=None if self.force else self.last)
+            pulse = {key:payload[key] for key in
+                     ('epoch','orders_revision','catalog_revision','inventory_revision')}
+            has_data = any(key in payload for key in
+                           ('orders','items','books','inventory_products','accounting_days'))
+            self.done.emit({'pulse':pulse,'snapshot':payload if has_data else None})
         except Exception as exc:
             self.failed.emit(str(exc)[:280],int(getattr(exc,'status',0) or 0))
 
@@ -64,16 +65,26 @@ class Sync(QObject):
         self.isolate_batch=False
         self._last_status = None
         self.timer = QTimer(self)
-        self.timer.setInterval(2800)
+        self._recent_until = time.monotonic() + 16
+        self._active_poll_ms = 2100 + (id(self) % 350)
+        self._idle_poll_ms = 5500 + (id(self) % 950)
+        self.timer.setInterval(self._active_poll_ms)
         self.timer.timeout.connect(self.pull)
         self.sender = QTimer(self)
-        self.sender.setInterval(250)
+        self.sender.setInterval(350)
         self.sender.timeout.connect(self.push)
         if client.paired:
             db.cloud_api = client
             self.timer.start()
             self.sender.start()
             QTimer.singleShot(100, self.pull)
+
+    def _retune_poll(self):
+        # Frequent changes receive fast checks; an idle window is inexpensive.
+        interval = (self._active_poll_ms if self.db.pending_count or
+                    time.monotonic() < self._recent_until else self._idle_poll_ms)
+        if self.timer.interval() != interval:
+            self.timer.setInterval(interval)
 
     def _status(self, online, message):
         state=(online,message)
@@ -93,9 +104,12 @@ class Sync(QObject):
                 snapshot=payload.get('snapshot')
                 if snapshot is not None:
                     changes=self.db.apply_cloud_snapshot(snapshot)
-                    if changes:self.changed.emit(changes)
+                    if changes:
+                        self._recent_until = time.monotonic()+18
+                        self.changed.emit(changes)
                     self.force_pull=False
                 self.last_pulse=payload['pulse']
+                self._retune_poll()
                 pending=self.db.pending_count
                 self._status(True, f'Bulut bağlı · {pending} işlem sırada' if pending else 'Bulut bağlı')
             except Exception as exc:
@@ -103,6 +117,7 @@ class Sync(QObject):
 
         def fail(message,status=0):
             self.pull_task=None
+            self._retune_poll()
             self._status(False, 'Bağlantı bekleniyor: '+message)
         worker.done.connect(finish)
         worker.failed.connect(fail)
@@ -114,7 +129,7 @@ class Sync(QObject):
             return
         if not self.db.pending_count or time.monotonic()<self.retry_after:
             return
-        if time.monotonic()-self.db._pending_started<0.6:
+        if time.monotonic()-self.db._pending_started<0.85:
             return
         batch=self.db.next_outbox_batch(max_events=1 if self.isolate_batch else 30)
         if not batch:return
@@ -128,7 +143,11 @@ class Sync(QObject):
                 self.db.confirm_outbox(batch,results)
                 self.isolate_batch=False
                 self.retry_after=0
-                self.force_pull=True
+                # Server revision changes after each accepted business write.
+                # The next delta sync will fetch it without cold-reading books.
+                self.force_pull=False
+                self._recent_until = time.monotonic()+18
+                self._retune_poll()
                 self._status(True, f'Bulut bağlı · {self.db.pending_count} işlem sırada'
                     if self.db.pending_count else 'Bulut bağlı')
                 QTimer.singleShot(100,self.pull)
