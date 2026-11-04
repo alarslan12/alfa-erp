@@ -1,5 +1,5 @@
 #define MyAppName "ALFA ERP Personel"
-#define MyAppVersion "6.1.3"
+#define MyAppVersion "6.1.4"
 [Setup]
 AppId={{19DBD961-38BC-4D5A-A2FE-7E87D50986E0}
 AppName={#MyAppName}
@@ -7,7 +7,7 @@ AppVersion={#MyAppVersion}
 DefaultDirName={localappdata}\Programs\ALFA ERP Personel
 DefaultGroupName={#MyAppName}
 OutputDir=output
-OutputBaseFilename=ALFA_ERP_Personel_Setup_V6_1_3
+OutputBaseFilename=ALFA_ERP_Personel_Setup_V6_1_4
 Compression=lzma2
 SolidCompression=yes
 PrivilegesRequired=lowest
