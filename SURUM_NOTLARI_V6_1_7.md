@@ -32,3 +32,5 @@ Bu bakım sürümü, V6.1.6 temiz kurulumunun ardından görülen iki başlangı
 
 ## Sınırlama
 Bu sürümde kullanıcıların iki gerçek Windows bilgisayarı üzerinden uzun süreli eşzamanlı çalışması yeniden ölçülmedi. Bağlantı tanısı, zaman aşımı veya DNS hatası gösterirse yerel ağ/yönetilen güvenlik duvarı ayrıca incelenmelidir.
+
+Bu yayınlama komiti, Windows birim/GUI testleri geçerse yönetici ve personel Setup.exe dosyalarını otomatik üretir. [build-installers]
