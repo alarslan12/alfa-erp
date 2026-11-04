@@ -142,18 +142,26 @@ jobs:
             output/*Setup*.exe
             output/SHA256SUMS.txt
           if-no-files-found: error
-          retention-days: 14
-      - name: Publish installers as durable GitHub Release ONLY for version tag
-        if: startsWith(github.ref, 'refs/tags/v')
+          retention-days: 30
+      - name: Publish durable GitHub Release for marked release commits or version tags
+        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'push' && contains(github.event.head_commit.message, '[build-installers]'))
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $tag = '${{ github.ref_name }}'
-          $files = @(Get-ChildItem output -File | ForEach-Object { $_.FullName })
-          gh release view $tag *> $null
-          if ($LASTEXITCODE -eq 0) {
-            gh release upload $tag @files --clobber
-          } else {
-            gh release create $tag @files --generate-notes --verify-tag
+          $source = Get-Content main.py -Raw
+          if ($source -notmatch "VERSION='([^']+)'") { throw 'ERP version not found' }
+          $tag = 'v' + $Matches[1]
+          $target = '${{ github.sha }}'
+          if ('${{ github.ref_type }}' -eq 'tag' -and '${{ github.ref_name }}' -ne $tag) {
+            throw 'Release tag and app version mismatch'
           }
+          $files = @(Get-ChildItem output -File | ForEach-Object { $_.FullName })
+          if ($files.Count -lt 3) { throw 'Missing setup or checksum for release' }
+          $existing = & gh release view $tag --repo '${{ github.repository }}' --json tagName 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag @files --repo '${{ github.repository }}' --clobber
+          } else {
+            gh release create $tag @files --repo '${{ github.repository }}' --target $target --generate-notes --title "ALFA ERP $tag"
+          }
+          if ($LASTEXITCODE -ne 0) { throw "GitHub Release failed: $tag" }
