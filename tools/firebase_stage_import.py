@@ -50,7 +50,9 @@ def run(source, project_id, apply):
     except ImportError as exc:
         raise SystemExit("Install firebase/requirements-migration.txt") from exc
     client = firestore.Client(project=project_id)
-    migration_id = "alfa_erp_" + wsid.replace("-", "")
+    # Stable per snapshot, but different exports cannot overwrite one another.
+    snapshot_fingerprint = hashlib.sha256((source / "manifest.json").read_bytes()).hexdigest()[:12]
+    migration_id = "alfa_erp_" + wsid.replace("-", "") + "_" + snapshot_fingerprint
     root = client.collection("migration_staging").document(migration_id)
     if root.get().exists:
         raise RuntimeError("Staging ID already exists. Refusing to overwrite or resume silently.")
@@ -72,7 +74,8 @@ def run(source, project_id, apply):
     if pending:
         batch.commit()
     # This marks upload complete, NOT production-ready.
-    root.update({"state": "staged", "staged_row_count": count})
+    root.update({"state": "staged", "staged_row_count": count,
+                 "manifest_sha256": hashlib.sha256((source / "manifest.json").read_bytes()).hexdigest()})
     print(f"Staged {count} documents in Firebase project {project_id}.")
     print("No live collections or Supabase data were changed.")
 

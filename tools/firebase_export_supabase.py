@@ -4,7 +4,8 @@ NEVER commit exported data. This is a database migration utility, not part
 of the Windows app. Requires a READ-ONLY Postgres connection in the environment.
 """
 import argparse
-from datetime import date, datetime
+from datetime import date, datetime, timezone
+from uuid import UUID
 from decimal import Decimal
 import hashlib
 import json
@@ -31,6 +32,8 @@ RESTRICTED = {"erp_device_keys", "erp_pairing_codes", "workspace_members",
 
 
 def encode(value):
+    if isinstance(value, UUID):
+        return str(value)
     if isinstance(value, Decimal):
         return str(value)  # Preserve exact monetary values.
     if isinstance(value, (datetime, date)):
@@ -56,6 +59,7 @@ def run(dsn, output, slug):
     except OSError:
         pass
     manifest = {"format": 1, "source": "Supabase public schema",
+                "exported_at": datetime.now(timezone.utc).isoformat(),
                 "workspace_slug": slug, "tables": {}, "restricted_excluded": sorted(RESTRICTED)}
     # Never connect with a service_role or write-capable database user.
     with psycopg.connect(dsn, row_factory=dict_row, connect_timeout=15) as conn:
