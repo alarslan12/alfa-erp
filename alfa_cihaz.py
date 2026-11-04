@@ -1,11 +1,16 @@
 """Windows paired-device client; private device token DPAPI protected."""
-import os,json,ctypes,urllib.request,urllib.error,socket,ssl
+import os,json,ctypes,urllib.request,urllib.error,socket,ssl,sys
 from ctypes import wintypes
 from pathlib import Path
 from alfa_bulut import PROJECT_URL,PUBLISHABLE_KEY
 DATA=Path(os.environ.get('ALFA_ERP_DATA_DIR') or Path(os.environ.get('LOCALAPPDATA') or Path.home()/'.local'/'share')/'AlfaERP')
 ENDPOINT=PROJECT_URL.rstrip('/')+'/functions/v1/alfa-erp-device'
-SECRET=DATA/'alfa_cihaz.bin'
+# Owner and staff installations on the same Windows account must not
+# silently share a privileged owner credential. Never store it inside Setup.
+APP_ROOT=(Path(sys.executable).resolve().parent if getattr(sys,'frozen',False)
+          else Path(__file__).resolve().parent)
+OWNER_APP=(APP_ROOT/'YONETICI_SURUMU.flag').is_file()
+SECRET=DATA/('alfa_owner_cihaz.bin' if OWNER_APP else 'alfa_cihaz.bin')
 class DeviceError(RuntimeError):
     def __init__(self,message,status=None):
         super().__init__(message)
