@@ -140,6 +140,19 @@ class ERPDatabase:
     def pending_count(self):
         return len(self._pending)+len(self._progress_events)+len(self._status_events)
 
+    @staticmethod
+    def _order_content_signature(order):
+        """Only business fields and book quantities; status/counters are separate RPCs."""
+        items=tuple(sorted((str(x.get('kod') or ''),
+                           str(x.get('tur','SB')).upper(),
+                           int(x.get('adet') or 0))
+                          for x in order.get('kitaplar',[]) if isinstance(x,dict)))
+        return (str(order.get('platform') or ''),
+                str(order.get('kod') or ''),
+                str(order.get('siparis_turu') or ''),
+                round(float(order.get('ciro') or 0),2),
+                str(order.get('tarih') or ''), items)
+
     def _queue_changes(self,before):
         """No HTTP here: record current local state and a durable outbox only."""
         old={str(x['id']):x for x in before}
@@ -160,59 +173,62 @@ class ERPDatabase:
             if prior and self._business(prior)==self._business(row):continue
             if prior and not prior.get('bulut_id') and sid not in self._pending:
                 raise ValueError('Eski yerel siparişler önce yönetici aracından buluta aktarılmalı.')
-            # A status transition must reach Supabase before its dependent progress
-            # events. Never re-upload and rewrite every book line for a status change.
-            if (prior and row.get('bulut_id') and sid not in self._pending and
-                self._without_status(prior)==self._without_status(row) and
-                self.siparis_durumu(prior)!=self.siparis_durumu(row)):
-                before_status=self.siparis_durumu(prior)
-                after_status=self.siparis_durumu(row)
-                def enqueue_status(a,b):
-                    self._next_revision+=1
-                    self._status_events.append({'kind':'status',
-                        'sequence':self._next_revision,'op_id':str(uuid.uuid4()),
-                        'local_id':sid,'order_id':row['bulut_id'],
-                        'from_status':a,'to_status':b,
-                        'shipping_fee':row.get('kargo_ucreti') if b=='tamamlandi' else None})
-                if after_status=='aktif':enqueue_status(before_status,after_status)
-                # If a save changes counts and status together, preserve both.
-                earlier={(str(i.get('kod')),str(i.get('tur','SB')).upper()):i
-                         for i in prior.get('kitaplar',[])}
-                for item in row.get('kitaplar',[]):
-                    key=(str(item.get('kod')),str(item.get('tur','SB')).upper())
-                    previous=earlier.get(key)
-                    if previous is None:continue
-                    dr=int(item.get('hazir',0))-int(previous.get('hazir',0))
-                    dk=int(item.get('koli',0))-int(previous.get('koli',0))
-                    if dr or dk:
+            # Semantic change detection: cloud-origin orders can contain
+            # immutable snapshots and metadata that differ from local models.
+            # A button click changing only status/counts must NEVER become a
+            # heavy full-order edit (stale version => 409 / apparent rollback).
+            if prior and row.get('bulut_id') and sid not in self._pending:
+                same_content=self._order_content_signature(prior)==self._order_content_signature(row)
+                previous_status=self.siparis_durumu(prior)
+                next_status=self.siparis_durumu(row)
+                status_changed=previous_status!=next_status
+                fee_changed=(prior.get('kargo_ucreti')!=row.get('kargo_ucreti') or
+                             prior.get('kargo_turu')!=row.get('kargo_turu'))
+                if same_content and (not fee_changed or
+                                     (status_changed and next_status=='tamamlandi')):
+                    previous_items={(str(i.get('kod')),str(i.get('tur','SB')).upper()):i
+                                    for i in prior.get('kitaplar',[])}
+                    updates=[]
+                    for item in row.get('kitaplar',[]):
+                        key=(str(item.get('kod')),str(item.get('tur','SB')).upper())
+                        old_item=previous_items.get(key)
+                        if old_item is None:continue
+                        old_ready=int(old_item.get('hazir') or 0)
+                        old_boxed=int(old_item.get('koli') or 0)
+                        target_ready=int(item.get('hazir') or 0)
+                        target_boxed=int(item.get('koli') or 0)
+                        dr=target_ready-old_ready
+                        dk=target_boxed-old_boxed
+                        if dr or dk:
+                            self._next_revision+=1
+                            updates.append({'kind':'progress',
+                                'sequence':self._next_revision,'op_id':str(uuid.uuid4()),
+                                'local_id':sid,'order_id':row['bulut_id'],
+                                'book_code':key[0],'print_type':key[1],
+                                'delta_ready':dr,'delta_boxed':dk,
+                                'base_ready':old_ready,'base_boxed':old_boxed,
+                                'target_ready':target_ready,'target_boxed':target_boxed})
+                    def enqueue_status(a,b):
                         self._next_revision+=1
-                        self._progress_events.append({'kind':'progress',
+                        self._status_events.append({'kind':'status',
                             'sequence':self._next_revision,'op_id':str(uuid.uuid4()),
                             'local_id':sid,'order_id':row['bulut_id'],
-                            'book_code':key[0],'print_type':key[1],
-                            'delta_ready':dr,'delta_boxed':dk})
-                if after_status!='aktif':enqueue_status(before_status,after_status)
-                continue
-            # Fast path: only counters changed. Accumulate additive events; concurrent
-            # workstations are reconciled by server-side row locks, not stale copies.
-            if (prior and row.get('bulut_id') and sid not in self._pending and
-                self.siparis_durumu(row)=='aktif' and
-                self._without_counts(prior)==self._without_counts(row)):
-                older={(str(i.get('kod')),str(i.get('tur','SB')).upper()):i
-                       for i in prior.get('kitaplar',[])}
-                for item in row.get('kitaplar',[]):
-                    key=(str(item.get('kod')),str(item.get('tur','SB')).upper())
-                    previous=older.get(key)
-                    if previous is None:continue
-                    dr=int(item.get('hazir',0))-int(previous.get('hazir',0))
-                    dk=int(item.get('koli',0))-int(previous.get('koli',0))
-                    if dr or dk:
-                        self._next_revision+=1
-                        self._progress_events.append({'sequence':self._next_revision,
-                        'kind':'progress','op_id':str(uuid.uuid4()),'local_id':sid,
-                        'order_id':row['bulut_id'],'book_code':key[0],
-                        'print_type':key[1],'delta_ready':dr,'delta_boxed':dk})
-                continue
+                            'from_status':a,'to_status':b,
+                            'shipping_fee':row.get('kargo_ucreti') if b=='tamamlandi' else None})
+                    if status_changed and next_status=='aktif':
+                        enqueue_status(previous_status,next_status)
+                        # Status must come before queued progress events.
+                        for event in updates:
+                            self._next_revision+=1
+                            event['sequence']=self._next_revision
+                    self._progress_events.extend(updates)
+                    if status_changed and next_status!='aktif':
+                        enqueue_status(previous_status,next_status)
+                    if status_changed or updates:
+                        continue
+                    if not fee_changed:
+                        # Other local-only metadata is not a business edit.
+                        continue
             request_id=row.get('bulut_istem_id') or str(uuid.uuid4())
             row['bulut_istem_id']=request_id
             self._next_revision+=1
