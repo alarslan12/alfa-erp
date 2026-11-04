@@ -74,6 +74,43 @@ class WindowsGuiTests(unittest.TestCase):
                 window.close()
                 app.processEvents()
 
+    def test_general_product_catalog_and_stock_screen_are_separate(self):
+        os.environ['QT_QPA_PLATFORM']='offscreen'
+        with tempfile.TemporaryDirectory(prefix='alfa_master_ci_') as temporary:
+            os.environ['ALFA_ERP_DATA_DIR']=temporary
+            from PySide6.QtWidgets import QApplication
+            from main import AlfaMain
+            app=QApplication.instance() or QApplication(['alfa-master-ci'])
+            with patch('main.OWNER_EDITION',True), patch('main.Workstation',OfflineWorkstation):
+                window=AlfaMain(admin_cloud=None)
+            try:
+                self.assertEqual(window.stack.count(),5)
+                self.assertEqual(window.catalog_view.count(),2)
+                window.db.owner_admin_request=lambda *_args,**_kwargs:{'id':'demo'}
+                window.db.inventory_products=[
+                    {'id':'catalog-only','sku':'A-001','title':'Ürün kataloğu kaydı',
+                     'category':'Genel','active':True,'in_inventory':False,
+                     'quantity':0,'sale_price':120,'cost_price':70,'tags':[]},
+                    {'id':'in-stock','sku':'B-002','title':'Stoklu ürün',
+                     'category':'Genel','active':True,'in_inventory':True,
+                     'quantity':4,'sale_price':145,'cost_price':85,'tags':[]}]
+                window.general_catalog.refresh()
+                window.inventory.refresh()
+                self.assertEqual(window.general_catalog.table.rowCount(),2)
+                self.assertEqual(window.inventory.scope.itemText(0),'Tüm envanter')
+                self.assertEqual(window.inventory.add_button.text(),
+                                 '＋  Katalogdan envantere ekle')
+                self.assertIn('1 ürün',window.inventory.summary.text())
+                window.select_catalog(1)
+                self.assertEqual(window.catalog_view.currentIndex(),1)
+                self.assertTrue(window.catalog.toolbar.isHidden())
+                window.select_catalog(0)
+                self.assertEqual(window.catalog_view.currentIndex(),0)
+                app.processEvents()
+            finally:
+                window.close()
+                app.processEvents()
+
     def test_staff_edition_hides_admin_tools(self):
         os.environ['QT_QPA_PLATFORM']='offscreen'
         with tempfile.TemporaryDirectory(prefix='alfa_staff_ci_') as temporary:
