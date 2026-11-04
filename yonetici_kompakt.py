@@ -253,7 +253,7 @@ class OwnerSettingsPage(SettingsPage):
         QScrollArea#OwnerAuditScroll {
             background:%(bg)s;border:0;
         }
-        """ %% p)
+        """ % p)
 
     def show_tab(self,index):
         super().show_tab(index)
