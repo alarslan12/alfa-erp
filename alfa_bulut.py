@@ -153,6 +153,26 @@ class AlfaCloud:
         return self._http('POST', '/rest/v1/books', data, authenticated=True,
                           extra_headers={'Prefer':'return=minimal'})
 
+    def verify_owner_access(self):
+        """Verify owner via Supabase Auth + PostgREST RLS, not Edge Functions.
+
+        Two small user-scoped SELECTs; never fetch catalogue or all orders
+        just to open the login window. A revoked/non-admin member fails closed.
+        """
+        from urllib.parse import quote
+        workspaces=self.get('workspaces',
+                           'select=id&slug=eq.'+quote(WORKSPACE_SLUG,safe='')+'&limit=1')
+        if not workspaces:
+            raise CloudError('Bu hesap için ALFA ERP çalışma alanı bulunamadı.')
+        workspace_id=str(workspaces[0].get('id') or '')
+        memberships=self.get('workspace_members',
+                             'select=role,active&workspace_id=eq.'+
+                             quote(workspace_id,safe='')+'&limit=1')
+        if not any(m.get('role')=='admin' and m.get('active') is True
+                   for m in memberships):
+            raise CloudError('Bu hesap ALFA ERP yöneticisi değil veya yetkisi kapalı.')
+        return {'access':True,'role':'admin','workspace_id':workspace_id}
+
     def read_status(self):
         rows = self.get('workspaces', 'select=id,name,slug&slug=eq.' + WORKSPACE_SLUG)
         if not rows:
