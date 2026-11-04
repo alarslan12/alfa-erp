@@ -33,17 +33,19 @@ class WindowsGuiTests(unittest.TestCase):
                     window.navigate(index)
                     app.processEvents()
                     self.assertEqual(window.stack.currentIndex(),index)
-                with patch('analytics_access.AnalyticsGate') as modal:
-                    modal.return_value.exec.return_value=0
+                from PySide6.QtWidgets import QDialog
+                with patch('analytics_access.AnalyticsGate.exec',
+                           return_value=QDialog.DialogCode.Rejected) as prompt:
                     window.navigate(2)
                     self.assertNotEqual(window.stack.currentIndex(),2)
-                    modal.assert_called_once()
-                with patch('analytics_access.AnalyticsGate') as modal:
-                    modal.return_value.exec.return_value=1
+                    prompt.assert_called_once()
+                with patch('analytics_access.AnalyticsGate.exec',
+                           return_value=QDialog.DialogCode.Accepted) as prompt:
                     window.navigate(2)
                     app.processEvents()
                     self.assertEqual(window.stack.currentIndex(),2)
                     self.assertTrue(window._analytics_unlocked)
+                    prompt.assert_called_once()
             finally:
                 window.close()
                 app.processEvents()
