@@ -188,6 +188,14 @@ class AlfaMain(QMainWindow):
             self.db.audit=NoStaffAudit()
         self.db.cloud_required=True
         self.live=Sync(self.device,self.db,parent=self)
+        if OWNER_EDITION and self.admin_cloud is not None and not self.device.paired:
+            self.cloud_badge.setText('◌ Yönetici cihazı beklemede')
+            detail=str(getattr(self.admin_cloud,'owner_pairing_problem','') or
+                       'Bu Windows bilgisayarının henüz bulut cihaz anahtarı yok.')
+            self.cloud_badge.setToolTip(
+                'Yönetici hesabı doğrulandı ancak cihazın bulut eşleştirmesi '
+                'tamamlanmadı. Sipariş değişiklikleri henüz gönderilemez.\n'
+                +detail[:220]+'\nBağlantı düzeldiğinde uygulamayı tekrar açın.')
         self.live.changed.connect(self._cloud_orders_changed)
         self.live.status.connect(self._cloud_status)
         self.catalog.order_created.connect(self.order_created)
