@@ -100,8 +100,26 @@ jobs:
             $report = Join-Path $env:RUNNER_TEMP "alfa_smoke_$($item[1]).json"
             if (-not (Test-Path $exe)) { throw "Missing $exe" }
             $env:ALFA_SMOKE_RESULT_PATH = $report
-            $proc = Start-Process -FilePath $exe -ArgumentList '--self-test' -Wait -PassThru
-            if ($proc.ExitCode -ne 0) { throw "$exe failed smoke: $($proc.ExitCode)" }
+            Write-Host "Starting $($item[1]) packaged EXE self-test..."
+            $proc = Start-Process -FilePath $exe -ArgumentList '--self-test' -PassThru
+            try {
+              # Start-Process -Wait can wait on descendants indefinitely.
+              # Wait for the actual EXE only and fail clearly if it cannot exit.
+              $completed = $proc.WaitForExit(90000)
+              if (-not $completed) {
+                $details = if (Test-Path $report) { Get-Content $report -Raw } else { 'No smoke report generated' }
+                throw "${exe}: packaged EXE self-test timed out at 90s. Report: $details"
+              }
+              if ($proc.ExitCode -ne 0) {
+                $details = if (Test-Path $report) { Get-Content $report -Raw } else { 'No smoke report generated' }
+                throw "$exe failed smoke ($($proc.ExitCode)): $details"
+              }
+            } finally {
+              if (-not $proc.HasExited) {
+                Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+              }
+              $env:ALFA_SMOKE_RESULT_PATH = ''
+            }
             if (-not (Test-Path $report)) { throw "Smoke result missing: $report" }
             $json = Get-Content $report -Raw | ConvertFrom-Json
             if (-not $json.ok -or $json.pages -ne 5 -or $json.books -lt 1) {
