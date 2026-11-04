@@ -3,7 +3,10 @@ import json,os,socket,sys
 from pathlib import Path
 from alfa_cihaz import api,save_token,get_token
 from cihaz_eslestir import enable_startup
-ROOT=(Path(sys.executable).resolve().parent if getattr(sys,'frozen',False) else Path(__file__).resolve().parent)
+# Private enrollment JSON is installed beside Setup.exe's application EXE,
+# NOT in the PyInstaller _internal resource folder.
+ROOT=(Path(sys.executable).resolve().parent if getattr(sys,'frozen',False)
+      else Path(__file__).resolve().parent)
 
 def main(install_startup=True):
     info=ROOT/'kurulum_bilgisi.json'
