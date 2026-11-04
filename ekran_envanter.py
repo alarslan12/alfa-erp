@@ -70,8 +70,9 @@ class InventoryJob(QThread):
 
 
 class ProductDialog(QDialog):
-    def __init__(self,product=None,parent=None):
+    def __init__(self,product=None,parent=None,catalog_only=False):
         super().__init__(parent)
+        self.catalog_only=catalog_only
         self.product=dict(product or {})
         self.image_bytes=None
         self.setWindowTitle('Ürün düzenle' if product else 'Yeni ürün oluştur')
@@ -100,9 +101,15 @@ class ProductDialog(QDialog):
         picture=QHBoxLayout();picture.addWidget(self.preview)
         choose=QPushButton('Görsel seç (JPG/PNG/WebP)');choose.clicked.connect(self.pick_image)
         picture.addWidget(choose);picture.addStretch()
-        for title,widget in [('Ürün kodu *',self.sku),('Ürün adı *',self.title),('Kategori',self.category),
-            ('Etiketler',self.tags),('Açıklama',self.description),('Özellikler (satır başına ad: değer)',self.attributes),
-            ('Envanterdeki adet',self.quantity),('Satış fiyatı',self.price),('Birim maliyet',self.cost)]:
+        fields=[('Ürün kodu *',self.sku),('Ürün adı *',self.title),('Kategori',self.category),
+            ('Etiketler',self.tags),('Açıklama',self.description),
+            ('Özellikler (satır başına ad: değer)',self.attributes)]
+        if not self.catalog_only:
+            fields.append(('Envanterdeki adet',self.quantity))
+        fields.append(('Satış fiyatı',self.price))
+        if not self.catalog_only:
+            fields.append(('Birim maliyet',self.cost))
+        for title,widget in fields:
             form.addRow(title,widget)
         form.addRow('Ürün görseli',picture)
         area.setWidget(host);root.addWidget(area,1)
@@ -145,7 +152,8 @@ class ProductDialog(QDialog):
             'tags':[x.strip() for x in self.tags.text().split(',') if x.strip()][:15],
             'description':self.description.toPlainText().strip(), 'attributes':attrs,
             'quantity':self.quantity.value(),'sale_price':self.price.value(),
-            'cost_price':self.cost.value(),'image_url':self.product.get('image_url','')}
+            'cost_price':self.cost.value(),'image_url':self.product.get('image_url',''),
+            'in_inventory':bool(self.product.get('in_inventory',not self.catalog_only))}
 
 
 class ProductCard(QFrame):
