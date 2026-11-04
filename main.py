@@ -398,6 +398,10 @@ def release_smoke_test():
             window=AlfaMain(admin_cloud=None)
             if window.stack.count()!=5 or not window.db.katalog:
                 raise RuntimeError('Missing expected ERP page or book catalog')
+            # Headless test cannot answer the staff Analytics password dialog.
+            # Bypass the dialog only in this offline self-test invocation.
+            # Normal staff startup still requires the Analytics password.
+            window._analytics_unlocked = True
             for index in range(5):
                 window.navigate(index)
                 app.processEvents()
