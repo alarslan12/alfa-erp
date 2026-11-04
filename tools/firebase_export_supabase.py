@@ -64,7 +64,7 @@ def run(dsn, output, slug):
     # Never connect with a service_role or write-capable database user.
     with psycopg.connect(dsn, row_factory=dict_row, connect_timeout=15) as conn:
         with conn.cursor() as cur:
-            cur.execute("SET TRANSACTION READ ONLY")
+            cur.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
             cur.execute("SELECT id FROM public.workspaces WHERE slug=%s", (slug,))
             ws = cur.fetchall()
             if len(ws) != 1:

@@ -43,8 +43,8 @@ def run(source, project_id, apply):
     if not apply:
         print("DRY RUN — no Firebase connection, no writes.")
         return
-    if not project_id or not re.fullmatch(r"[a-z][a-z0-9-]{4,28}[a-z0-9]", project_id):
-        raise ValueError("--project-id must be explicit and valid")
+    if project_id != "alfa-erp-8700c":
+        raise ValueError("Refusing to write to an unexpected Firebase project ID")
     try:
         from google.cloud import firestore
     except ImportError as exc:
