@@ -1,0 +1,140 @@
+<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#121e2c"><meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer"><meta name="description" content="ALFA ERP mobil katalog ve sipariş oluşturma paneli"><title>ALFA ERP · Mobil</title><link rel="manifest" href="manifest.webmanifest"><style>
+:root{color-scheme:dark;--bg:#101b29;--panel:#18283a;--card:#1d3145;--line:#324a60;--fg:#eff5fd;--muted:#acbed0;--accent:#dfae6d;--accent-fg:#132235;--ok:#77d0bb;--input:#142338;--danger:#ff9a9a}
+:root.light{color-scheme:light;--bg:#f6f1e8;--panel:#fffaf2;--card:#f2e7d7;--line:#cdbda6;--fg:#263c51;--muted:#6b7c8e;--accent:#d29a56;--accent-fg:#fff;--ok:#387a6a;--input:#fffdf7;--danger:#b54b49}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px system-ui,-apple-system,"Segoe UI",sans-serif}button,input,select{font:inherit}button{cursor:pointer;min-height:44px;transition:background .16s,transform .16s,border-color .16s}button:hover:not(:disabled){transform:translateY(-1px);filter:brightness(1.08)}button:disabled{opacity:.5;cursor:not-allowed}a{color:var(--ok)}header{position:sticky;top:0;z-index:4;background:var(--panel);border-bottom:1px solid var(--line);padding:12px max(16px,calc((100vw - 1140px)/2));display:flex;justify-content:space-between;align-items:center;gap:16px}h1,h2,h3,p{margin-top:0}h1{font-size:20px;margin-bottom:0;letter-spacing:.4px}header small{font-size:11px;display:block;color:var(--muted)}h2{font-size:20px}.container{max-width:1140px;padding:22px 16px 60px;margin:auto}.panel{border:1px solid var(--line);border-radius:15px;background:var(--panel);padding:20px}.auth{max-width:460px;margin:50px auto}.field{display:flex;flex-direction:column;gap:5px;margin:12px 0}.field label{color:var(--muted);font-size:13px}input,select{width:100%;border:1px solid var(--line);border-radius:9px;background:var(--input);color:var(--fg);padding:12px;outline:none}input:focus,select:focus{border-color:var(--accent)}.primary,.secondary,.quiet,.remove{border-radius:10px;padding:9px 14px;border:1px solid var(--line);background:var(--card);color:var(--fg);font-weight:650}.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}.remove{color:var(--danger)}.actions{display:flex;flex-wrap:wrap;gap:9px}.muted{color:var(--muted)}.mini{font-size:12px}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:12px}.book{border:1px solid var(--line);border-radius:13px;background:var(--panel);padding:15px;display:flex;flex-direction:column;gap:10px;min-height:200px}.book strong{font-size:15px;line-height:1.35;flex:1}.book .code{font-size:12px;color:var(--muted)}.book .actions{display:flex;gap:6px}.book .actions button{flex:1;font-size:13px}.main-grid{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:18px;align-items:start}.cart{position:sticky;top:86px}.cart-row{display:flex;align-items:center;gap:7px;border-bottom:1px solid var(--line);padding:10px 0}.cart-row .description{flex:1;font-size:12px;min-width:0}.cart-row button{min-width:30px;min-height:34px;padding:3px}.hide{display:none!important}.banner{margin:10px 0;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--muted);white-space:pre-wrap}.search-bar{display:flex;gap:10px;margin:15px 0}.search-bar input{flex:1}.mobile-tools{display:flex;align-items:center;gap:8px}.total{font-size:20px;font-weight:800;text-align:right;margin:10px 0}.tag{color:var(--ok);font-size:12px;font-weight:700}#cart-items:empty:after{content:'Sepet henüz boş';display:block;color:var(--muted);padding:20px 0}.section-title{margin:14px 0}.foot{font-size:12px;color:var(--muted);margin:24px 0 0}.busy{opacity:.7;pointer-events:none}
+@media(max-width:830px){.main-grid{grid-template-columns:1fr}.cart{position:static;order:-1}.book{min-height:180px}.search-bar{flex-wrap:wrap}}@media(max-width:540px){header{padding:10px 12px}header h1{font-size:17px}.container{padding:12px 12px 40px}.panel{padding:14px}.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.book{padding:11px;min-height:175px}.book strong{font-size:13px}.book .actions{flex-wrap:wrap}.book .actions button{font-size:12px;padding:7px 5px;min-height:40px}.search-bar{display:block}.search-bar select{margin-top:8px}.cart-row{gap:5px}}
+
+.quick-filters{display:flex;flex-wrap:wrap;gap:7px;margin:-4px 0 13px}.filter-chip{border:1px solid var(--line);background:var(--card);border-radius:50px;padding:7px 12px;color:var(--fg);font-weight:700;min-height:36px;font-size:12px}.filter-chip.is-active,.filter-chip:hover{border-color:var(--accent);background:var(--accent);color:var(--accent-fg)}.bulk-panel{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:12px 14px;margin:0 0 17px}.bulk-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}.bulk-head small{font-size:12px}.bulk-actions{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px}.bulk-btn{min-height:42px;padding:7px 4px;font-size:12px}.bulk-help{margin:10px 0 0;font-size:11px;line-height:1.5}.field small{line-height:1.45}
+@media(max-width:700px){.bulk-actions{grid-template-columns:repeat(3,minmax(0,1fr))}.bulk-actions button:last-child{grid-column:span 2}}@media(max-width:420px){.bulk-head{display:block}.bulk-head small{display:block;margin-top:4px}.bulk-actions{grid-template-columns:repeat(2,minmax(0,1fr))}.bulk-actions button:last-child{grid-column:span 2}.quick-filters{gap:5px}.filter-chip{padding:6px 10px;font-size:11px}}
+
+@media (max-width:480px){.grid{grid-template-columns:minmax(0,1fr)}.book strong{font-size:16px}.book{min-height:165px}}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*,*:before,*:after{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
+</style></head><body>
+<header><div><h1>ALFA <span style="color:var(--accent)">ERP</span></h1><small>Mobil sipariş kataloğu · V5.8</small></div><div class="mobile-tools"><button class="quiet" id="theme" title="Tema değiştir">◐</button><button class="quiet hide" id="logout">Çıkış</button></div></header>
+<div class="container"><div id="message" role="status" aria-live="polite" class="banner hide"></div>
+<section id="login-screen" class="panel auth hide"><h2>Buluta giriş</h2><p class="muted">Yalnızca ALFA ERP çalışma alanına yetkili kullanıcılar sipariş oluşturabilir.</p><form id="login-form"><div class="field"><label>E-posta</label><input id="email" type="email" autocomplete="username" required></div><div class="field"><label>Parola</label><input id="password" type="password" autocomplete="current-password" minlength="8" required></div><div class="actions"><button class="primary" type="submit">Giriş Yap</button></div></form><p class="foot">Doğrulanmış ALFA ERP kullanıcı hesabınla giriş yap. Şifreler bu sayfada saklanmaz.</p></section>
+<section id="main-screen"><div class="main-grid"><section><h2 class="section-title">Kitap kataloğu <span class="mini muted" id="book-count"></span></h2><div class="search-bar"><input id="filter" type="search" placeholder="Kod, kitap, seri veya alt grup ara (ÇTS Klinik)..."><select id="group"><option value="">Tüm kategoriler</option></select></div><div class="quick-filters" id="quick-filters" aria-label="Hızlı grup filtreleri"><button type="button" class="filter-chip" data-query="çts klinik">ÇTS Klinik</button><button type="button" class="filter-chip" data-query="çts temel">ÇTS Temel</button><button type="button" class="filter-chip" data-query="tts klinik">TTS Klinik</button><button type="button" class="filter-chip" data-query="tts temel">TTS Temel</button><button type="button" class="filter-chip" data-query="">Tümü</button></div><div class="bulk-panel"><div class="bulk-head"><strong>Filtredeki kitapları toplu ekle</strong><small class="muted" id="bulk-info">Önce kitap ara veya kategori seç</small></div><div class="bulk-actions"><button class="bulk-btn secondary" type="button" data-kind="SB" data-delta="1">+ SB</button><button class="bulk-btn secondary" type="button" data-kind="SB" data-delta="-1">− SB</button><button class="bulk-btn primary" type="button" data-kind="RNK" data-delta="1">+ RNK</button><button class="bulk-btn secondary" type="button" data-kind="RNK" data-delta="-1">− RNK</button><button class="bulk-btn secondary" type="button" data-kind="BOTH" data-delta="1">+ SB &amp; RNK</button></div><p class="bulk-help muted">Aramaya veya seçilen kategoriye uyan <b>tüm kitaplara</b> uygulanır; yalnızca ekranda görünen kartlarla sınırlı değildir. RNK uygun olmayan kitaplar atlanır.</p></div><div id="books" class="grid"></div></section><aside class="panel cart"><h2>Yeni sipariş</h2><p class="muted mini">Seçtiğin kitapları SB veya RNK baskı olarak sepete ekle.</p><div id="cart-items"></div><p class="total" id="cart-count">0 adet</p><form id="order-form"><div class="field"><label>Kargo kodu / açık adres</label><input id="shipping" type="text" inputmode="text" autocomplete="off" spellcheck="false" required maxlength="500" placeholder="123 456 789 veya açık adres"><small class="muted mini">Sayısal kodlar yazarken otomatik boşluklandırılır. Platform koddan belirlenir.</small></div><div class="field"><label>Sipariş türü</label><select id="order-type"><option value="">Normal</option><option value="Telafi">Telafi</option><option value="Açık Adres">Açık Adres</option></select></div><div class="field"><label>Ciro (₺)</label><input id="amount" type="number" min="0" max="999999999" step="0.01" value="0" required></div><button class="primary" type="submit" style="width:100%">Siparişi Havuz'a Gönder</button></form><p class="foot">Siparişleri merkezi havuza iletir. Gönderim sırasında bağlantı koparsa aynı işlem kimliğiyle tekrar dener.</p></aside></div></section></div>
+<script>
+'use strict';
+const URL='https://gdfuljiyfvpjvokiarnx.supabase.co';
+const KEY='sb_publishable_lMvpER-_plYOePZ-2VNhXw_Lu83JHKw';
+let token=null,refreshToken=null,expires=0,workspace=null,books=[],cart=new Map(),requestId=crypto.randomUUID(),busy=false;
+const $=s=>document.querySelector(s);
+let visibleBooks=[];
+const MAX_CART_LINES=300;
+// OAuth/e-posta onayından kalan URL parçalarını adres çubuğunda tutma.
+if(location.hash && /(?:access_token|refresh_token|error)=/.test(location.hash)){history.replaceState(null,'',location.pathname+location.search);}
+
+const msg=(value)=>{const node=$('#message');node.textContent=value||'';node.classList.toggle('hide',!value);};
+function authHeaders(){return {'apikey':KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json'};}
+async function api(path,{method='GET',body=null,authorization=true,headers={}}={}){
+ const h={'apikey':KEY,...headers};if(authorization&&token)h.Authorization='Bearer '+token;
+ if(body!==null)h['Content-Type']='application/json';
+ const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),16000);
+ try{const res=await fetch(URL+path,{method,headers:h,body:body===null?null:JSON.stringify(body),signal:ctrl.signal});
+  const content=await res.text();let data=null;try{data=content?JSON.parse(content):null}catch{data=content;}
+  if(!res.ok)throw new Error((data&&(data.message||data.msg||data.error_description||data.error))||('HTTP '+res.status));return data;
+ }finally{clearTimeout(timer)}
+}
+async function renew(){if(!token)throw new Error('Oturum açmalısın.');if(Date.now()<expires-60000)return;
+ if(!refreshToken)throw new Error('Oturum süresi doldu, tekrar giriş yap.');
+ const data=await api('/auth/v1/token?grant_type=refresh_token',{method:'POST',body:{refresh_token:refreshToken},authorization:false});storeSession(data);
+}
+function storeSession(data){if(!data.access_token)throw new Error('E-posta doğrulaması gerekli.');token=data.access_token;refreshToken=data.refresh_token;expires=Date.now()+(data.expires_in||3600)*1000;}
+function cleanSession(){token=null;refreshToken=null;expires=0;workspace=null;books=[];cart.clear();requestId=crypto.randomUUID();$('#login-screen').classList.remove('hide');$('#main-screen').classList.add('hide');$('#logout').classList.add('hide');$('#password').value='';}
+let currentCatalogRevision=null;
+async function loadWorkspace(){
+ const response=await api('/functions/v1/alfa-erp-device',{
+  method:'POST',authorization:false,body:{action:'public_catalog'}
+ });
+ if(!Array.isArray(response.books))throw new Error('Katalog yanıtı geçersiz');
+ if(response.catalog_revision===currentCatalogRevision)return;
+ books=response.books;workspace={id:'public'};
+ currentCatalogRevision=response.catalog_revision;
+ const allowed=new Map(books.map(b=>[b.code,b]));
+ for(const [key,line] of cart){
+  const updated=allowed.get(line.book.code);
+  if(!updated||(line.kind==='RNK'&&!updated.supports_color))cart.delete(key);
+  else line.book=updated;
+ }
+ const groups=[...new Set(books.map(b=>b.group_name).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'tr'));
+ const oldGroup=$('#group').value;
+ $('#group').replaceChildren(new Option('Tüm kategoriler',''),...groups.map(v=>new Option(v,v)));
+ if(groups.includes(oldGroup))$('#group').value=oldGroup;
+ render();
+}
+// Katalog herkese açık, yönetim kayıtları asla bu ekrana aktarılmaz.
+loadWorkspace().catch(e=>msg('Katalog bağlantısı: '+e.message));
+setInterval(()=>loadWorkspace().catch(()=>{}),30000);
+window.addEventListener('focus',()=>loadWorkspace().catch(()=>{}));
+$('#theme').addEventListener('click',()=>document.documentElement.classList.toggle('light'));
+$('#filter').addEventListener('input',render);$('#group').addEventListener('change',render);
+$('#quick-filters').addEventListener('click',event=>{const btn=event.target.closest('button[data-query]');if(!btn)return;$('#group').value='';$('#filter').value=btn.dataset.query;render();});
+// Masaüstündeki utils.format_kargo_kodu ile aynı 3-3-3-kalan davranışı.
+function addressOrText(value){return /[a-zA-ZçğıöşüÇĞİÖŞÜ.,\/:;()#@]/.test(value)}
+function formatShipping(value){if(addressOrText(value))return value;const digits=value.replace(/\D/g,'');if(!digits)return value;
+ if(digits.length<=3)return digits;if(digits.length<=6)return digits.slice(0,3)+' '+digits.slice(3);
+ if(digits.length<=9)return digits.slice(0,3)+' '+digits.slice(3,6)+' '+digits.slice(6);
+ return digits.slice(0,3)+' '+digits.slice(3,6)+' '+digits.slice(6,9)+' '+digits.slice(9);}
+function autoPlatform(shipping){if(addressOrText(shipping))return 'Açık Adres / Manuel';const digits=shipping.replace(/\D/g,'');return digits.length===9?'Gardrops':'Dolap';}
+$('#shipping').addEventListener('input',event=>{const field=event.currentTarget,old=field.value,formatted=formatShipping(old);if(old===formatted)return;
+ const oldCursor=field.selectionStart??old.length,digitsBefore=old.slice(0,oldCursor).replace(/\D/g,'').length;
+ field.value=formatted;if(addressOrText(formatted))return;
+ let seen=0,pos=0;while(pos<formatted.length&&seen<digitsBefore){if(/\d/.test(formatted[pos]))seen++;pos++;}
+ // Sayı girişi sonunda bir sonraki boşluğu atlayarak imleci sonda tut.
+ if(oldCursor>=old.length)pos=formatted.length;
+ field.setSelectionRange(pos,pos);
+});
+$('#order-form').addEventListener('change',()=>{if(!busy)requestId=crypto.randomUUID()});
+$('#order-form').addEventListener('input',event=>{if(!busy&&event.target.id!=='shipping')requestId=crypto.randomUUID()});
+$('#shipping').addEventListener('input',()=>{if(!busy)requestId=crypto.randomUUID()});
+function normalizeTr(value){return String(value??'').replace(/İ/g,'i').replace(/I/g,'i').replace(/ı/g,'i').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('tr').replace(/[^a-z0-9]+/g,' ').trim()}
+function getFiltered(){const group=$('#group').value,words=normalizeTr($('#filter').value).split(' ').filter(Boolean);return books.filter(book=>{if(group&&book.group_name!==group)return false;
+ const haystack=normalizeTr([book.code,book.name,book.group_name].join(' '));return words.every(word=>haystack.includes(word));});}
+function canBulk(){return Boolean($('#filter').value.trim()||$('#group').value);}
+function syncBulkControls(){const ok=canBulk()&&visibleBooks.length>0;document.querySelectorAll('.bulk-btn').forEach(btn=>btn.disabled=!ok);
+ $('#bulk-info').textContent=ok?visibleBooks.length+' kitap hedefte (tamamı)': 'Önce kitap ara veya kategori seç';
+ document.querySelectorAll('.filter-chip').forEach(btn=>btn.classList.toggle('is-active',normalizeTr($('#filter').value)===normalizeTr(btn.dataset.query)&&(!$('#group').value)));}
+function bulkAction(kind,delta){if(!canBulk())return msg('Yanlışlıkla tüm kataloğu eklememek için önce kitap ara veya kategori seç.');
+ const targets=getFiltered();if(!targets.length)return msg('Filtrede hiç kitap bulunamadı.');
+ if(targets.length>=20&&!window.confirm(targets.length+' kitap için toplu '+(delta>0?'ekleme':'çıkarma')+' yapılsın mı?'))return;
+ const nextCart=new Map(cart);let changed=0,skipped=0;
+ for(const book of targets){const kinds=kind==='BOTH'?['SB',...(book.supports_color?['RNK']:[])]:[kind];for(const k of kinds){
+  if(k==='RNK'&&!book.supports_color){skipped++;continue;}const key=book.code+':'+k;const prior=nextCart.get(key)?.qty||0;
+  const next=Math.max(0,Math.min(100000,prior+delta));if(next===prior)continue;
+  if(next===0)nextCart.delete(key);else nextCart.set(key,{book,kind:k,qty:next});changed++;}}
+ if(nextCart.size>MAX_CART_LINES)return msg('Sepette en fazla '+MAX_CART_LINES+' farklı kitap/baskı satırı olabilir. Aramayı daralt veya sepeti azalt.');
+ if(changed===0)return msg('Değişiklik yok.'+(skipped?' Renkli basılamayan '+skipped+' kitap atlandı.':''));
+ cart=nextCart;requestId=crypto.randomUUID();renderCart();
+ msg(changed+' kitap/baskı satırı güncellendi.'+(skipped?' RNK desteği olmayan '+skipped+' kitap atlandı.':''));}
+document.querySelectorAll('.bulk-btn').forEach(btn=>btn.addEventListener('click',()=>bulkAction(btn.dataset.kind,Number(btn.dataset.delta))));
+function node(tag,cls,content){const e=document.createElement(tag);if(cls)e.className=cls;if(content!==undefined)e.textContent=content;return e;}
+function render(){visibleBooks=getFiltered();const filtered=visibleBooks;
+ $('#book-count').textContent='('+filtered.length+' / '+books.length+')';syncBulkControls();
+ const items=filtered.slice(0,180).map(b=>{const c=node('article','book');c.append(node('span','code','#'+b.code+' · '+b.page_count+' sayfa'),node('strong','',b.name),node('span','mini muted',b.group_name));
+ const r=node('div','actions');for(const kind of ['SB','RNK']){const btn=node('button',kind==='SB'?'secondary':'primary','+ '+kind);btn.disabled=kind==='RNK'&&!b.supports_color;btn.title=btn.disabled?'Bu kitapta renkli seçenek yok':'Sepete ekle';btn.addEventListener('click',()=>addBook(b,kind,1));r.append(btn)}c.append(r);return c;});
+ $('#books').replaceChildren(...items);if(filtered.length>180)$('#books').append(node('p','muted','İlk 180 sonuç. Daha fazlası için aramayı daralt.'));renderCart();}
+function addBook(book,kind,delta){const key=book.code+':'+kind;const value=cart.get(key),next=(value?value.qty:0)+delta;
+ if(next>100000)return msg('Bir kitap türü için en fazla 100.000 adet.');
+ if(!value&&next>0&&cart.size>=MAX_CART_LINES)return msg('Sepet satırı üst sınırı: '+MAX_CART_LINES+'.');
+ if(next<=0)cart.delete(key);else cart.set(key,{book,kind,qty:next});requestId=crypto.randomUUID();renderCart();}
+function renderCart(){const list=$('#cart-items');const all=[...cart.values()];list.replaceChildren(...all.map(x=>{
+ const r=node('div','cart-row'),desc=node('span','description',x.book.name+' · '+x.kind+' ('+x.qty+')');r.append(desc);
+ for(const [v,t] of [[-1,'−'],[1,'+']]){const b=node('button','quiet',t);b.addEventListener('click',()=>addBook(x.book,x.kind,v));r.append(b)}
+ const d=node('button','remove','×');d.title='Kaldır';d.addEventListener('click',()=>addBook(x.book,x.kind,-x.qty));r.append(d);return r;}));
+ $('#cart-count').textContent=all.reduce((s,x)=>s+x.qty,0)+' adet';}
+$('#order-form').addEventListener('submit',async e=>{e.preventDefault();if(busy)return;
+ if(!cart.size)return msg('Sepete kitap ekle.');if(!books.length)return msg('Katalog bağlantısını kontrol et.');
+ const amount=Number($('#amount').value);if(!Number.isFinite(amount)||amount<0||amount>=1000000000)return msg('Geçerli ciro gir.');
+ const payload={platform:autoPlatform($('#shipping').value.trim()),
+ shipping_reference:$('#shipping').value.trim(),order_type:$('#order-type').value,
+ gross_amount:amount,items:[...cart.values()].map(x=>({code:x.book.code,print_type:x.kind,quantity:x.qty})),request_id:requestId};
+ if(!payload.shipping_reference)return msg('Kargo kodu / adres gerekli.');busy=true;$('#order-form').classList.add('busy');msg('Sipariş kaydediliyor...');
+ try{const result=await api('/functions/v1/alfa-erp-device',{method:'POST',authorization:false,body:{action:'public_submit',order:payload}});
+  cart.clear();requestId=crypto.randomUUID();$('#shipping').value='';$('#amount').value='0';renderCart();
+  msg('Sipariş #'+result.order_number+' başarıyla ortak havuza kaydedildi.'+(result.reused?' (Tekrar gönderilen aynı sipariş yeniden oluşturulmadı.)':''));
+ }catch(err){msg('Sipariş kaydı doğrulanamadı: '+err.message+' · Yeniden denersen aynı istek kimliği kullanılacak.');}
+ finally{busy=false;$('#order-form').classList.remove('busy')}
+});
+</script></body></html>

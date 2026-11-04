@@ -1,0 +1,21 @@
+# Production device tokens, pairing files and local customer data
+kurulum_bilgisi.json
+*.bin
+.env
+.env.*
+.venv/
+.buildvenv/
+.pytest_cache/
+__pycache__/
+*.py[cod]
+dist/
+build/
+output/
+alfa_outbox.json
+alfa_siparisler*.json
+alfa_siparis_sayac.json
+alfa_cloud_epoch.json
+alfa_muhasebe_gunleri.json
+alfa_bildirim_durumu.json
+alfa_islem_gunlugu.jsonl
+alfa_cihaz.bin

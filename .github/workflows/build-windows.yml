@@ -1,0 +1,137 @@
+name: ALFA ERP Windows quality gate and installers
+
+# Normal edits run Windows tests only. Installers are built just on a release tag
+# or when explicitly started from Actions > Run workflow.
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: alfa-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  windows-tests:
+    name: Windows 2022 · offline database, queue, protocol and Qt GUI
+    runs-on: windows-2022
+    timeout-minutes: 25
+    steps:
+      - name: Check out project source
+        uses: actions/checkout@v4
+      - name: Python 3.13 64-bit
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          architecture: x64
+          cache: pip
+      - name: Install application dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Check project completeness
+        shell: pwsh
+        run: python KONTROL_DOSYA_UYUMU.py
+      - name: Run Windows unit and headless GUI tests (no Supabase writes)
+        shell: pwsh
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python -m unittest discover -s tests -v
+
+  installers:
+    name: Build and smoke-test two native Windows Setup.exe installers
+    needs: windows-tests
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+    runs-on: windows-2022
+    timeout-minutes: 70
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          architecture: x64
+          cache: pip
+      - name: Match release tag to application version
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          $source = Get-Content main.py -Raw
+          if ($source -notmatch "VERSION='([^']+)'") { throw 'VERSION not found' }
+          if ('v' + $Matches[1] -ne '${{ github.ref_name }}') {
+            throw "Tag must match v$($Matches[1]); current tag is ${{ github.ref_name }}"
+          }
+      - name: Install Inno Setup 6
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            choco install innosetup --yes --no-progress
+          }
+          if (-not (Test-Path $iscc)) { throw 'Inno Setup 6 ISCC.exe bulunamadı' }
+      - name: Build owner Setup.exe
+        shell: pwsh
+        run: .\ALFA_BUILD_WINDOWS.ps1 -Edition yonetici
+      - name: Build GENERIC staff Setup.exe (no enrollment ticket embedded)
+        shell: pwsh
+        run: .\ALFA_BUILD_WINDOWS.ps1 -Edition personel
+      - name: Verify actual EXE app initialization in Windows
+        shell: pwsh
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          $items = @(
+            @('dist\AlfaERPYonetici\AlfaERPYonetici.exe','owner'),
+            @('dist\AlfaERP\AlfaERP.exe','staff')
+          )
+          foreach ($item in $items) {
+            $exe = Join-Path $env:GITHUB_WORKSPACE $item[0]
+            $report = Join-Path $env:RUNNER_TEMP "alfa_smoke_$($item[1]).json"
+            if (-not (Test-Path $exe)) { throw "Missing $exe" }
+            $env:ALFA_SMOKE_RESULT_PATH = $report
+            $proc = Start-Process -FilePath $exe -ArgumentList '--self-test' -Wait -PassThru
+            if ($proc.ExitCode -ne 0) { throw "$exe failed smoke: $($proc.ExitCode)" }
+            if (-not (Test-Path $report)) { throw "Smoke result missing: $report" }
+            $json = Get-Content $report -Raw | ConvertFrom-Json
+            if (-not $json.ok -or $json.pages -ne 5 -or $json.books -lt 1) {
+              throw "Smoke failure: $(Get-Content $report -Raw)"
+            }
+            Write-Host "Verified $($item[1]): $($json.books) books / $($json.pages) pages"
+          }
+      - name: Validate installers and emit checksums
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem output -Filter '*Setup*.exe'
+          if ($files.Count -ne 2) { throw "Expected exactly two installer EXEs; got $($files.Count)" }
+          $files | ForEach-Object { "$( (Get-FileHash $_.FullName -Algorithm SHA256).Hash )  $($_.Name)" } |
+            Set-Content -Encoding utf8 output\SHA256SUMS.txt
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ALFA_ERP_Setups_${{ github.run_number }}
+          path: |
+            output/*Setup*.exe
+            output/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 14
+      - name: Publish installers as durable GitHub Release ONLY for version tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = '${{ github.ref_name }}'
+          $files = @(Get-ChildItem output -File | ForEach-Object { $_.FullName })
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag @files --clobber
+          } else {
+            gh release create $tag @files --generate-notes --verify-tag
+          }

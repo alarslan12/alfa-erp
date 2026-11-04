@@ -1,0 +1,165 @@
+"""Fast cloud change detection and durable background delivery.
+
+Never blocks a Qt button handler with network I/O. All responses are applied
+only on the GUI thread; failed writes stay in the encrypted-device's local outbox.
+"""
+import time
+from PySide6.QtCore import QObject, QThread, QTimer, Signal
+
+
+class Pull(QThread):
+    done = Signal(dict)
+    failed = Signal(str, int)
+
+    def __init__(self, client, last=None, force=False, parent=None):
+        super().__init__(parent)
+        self.client, self.last, self.force = client, last, force
+
+    def run(self):
+        try:
+            pulse = self.client.pulse()
+            if self.force or self.last != pulse:
+                snapshot = self.client.snapshot()
+            else:
+                snapshot = None
+            self.done.emit({'pulse':pulse,'snapshot':snapshot})
+        except Exception as exc:
+            self.failed.emit(str(exc)[:280],int(getattr(exc,'status',0) or 0))
+
+
+class Push(QThread):
+    done = Signal(object)
+    failed = Signal(str, int)
+
+    def __init__(self, client, batch, parent=None):
+        super().__init__(parent)
+        self.client, self.batch = client, batch
+
+    def run(self):
+        try:
+            if self.batch['kind'] == 'status':
+                result = self.client.transition(self.batch['events'])
+            elif self.batch['kind'] == 'progress':
+                result = self.client.progress(self.batch['events'])
+            else:
+                result = self.client.commit(self.batch['edits'])
+            self.done.emit(result)
+        except Exception as exc:
+            self.failed.emit(str(exc)[:280],int(getattr(exc,'status',0) or 0))
+
+
+class Sync(QObject):
+    changed = Signal(list)
+    status = Signal(bool, str)
+
+    def __init__(self, client, db, parent=None):
+        super().__init__(parent)
+        self.client, self.db = client, db
+        self.pull_task = None
+        self.push_task = None
+        self.last_pulse = None
+        self.force_pull = True
+        self.retry_after = 0
+        self.current_batch = None
+        self.isolate_batch=False
+        self._last_status = None
+        self.timer = QTimer(self)
+        self.timer.setInterval(2800)
+        self.timer.timeout.connect(self.pull)
+        self.sender = QTimer(self)
+        self.sender.setInterval(250)
+        self.sender.timeout.connect(self.push)
+        if client.paired:
+            db.cloud_api = client
+            self.timer.start()
+            self.sender.start()
+            QTimer.singleShot(100, self.pull)
+
+    def _status(self, online, message):
+        state=(online,message)
+        if state != self._last_status:
+            self._last_status=state
+            self.status.emit(online, message)
+
+    def pull(self):
+        if not self.client.paired or self.pull_task is not None:
+            return
+        worker=Pull(self.client,self.last_pulse,self.force_pull,parent=self)
+        self.pull_task=worker
+
+        def finish(payload):
+            self.pull_task=None
+            try:
+                snapshot=payload.get('snapshot')
+                if snapshot is not None:
+                    changes=self.db.apply_cloud_snapshot(snapshot)
+                    if changes:self.changed.emit(changes)
+                    self.force_pull=False
+                self.last_pulse=payload['pulse']
+                pending=self.db.pending_count
+                self._status(True, f'Bulut bağlı · {pending} işlem sırada' if pending else 'Bulut bağlı')
+            except Exception as exc:
+                self._status(False,str(exc)[:200])
+
+        def fail(message,status=0):
+            self.pull_task=None
+            self._status(False, 'Bağlantı bekleniyor: '+message)
+        worker.done.connect(finish)
+        worker.failed.connect(fail)
+        worker.finished.connect(worker.deleteLater)
+        worker.start()
+
+    def push(self):
+        if not self.client.paired or self.push_task is not None or not self.db.cloud_epoch:
+            return
+        if not self.db.pending_count or time.monotonic()<self.retry_after:
+            return
+        if time.monotonic()-self.db._pending_started<0.6:
+            return
+        batch=self.db.next_outbox_batch(max_events=1 if self.isolate_batch else 30)
+        if not batch:return
+        worker=Push(self.client,batch,parent=self)
+        self.push_task=worker
+        self.current_batch=batch
+
+        def finish(results):
+            self.push_task=None
+            try:
+                self.db.confirm_outbox(batch,results)
+                self.isolate_batch=False
+                self.retry_after=0
+                self.force_pull=True
+                self._status(True, f'Bulut bağlı · {self.db.pending_count} işlem sırada'
+                    if self.db.pending_count else 'Bulut bağlı')
+                QTimer.singleShot(100,self.pull)
+            except Exception as exc:
+                self.retry_after=time.monotonic()+5
+                self._status(False,'Bulut onayı işlenemedi: '+str(exc)[:120])
+
+        def fail(message,status=0):
+            self.push_task=None
+            self.force_pull=True
+            if status in (400,401,403,404,409,413,422):
+                # One failing event must not roll back an entire group's work.
+                size=len(batch.get('events',batch.get('edits',[])))
+                if size>1:
+                    self.isolate_batch=True
+                    self.retry_after=time.monotonic()+0.2
+                    self._status(True,'Bir işlem çakıştı; hareketler tek tek doğrulanıyor')
+                    return
+                # A stale version/invalid operation is not a network outage.
+                # Quarantine a SINGLE poison entry; keep all other work flowing.
+                self.db.quarantine_batch(batch,message)
+                self.retry_after=time.monotonic()+0.25
+                self._status(True,
+                    f'{len(self.db._conflicts)} çakışma kayıt altına alındı · '
+                    f'{self.db.pending_count} işlem bekliyor')
+                QTimer.singleShot(150,self.pull)
+                return
+            # Recoverable network error: no modal popup, no data loss.
+            self.retry_after=time.monotonic()+min(30,4+len(self.db._conflicts))
+            self._status(False,'Bağlantı geçici beklemede · kuyruk korunuyor')
+        worker.done.connect(finish)
+        worker.failed.connect(fail)
+        worker.finished.connect(worker.deleteLater)
+        worker.start()
