@@ -43,3 +43,8 @@
 - Bilgisayarlarda fiziksel uzun süreli ağ kesintisi testi yapmadan %100 gerçek ortam garantisi verilmez.
 - Özel kurulum bileti tek kullanımlıktır; kimseyle paylaşılmamalıdır. Yeniden kurulurken yenisi oluşturulabilir.
 - Önceden istenen özgün yapay zekâ anonslarının ve kapsamlı grafik marka yenilemesinin tamamı bu giriş/kurulum sürümünün kapsamında değildir.
+
+## Windows final doğrulaması
+- V6.2.0 test çalıştırmasında Ana menüden Analitik PIN erişimi reddedilirse sayfanın açılmadığı; kabul edilirse açıldığı kontrol ediliyor.
+- Paketlenmiş EXE kontrolü ayrıca yönetici/personel cihaz kimliği ve özel bilet yolunun PyInstaller `_internal` dizinine yanlış yönlendirilmediğini doğrular.
+- Kurulum dosyaları yalnızca Windows kalite kontrolü başarılı olduğunda sürüm olarak yayımlanır.
