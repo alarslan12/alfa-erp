@@ -30,6 +30,26 @@ class EnrollmentAndLoginTests(unittest.TestCase):
             save.assert_called_once_with('C'*64)
             self.assertEqual(modal.result(),QDialog.DialogCode.Accepted)
 
+    def test_private_reinstall_ticket_replaces_stale_device_credential(self):
+        import json,tempfile
+        from pathlib import Path
+        from auto_eslestir import main as pair_from_ticket
+        with tempfile.TemporaryDirectory(prefix='alfa_ticket_ci_') as folder:
+            path=Path(folder)/'kurulum_bilgisi.json'
+            path.write_text(json.dumps({
+                'enrollment_code':'D'*48,'replace_existing':True
+            }),encoding='utf-8')
+            with patch('auto_eslestir.ROOT',Path(folder)), \
+                 patch('auto_eslestir.get_token',return_value='A'*64), \
+                 patch('auto_eslestir.api',
+                       return_value={'device_token':'C'*64}) as gateway, \
+                 patch('auto_eslestir.save_token') as saved:
+                pair_from_ticket(install_startup=False)
+                gateway.assert_called_once()
+                self.assertEqual(gateway.call_args.kwargs['code'],'D'*48)
+                saved.assert_called_once_with('C'*64)
+                self.assertFalse(path.exists())
+
     def test_invalid_pairing_code_must_not_call_network(self):
         from cihaz_eslestir import PairDialog
         modal=PairDialog()
