@@ -80,7 +80,7 @@ class OwnerSettingsPage(SettingsPage):
             f'{len(self.catalog_rows)} kitap bulutta güncellensin mi?',
             QMessageBox.StandardButton.Yes|QMessageBox.StandardButton.No)!=QMessageBox.StandardButton.Yes:return
         self.upload_btn.setEnabled(False);self.catalog_note.setText('Buluta yükleniyor…')
-        self._job(lambda:admin_request(self.cloud,'admin_catalog',books=self.catalog_rows),
+        self._job(lambda:admin_request(None,'admin_catalog',books=self.catalog_rows),
              lambda r:(self.catalog_note.setText(f"Katalog güncellendi · {r.get('count')} kitap"),
                        self.upload_btn.setEnabled(True)),
              lambda err:(self.catalog_note.setText(err),self.upload_btn.setEnabled(True)))
@@ -141,10 +141,10 @@ class OwnerSettingsPage(SettingsPage):
                     'Yeniden derleme yapılmaz.')
             except Exception as exc:
                 QMessageBox.warning(self,'Kurulum paketi',str(exc))
-        self._job(lambda:admin_request(self.cloud,'admin_setup_code'),finish)
+        self._job(lambda:admin_request(None,'admin_setup_code'),finish)
 
     def create_code(self):
-        self._job(lambda:admin_request(self.cloud,'admin_setup_code'),
+        self._job(lambda:admin_request(None,'admin_setup_code'),
             lambda d:self.code_note.setText(d['code']))
 
     def refresh_devices(self):
@@ -155,7 +155,7 @@ class OwnerSettingsPage(SettingsPage):
                     'Aktif' if r.get('active') else 'İptal',str(r.get('last_seen_at') or '—')[:19]]):
                     self.device_table.setItem(i,j,QTableWidgetItem(str(val)))
                 self.device_table.item(i,0).setData(Qt.ItemDataRole.UserRole,r['id'])
-        self._job(lambda:admin_request(self.cloud,'admin_devices'),display)
+        self._job(lambda:admin_request(None,'admin_devices'),display)
 
     def revoke(self):
         row=self.device_table.currentRow()
@@ -163,7 +163,7 @@ class OwnerSettingsPage(SettingsPage):
         if QMessageBox.question(self,'Cihaz erişimi','Seçili bilgisayar devre dışı bırakılsın mı?',
             QMessageBox.StandardButton.Yes|QMessageBox.StandardButton.No)!=QMessageBox.StandardButton.Yes:return
         id=self.device_table.item(row,0).data(Qt.ItemDataRole.UserRole)
-        self._job(lambda:admin_request(self.cloud,'admin_revoke',id=id),
+        self._job(lambda:admin_request(None,'admin_revoke',id=id),
                   lambda _r:self.refresh_devices())
 
     def audit_page(self):
@@ -228,7 +228,7 @@ class OwnerSettingsPage(SettingsPage):
         dialog.exec()
 
     def refresh_audit(self):
-        self._job(lambda:admin_request(self.cloud,'admin_audit'),
+        self._job(lambda:admin_request(None,'admin_audit'),
                   lambda payload:self.audit_feed.set_entries(payload,self.db.siparisler))
 
     def _apply_owner_theme(self):
