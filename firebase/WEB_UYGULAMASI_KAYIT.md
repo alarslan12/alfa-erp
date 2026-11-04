@@ -1,40 +1,25 @@
-# ALFA ERP Firebase Web App kaydı
+# ALFA ERP / Web Firebase yapılandırması alındı
 
-**Firebase Project ID:** `alfa-erp-8700c`
+**Project ID:** `alfa-erp-8700c`  
+**Web App ID:** `1:992806140382:web:0cab0fed51b72fba91054f`  
+**Auth Domain:** `alfa-erp-8700c.firebaseapp.com`  
+**Messaging Sender ID:** `992806140382`
 
-Kullanıcının bildirdiği durum: Firestore oluşturuldu, **Anonymous** ve
-**Google** Authentication sağlayıcıları açıldı. Bu adımlar konsoldan bağımsız
-olarak henüz doğrulanmadı.
+Firebase Web SDK yapılandırması kullanıcı tarafından sağlandı ve
+`firebase/web/config.js` içinde geçiş dalına kaydedildi.
 
-## Sıradaki gerekli tek adım: Web app yapılandırması
+Bu `apiKey` Firebase'in herkese açık istemci proje tanımlayıcısıdır,
+Admin SDK özel anahtarı değildir. Uygun API kısıtlamaları, Firebase Auth,
+Firestore Security Rules ve gerektiğinde App Check şarttır.
 
-1. Firebase Console → **Project settings** → **General** → **Your apps**.
-2. Web simgesi **</> / Add app** → takma ad: `ALFA ERP Katalog`.
-3. Firebase Hosting'i şimdilik işaretleme; daha sonra ayrıca karar verilebilir.
-4. **Register app** → **SDK setup and configuration / Config** seç.
-5. Görünen `firebaseConfig` nesnesindeki **apiKey, authDomain, projectId,
-   appId, messagingSenderId** bilgilerini al. `storageBucket` alanı varsa
-   onu da al.
-6. **Özel anahtar, Admin SDK JSON, service-account credential, erişim tokeni
-   veya kişisel parola gönderme.** Bunlar istemci yapılandırması değildir.
+`databaseURL` Realtime Database'e aittir; ALFA ERP için **Firestore**
+hedefleniyor. İkisini aynı anda canlı sipariş deposu olarak kullanmayacağız.
 
-Firebase Web API key tek başına veri yetkisi sağlamaz; Firestore güvenlik
-kuralları ve Firebase Auth gerekli erişim sınırlarını uygular.
+`firebase/web/catalog_pilot.html` sayfası Firestore'un **yalnızca okuma**
+bağlantısını sınamak içindir. Mobil kataloğun mevcut Supabase sipariş
+gönderimini değiştirmez. Veri aktarımı, güvenli checkout ve Windows
+bağlantısı tamamlanmadan üretim sürümüne geçilmez.
 
-## Örnek istemci yapılandırması (gerçek değerler bekleniyor)
-
-```js
-const firebaseConfig = {
-  apiKey: "FIREBASE_WEB_API_KEY",
-  authDomain: "alfa-erp-8700c.firebaseapp.com",
-  projectId: "alfa-erp-8700c",
-  storageBucket: "FROM_FIREBASE_CONSOLE",
-  messagingSenderId: "FROM_FIREBASE_CONSOLE",
-  appId: "FROM_FIREBASE_CONSOLE"
-};
-```
-
-**Buradaki örnek doğrudan çalışmaz.** Konsoldaki gerçek istemci tanımlayıcıları
-alındıktan sonra mobil katalog kodunun ayrı Firebase geliştirme dalı üzerinde
-uyarlanması gerekecek. Firestore Rules yayınlanmadı; ticari veriler henüz
-aktarılmadı. Canlı Supabase ve V6.2.2 kurulumları değişmedi.
+Gerçek Firebase projesine erişen yönetim bağlantısı bu sohbet ortamında
+henüz mevcut olmadığı için kuralların yayımlandığı veya kaynak verilerin
+aktarıldığı iddia edilmez.
