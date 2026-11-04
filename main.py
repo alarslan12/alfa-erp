@@ -312,17 +312,21 @@ class AlfaMain(QMainWindow):
     def _cloud_status(self,online,message):
         self.setWindowTitle('ALFA ERP · '+('Bulut bağlı' if online else 'Bağlantı bekleniyor'))
         self.setToolTip(message)
-        conflicts=getattr(self.db,'_conflicts',[])
+        conflicts=self.db.unreviewed_cloud_conflicts
         if conflicts:
             count=len(conflicts)
             reason=str(conflicts[-1].get('reason') or 'Bilinmeyen işlem çakışması')
-            self.cloud_badge.setText(f'⚠ {count} işlem onaylanmadı')
+            self.cloud_badge.setText(f'⚠ {count} geçmiş çakışma' if online
+                else f'◌ Çevrimdışı · {count} eski çakışma')
             self.cloud_badge.setToolTip(
-                'İşlem sunucuda reddedildi; yerel optimistik görünüm geri alınabilir.\n'
-                +reason[:280]+'\nKayıt: alfa_outbox.json / conflicts')
-            if count>getattr(self,'_last_conflict_notice',0):
-                self._last_conflict_notice=count
-                self.statusBar().showMessage('Bulut işlemi kaydedilemedi: '+reason[:170],20000)
+                'Bunlar daha önce reddedilmiş ve arşivlenmiş işlemlerdir; '
+                'şu anda bekleyen kuyruk sayısı değildir.\n'
+                'Ayarlar → İşlem günlüğü → Eski bulut hatalarını incele.\n'
+                +reason[:240])
+            previous=getattr(self,'_last_conflict_notice',None)
+            self._last_conflict_notice=count
+            if previous is not None and count>previous:
+                self.statusBar().showMessage('Bulut işlemi reddedildi: '+reason[:170],20000)
             return
         marker='● ' if online else '◌ '
         self.cloud_badge.setText(marker + ('Bulut bağlı' if online and not self.db.pending_count
