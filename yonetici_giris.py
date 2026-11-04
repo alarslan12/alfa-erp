@@ -12,11 +12,23 @@ from alfa_cihaz import Workstation,api,save_token,get_token
 
 
 def admin_request(cloud,action,timeout=None,**kwargs):
+    """Allow an already activated owner computer without repeated user login.
+
+    Owner-device roles are verified server-side for EACH admin action. Ordinary
+    staff tokens cannot access these actions; no service key is shipped.
+    """
+    if timeout is None:
+        timeout=90 if action=='admin_catalog' else 25
+    if cloud is None:
+        token=get_token()
+        if not token:
+            raise RuntimeError(
+                'Yönetici bilgisayarını bir defa yetkilendirin: '
+                'üst çubuktaki Buluta bağla düğmesini kullanın.')
+        return api(action,token=token,timeout=timeout,**kwargs)
     cloud._renew_if_needed()
     if not cloud.logged_in:
         raise RuntimeError('Yönetici oturumu kapandı. Yeniden giriş yapın.')
-    if timeout is None:
-        timeout=90 if action=='admin_catalog' else 25
     return api(action,admin_jwt=cloud._session['access_token'],
                timeout=timeout,**kwargs)
 
@@ -27,7 +39,7 @@ def pair_owner_device(cloud,timeout=10):
     The code is minted server-side for this authenticated admin, used once,
     and never persisted. The paired device token is DPAPI-encrypted locally.
     """
-    code=admin_request(cloud,'admin_code',timeout=timeout)['code']
+    code=admin_request(cloud,'admin_owner_code',timeout=timeout)['code']
     paired=api('pair',code=code,device_name=socket.gethostname()[:120],
                timeout=timeout)
     save_token(paired['device_token'])
@@ -59,13 +71,9 @@ class LoginWorker(QThread):
             role=cloud.verify_owner_access()
             if not role.get('access') or role.get('role')!='admin':
                 raise RuntimeError('Bu hesap ALFA ERP yöneticisi değil.')
-            if not get_token():
-                # Recover the normal owner pairing outside the GUI thread.
-                # A short-lived Edge outage is not an invalid admin password.
-                try:
-                    pair_owner_device(cloud,timeout=8)
-                except Exception as exc:
-                    cloud.owner_pairing_problem=str(exc)[:180]
+            # This is a one-time, explicitly requested OWNER activation.
+            # Do not reuse an older staff-role token as if it were an owner.
+            pair_owner_device(cloud,timeout=12)
             self.done.emit(cloud)
         except Exception as exc:
             self.failed.emit(str(exc)[:320])
