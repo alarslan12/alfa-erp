@@ -3,13 +3,14 @@ name: ALFA ERP V6.2 independent Windows installer release
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
   build:
-    if: contains(github.event.head_commit.message, '[v620-build]')
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[v620-build]')
     name: Verified clean Windows installer build
     runs-on: windows-2025
     timeout-minutes: 55
