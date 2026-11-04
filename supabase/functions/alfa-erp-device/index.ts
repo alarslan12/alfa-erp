@@ -34,7 +34,17 @@ async function workspace() {
   cachedWorkspace=data;cachedWorkspaceAt=Date.now();
   return data;
 }
-async function adminAccess(req:Request, wsid:string) {
+async function adminAccess(req:Request, wsid:string, body:Record<string,unknown>) {
+  // After a one-time authenticated activation, owner permission is stored
+  // ONLY against a 256-bit random, per-Windows-user DPAPI-protected token.
+  // A normal staff device token can never authorize admin_* actions.
+  const localToken=typeof body.device_token==='string'?body.device_token:'';
+  if(/^[a-f0-9]{64}$/i.test(localToken)){
+    const {data:ownerDevice}=await db.from('erp_device_keys').select('id')
+      .eq('workspace_id',wsid).eq('token_hash',await digest(localToken))
+      .eq('device_role','owner').eq('active',true).maybeSingle();
+    if(ownerDevice) return true;
+  }
   const bearer = (req.headers.get('authorization')||'').match(/^Bearer\s+(.+)$/i)?.[1];
   if (!bearer) return false;
   const {data,error}=await db.auth.getUser(bearer);
@@ -83,18 +93,29 @@ Deno.serve(async(req:Request)=> {
       const {data:claimed,error:claimError}=await db.from('erp_pairing_codes')
         .update({claimed_at:new Date().toISOString()})
         .eq('workspace_id',ws.id).eq('code_hash',codeHash).is('claimed_at',null)
-        .or('expires_at.is.null,expires_at.gt.'+new Date().toISOString()).select('workspace_id').maybeSingle();
+        .or('expires_at.is.null,expires_at.gt.'+new Date().toISOString()).select('workspace_id,device_role').maybeSingle();
       if(claimError||!claimed) return errorResponse('Kod geçersiz, süresi dolmuş veya önceden kullanılmış',401);
       const token=secureCode(32);
       const {error}=await db.from('erp_device_keys').insert({
-        workspace_id:ws.id,device_name:deviceName,token_hash:await digest(token)
+        workspace_id:ws.id,device_name:deviceName,token_hash:await digest(token),
+         device_role:claimed.device_role==='owner'?'owner':'staff'
       });
       if(error) return errorResponse('Cihaz eklenemedi',500);
       return respond({device_token:token,device_name:deviceName,workspace_id:ws.id});
     }
     if(action.startsWith('admin_')) {
-      if(!await adminAccess(req,ws.id)) return errorResponse('Yönetici oturumu gerekli',403);
+      if(!await adminAccess(req,ws.id,body)) return errorResponse('Yönetici oturumu gerekli',403);
       if(action==='admin_status') return respond({access:true,role:'admin'});
+      if(action==='admin_owner_code') {
+        // Admin authorization is checked above. Short lived, single use.
+        const code=secureCode(24);
+        const {error}=await db.from('erp_pairing_codes').insert({
+          workspace_id:ws.id,code_hash:await digest(code),device_role:'owner',
+          expires_at:new Date(Date.now()+10*60*1000).toISOString()
+        });
+        if(error)return errorResponse('Yönetici cihaz kodu oluşturulamadı',500);
+        return respond({code,one_time:true,valid_minutes:10});
+      }
       if(action==='admin_setup_code') {
         // Tek cihaz için tek kullanımlık dağıtım bileti (14 gün).
         const code=secureCode(24);
