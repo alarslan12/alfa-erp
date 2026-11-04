@@ -45,6 +45,16 @@ class AnalyticsAccessTests(unittest.TestCase):
                 token='A'*64,pin='123456',timeout=16)
             self.assertEqual(worker.pin,'')
 
+    def test_private_setup_ticket_is_consumed_in_background(self):
+        from main import AutoEnrollment
+        worker=AutoEnrollment()
+        done=[]
+        worker.succeeded.connect(lambda:done.append(True))
+        with patch('auto_eslestir.main') as auto_pair:
+            worker.run()
+            auto_pair.assert_called_once_with(install_startup=False)
+            self.assertEqual(done,[True])
+
     def test_owner_pin_change_requires_server_admin_action(self):
         from analytics_access import PINWorker
         worker=PINWorker('set','123456','A'*64)
