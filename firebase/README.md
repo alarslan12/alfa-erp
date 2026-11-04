@@ -3,8 +3,10 @@
 **Status: PREPARATION ONLY. Do not switch production clients yet.**
 
 The live system is currently on Supabase. This folder is a reversible,
-data-preserving migration scaffold. No Firestore project has been chosen or
-deployed from this repository by the scaffold alone.
+data-preserving migration scaffold. Firebase project `alfa-erp-8700c` has been
+created by the user; a Firestore database was also reported as created.
+This tool session has not confirmed Firebase account-level access, published
+Firestore rules or migrated live data.
 
 ## Architecture / free-tier safety
 
@@ -49,12 +51,12 @@ provider requires new device authorization and a new analytics PIN.
    database user. Never share or commit the DSN or export.
 2. Examine the JSON manifest, source counts and order totals. Preserve a
    separate encrypted backup.
-3. Create a Firestore project in the Firebase Console on an intended plan.
-   Enable Auth providers only after access control design is approved.
+3. Firebase project `alfa-erp-8700c` and Firestore are user-created.
+   Review `AUTH_KURULUM.md` and enable providers for approved roles.
 4. Configure short-lived Google Application Default Credentials or a secure
    local service account key (never commit it). Set project ID explicitly.
 5. Dry-run the import:
-   `python tools/firebase_stage_import.py --input firebase/migration_exports/snapshot_001 --project-id YOUR_PROJECT_ID`
+   `python tools/firebase_stage_import.py --input firebase/migration_exports/snapshot_001 --project-id alfa-erp-8700c`
 6. After reviewing preview, stage privately with `--apply`. This **does
    not** affect live collections or existing Supabase orders.
 7. Reconcile counts and sample identities. Only then separately implement
