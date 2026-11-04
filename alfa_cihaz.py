@@ -58,6 +58,16 @@ class Workstation:
     def __init__(self,token=None):self.token=token or get_token()
     @property
     def paired(self):return bool(self.token)
+    def sync(self,known=None,notification=False,last_order_number=0):
+        """Single authenticated request: revision check + only changed data.
+
+        No recurring full-catalog download and no separate pulse HTTP call.
+        """
+        params={'known':dict(known or {})}
+        if notification:
+            params.update(mode='notifications',last_order_number=max(0,int(last_order_number or 0)))
+        return api('sync',self.token,timeout=20 if not notification else 12,**params)
+
     def snapshot(self):return api('snapshot',self.token,timeout=25)
     def pulse(self):return api('pulse',self.token,timeout=8)
     def transition(self,events):return api('transition',self.token,events=events,timeout=12)['results']
