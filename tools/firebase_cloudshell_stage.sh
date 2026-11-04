@@ -29,6 +29,14 @@ unset SUPABASE_DATABASE_URL
 printf '\nSnapshot export finished. Source files are private and stay in this Cloud Shell account.\n'
 python3 tools/firebase_stage_import.py --input "$EXPORT_DIR" --project-id "$PROJECT_ID"
 echo
+echo "Before continuing, check Firebase Console > Firestore Database > Rules."
+echo "Clients MUST be denied access to migration_staging and private ERP data."
+echo "Do NOT proceed with Firebase test-mode or allow read, write: if true."
+read -r -p "Type PRIVATE_RULES_CHECKED after confirming restrictive rules: " RULES_CONFIRMED
+if [[ "$RULES_CONFIRMED" != "PRIVATE_RULES_CHECKED" ]]; then
+  echo "STOPPED safely. No Firebase writes. Source snapshot: $EXPORT_DIR"
+  exit 0
+fi
 echo "Do you want to WRITE a private staging copy to Firestore?"
 echo "This does not change the existing production collections."
 read -r -p "Type FIREBASE_STAGING to proceed: " CONFIRM

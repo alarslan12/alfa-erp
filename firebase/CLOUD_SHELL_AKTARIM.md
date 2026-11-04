@@ -23,10 +23,14 @@ cd alfa-erp && bash tools/firebase_cloudshell_stage.sh
    Supabase → Connect) at the hidden prompt. **Do not paste the password or
    connection URI into ChatGPT or GitHub.** The script sets a read-only
    transaction for exporting.
-4. Verify table counts. Type `FIREBASE_STAGING` only if you want to stage the
+4. Before uploading private orders, confirm **Firestore Database → Rules** do NOT
+   permit public reads/writes to `migration_staging` or private orders. If
+   Firestore was created in Test mode, stop and deploy restrictive rules first.
+   Type `PRIVATE_RULES_CHECKED` only after actually reviewing the rules.
+5. Verify table counts. Type `FIREBASE_STAGING` only if you want to stage the
    private copy. The importer verifies checksums and duplicate keys before
    writing and never updates production collections.
-5. Every row is compared back against the original private snapshot.
+6. Every row is compared back against the original private snapshot.
    "VERIFIED" means staging succeeded, **not** live cutover.
 
 ## Security / limitations
