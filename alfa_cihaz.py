@@ -11,7 +11,7 @@ class DeviceError(RuntimeError):
         super().__init__(message)
         self.status=status
     @property
-    def permanent(self):return self.status in (400,401,403,404,409,413,422)
+    def permanent(self):return self.status in (400,409,413,422)
 
 
 def crypt(data,decrypt=False):
