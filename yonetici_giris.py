@@ -1,28 +1,89 @@
-"""Owner login is Supabase Auth + workspace admin role, never a local hardcoded password."""
+"""Owner login: nonblocking Supabase Auth + RLS-scoped admin verification.
+
+Auth is separate from device pairing. An inaccessible Edge Function must
+never lock the login dialog or cause valid passwords to be rejected.
+"""
 import socket
+from PySide6.QtCore import QThread,Signal
 from PySide6.QtWidgets import QDialog,QVBoxLayout,QLabel,QLineEdit,QPushButton
+
 from alfa_bulut import AlfaCloud
 from alfa_cihaz import Workstation,api,save_token,get_token
 
 
-def admin_request(cloud,action,**kwargs):
+def admin_request(cloud,action,timeout=None,**kwargs):
     cloud._renew_if_needed()
-    if not cloud.logged_in:raise RuntimeError('Yönetici oturumu kapandı. Yeniden giriş yapın.')
+    if not cloud.logged_in:
+        raise RuntimeError('Yönetici oturumu kapandı. Yeniden giriş yapın.')
+    if timeout is None:
+        timeout=90 if action=='admin_catalog' else 25
     return api(action,admin_jwt=cloud._session['access_token'],
-               timeout=90 if action=='admin_catalog' else 25,**kwargs)
+               timeout=timeout,**kwargs)
+
+
+def pair_owner_device(cloud,timeout=10):
+    """Non-GUI enrollment, invoked only in a background worker.
+
+    The code is minted server-side for this authenticated admin, used once,
+    and never persisted. The paired device token is DPAPI-encrypted locally.
+    """
+    code=admin_request(cloud,'admin_code',timeout=timeout)['code']
+    paired=api('pair',code=code,device_name=socket.gethostname()[:120],
+               timeout=timeout)
+    save_token(paired['device_token'])
+    return paired['device_token']
 
 
 class AdminWorkstation(Workstation):
     def __init__(self,cloud,token):
-        super().__init__(token);self.cloud=cloud
+        super().__init__(token)
+        self.cloud=cloud
+
     def commit(self,edits):
         return admin_request(self.cloud,'admin_import',edits=edits)['results']
+
+
+class LoginWorker(QThread):
+    done=Signal(object)
+    failed=Signal(str)
+
+    def __init__(self,email,password,parent=None):
+        super().__init__(parent)
+        self.email=email
+        self.password=password
+
+    def run(self):
+        try:
+            cloud=AlfaCloud()
+            cloud.sign_in(self.email,self.password)
+            role=cloud.verify_owner_access()
+            if not role.get('access') or role.get('role')!='admin':
+                raise RuntimeError('Bu hesap ALFA ERP yöneticisi değil.')
+            self.done.emit(cloud)
+        except Exception as exc:
+            self.failed.emit(str(exc)[:320])
+        finally:
+            self.password=''
+
+
+class CheckWorker(QThread):
+    done=Signal()
+    failed=Signal(str)
+
+    def run(self):
+        try:
+            AlfaCloud().health()
+            self.done.emit()
+        except Exception as exc:
+            self.failed.emit(str(exc)[:320])
 
 
 class AdminLogin(QDialog):
     def __init__(self,parent=None):
         super().__init__(parent)
         self.cloud=None
+        self._login_worker=None
+        self._check_worker=None
         self.setWindowTitle('ALFA ERP · Yönetici Girişi')
         self.setMinimumWidth(390)
         col=QVBoxLayout(self);col.setSpacing(12)
@@ -40,38 +101,64 @@ class AdminLogin(QDialog):
         self.diagnostic_button.clicked.connect(self.check_connection)
         col.addWidget(self.diagnostic_button)
 
-    def check_connection(self):
-        self.diagnostic_button.setEnabled(False)
-        try:
-            AlfaCloud().health()
-            self.message.setText(
-                'Supabase Auth sunucusuna HTTPS bağlantısı başarılı. '
-                'Yönetici hesabınla yeniden giriş yapabilirsin.')
-        except Exception as exc:
-            self.message.setText('Bağlantı tanısı: '+str(exc)[:260])
-        finally:
-            self.diagnostic_button.setEnabled(True)
+    def _set_busy(self,busy):
+        self.button.setEnabled(not busy)
+        self.diagnostic_button.setEnabled(not busy)
 
     def authenticate(self):
-        self.button.setEnabled(False)
-        try:
-            cloud=AlfaCloud()
-            cloud.sign_in(self.email.text(),self.password.text())
-            # One authenticated server request checks workspace admin role.
-            # The old read_status() issued four separate table reads at login;
-            # any transient timeout incorrectly looked like invalid credentials.
-            status=admin_request(cloud,'admin_status')
-            if not status.get('access') or status.get('role')!='admin':
-                raise RuntimeError('Bu hesap ALFA ERP yöneticisi değil.')
-            self.password.clear()
-            if not get_token():
-                # Owner uses a one-time device credential, saved with Windows DPAPI.
-                code=admin_request(cloud,'admin_code')['code']
-                paired=api('pair',code=code,device_name=socket.gethostname()[:120])
-                save_token(paired['device_token'])
+        if self._login_worker is not None and self._login_worker.isRunning():
+            return
+        email=self.email.text().strip()
+        password=self.password.text()
+        if not email or not password:
+            self.message.setText('E-posta ve şifre gerekli.')
+            return
+        self._set_busy(True)
+        self.message.setText('Hesap doğrulanıyor… Pencere kullanılabilir durumda.')
+        worker=LoginWorker(email,password,self)
+        self._login_worker=worker
+        self.password.clear()
+
+        def success(cloud):
+            self._set_busy(False)
             self.cloud=cloud
+            self.message.setText('')
             self.accept()
-        except Exception as exc:
-            self.message.setText('Giriş başarısız: '+str(exc)[:260])
-        finally:
-            self.button.setEnabled(True)
+
+        def failure(message):
+            self._set_busy(False)
+            self.message.setText('Giriş başarısız: '+message)
+            self.password.setFocus()
+
+        worker.done.connect(success)
+        worker.failed.connect(failure)
+        worker.finished.connect(worker.deleteLater)
+        worker.start()
+
+    def check_connection(self):
+        if self._check_worker is not None and self._check_worker.isRunning():
+            return
+        self._set_busy(True)
+        self.message.setText('Supabase HTTPS erişimi kontrol ediliyor…')
+        worker=CheckWorker(self)
+        self._check_worker=worker
+
+        def success():
+            self._set_busy(False)
+            self.message.setText('Supabase Auth sunucusuna HTTPS bağlantısı başarılı.')
+
+        def failure(message):
+            self._set_busy(False)
+            self.message.setText('Bağlantı tanısı: '+message)
+
+        worker.done.connect(success)
+        worker.failed.connect(failure)
+        worker.finished.connect(worker.deleteLater)
+        worker.start()
+
+    def reject(self):
+        if ((self._login_worker is not None and self._login_worker.isRunning()) or
+            (self._check_worker is not None and self._check_worker.isRunning())):
+            self.message.setText('Ağ kontrolü tamamlanıyor…')
+            return
+        super().reject()
