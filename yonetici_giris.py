@@ -99,17 +99,17 @@ class AdminLogin(QDialog):
         self.cloud=None
         self._login_worker=None
         self._check_worker=None
-        self.setWindowTitle('ALFA ERP · Yönetici Girişi')
+        self.setWindowTitle('ALFA ERP · Tek Seferlik Yönetici Cihaz Aktivasyonu')
         self.setMinimumWidth(390)
         col=QVBoxLayout(self);col.setSpacing(12)
         col.addWidget(QLabel('ALFA ERP  /  YÖNETİCİ'))
-        col.addWidget(QLabel('Yönetici hesabınla giriş yap; normal ERP açılacak.'))
+        col.addWidget(QLabel('Bu cihazı bir kez güvenli şekilde etkinleştir. Sonraki açılışlarda giriş sorulmaz.'))
         self.email=QLineEdit();self.email.setPlaceholderText('E-posta adresi')
         self.password=QLineEdit();self.password.setPlaceholderText('Şifre')
         self.password.setEchoMode(QLineEdit.EchoMode.Password)
         col.addWidget(self.email);col.addWidget(self.password)
         self.message=QLabel('');self.message.setWordWrap(True);col.addWidget(self.message)
-        self.button=QPushButton('Yönetici olarak aç')
+        self.button=QPushButton('Bilgisayarı yetkilendir')
         self.button.clicked.connect(self.authenticate)
         col.addWidget(self.button);self.password.returnPressed.connect(self.authenticate)
         self.diagnostic_button=QPushButton('Supabase bağlantısını kontrol et')
@@ -129,7 +129,7 @@ class AdminLogin(QDialog):
             self.message.setText('E-posta ve şifre gerekli.')
             return
         self._set_busy(True)
-        self.message.setText('Hesap doğrulanıyor… Pencere kullanılabilir durumda.')
+        self.message.setText('Cihaz bir defalığına yetkilendiriliyor…')
         worker=LoginWorker(email,password,self)
         self._login_worker=worker
         self.password.clear()
