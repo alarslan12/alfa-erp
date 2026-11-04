@@ -9,7 +9,14 @@ ENDPOINT=PROJECT_URL.rstrip('/')+'/functions/v1/alfa-erp-device'
 # silently share a privileged owner credential. Never store it inside Setup.
 APP_ROOT=(Path(sys.executable).resolve().parent if getattr(sys,'frozen',False)
           else Path(__file__).resolve().parent)
-OWNER_APP=(APP_ROOT/'YONETICI_SURUMU.flag').is_file()
+RESOURCE_ROOT=Path(__file__).resolve().parent
+# --onedir freezes resources under _internal while the EXE is in {app}.
+# Detect the owner role consistently with main.py; never load a privileged
+# owner token as if it were a regular staff token.
+OWNER_APP=((RESOURCE_ROOT/'YONETICI_SURUMU.flag').is_file()
+           or (APP_ROOT/'YONETICI_SURUMU.flag').is_file()
+           or (getattr(sys,'frozen',False)
+               and Path(sys.executable).name.lower()=='alfaerpyonetici.exe'))
 SECRET=DATA/('alfa_owner_cihaz.bin' if OWNER_APP else 'alfa_cihaz.bin')
 class DeviceError(RuntimeError):
     def __init__(self,message,status=None):
