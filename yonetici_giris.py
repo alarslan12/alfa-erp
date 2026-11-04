@@ -68,11 +68,9 @@ class LoginWorker(QThread):
         try:
             cloud=AlfaCloud()
             cloud.sign_in(self.email,self.password)
-            role=cloud.verify_owner_access()
-            if not role.get('access') or role.get('role')!='admin':
-                raise RuntimeError('Bu hesap ALFA ERP yöneticisi değil.')
-            # This is a one-time, explicitly requested OWNER activation.
-            # Do not reuse an older staff-role token as if it were an owner.
+            # No additional REST membership lookup: admin_owner_code
+            # validates Supabase JWT and active admin membership on the server.
+            # This avoids a third API surface that previously timed out.
             pair_owner_device(cloud,timeout=12)
             self.done.emit(cloud)
         except Exception as exc:
