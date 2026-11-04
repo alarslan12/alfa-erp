@@ -20,6 +20,21 @@ async function digest(raw:string) {
   const hash = await crypto.subtle.digest('SHA-256',encoder.encode(raw));
   return Array.from(new Uint8Array(hash)).map(x=>x.toString(16).padStart(2,'0')).join('');
 }
+async function analyticsHash(pin:string,salt:string,iterations=150000) {
+  const key=await crypto.subtle.importKey('raw',encoder.encode(pin),
+    {name:'PBKDF2'},false,['deriveBits']);
+  const bits=await crypto.subtle.deriveBits({
+    name:'PBKDF2',salt:encoder.encode(salt),iterations,hash:'SHA-256'
+  },key,256);
+  return Array.from(new Uint8Array(bits))
+    .map(n=>n.toString(16).padStart(2,'0')).join('');
+}
+function equalHex(a:string,b:string) {
+  if(a.length!==b.length)return false;
+  let diff=0;
+  for(let i=0;i<a.length;i++)diff|=a.charCodeAt(i)^b.charCodeAt(i);
+  return diff===0;
+}
 function secureCode(bytes=24) {
   return Array.from(crypto.getRandomValues(new Uint8Array(bytes)))
     .map(n=>n.toString(16).padStart(2,'0')).join('').toUpperCase();
@@ -57,7 +72,7 @@ async function adminAccess(req:Request, wsid:string, body:Record<string,unknown>
 async function deviceAccess(body:Record<string,unknown>, wsid:string) {
   const token=typeof body.device_token==='string'?body.device_token:'';
   if (!/^[0-9A-Fa-f]{64}$/.test(token)) return null;
-  const {data} = await db.from('erp_device_keys').select('id,device_name')
+  const {data} = await db.from('erp_device_keys').select('id,device_name,device_role,analytics_failures,analytics_locked_until')
      .eq('workspace_id',wsid).eq('token_hash',await digest(token)).eq('active',true).maybeSingle();
   return data;
 }
@@ -106,6 +121,21 @@ Deno.serve(async(req:Request)=> {
     if(action.startsWith('admin_')) {
       if(!await adminAccess(req,ws.id,body)) return errorResponse('Yönetici oturumu gerekli',403);
       if(action==='admin_status') return respond({access:true,role:'admin'});
+      if(action==='admin_analytics_pin_set') {
+        const pin=String(body.pin||'');
+        if(!/^[0-9]{6,12}$/.test(pin)) return errorResponse('PIN 6-12 rakam olmalı',400);
+        const salt=secureCode(16);
+        const pin_digest=await analyticsHash(pin,salt);
+        const {error}=await db.from('erp_analytics_access').upsert({
+          workspace_id:ws.id,salt,pin_digest,iterations:150000,
+          updated_at:new Date().toISOString()
+        },{onConflict:'workspace_id'});
+        if(error) return errorResponse('Analitik PIN kaydedilemedi',500);
+        await db.from('erp_device_keys').update({
+          analytics_failures:0,analytics_locked_until:null
+        }).eq('workspace_id',ws.id);
+        return respond({ok:true});
+      }
       if(action==='admin_owner_code') {
         // Admin authorization is checked above. Short lived, single use.
         const code=secureCode(24);
@@ -311,6 +341,35 @@ Deno.serve(async(req:Request)=> {
       if(error)return errorResponse(error.message,409);
       const created=(data||[])[0]||{};
       return respond({order_number:created.order_number,reused:false});
+    }
+    if(action==='analytics_verify') {
+      const device=await deviceAccess(body,ws.id);
+      if(!device)return errorResponse('Cihaz henüz eşleştirilmedi',401);
+      const {data:setting,error:readError}=await db
+        .from('erp_analytics_access')
+        .select('salt,pin_digest,iterations')
+        .eq('workspace_id',ws.id).maybeSingle();
+      if(readError)return errorResponse('Analitik PIN okunamadı',503);
+      if(!setting)return errorResponse('Analitik PIN henüz yönetici tarafından belirlenmemiş',409);
+      if(device.analytics_locked_until && new Date(device.analytics_locked_until).getTime()>Date.now())
+        return errorResponse('Çok fazla deneme. Bir dakika sonra tekrar deneyin',429);
+      const pin=String(body.pin||'');
+      if(!/^[0-9]{6,12}$/.test(pin))return errorResponse('PIN 6-12 rakam olmalı',400);
+      const attempted=await analyticsHash(pin,setting.salt,setting.iterations);
+      if(equalHex(attempted,setting.pin_digest)){
+        await db.from('erp_device_keys').update({
+          analytics_failures:0,analytics_locked_until:null
+        }).eq('id',device.id).eq('workspace_id',ws.id);
+        return respond({verified:true});
+      }
+      const failures=Math.min(20,Number(device.analytics_failures||0)+1);
+      await db.from('erp_device_keys').update({
+        analytics_failures:failures,
+        analytics_locked_until:failures>=5?
+          new Date(Date.now()+60000).toISOString():null
+      }).eq('id',device.id).eq('workspace_id',ws.id);
+      return errorResponse(failures>=5?
+        'Çok fazla deneme. Bir dakika sonra tekrar deneyin':'Analitik PIN hatalı',403);
     }
     if(action==='sync') {
       const token=typeof body.device_token==='string'?body.device_token:'';
