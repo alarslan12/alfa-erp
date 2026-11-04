@@ -39,20 +39,20 @@ def verify(source, project_id):
         if len(rows) != details["count"]:
             raise RuntimeError(f"{table}: source count mismatch")
         collection = root.collection("tables").document(table).collection("rows")
+        # Stream once per table instead of ~one HTTP request per row.
+        remote = {document.id: document.to_dict() for document in collection.stream()}
         seen = set()
         for source_row in rows:
             key = str(source_row[details["primary_key"]])
             if key in seen:
                 raise RuntimeError(f"{table}: duplicate source key")
             seen.add(key)
-            doc = collection.document(key).get()
-            if not doc.exists:
+            if key not in remote:
                 raise RuntimeError(f"{table}: missing document")
-            if doc.to_dict() != source_row:
+            if remote[key] != source_row:
                 raise RuntimeError(f"{table}: data mismatch")
-        remote_count = sum(1 for _ in collection.select([]).stream())
-        if remote_count != len(rows):
-            raise RuntimeError(f"{table}: extra/unexpected documents ({remote_count} vs {len(rows)})")
+        if set(remote) != seen:
+            raise RuntimeError(f"{table}: unexpected documents in staging")
         total += len(rows)
         print(f"{table}: {len(rows)} verified")
     if total != state.get("staged_row_count") or total != state.get("row_count"):
