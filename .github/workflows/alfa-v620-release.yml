@@ -89,11 +89,11 @@ jobs:
       - name: Publish tested installers as durable GitHub Release
         shell: pwsh
         env:
-          GH_TOKEN: \${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $source=Get-Content main.py -Raw
           if ($source -notmatch "VERSION='([^']+)'") { throw 'Missing VERSION' }
           $tag='v'+$Matches[1]
           $files=@(Get-ChildItem output -File | ForEach-Object { $_.FullName })
-          gh release create $tag @files --repo '\${{ github.repository }}' --target '\${{ github.sha }}' --generate-notes --title "ALFA ERP $tag"
+          gh release create $tag @files --repo '${{ github.repository }}' --target '${{ github.sha }}' --generate-notes --title "ALFA ERP $tag"
           if ($LASTEXITCODE -ne 0) { throw 'Release creation failed' }
