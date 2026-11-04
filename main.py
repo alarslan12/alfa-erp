@@ -1,5 +1,5 @@
 """ALFA ERP Desktop - Qt/PySide6 yerel Windows masaüstü uygulaması."""
-import sys, traceback, os
+import sys, traceback, os, json
 from pathlib import Path
 from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBoxLayout,QStackedWidget,
  QLabel,QFrame,QGridLayout,QPushButton,QMessageBox,QInputDialog,QLineEdit)
@@ -305,15 +305,20 @@ class AlfaMain(QMainWindow):
     def try_auto_enrollment(self):
         from auto_eslestir import ROOT as ticket_root
         ticket=ticket_root/'kurulum_bilgisi.json'
-        if self.device.paired:
-            self._auto_enroll_retry.stop()
-            if ticket.is_file():
-                try:ticket.unlink()
-                except OSError:pass
-            return
         if not ticket.is_file():
             self._auto_enroll_retry.stop()
             return
+        if self.device.paired:
+            try:
+                data=json.loads(ticket.read_text(encoding='utf-8'))
+                replace_existing=data.get('replace_existing') is True
+            except (OSError,ValueError,TypeError):
+                replace_existing=False
+            if not replace_existing:
+                self._auto_enroll_retry.stop()
+                try:ticket.unlink()
+                except OSError:pass
+                return
         if self._auto_enroll_worker and self._auto_enroll_worker.isRunning():
             return
         self.cloud_badge.setText('◌ Cihaz yetkisi kuruluyor…')
