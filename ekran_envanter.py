@@ -428,8 +428,10 @@ class EnvanterView(QWidget):
         update_fields(0)
         if dialog.exec()!=QDialog.DialogCode.Accepted:return
         index=product_select.currentIndex()
-        if index<0 or index>=len(products):
-            QMessageBox.warning(self,'Envanter','Lütfen listeden geçerli bir ürün seç.')
+        if (index<0 or index>=len(products) or
+            product_select.currentText().strip()!=product_select.itemText(index).strip()):
+            QMessageBox.warning(self,'Envanter',
+                'Yanlış ürüne stok kaydetmemek için açılır listeden bir ürün seçmelisiniz.')
             return
         product=products[index]
         payload={**product,'id':product['id'],'quantity':total.value(),
