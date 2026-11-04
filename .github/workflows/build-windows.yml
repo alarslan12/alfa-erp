@@ -18,7 +18,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: alfa-${{ github.workflow }}-${{ github.ref }}
+  group: alfa-v620-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
 jobs:
@@ -46,7 +46,10 @@ jobs:
         shell: pwsh
         env:
           QT_QPA_PLATFORM: offscreen
-        run: python -m unittest discover -s tests -v
+        run: |
+          # A hung native GUI test must print its Python thread stacks and
+          # fail rather than blocking the entire release build indefinitely.
+          python -u -c "import faulthandler,unittest,sys; faulthandler.dump_traceback_later(120,exit=True); result=unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.discover('tests')); sys.exit(not result.wasSuccessful())"
       - name: Verify clean local installation script in an isolated Windows sandbox
         shell: pwsh
         run: |
