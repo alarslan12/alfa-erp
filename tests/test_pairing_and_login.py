@@ -49,17 +49,39 @@ class EnrollmentAndLoginTests(unittest.TestCase):
         messages=[]
         worker.done.connect(messages.append)
         with patch('yonetici_giris.AlfaCloud',return_value=cloud), \
-             patch('yonetici_giris.get_token',return_value='A'*64), \
-             patch('yonetici_giris.admin_request') as edge:
+             patch('yonetici_giris.pair_owner_device',return_value='A'*64) as activated:
             # Run worker logic deterministically without creating a native
             # Windows Qt thread in the unit-test runner.
             worker.run()
             cloud.sign_in.assert_called_once()
             cloud.verify_owner_access.assert_called_once()
             cloud.read_status.assert_not_called()
-            edge.assert_not_called()
+            activated.assert_called_once_with(cloud,timeout=12)
             self.assertEqual(messages,[cloud])
             self.assertEqual(worker.password,'')
+
+    def test_authenticated_owner_setup_mints_owner_code_not_staff_code(self):
+        from yonetici_giris import pair_owner_device
+        cloud=MagicMock()
+        with patch('yonetici_giris.admin_request',
+                   return_value={'code':'A'*48}) as request, \
+             patch('yonetici_giris.api',
+                   return_value={'device_token':'B'*64}) as paired, \
+             patch('yonetici_giris.save_token') as save:
+            self.assertEqual(pair_owner_device(cloud,timeout=9),'B'*64)
+            request.assert_called_once_with(cloud,'admin_owner_code',timeout=9)
+            paired.assert_called_once()
+            self.assertEqual(paired.call_args.args[0],'pair')
+            save.assert_called_once_with('B'*64)
+
+    def test_admin_action_uses_only_owner_device_credential_when_paired(self):
+        from yonetici_giris import admin_request
+        with patch('yonetici_giris.get_token',return_value='F'*64), \
+             patch('yonetici_giris.api',return_value={'ok':True}) as request:
+            result=admin_request(None,'admin_devices')
+            self.assertTrue(result['ok'])
+            request.assert_called_once_with(
+                'admin_devices',token='F'*64,timeout=25)
 
     def test_login_form_starts_worker_without_network_on_gui_thread(self):
         from yonetici_giris import AdminLogin,LoginWorker
