@@ -303,11 +303,15 @@ class AlfaMain(QMainWindow):
         if index==1:self.general_catalog.refresh()
 
     def try_auto_enrollment(self):
+        from auto_eslestir import ROOT as ticket_root
+        ticket=ticket_root/'kurulum_bilgisi.json'
         if self.device.paired:
             self._auto_enroll_retry.stop()
+            if ticket.is_file():
+                try:ticket.unlink()
+                except OSError:pass
             return
-        from auto_eslestir import ROOT as ticket_root
-        if not (ticket_root/'kurulum_bilgisi.json').is_file():
+        if not ticket.is_file():
             self._auto_enroll_retry.stop()
             return
         if self._auto_enroll_worker and self._auto_enroll_worker.isRunning():
