@@ -41,30 +41,55 @@ class EnrollmentAndLoginTests(unittest.TestCase):
             self.assertIn('48',modal.message.text())
         modal.close()
 
-    def test_owner_login_only_checks_admin_status_not_four_public_tables(self):
+    def test_owner_login_uses_background_worker_and_direct_rls_access(self):
         from yonetici_giris import AdminLogin
         cloud=MagicMock()
         cloud.logged_in=True
+        cloud.verify_owner_access.return_value={'access':True,'role':'admin'}
         cloud._session={'access_token':'test.jwt'}
         form=AdminLogin()
         form.email.setText('operator@example.invalid')
         form.password.setText('dummy-password-not-saved')
         with patch('yonetici_giris.AlfaCloud',return_value=cloud), \
-             patch('yonetici_giris.admin_request',return_value={'access':True,'role':'admin'}) as call, \
-             patch('yonetici_giris.get_token',return_value='C'*64):
+             patch('yonetici_giris.admin_request') as edge:
             form.authenticate()
-            cloud.sign_in.assert_called_once()
-            cloud.read_status.assert_not_called()
-            call.assert_called_once_with(cloud,'admin_status')
-            self.assertEqual(form.result(),QDialog.DialogCode.Accepted)
+            self.assertFalse(form.button.isEnabled())
             self.assertEqual(form.password.text(),'')
+            self.assertTrue(form._login_worker.wait(5000))
+            self.app.processEvents()
+            cloud.sign_in.assert_called_once()
+            cloud.verify_owner_access.assert_called_once()
+            cloud.read_status.assert_not_called()
+            edge.assert_not_called()
+            self.assertEqual(form.result(),QDialog.DialogCode.Accepted)
 
-    def test_owner_connection_check_does_not_require_password(self):
+    def test_rls_admin_verification_is_small_and_fails_closed(self):
+        from alfa_bulut import AlfaCloud,CloudError
+        cloud=AlfaCloud()
+        with patch.object(cloud,'get',side_effect=[
+            [{'id':'workspace-test'}],
+            [{'role':'admin','active':True}]
+        ]) as getter:
+            result=cloud.verify_owner_access()
+            self.assertTrue(result['access'])
+            self.assertEqual(getter.call_count,2)
+            self.assertIn('workspace_members',getter.call_args.args[0])
+        with patch.object(cloud,'get',side_effect=[
+            [{'id':'workspace-test'}],
+            [{'role':'viewer','active':True}]
+        ]):
+            with self.assertRaises(CloudError):
+                cloud.verify_owner_access()
+
+    def test_owner_connection_check_is_nonblocking(self):
         from yonetici_giris import AdminLogin
         cloud=MagicMock()
         form=AdminLogin()
         with patch('yonetici_giris.AlfaCloud',return_value=cloud):
             form.check_connection()
+            self.assertFalse(form.diagnostic_button.isEnabled())
+            self.assertTrue(form._check_worker.wait(5000))
+            self.app.processEvents()
             cloud.health.assert_called_once()
             cloud.sign_in.assert_not_called()
             self.assertIn('başarılı',form.message.text().lower())
