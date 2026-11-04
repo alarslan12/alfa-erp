@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
     QApplication, QWidget, QFrame, QDialog, QVBoxLayout, QHBoxLayout,
     QLayout, QLabel, QLineEdit, QComboBox, QPushButton, QScrollArea,
     QTextEdit, QSpinBox, QDoubleSpinBox, QMessageBox, QFileDialog,
-    QSizePolicy, QFormLayout, QStackedWidget, QProgressBar
+    QSizePolicy, QFormLayout, QStackedWidget, QProgressBar, QCompleter
 )
 
 
@@ -253,8 +253,8 @@ class EnvanterView(QWidget):
         title.addStretch()
         self.sync_note=QLabel('Supabase · ortak ürün kataloğu');self.sync_note.setObjectName('Muted')
         title.addWidget(self.sync_note)
-        self.add_button=QPushButton('+  Ürün oluştur');self.add_button.setObjectName('Accent')
-        self.add_button.clicked.connect(lambda:self.edit_product(None));title.addWidget(self.add_button)
+        self.add_button=QPushButton('＋  Katalogdan envantere ekle');self.add_button.setObjectName('Accent')
+        self.add_button.clicked.connect(self.add_from_catalog);title.addWidget(self.add_button)
         main.addLayout(title)
         self.summary=QLabel('Ürünler yükleniyor…')
         self.summary.setWordWrap(True);self.summary.setObjectName('InventorySummary')
@@ -266,7 +266,7 @@ class EnvanterView(QWidget):
         self.category=QComboBox();self.category.addItem('Tüm kategoriler')
         self.category.currentIndexChanged.connect(self.render)
         toolbar.addWidget(self.category,1)
-        self.scope=QComboBox();self.scope.addItems(['Tüm katalog','Envanterimde olanlar','Satışı yapılanlar'])
+        self.scope=QComboBox();self.scope.addItems(['Tüm envanter','Stokta bulunanlar','Satışı yapılanlar'])
         self.scope.currentIndexChanged.connect(self.render)
         toolbar.addWidget(self.scope,1)
         self.sort=QComboBox();self.sort.addItems(['Mozaik: popüler ürünler','Ürün adı','Stok miktarı','Satış tutarı'])
@@ -367,6 +367,80 @@ class EnvanterView(QWidget):
         close=QPushButton('Kapat');close.clicked.connect(dialog.accept)
         layout.addWidget(close)
         dialog.exec()
+
+    def add_from_catalog(self):
+        """Select a master product, then set total stock and prices separately."""
+        if not self.owner:
+            return
+        request=self._admin_request()
+        if request is None:
+            QMessageBox.warning(self,'Envanter','Yönetici oturumu bulunamadı.')
+            return
+        products=sorted((p for p in self.db.inventory_products if p.get('active',True)),
+                        key=lambda p:str(p.get('title') or '').casefold())
+        if not products:
+            QMessageBox.information(self,'Envanter',
+                'Genel ürün kataloğu boş. Önce Katalog → Genel Ürünler sekmesinde ürün oluştur.')
+            return
+        dialog=QDialog(self)
+        dialog.setWindowTitle('Genel katalogdan envantere ürün ekle')
+        dialog.resize(570,310)
+        layout=QVBoxLayout(dialog)
+        hint=QLabel('Ürün seç, toplam stok adedini ve fiyatını belirle. '
+            'Mevcut ürünü seçersen yeni değerlerle güncellenir.')
+        hint.setWordWrap(True);layout.addWidget(hint)
+        form=QFormLayout()
+        product_select=QComboBox()
+        product_select.setEditable(True)
+        for p in products:
+            label=f"{p.get('sku','')} · {p.get('title','')}"
+            if p.get('in_inventory',True):
+                label+='   (envanterde)'
+            product_select.addItem(label,str(p.get('id')))
+        product_select.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+        completer=product_select.completer()
+        if completer is not None:
+            completer.setCompletionMode(QCompleter.CompletionMode.PopupCompletion)
+            completer.setFilterMode(Qt.MatchFlag.MatchContains)
+            completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+        total=QSpinBox();total.setRange(0,10000000)
+        price=QDoubleSpinBox();price.setRange(0,999999999)
+        price.setDecimals(2);price.setSuffix(' TL')
+        cost=QDoubleSpinBox();cost.setRange(0,999999999)
+        cost.setDecimals(2);cost.setSuffix(' TL')
+        def update_fields(index):
+            if index<0 or index>=len(products):return
+            p=products[index]
+            total.setValue(int(p.get('quantity') or 0))
+            price.setValue(float(p.get('sale_price') or 0))
+            cost.setValue(float(p.get('cost_price') or 0))
+        product_select.currentIndexChanged.connect(update_fields)
+        form.addRow('Genel katalog ürünü',product_select)
+        form.addRow('Yeni toplam stok',total)
+        form.addRow('Satış fiyatı',price)
+        form.addRow('Birim maliyet',cost)
+        layout.addLayout(form)
+        buttons=QHBoxLayout();buttons.addStretch()
+        cancel=QPushButton('Vazgeç');cancel.clicked.connect(dialog.reject)
+        save=QPushButton('Envantere kaydet');save.setObjectName('Accent')
+        save.clicked.connect(dialog.accept)
+        buttons.addWidget(cancel);buttons.addWidget(save);layout.addLayout(buttons)
+        update_fields(0)
+        if dialog.exec()!=QDialog.DialogCode.Accepted:return
+        index=product_select.currentIndex()
+        if index<0 or index>=len(products):
+            QMessageBox.warning(self,'Envanter','Lütfen listeden geçerli bir ürün seç.')
+            return
+        product=products[index]
+        payload={**product,'id':product['id'],'quantity':total.value(),
+                 'sale_price':price.value(),'cost_price':cost.value(),
+                 'in_inventory':True}
+        self.sync_note.setText('Ürün envantere kaydediliyor…')
+        def success(_):
+            self.sync_note.setText('Envanter güncellendi · diğer bilgisayarlarla eşitleniyor')
+            self._parent_sync()
+        self._run_job('inventory_catalog_assign',
+            lambda:request('admin_inventory_upsert',product=payload),success)
 
     def edit_product(self,product):
         if not self.owner:
@@ -476,7 +550,7 @@ class EnvanterView(QWidget):
         self.sales_amounts=defaultdict(float)
         for sale in sales:
             self.sales_amounts[str(sale.get('product_id'))]+=int(sale.get('quantity') or 0)*float(sale.get('sale_price') or 0)
-        active=[p for p in rows if p.get('active',True)]
+        active=[p for p in rows if p.get('active',True) and p.get('in_inventory',True)]
         self.summary.setText(f'   {len(active)} ürün     ·     {sum(int(p.get("quantity") or 0) for p in active):,} mevcut adet'
                              f'     ·     {sum(counts.values()):,} satış     ·     {money:,.2f} TL satış cirosu'
                              f'     ·     {money-cost:,.2f} TL tahmini brüt fark')
@@ -529,7 +603,8 @@ class EnvanterView(QWidget):
             self.top_products.addWidget(wrapper)
 
     def render(self,*_):
-        rows=[x for x in (getattr(self.db,'inventory_products',[]) or []) if x.get('active',True)]
+        rows=[x for x in (getattr(self.db,'inventory_products',[]) or [])
+              if x.get('active',True) and x.get('in_inventory',True)]
         term=self.search.text().casefold().strip()
         if term:
             rows=[p for p in rows if term in (' '.join([
@@ -549,7 +624,7 @@ class EnvanterView(QWidget):
             item=self.flow.takeAt(0)
             if item.widget():item.widget().deleteLater()
         if not rows:
-            empty=QLabel('Henüz ürün yok. Yönetici olarak yeni bir ürün oluşturabilir veya filtreleri temizleyebilirsin.')
+            empty=QLabel('Envanter henüz boş. Yönetici olarak Katalog → Genel Ürünler bölümünden ürün oluşturup burada Katalogdan envantere ekle seçeneğini kullanabilirsin.')
             empty.setWordWrap(True);empty.setMinimumHeight(170)
             empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.flow.addWidget(empty)
