@@ -59,6 +59,13 @@ class LoginWorker(QThread):
             role=cloud.verify_owner_access()
             if not role.get('access') or role.get('role')!='admin':
                 raise RuntimeError('Bu hesap ALFA ERP yöneticisi değil.')
+            if not get_token():
+                # Recover the normal owner pairing outside the GUI thread.
+                # A short-lived Edge outage is not an invalid admin password.
+                try:
+                    pair_owner_device(cloud,timeout=8)
+                except Exception as exc:
+                    cloud.owner_pairing_problem=str(exc)[:180]
             self.done.emit(cloud)
         except Exception as exc:
             self.failed.emit(str(exc)[:320])
