@@ -41,28 +41,39 @@ class EnrollmentAndLoginTests(unittest.TestCase):
             self.assertIn('48',modal.message.text())
         modal.close()
 
-    def test_owner_login_uses_background_worker_and_direct_rls_access(self):
-        from yonetici_giris import AdminLogin
+    def test_owner_login_worker_uses_direct_rls_access(self):
+        from yonetici_giris import LoginWorker
         cloud=MagicMock()
-        cloud.logged_in=True
         cloud.verify_owner_access.return_value={'access':True,'role':'admin'}
-        cloud._session={'access_token':'test.jwt'}
-        form=AdminLogin()
-        form.email.setText('operator@example.invalid')
-        form.password.setText('dummy-password-not-saved')
+        worker=LoginWorker('operator@example.invalid','dummy-password')
+        messages=[]
+        worker.done.connect(messages.append)
         with patch('yonetici_giris.AlfaCloud',return_value=cloud), \
              patch('yonetici_giris.get_token',return_value='A'*64), \
              patch('yonetici_giris.admin_request') as edge:
-            form.authenticate()
-            self.assertFalse(form.button.isEnabled())
-            self.assertEqual(form.password.text(),'')
-            self.assertTrue(form._login_worker.wait(5000))
-            self.app.processEvents()
+            # Run worker logic deterministically without creating a native
+            # Windows Qt thread in the unit-test runner.
+            worker.run()
             cloud.sign_in.assert_called_once()
             cloud.verify_owner_access.assert_called_once()
             cloud.read_status.assert_not_called()
             edge.assert_not_called()
-            self.assertEqual(form.result(),QDialog.DialogCode.Accepted)
+            self.assertEqual(messages,[cloud])
+            self.assertEqual(worker.password,'')
+
+    def test_login_form_starts_worker_without_network_on_gui_thread(self):
+        from yonetici_giris import AdminLogin,LoginWorker
+        form=AdminLogin()
+        form.email.setText('operator@example.invalid')
+        form.password.setText('dummy-password')
+        with patch.object(LoginWorker,'start') as start:
+            form.authenticate()
+            start.assert_called_once()
+            self.assertFalse(form.button.isEnabled())
+            self.assertEqual(form.password.text(),'')
+        # No real thread was started, so reject safely.
+        form._login_worker=None
+        form.reject()
 
     def test_rls_admin_verification_is_small_and_fails_closed(self):
         from alfa_bulut import AlfaCloud,CloudError
