@@ -20,7 +20,7 @@ from ayar_yonetimi import UserSettings, theme_styles
 from widgets import text,button,panel,Covers
 
 ROOT=Path(__file__).resolve().parent
-VERSION='6.2.0'
+VERSION='6.2.1'
 OWNER_EDITION=(ROOT/'YONETICI_SURUMU.flag').exists()
 
 
@@ -266,6 +266,10 @@ class AlfaMain(QMainWindow):
             self.body.setContentsMargins(7 if narrow else 13,4 if narrow else 5,7 if narrow else 13,6 if narrow else 8)
 
     def make_icon(self):
+        # Use the same branded icon as the native EXE, taskbar and installer.
+        logo=ROOT/'assets'/'icons'/('alfa_yonetici.ico' if OWNER_EDITION else 'alfa_personel.ico')
+        if logo.is_file():
+            return QIcon(str(logo))
         pix=QPixmap(64,64);pix.fill(QColor('#f1b46f'))
         paint=QPainter(pix)
         paint.setPen(QColor('#151c28'))
