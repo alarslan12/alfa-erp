@@ -338,6 +338,22 @@ def start():
             if prompt.exec()!=prompt.DialogCode.Accepted:
                 return 0
             admin_cloud=prompt.cloud
+        else:
+            # Shared main.py is the entry point for BOTH frozen editions.
+            # On normal staff launch, enroll once using the optional file
+            # beside the Setup.exe. --self-test bypasses start() entirely.
+            from alfa_cihaz import get_token
+            if not get_token():
+                from auto_eslestir import main as enroll_staff
+                try:
+                    enroll_staff(install_startup=False)
+                except Exception as exc:
+                    QMessageBox.critical(None,'ALFA ERP · Cihaz eşleştirme',
+                      'Cihaz henüz eşleştirilmedi. Tek kullanımlık kurulum '
+                      'dosyasını Setup.exe ile aynı klasöre koyup yeniden '
+                      'kurun veya yöneticiden yeni cihaz kodu isteyin.\n\n'
+                      +str(exc)[:300])
+                    return 1
         main=AlfaMain(admin_cloud=admin_cloud)
         # Mevcut ekranın kullanılabilir alanına göre ölçeklendir ve tam ortala.
         screen=app.primaryScreen()
