@@ -94,6 +94,7 @@ Deno.serve(async(req:Request)=> {
     }
     if(action.startsWith('admin_')) {
       if(!await adminAccess(req,ws.id)) return errorResponse('Yönetici oturumu gerekli',403);
+      if(action==='admin_status') return respond({access:true,role:'admin'});
       if(action==='admin_setup_code') {
         // Tek cihaz için tek kullanımlık dağıtım bileti (14 gün).
         const code=secureCode(24);
