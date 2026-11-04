@@ -14,7 +14,7 @@ if ([string]::IsNullOrWhiteSpace($DataRoot)) {
   $DataRoot=Join-Path $local 'AlfaERP'
 }
 $DataRoot=[System.IO.Path]::GetFullPath($DataRoot)
-$running=@(Get-Process -Name 'AlfaERP','AlfaERPYonetici','AlfaBildirimServisi' -ErrorAction SilentlyContinue)
+$running=@(Get-Process -Name 'AlfaERP','AlfaERPYonetici','AlfaBildirim','AlfaBildirimServisi' -ErrorAction SilentlyContinue)
 if ($running.Count -gt 0) {
   throw 'Close ALFA ERP owner/staff and the notification agent before resetting.'
 }
