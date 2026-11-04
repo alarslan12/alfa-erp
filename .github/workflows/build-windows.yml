@@ -10,6 +10,10 @@ on:
     branches: [main]
   workflow_dispatch:
 
+env:
+  PYTHONUTF8: '1'
+  PYTHONIOENCODING: utf-8
+
 permissions:
   contents: read
 
@@ -24,9 +28,9 @@ jobs:
     timeout-minutes: 25
     steps:
       - name: Check out project source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Python 3.13 64-bit
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.13'
           architecture: x64
@@ -53,8 +57,8 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.13'
           architecture: x64

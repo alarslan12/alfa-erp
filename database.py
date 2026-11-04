@@ -1048,10 +1048,10 @@ class ERPDatabase:
                 basarili += 1
 
             wb.close()
-            print(f"✅ BAŞARILI: '{dosya}' dosyasından {basarili} kitap ve {len(self.gruplar)} kategori yüklendi.")
+            print(f"Katalog yuklendi: {basarili} kitap, {len(self.gruplar)} kategori.")
 
         except Exception as e:
-            print(f"❌ Excel okunurken kritik hata oluştu: {e}")
+            print(f"Excel katalog okuma hatasi: {e!a}")
     def yeni_siparis_olustur(self, alanlar, kitaplar):
         """Katalog sepetini havuza ekler; eski JSON şemasını aynen kullanır."""
         if not str(alanlar.get("kod", "")).strip():
