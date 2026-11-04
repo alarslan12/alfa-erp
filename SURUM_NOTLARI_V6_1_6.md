@@ -37,3 +37,5 @@
 
 ## Güvenlik
 Yerel dosyaların yedeği kullanıcının bilgisayarında kalır; çevrimiçi veri yedeği veya bulut temizliği yapılmaz. Eski bulut hareketlerini otomatik tekrar göndermek duplicate hazırlama/kolileme riski yaratabileceğinden bilinçli olarak yapılmaz.
+
+Windows kalite kapısı sonucu: 30/30 offline birim, protokol ve Qt GUI testi başarılı. Yerel sıfırlama aracı iki farklı modda Windows sandbox'ında doğrulandı.
