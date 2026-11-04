@@ -27,10 +27,23 @@ class WindowsGuiTests(unittest.TestCase):
                 self.assertIsNotNone(window.orders)
                 self.assertIsNotNone(window.inventory)
                 self.assertIsNotNone(window.analytics)
-                for index in (0,1,2,3,4):
+                # Navigation to Analytics must ask for a server PIN.
+                # Mock the dialog explicitly: a real modal has no user in CI.
+                for index in (0,1,3,4):
                     window.navigate(index)
                     app.processEvents()
                     self.assertEqual(window.stack.currentIndex(),index)
+                with patch('analytics_access.AnalyticsGate') as modal:
+                    modal.return_value.exec.return_value=0
+                    window.navigate(2)
+                    self.assertNotEqual(window.stack.currentIndex(),2)
+                    modal.assert_called_once()
+                with patch('analytics_access.AnalyticsGate') as modal:
+                    modal.return_value.exec.return_value=1
+                    window.navigate(2)
+                    app.processEvents()
+                    self.assertEqual(window.stack.currentIndex(),2)
+                    self.assertTrue(window._analytics_unlocked)
             finally:
                 window.close()
                 app.processEvents()
