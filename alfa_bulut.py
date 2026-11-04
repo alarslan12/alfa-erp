@@ -6,6 +6,8 @@ No service role, database password or secret keys should be used by clients.
 from __future__ import annotations
 import json
 import time
+import socket
+import ssl
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -16,7 +18,9 @@ WORKSPACE_SLUG = 'alfa-erp'
 
 
 class CloudError(RuntimeError):
-    pass
+    def __init__(self,message,retryable=False):
+        super().__init__(message)
+        self.retryable=bool(retryable)
 
 
 class AlfaCloud:
@@ -59,7 +63,20 @@ class AlfaCloud:
             # Never include bearer tokens, passwords or raw request headers in errors.
             raise CloudError(str(message)[:350]) from None
         except (urllib.error.URLError, TimeoutError, OSError) as error:
-            raise CloudError('Supabase bağlantısı kurulamadı. İnternet bağlantısını kontrol edin.') from error
+            reason=getattr(error,'reason',error)
+            if isinstance(reason,ssl.SSLError):
+                hint='SSL sertifikası veya HTTPS doğrulaması'
+            elif isinstance(reason,socket.gaierror):
+                hint='DNS adresi çözümlenemedi'
+            elif isinstance(reason,(TimeoutError,socket.timeout)) or 'timed out' in str(reason).lower():
+                hint='Bağlantı zaman aşımı'
+            elif isinstance(reason,ConnectionRefusedError):
+                hint='Bağlantı reddedildi'
+            else:
+                hint=type(reason).__name__
+            raise CloudError('Supabase bağlantısı kurulamadı ('+hint+
+                             '). VPN, güvenlik duvarı ve DNS ayarlarını kontrol edin.',
+                             retryable=True) from None
 
     def health(self):
         self._http('GET', '/auth/v1/health')
@@ -77,8 +94,16 @@ class AlfaCloud:
     def sign_in(self, email, password):
         if not email.strip() or not password:
             raise CloudError('E-posta ve parola gerekli.')
-        result = self._http('POST', '/auth/v1/token?grant_type=password',
-                            {'email': email.strip(), 'password': password})
+        result=None
+        for attempt in range(2):
+            try:
+                result=self._http('POST','/auth/v1/token?grant_type=password',
+                                  {'email':email.strip(),'password':password})
+                break
+            except CloudError as exc:
+                if not exc.retryable or attempt:
+                    raise
+                time.sleep(0.7)
         self._install_session(result)
         return True
 
