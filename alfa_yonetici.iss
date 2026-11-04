@@ -16,6 +16,7 @@ UninstallDisplayIcon={app}\AlfaERPYonetici.exe
 [Files]
 Source: "dist\AlfaERPYonetici\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
 Source: "YONETICI_SURUMU.flag"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{src}\kurulum_bilgisi.json"; DestDir: "{app}"; Flags: external skipifsourcedoesntexist ignoreversion
 [Icons]
 Name: "{autodesktop}\ALFA ERP Yönetici"; Filename: "{app}\AlfaERPYonetici.exe"; WorkingDir: "{app}"
 [Run]
