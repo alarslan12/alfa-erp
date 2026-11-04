@@ -29,20 +29,22 @@ if(-not (Test-Path $Virtual)) {
  if($Python -eq 'py.exe'){Run $Python @('-3.13','-m','venv','.buildvenv')}
  else {Run $Python @('-m','venv','.buildvenv')}
 }
-Run $Virtual @('-m','pip','install','--disable-pip-version-check','-r','requirements.txt','pyinstaller==6.16.0')
+Run $Virtual @('-m','pip','install','--disable-pip-version-check','-r','requirements.txt','pyinstaller==6.16.0','Pillow==11.3.0')
+# Generate branded multi-resolution .ico assets before PyInstaller and Inno Setup.
+Run $Virtual @('tools\build_icons.py')
 if($Edition -eq 'personel') {
  # Generic installer: enrollment is supplied in an optional one-use JSON
  # beside the Setup.exe at installation, NOT baked into executable assets.
  Run $Virtual @('-m','PyInstaller','--noconfirm','--clean','--onedir','--windowed',
-  '--name','AlfaERP','--add-data','KİTAPS.xlsx;.','--add-data','katalog.json;.',
+  '--name','AlfaERP','--icon=assets\icons\alfa_personel.ico','--add-data','KİTAPS.xlsx;.','--add-data','katalog.json;.',
   '--add-data','assets;assets','--hidden-import=auto_eslestir',
   '--hidden-import=ekran_ayarlar_calisan','main.py')
  Run $Virtual @('-m','PyInstaller','--noconfirm','--clean','--onedir','--windowed',
-  '--name','AlfaBildirim','bildirim_servisi.py')
+  '--name','AlfaBildirim','--icon=assets\icons\alfa_personel.ico','bildirim_servisi.py')
  $iss='alfa_personel.iss'
 } else {
  Run $Virtual @('-m','PyInstaller','--noconfirm','--clean','--onedir','--windowed',
-  '--name','AlfaERPYonetici','--add-data','YONETICI_SURUMU.flag;.',
+  '--name','AlfaERPYonetici','--icon=assets\icons\alfa_yonetici.ico','--add-data','YONETICI_SURUMU.flag;.',
   '--add-data','KİTAPS.xlsx;.','--add-data','katalog.json;.',
   '--add-data','assets;assets','--hidden-import=yonetici_giris',
   '--hidden-import=yonetici_kompakt','--hidden-import=personel_paketi','main.py')
