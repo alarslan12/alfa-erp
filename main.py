@@ -3,7 +3,7 @@ import sys, traceback, os
 from pathlib import Path
 from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBoxLayout,QStackedWidget,
  QLabel,QFrame,QGridLayout,QPushButton,QMessageBox,QInputDialog,QLineEdit)
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt, QTimer, QThread, Signal
 from PySide6.QtGui import QIcon,QPixmap,QPainter,QFont,QColor
 from database import ERPDatabase
 from ekran_katalog import KatalogView
@@ -22,6 +22,19 @@ from widgets import text,button,panel,Covers
 ROOT=Path(__file__).resolve().parent
 VERSION='6.1.8'
 OWNER_EDITION=(ROOT/'YONETICI_SURUMU.flag').exists()
+
+
+class AutoEnrollment(QThread):
+    """Consume an optional private one-time Setup ticket after GUI is visible."""
+    succeeded=Signal()
+    failed=Signal(str)
+    def run(self):
+        try:
+            from auto_eslestir import main as enroll
+            enroll(install_startup=False)
+            self.succeeded.emit()
+        except Exception as exc:
+            self.failed.emit(str(exc)[:220])
 
 
 class AlfaMain(QMainWindow):
@@ -197,7 +210,14 @@ class AlfaMain(QMainWindow):
         self.live.changed.connect(self._cloud_orders_changed)
         self.live.status.connect(self._cloud_status)
         self.catalog.order_created.connect(self.order_created)
+        self._auto_enroll_worker=None
+        self._auto_enroll_retry=QTimer(self)
+        self._auto_enroll_retry.setInterval(60000)
+        self._auto_enroll_retry.timeout.connect(self.try_auto_enrollment)
         self.navigate(0)
+        # A private setup bundle can provide the one-time code without typing
+        # or requiring an owner/staff login. Never block the first window.
+        QTimer.singleShot(350,self.try_auto_enrollment)
 
     def showEvent(self,event):
         super().showEvent(event)
@@ -282,6 +302,42 @@ class AlfaMain(QMainWindow):
         self.page_title.setText('Kitap kataloğu' if index==0 else 'Genel ürün kataloğu')
         if index==1:self.general_catalog.refresh()
 
+    def try_auto_enrollment(self):
+        if self.device.paired:
+            self._auto_enroll_retry.stop()
+            return
+        from auto_eslestir import ROOT as ticket_root
+        if not (ticket_root/'kurulum_bilgisi.json').is_file():
+            self._auto_enroll_retry.stop()
+            return
+        if self._auto_enroll_worker and self._auto_enroll_worker.isRunning():
+            return
+        self.cloud_badge.setText('◌ Cihaz yetkisi kuruluyor…')
+        worker=AutoEnrollment(self)
+        self._auto_enroll_worker=worker
+        result={'ok':False,'error':''}
+        worker.succeeded.connect(lambda:result.__setitem__('ok',True))
+        worker.failed.connect(lambda message:result.__setitem__('error',message))
+        def finished():
+            self._auto_enroll_worker=None
+            if result['ok']:
+                from alfa_cihaz import get_token
+                self.device.token=get_token()
+                if self.device.paired:
+                    self._auto_enroll_retry.stop()
+                    self.cloud_connect.setText('Cihaz yetkisi' if OWNER_EDITION else 'Yeniden eşleştir')
+                    self.live.activate()
+                    return
+            self.cloud_badge.setText('◌ Bağlantı yeniden denenecek')
+            self.cloud_badge.setToolTip(
+                'Özel kurulum bileti korunuyor. Bir sonraki denemede bağlantı '
+                'otomatik olarak yeniden kurulacak.\n'+result['error'])
+            if not self._auto_enroll_retry.isActive():
+                self._auto_enroll_retry.start()
+        worker.finished.connect(finished)
+        worker.finished.connect(worker.deleteLater)
+        worker.start()
+
     def connect_cloud(self):
         """Open normally; authorize the computer only when the user asks."""
         if OWNER_EDITION:
@@ -300,6 +356,7 @@ class AlfaMain(QMainWindow):
                 'Cihaz anahtarı kaydedilemedi. Siparişler buluta gönderilmeyecek.')
             return
         self.device.token=token
+        self._auto_enroll_retry.stop()
         self.live.activate()
         self.cloud_connect.setText('Cihaz yetkisi' if OWNER_EDITION else 'Yeniden eşleştir')
         self.cloud_badge.setToolTip('İlk bulut eşitlemesi başlatıldı.')
