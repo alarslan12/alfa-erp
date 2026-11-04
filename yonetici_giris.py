@@ -119,19 +119,33 @@ class AdminLogin(QDialog):
         self._login_worker=worker
         self.password.clear()
 
+        # IMPORTANT: never accept/close the parent dialog on worker.done:
+        # that signal fires before QThread.run has returned. Destroying a
+        # parent-owned running QThread can terminate the entire application.
+        pending={'cloud':None,'error':None}
+
         def success(cloud):
-            self._set_busy(False)
-            self.cloud=cloud
-            self.message.setText('')
-            self.accept()
+            pending['cloud']=cloud
 
         def failure(message):
+            pending['error']=message
+
+        def finished():
+            self._login_worker=None
             self._set_busy(False)
-            self.message.setText('Giriş başarısız: '+message)
-            self.password.setFocus()
+            if pending['error']:
+                self.message.setText('Giriş başarısız: '+pending['error'])
+                self.password.setFocus()
+            elif pending['cloud'] is not None:
+                self.cloud=pending['cloud']
+                self.message.setText('')
+                self.accept()
+            else:
+                self.message.setText('Giriş tamamlanmadı. Yeniden deneyin.')
 
         worker.done.connect(success)
         worker.failed.connect(failure)
+        worker.finished.connect(finished)
         worker.finished.connect(worker.deleteLater)
         worker.start()
 
