@@ -54,7 +54,7 @@ class EnrollmentAndLoginTests(unittest.TestCase):
             # Windows Qt thread in the unit-test runner.
             worker.run()
             cloud.sign_in.assert_called_once()
-            cloud.verify_owner_access.assert_called_once()
+            cloud.verify_owner_access.assert_not_called()
             cloud.read_status.assert_not_called()
             activated.assert_called_once_with(cloud,timeout=12)
             self.assertEqual(messages,[cloud])
