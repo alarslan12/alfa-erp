@@ -1,0 +1,6 @@
+# Local exports and credentials must never be committed.
+migration_exports/
+firebase_export*/
+*-firebase-adminsdk-*.json
+*service-account*.json
+*.credentials.json
