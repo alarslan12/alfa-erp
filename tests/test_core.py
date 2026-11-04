@@ -86,6 +86,31 @@ class DatabaseTests(unittest.TestCase):
         self.assertEqual(len(saved['conflicts']),1)
         self.assertIn('Conflict',saved['conflicts'][0]['reason'])
 
+    def test_partial_cloud_delta_preserves_orders_without_redownloading_catalog(self):
+        order=self.new_order()
+        self.db.cloud_epoch='epoch-1'
+        original_catalog_count=len(self.db.katalog)
+        updates=self.db.apply_cloud_snapshot({
+            'epoch':'epoch-1',
+            'orders_revision':8,
+            'inventory_revision':5,
+            'inventory_products':[{'id':'example','sku':'STOCK-1'}],
+            'inventory_sales':[]
+        })
+        self.assertEqual([x['id'] for x in self.db.siparisler],[order['id']])
+        self.assertEqual(len(self.db.katalog),original_catalog_count)
+        self.assertEqual(self.db.inventory_revision,5)
+        self.assertEqual(self.db.inventory_products[0]['sku'],'STOCK-1')
+        self.assertIn('__envanter__',updates)
+
+    def test_partial_delta_cannot_silently_reset_cloud_epoch(self):
+        self.new_order()
+        self.db.cloud_epoch='old-epoch'
+        with self.assertRaises(ValueError):
+            self.db.apply_cloud_snapshot({'epoch':'new-epoch',
+                'inventory_revision':2,'inventory_products':[]})
+        self.assertEqual(len(self.db.siparisler),1)
+
     def test_reopen_pending_queue_after_restart(self):
         self.new_order(connected=True)
         from database import ERPDatabase
