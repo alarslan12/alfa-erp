@@ -8,14 +8,16 @@ from alfa_cihaz import DATA,Workstation
 STATE=DATA/'alfa_bildirim_durumu.json'
 class Reader(QThread):
     done=Signal(dict);error=Signal(str)
-    def __init__(self,client,last_revision=None):
-        super().__init__();self.client=client;self.last_revision=last_revision
+    def __init__(self,client,last_revision=None,last_number=0):
+        super().__init__()
+        self.client=client;self.last_revision=last_revision;self.last_number=last_number
     def run(self):
         try:
-            pulse=self.client.pulse()
-            revision=(pulse.get('epoch'),pulse.get('orders_revision'))
-            data=self.client.snapshot() if revision!=self.last_revision else None
-            self.done.emit({'pulse':revision,'snapshot':data})
+            data=self.client.sync(known=self.last_revision,
+                notification=True,last_order_number=self.last_number)
+            pulse={k:data[k] for k in
+                   ('epoch','orders_revision','catalog_revision','inventory_revision')}
+            self.done.emit({'pulse':pulse,'orders':data.get('orders_brief')})
         except Exception as exc:self.error.emit(str(exc)[:200])
 class Popup(QDialog):
     def __init__(self,numbers):
@@ -36,30 +38,50 @@ class Service:
         self.tray.setToolTip('ALFA ERP · Sipariş bildirimleri')
         menu=QMenu();quit_item=QAction('Bildiriciyi kapat',menu);quit_item.triggered.connect(app.quit)
         menu.addAction(quit_item);self.tray.setContextMenu(menu);self.tray.show()
-        try:self.seen=set(json.loads(STATE.read_text(encoding='utf-8'))['seen'])
-        except (OSError,ValueError,KeyError,TypeError):self.seen=None
+        try:
+            state=json.loads(STATE.read_text(encoding='utf-8'))
+            self.seen=set(state['seen']) if 'seen' in state else None
+            self.last_order_number=max(0,int(state.get('last_order_number') or 0))
+            self.last_epoch=str(state.get('epoch') or '')
+        except (OSError,ValueError,KeyError,TypeError):
+            self.seen=None;self.last_order_number=0;self.last_epoch=''
         self.worker=None;self.popup=None;self.last_revision=None
-        self.timer=QTimer();self.timer.setInterval(2100);self.timer.timeout.connect(self.poll)
+        # Notifications need new order numbers, not full books/inventory snapshots.
+        self.timer=QTimer();self.timer.setInterval(4200+(id(self)%650));self.timer.timeout.connect(self.poll)
         self.timer.start();QTimer.singleShot(500,self.poll)
     def poll(self):
         if not self.client.paired:self.client=Workstation()
         if not self.client.paired or self.worker:return
-        work=Reader(self.client,self.last_revision);self.worker=work
+        work=Reader(self.client,self.last_revision,self.last_order_number);self.worker=work
         def success(result):
             self.worker=None
             try:
                 self.last_revision=result['pulse']
-                data=result.get('snapshot')
-                if data is None:return
-                rows=[o for o in data['orders'] if o.get('id') and not o.get('deleted_at')]
-                current={str(o['id']) for o in rows}
-                fresh=current-self.seen if self.seen is not None else set()
-                self.seen=(self.seen or set())|current
+                rows=result.get('orders')
+                if rows is None:return
+                epoch=str(self.last_revision.get('epoch') or '')
+                reset=bool(self.last_epoch and epoch!=self.last_epoch)
+                if reset:
+                    # A cloud reset reuses order numbers: do not announce old data.
+                    self.last_order_number=0
+                    self.seen=None
+                if self.last_order_number:
+                    fresh=[o for o in rows if int(o.get('order_number') or 0)>self.last_order_number]
+                elif self.seen is not None and not reset:
+                    fresh=[o for o in rows if str(o.get('id')) not in self.seen]
+                else:
+                    fresh=[]  # Initial pairing does not notify historical orders.
+                self.last_order_number=max([self.last_order_number]+
+                    [int(o.get('order_number') or 0) for o in rows])
+                self.last_epoch=epoch
+                self.seen=None  # Compact the legacy seen-UUID file on migration.
                 DATA.mkdir(parents=True,exist_ok=True)
                 staged=STATE.with_suffix('.tmp')
-                staged.write_text(json.dumps({'seen':sorted(self.seen)}),encoding='utf-8');os.replace(staged,STATE)
+                staged.write_text(json.dumps({'last_order_number':self.last_order_number,
+                    'epoch':epoch}),encoding='utf-8')
+                os.replace(staged,STATE)
                 if fresh:
-                    numbers=[str(x.get('order_number')) for x in rows if str(x.get('id')) in fresh]
+                    numbers=[str(x.get('order_number')) for x in fresh]
                     self.notify(', '.join('#'+n for n in numbers[:5]),len(fresh))
             except (OSError,ValueError,TypeError,KeyError):pass
         def fail(message):self.worker=None;self.tray.setToolTip('ALFA ERP · '+message[:60])
