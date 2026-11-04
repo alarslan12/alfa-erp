@@ -4,7 +4,7 @@ ROOT=Path(__file__).resolve().parent
 import tempfile,uuid
 from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QLabel,QLineEdit,
     QPushButton,QFileDialog,QMessageBox,QTableWidget,QTableWidgetItem,QAbstractItemView,
-    QFrame,QHeaderView)
+    QFrame,QHeaderView,QDialog,QTextEdit)
 from PySide6.QtCore import Qt,QThread,Signal
 from ekran_ayarlar import SettingsPage
 from database import ERPDatabase
@@ -170,11 +170,62 @@ class OwnerSettingsPage(SettingsPage):
         page=QWidget();page.setObjectName('OwnerToolPage')
         layout=QVBoxLayout(page);layout.setContentsMargins(12,12,12,8)
         actions=QHBoxLayout();actions.addStretch(1)
+        review=QPushButton('⚠ Eski bulut hatalarını incele')
+        review.setObjectName('OwnerDanger');review.clicked.connect(self.review_cloud_conflicts)
+        actions.addWidget(review)
         refresh=QPushButton('↻ İşlem günlüğünü yenile')
         refresh.setObjectName('OwnerPrimary');refresh.clicked.connect(self.refresh_audit)
         actions.addWidget(refresh);layout.addLayout(actions)
         self.audit_feed=AuditFeed(page);layout.addWidget(self.audit_feed,1)
         return page
+
+    def review_cloud_conflicts(self):
+        """Show archived failures without automatically retrying unsafe operations."""
+        from datetime import datetime
+        entries=self.db.unreviewed_cloud_conflicts
+        if not entries:
+            QMessageBox.information(self,'Bulut işlemleri',
+                'İncelenmeyi bekleyen eski işlem çakışması yok.')
+            return
+        dialog=QDialog(self);dialog.setWindowTitle('Arşivlenmiş bulut işlem hataları')
+        dialog.resize(690,520)
+        column=QVBoxLayout(dialog)
+        info=QLabel(
+            f'{len(entries)} eski işlem reddi kayıt altında. Bu kayıtlar şu anda '
+            'buluta gönderilmiyor. Aşağıdaki işlemleri inceleyerek gerekirse '
+            'güncel sipariş üzerinde yeniden uygulayın.'
+        );info.setWordWrap(True);column.addWidget(info)
+        box=QTextEdit();box.setReadOnly(True)
+        lines=[]
+        for index,entry in enumerate(reversed(entries),1):
+            batch=entry.get('batch') or {}
+            kind=str(batch.get('kind') or 'bilinmiyor')
+            events=batch.get('events') or batch.get('edits') or []
+            names=', '.join(str(x.get('order_id') or x.get('local_id') or '')[:12]
+                             for x in events[:6])
+            lines.append(
+                f"{index}. {entry.get('at','—')} · {kind.upper()} · {names}\n"
+                f"    {entry.get('reason','Bilinmeyen çakışma')}\n")
+        box.setPlainText('\n'.join(lines));column.addWidget(box,1)
+        buttons=QHBoxLayout()
+        close=QPushButton('Kapat');close.clicked.connect(dialog.reject)
+        approve=QPushButton('İnceledim · arşivde sakla')
+        approve.setObjectName('OwnerPrimary')
+        def review():
+            if QMessageBox.question(dialog,'Arşiv kayıtları',
+                'Bu hatalar gözden geçirildi olarak işaretlensin mi? '
+                'Kayıtlar silinmeyecek ve tekrar otomatik gönderilmeyecek.',
+                QMessageBox.StandardButton.Yes|QMessageBox.StandardButton.No
+            )!=QMessageBox.StandardButton.Yes:return
+            self.db.mark_cloud_conflicts_reviewed()
+            main=self.window()
+            if hasattr(main,'_cloud_status'):
+                main._cloud_status(True,'Bulut bağlı · eski hatalar arşivde')
+            dialog.accept()
+        approve.clicked.connect(review)
+        buttons.addStretch();buttons.addWidget(close);buttons.addWidget(approve)
+        column.addLayout(buttons)
+        dialog.exec()
 
     def refresh_audit(self):
         self._job(lambda:admin_request(self.cloud,'admin_audit'),
