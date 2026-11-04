@@ -1,5 +1,5 @@
 """Windows paired-device client; private device token DPAPI protected."""
-import os,json,ctypes,urllib.request,urllib.error
+import os,json,ctypes,urllib.request,urllib.error,socket,ssl
 from ctypes import wintypes
 from pathlib import Path
 from alfa_bulut import PROJECT_URL,PUBLISHABLE_KEY
@@ -52,7 +52,20 @@ def api(action,token=None,admin_jwt=None,timeout=15,**kwargs):
         except (ValueError,UnicodeError):msg=None
         raise DeviceError(str(msg or f'HTTP {exc.code}')[:300],status=exc.code) from None
     except (urllib.error.URLError,TimeoutError,OSError) as exc:
-        raise DeviceError('Bağlantı geçici olarak kesildi. İşlem kuyrukta korunuyor.') from exc
+        reason=getattr(exc,'reason',exc)
+        if isinstance(reason,socket.gaierror):
+            hint='DNS adresi çözümlenemedi'
+        elif isinstance(reason,ssl.SSLError):
+            hint='HTTPS / SSL doğrulama hatası'
+        elif isinstance(reason,(TimeoutError,socket.timeout)) or 'timed out' in str(reason).lower():
+            hint='bağlantı zaman aşımı'
+        else:
+            hint=type(reason).__name__
+        if action in ('progress','transition','commit'):
+            message='Bulut işlemi geçici beklemede ('+hint+'). Kuyruk korunuyor.'
+        else:
+            message='Supabase işlem servisine erişilemedi ('+hint+'). '                'Oturum açma başarılı olsa da bu ayrı servise bağlantı gerekli.'
+        raise DeviceError(message) from None
 
 class Workstation:
     def __init__(self,token=None):self.token=token or get_token()
