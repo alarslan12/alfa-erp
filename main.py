@@ -19,7 +19,7 @@ from ayar_yonetimi import UserSettings, theme_styles
 from widgets import text,button,panel,Covers
 
 ROOT=Path(__file__).resolve().parent
-VERSION='6.1.3'
+VERSION='6.1.4'
 OWNER_EDITION=(ROOT/'YONETICI_SURUMU.flag').exists()
 
 
