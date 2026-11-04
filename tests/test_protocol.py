@@ -48,6 +48,25 @@ class ProtocolTests(unittest.TestCase):
         self.assertTrue(client.kwargs['notification'])
         self.assertEqual(client.kwargs['last_order_number'],34)
 
+    def test_temporary_database_timeout_remains_retryable_and_is_not_conflict(self):
+        error=HTTPError('https://example.invalid',503,'Service Unavailable',{},
+                        io.BytesIO(b'{"error":"upstream request timeout"}'))
+        with patch('alfa_cihaz.urllib.request.urlopen',side_effect=error):
+            with self.assertRaises(DeviceError) as ctx:
+                api('progress','A'*64,events=[{'op_id':'example'}])
+        self.assertEqual(ctx.exception.status,503)
+        self.assertFalse(ctx.exception.permanent)
+        self.assertIn('timeout',str(ctx.exception))
+
+    def test_revoked_device_does_not_drop_queued_operations(self):
+        error=HTTPError('https://example.invalid',401,'Unauthorized',{},
+                        io.BytesIO(b'{"error":"Device pairing revoked"}'))
+        with patch('alfa_cihaz.urllib.request.urlopen',side_effect=error):
+            with self.assertRaises(DeviceError) as ctx:
+                api('transition','A'*64,events=[{'op_id':'example'}])
+        self.assertEqual(ctx.exception.status,401)
+        self.assertFalse(ctx.exception.permanent)
+
     def test_temporary_network_failure_is_retryable(self):
         with patch('alfa_cihaz.urllib.request.urlopen',side_effect=URLError('DNS unavailable')):
             with self.assertRaises(DeviceError) as ctx:
