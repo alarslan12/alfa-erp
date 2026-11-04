@@ -47,6 +47,24 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
         run: python -m unittest discover -s tests -v
+      - name: Verify clean local installation script in an isolated Windows sandbox
+        shell: pwsh
+        run: |
+          $testParent = Join-Path $env:RUNNER_TEMP 'AlfaCleanResetCI'
+          $demo = Join-Path $testParent 'AlfaERP'
+          New-Item -ItemType Directory -Force -Path $demo | Out-Null
+          Set-Content -Path (Join-Path $demo 'alfa_outbox.json') -Value '{"pending":1}' -Encoding utf8
+          Set-Content -Path (Join-Path $demo 'alfa_cihaz.bin') -Value 'fake-token-not-a-real-secret' -Encoding utf8
+          & .\ALFA_TEMIZ_KURULUM.ps1 -DataRoot $demo -NonInteractive
+          if ($LASTEXITCODE -ne 0 -and $null -ne $LASTEXITCODE) { throw 'Reset script failed' }
+          if (Test-Path (Join-Path $demo 'alfa_outbox.json')) { throw 'Old outbox still in new live folder' }
+          if (-not (Test-Path (Join-Path $demo 'alfa_cihaz.bin'))) { throw 'Pairing token was not kept' }
+          $backupRoot = Join-Path $testParent 'AlfaERP_Temiz_Kurulum_Yedekleri'
+          if (-not (Get-ChildItem -Path $backupRoot -Recurse -Filter 'alfa_outbox.json' -File)) {
+            throw 'Outbox was not backed up'
+          }
+          & .\ALFA_TEMIZ_KURULUM.ps1 -DataRoot $demo -NoPairing -NonInteractive
+          if (Test-Path (Join-Path $demo 'alfa_cihaz.bin')) { throw 'NoPairing did not clear pairing' }
 
   installers:
     name: Build and smoke-test two native Windows Setup.exe installers
@@ -134,6 +152,8 @@ jobs:
           if ($files.Count -ne 2) { throw "Expected exactly two installer EXEs; got $($files.Count)" }
           $files | ForEach-Object { "$( (Get-FileHash $_.FullName -Algorithm SHA256).Hash )  $($_.Name)" } |
             Set-Content -Encoding utf8 output\SHA256SUMS.txt
+          Copy-Item .\ALFA_TEMIZ_KURULUM.ps1 output\ALFA_TEMIZ_KURULUM.ps1
+          Copy-Item .\ALFA_TEMIZ_KURULUM.bat output\ALFA_TEMIZ_KURULUM.bat
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -141,6 +161,8 @@ jobs:
           path: |
             output/*Setup*.exe
             output/SHA256SUMS.txt
+            output/ALFA_TEMIZ_KURULUM.ps1
+            output/ALFA_TEMIZ_KURULUM.bat
           if-no-files-found: error
           retention-days: 30
       - name: Publish durable GitHub Release for marked release commits or version tags
