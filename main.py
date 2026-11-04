@@ -519,6 +519,14 @@ def release_smoke_test():
         window=None
         try:
             window=AlfaMain(admin_cloud=None)
+            from alfa_cihaz import OWNER_APP,SECRET
+            from auto_eslestir import ROOT as PRIVATE_TICKET_ROOT
+            if OWNER_APP != OWNER_EDITION:
+                raise RuntimeError('Owner/staff installer credential scope mismatch')
+            if bool('alfa_owner_cihaz.bin' in str(SECRET)) != OWNER_EDITION:
+                raise RuntimeError('Incorrect private DPAPI credential location')
+            if getattr(sys,'frozen',False) and PRIVATE_TICKET_ROOT != Path(sys.executable).resolve().parent:
+                raise RuntimeError('Private enrollment ticket location does not match installer')
             if window.stack.count()!=5 or not window.db.katalog:
                 raise RuntimeError('Missing expected ERP page or book catalog')
             # Headless test cannot answer the staff Analytics password dialog.
