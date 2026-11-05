@@ -357,7 +357,10 @@ class Workstation:
             except DeviceError as error:
                 if error.status != 409:
                     raise
-        raise DeviceError("Sipariş çok sık değişiyor; tekrar dene", 409)
+        # Exhausted conditional ETag retries are transient contention, not
+        # a permanently invalid business operation. Keep the durable outbox
+        # and retry instead of quarantining an otherwise valid user action.
+        raise DeviceError("Sipariş yoğun biçimde değişiyor; işlem güvenle sırada tutuldu", 503)
 
     @staticmethod
     def _make_items(order_id, local_rows, existing=None):
@@ -565,10 +568,17 @@ class Workstation:
                 if kind=="status":
                     src = str(event["from_status"])
                     dst = str(event["to_status"])
-                    if str(row.get("status")) != src or (src,dst) not in (
+                    if (src,dst) not in (
                         ("havuz","aktif"),("aktif","havuz"),("aktif","tamamlandi"),("tamamlandi","aktif")
                     ):
-                        raise DeviceError("Sipariş durumu başka cihazda değişti", 409)
+                        raise DeviceError("Geçersiz sipariş durumu geçişi",422)
+                    if str(row.get("status"))==dst:
+                        # Another fast action/device already reached our intended
+                        # status. Acknowledge without overwriting the latest row.
+                        return None,{"op_id":op_id,"order_id":order_id,
+                                     "version":int(row.get("version") or 0)}
+                    if str(row.get("status")) != src:
+                        raise DeviceError("Sipariş durumu başka cihazda değişti; yenile",409)
                     if dst=="tamamlandi":
                         items=(row.get("items") or {}).values()
                         if not all(int(x.get("boxed_count") or 0)>=int(x.get("quantity") or 0)
