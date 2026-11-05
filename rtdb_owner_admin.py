@@ -251,8 +251,18 @@ def _void_acquisition(client,product_id,batch_id,reason):
         now=datetime.now(timezone.utc).isoformat()
         modified[bid].update(remaining=0,voided_at=now,
                              voided_by=client.uid,void_reason=reason)
+        valid_lots=[lot for lot in modified.values()
+                    if isinstance(lot,dict) and not lot.get("voided_at")]
+        recent=max(valid_lots,
+                   key=lambda lot:(str(lot.get("received_at") or ""),
+                                   str(lot.get("id") or "")),
+                   default=None)
+        # Restore the suggested next purchase cost as well as stock count.
+        # Historical purchase/sale prices remain untouched in their records.
+        restored_cost=float(recent.get("unit_cost") or 0) if recent else 0.0
         updated.update(stock_batches=modified,
                        quantity=int(current.get("quantity") or 0)-amount,
+                       cost_price=restored_cost,
                        updated_at=now,
                        version=int(current.get("version") or 0)+1)
         try:
