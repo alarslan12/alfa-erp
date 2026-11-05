@@ -253,8 +253,13 @@ class Workstation:
         if (not known or known.get("inventory_revision") != pulse["inventory_revision"] or
                 known.get("epoch") != pulse["epoch"]):
             inventory = self._get("inventory") or {}
-            pulse["inventory_products"] = list((inventory.get("products") or {}).values())
-            pulse["inventory_sales"] = list((inventory.get("sales") or {}).values())
+            products = list((inventory.get("products") or {}).values())
+            sales = list((inventory.get("sales") or {}).values())
+            for product in products:
+                if isinstance(product,dict):
+                    sales.extend((product.get("sales_history") or {}).values())
+            pulse["inventory_products"] = products
+            pulse["inventory_sales"] = sales
         return pulse
 
     def snapshot(self):
@@ -460,7 +465,39 @@ class Workstation:
         return self._apply_events(events, "progress")
 
     def inventory_sale(self, product_id, quantity, sale_price):
-        raise DeviceError("Envanter satış işlemi RTDB'de doğrulanana kadar kapalı.", 503)
+        # Stock decrement and the sale ledger entry commit atomically on
+        # the same product node using RTDB ETag compare-and-swap.
+        pid=str(product_id)
+        qty=int(quantity)
+        price=float(sale_price)
+        if qty<1 or qty>100000 or not 0<=price<=999999999:
+            raise DeviceError("Satış miktarı veya fiyatı geçersiz", 422)
+        sale_id=str(uuid.uuid4())
+        for _ in range(8):
+            product,etag,_=self._request("GET","inventory/products/"+pid,etag=True)
+            if not isinstance(product,dict):
+                raise DeviceError("Envanter ürünü bulunamadı",404)
+            before_qty=int(product.get("quantity") or 0)
+            if before_qty<qty:
+                raise DeviceError("Stok adedi yeterli değil",422)
+            value=dict(product)
+            value["quantity"]=before_qty-qty
+            value["version"]=int(value.get("version") or 0)+1
+            sale={"id":sale_id,"workspace_id":WORKSPACE_ID,
+                  "product_id":pid,"quantity":qty,"sale_price":price,
+                  "cost_price":float(value.get("cost_price") or 0),
+                  "device_id":self.uid,
+                  "created_at":datetime.now(timezone.utc).isoformat()}
+            history=value.setdefault("sales_history",{})
+            history[sale_id]=sale
+            try:
+                self._request("PUT","inventory/products/"+pid,value,match=etag)
+                try:self._bump("inventory")
+                except DeviceError:pass
+                return {"sale":sale,"remaining":value["quantity"]}
+            except DeviceError as error:
+                if error.status!=409:raise
+        raise DeviceError("Stok eşzamanlı değişti; yeniden deneyin",409)
 
     def _adopt_checkout(self):
         """Promote public inbox to the existing orders pool.
