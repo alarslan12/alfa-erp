@@ -213,8 +213,11 @@ try {
     if ($actual -ne $Sha256.ToLowerInvariant()) { throw 'SHA256 verification failed' }
     # Unified setup MUST run interactively. In particular, the owner
     # password page must never be bypassed by a silent upgrade.
+    $editionArg = if ([IO.Path]::GetFileName($TargetExe) -ieq 'AlfaERPYonetici.exe') {
+        '/ALFAOWNER'
+    } else { '/ALFASTAFF' }
     $p=Start-Process -FilePath $Setup -ArgumentList @(
-        '/NORESTART','/CLOSEAPPLICATIONS'
+        $editionArg,'/NORESTART','/CLOSEAPPLICATIONS'
     ) -PassThru -Wait
     if ($p.ExitCode -ne 0) { throw "Installer exited with $($p.ExitCode)" }
     if (Test-Path -LiteralPath $TargetExe -PathType Leaf) {
