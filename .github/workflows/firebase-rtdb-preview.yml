@@ -1,0 +1,60 @@
+name: ALFA ERP 6.3 Firebase RTDB Windows preview
+
+on:
+  push:
+    branches: [firebase-rtdb-final]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Two Windows installers - source build, no tests
+    runs-on: windows-2022
+    timeout-minutes: 65
+    env:
+      PYTHONUTF8: '1'
+      PYTHONIOENCODING: utf-8
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+          architecture: x64
+      - name: Compile Python source (syntax only; no tests)
+        shell: pwsh
+        run: |
+          python -m compileall -q main.py alfa_rtdb.py rtdb_owner_admin.py firebase_pair_ui.py bulut_canli.py bildirim_servisi.py analytics_access.py yonetici_giris.py yonetici_kompakt.py
+          if ($LASTEXITCODE -ne 0) { throw 'Python syntax check failed' }
+      - name: Install Inno Setup 6
+        shell: pwsh
+        run: |
+          $iscc = Join-Path ([Environment]::GetFolderPath('ProgramFilesX86')) 'Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path $iscc)) { choco install innosetup --yes --no-progress }
+          if (-not (Test-Path $iscc)) { throw 'Inno Setup 6 required' }
+      - name: Build owner Setup EXE
+        shell: pwsh
+        run: .\ALFA_BUILD_WINDOWS.ps1 -Edition yonetici
+      - name: Build staff Setup EXE and notification service
+        shell: pwsh
+        run: .\ALFA_BUILD_WINDOWS.ps1 -Edition personel
+      - name: Verify files and collect checksums
+        shell: pwsh
+        run: |
+          $files = @(Get-ChildItem .\output -Filter '*V6_3_0.exe' -File)
+          if ($files.Count -ne 2) { throw "Expected 2 setup EXEs; got $($files.Count)" }
+          $files | ForEach-Object { "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash)  $($_.Name)" } |
+            Set-Content -Path .\output\SHA256SUMS.txt -Encoding utf8
+          Copy-Item .\firebase\RTDB_KURULUM.md .\output\RTDB_KURULUM.md
+      - name: Upload PREVIEW only (not production)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ALFA_ERP_Firebase_RTDB_V6_3_0_PREVIEW
+          path: |
+            output/ALFA_ERP_Yonetici_Setup_V6_3_0.exe
+            output/ALFA_ERP_Personel_Setup_V6_3_0.exe
+            output/SHA256SUMS.txt
+            output/RTDB_KURULUM.md
+          if-no-files-found: error
+          retention-days: 30
