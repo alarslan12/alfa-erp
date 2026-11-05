@@ -5,6 +5,7 @@
 ; Keep the old edition-specific AppIds and install paths so upgrades preserve
 ; existing Windows shortcuts/uninstall data and never touch %LOCALAPPDATA%\AlfaERP.
 AppId={code:EditionAppId}
+UsePreviousLanguage=no
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppVerName=ALFA ERP v1.0
