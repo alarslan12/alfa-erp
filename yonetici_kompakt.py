@@ -91,15 +91,15 @@ class OwnerSettingsPage(SettingsPage):
         col.addWidget(heading)
         sub=QLabel('Cihazları görüntüle, yeni personel bilgisayarı ekle veya erişimi iptal et.')
         sub.setObjectName('OwnerMuted');sub.setWordWrap(True);col.addWidget(sub)
-        top=QHBoxLayout();new=QPushButton('Yeni cihaz kodu')
+        top=QHBoxLayout();new=QPushButton('Personel cihazını onayla')
         new.setObjectName('OwnerPrimary');new.clicked.connect(self.create_code)
         reload=QPushButton('Yenile');reload.clicked.connect(self.refresh_devices)
-        package=QPushButton('Hazır Setup ile personel paketi hazırla')
+        package=QPushButton('Kurulum yönergesi')
         package.clicked.connect(self.export_staff_package)
         top.addWidget(new);top.addWidget(reload);top.addWidget(package);col.addLayout(top)
         self.code_note=QLineEdit();self.code_note.setObjectName('OwnerCode')
         self.code_note.setReadOnly(True)
-        self.code_note.setPlaceholderText('Yeni cihaz için tek kullanımlık kod')
+        self.code_note.setPlaceholderText('Firebase cihaz kimliği (UID) ile yetkilendirme')
         col.addWidget(self.code_note)
         self.device_table=QTableWidget(0,3)
         self.device_table.setObjectName('OwnerDeviceTable')
@@ -121,31 +121,20 @@ class OwnerSettingsPage(SettingsPage):
         col.addWidget(revoke);return page
 
     def export_staff_package(self):
-        """Bundle a prebuilt generic installer with a fresh one-time pairing code.
-
-        A separate Windows build is NOT required for each new workstation.
-        """
-        installer,_=QFileDialog.getOpenFileName(self,'Hazır personel Setup.exe seç',
-            str(Path.home()/'Downloads'),'Windows kurulum dosyası (*.exe)')
-        if not installer:return
-        destination,_=QFileDialog.getSaveFileName(self,'Bilgisayara özel kurulum paketini kaydet',
-            str(Path.home()/'Desktop'/'ALFA_ERP_Personel_Kurulum.zip'),'ZIP (*.zip)')
-        if not destination:return
-        def finish(data):
-            try:
-                from personel_paketi import create_staff_installer_bundle
-                create_staff_installer_bundle(destination,installer,data['code'])
-                QMessageBox.information(self,'Kurulum hazır',
-                    'Hazır Setup.exe ve bir defalık cihaz dosyası ZIP içine konuldu.\n'
-                    'Personel bilgisayarında ZIP çıkarılıp Setup.exe çalıştırılır.\n'
-                    'Yeniden derleme yapılmaz.')
-            except Exception as exc:
-                QMessageBox.warning(self,'Kurulum paketi',str(exc))
-        self._job(lambda:admin_request(None,'admin_setup_code'),finish)
+        QMessageBox.information(self,'Firebase personel kurulumu',
+            'Artık her bilgisayar için ayrı ZIP veya 48 karakterli eşleştirme kodu yok.\\n'
+            'Aynı Personel Setup.exe kurulur. Personel bilgisayarında Cihaz yetkisi '
+            'düğmesiyle UID oluşturulur ve buradan onaylanır.')
 
     def create_code(self):
-        self._job(lambda:admin_request(None,'admin_setup_code'),
-            lambda d:self.code_note.setText(d['code']))
+        from firebase_pair_ui import PairDialog
+        client=getattr(self.window(),'device',None)
+        if client is None:
+            QMessageBox.warning(self,'Firebase','Cihaz bağlantısı bulunamadı.')
+            return
+        dialog=PairDialog(client=client,owner=True,parent=self)
+        dialog.exec()
+        self.refresh_devices()
 
     def refresh_devices(self):
         def display(d):

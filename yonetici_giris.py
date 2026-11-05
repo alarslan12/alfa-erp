@@ -12,25 +12,9 @@ from alfa_cihaz import Workstation,api,save_token,get_token
 
 
 def admin_request(cloud,action,timeout=None,**kwargs):
-    """Allow an already activated owner computer without repeated user login.
-
-    Owner-device roles are verified server-side for EACH admin action. Ordinary
-    staff tokens cannot access these actions; no service key is shipped.
-    """
-    if timeout is None:
-        timeout=90 if action=='admin_catalog' else 25
-    if cloud is None:
-        token=get_token()
-        if not token:
-            raise RuntimeError(
-                'Yönetici bilgisayarını bir defa yetkilendirin: '
-                'üst çubuktaki Buluta bağla düğmesini kullanın.')
-        return api(action,token=token,timeout=timeout,**kwargs)
-    cloud._renew_if_needed()
-    if not cloud.logged_in:
-        raise RuntimeError('Yönetici oturumu kapandı. Yeniden giriş yapın.')
-    return api(action,admin_jwt=cloud._session['access_token'],
-               timeout=timeout,**kwargs)
+    """Authenticated Firebase RTDB owner operations. No legacy Supabase call."""
+    from rtdb_owner_admin import admin_request as request
+    return request(cloud,action,timeout=timeout,**kwargs)
 
 
 def pair_owner_device(cloud,timeout=10):
