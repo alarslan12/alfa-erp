@@ -18,7 +18,7 @@ def stock_batches(product):
     return {batch_id:{
         "id":batch_id,"quantity":quantity,"remaining":quantity,
         "unit_cost":round(float(product.get("cost_price") or 0),2),
-        "received_at":str(product.get("created_at") or ""),
+        "received_at":"",  # Old master creation time is NOT the acquisition date.
         "legacy":True}}
 
 
