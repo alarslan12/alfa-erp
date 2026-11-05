@@ -574,40 +574,68 @@ class Workstation:
     def progress(self, events):
         return self._apply_events(events, "progress")
 
-    def inventory_sale(self, product_id, quantity, sale_price):
-        # Stock decrement and the sale ledger entry commit atomically on
-        # the same product node using RTDB ETag compare-and-swap.
+    def inventory_sale(self,product_id,quantity,sale_price,batch_id=None):
+        """Atomic sale from ONE purchase lot with its historical unit cost.
+
+        ETag conflicts re-fetch available quantity; sale history is committed
+        with the product's batch decrement in a single Firebase PUT.
+        """
+        from inventory_batches import stock_batches,batch_stock_quantity
         pid=str(product_id)
-        qty=int(quantity)
-        price=float(sale_price)
+        try:
+            qty=int(quantity)
+            price=round(float(sale_price),2)
+        except (TypeError,ValueError,OverflowError):
+            raise DeviceError("Satış adedi veya fiyatı geçersiz",422) from None
         if qty<1 or qty>100000 or not 0<=price<=999999999:
-            raise DeviceError("Satış miktarı veya fiyatı geçersiz", 422)
+            raise DeviceError("Satış adedi veya fiyatı geçersiz",422)
         sale_id=str(uuid.uuid4())
         for _ in range(8):
-            product,etag,_=self._request("GET","inventory/products/"+pid,etag=True)
-            if not isinstance(product,dict):
+            current,etag,_=self._request("GET","inventory/products/"+pid,etag=True)
+            if not isinstance(current,dict):
                 raise DeviceError("Envanter ürünü bulunamadı",404)
-            before_qty=int(product.get("quantity") or 0)
-            if before_qty<qty:
+            before=int(current.get("quantity") or 0)
+            if before<qty:
                 raise DeviceError("Stok adedi yeterli değil",422)
-            value=dict(product)
-            value["quantity"]=before_qty-qty
-            value["version"]=int(value.get("version") or 0)+1
+            if batch_stock_quantity(current)!=before:
+                raise DeviceError("Stok partileri ile mevcut adet uyuşmuyor",409)
+            batches=stock_batches(current)
+            if batch_id is None:
+                compatible=sorted((x for x in batches.values()
+                    if int(x.get("remaining") or 0)>=qty),
+                    key=lambda x:(str(x.get("received_at") or ""),str(x.get("id") or "")))
+                selected=str(compatible[0]["id"]) if compatible else ""
+            else:
+                selected=str(batch_id)
+            chosen=batches.get(selected)
+            if not chosen or int(chosen.get("remaining") or 0)<qty:
+                raise DeviceError("Seçilen alım partisinde yeterli stok yok; yenile",409)
+            updated=copy.deepcopy(current)
+            chosen["remaining"]=int(chosen["remaining"])-qty
+            batches[selected]=chosen
+            now=datetime.now(timezone.utc).isoformat()
+            updated.update(stock_batches=batches,quantity=before-qty,
+                           sale_price=price,updated_at=now,
+                           version=int(updated.get("version") or 0)+1)
             sale={"id":sale_id,"workspace_id":WORKSPACE_ID,
-                  "product_id":pid,"quantity":qty,"sale_price":price,
-                  "cost_price":float(value.get("cost_price") or 0),
-                  "device_id":self.uid,
-                  "created_at":datetime.now(timezone.utc).isoformat()}
-            history=value.setdefault("sales_history",{})
+                  "product_id":pid,"batch_id":selected,
+                  "purchase_at":str(chosen.get("received_at") or ""),
+                  "quantity":qty,"sale_price":price,
+                  "cost_price":float(chosen.get("unit_cost") or 0),
+                  "device_id":self.uid,"created_at":now}
+            history=updated.setdefault("sales_history",{})
+            if not isinstance(history,dict):
+                raise DeviceError("Satış geçmişi geçersiz",422)
             history[sale_id]=sale
             try:
-                self._request("PUT","inventory/products/"+pid,value,match=etag)
+                self._request("PUT","inventory/products/"+pid,updated,match=etag)
                 try:self._bump("inventory")
                 except DeviceError:pass
-                return {"sale":sale,"remaining":value["quantity"]}
-            except DeviceError as error:
-                if error.status!=409:raise
+                return {"sale":sale,"remaining":updated["quantity"]}
+            except DeviceError as exc:
+                if exc.status!=409:raise
         raise DeviceError("Stok eşzamanlı değişti; yeniden deneyin",409)
+
 
     def _adopt_checkout(self):
         """Promote public inbox to the existing orders pool.

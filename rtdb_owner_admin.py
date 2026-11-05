@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 import uuid
 
 from alfa_rtdb import DeviceError, Workstation, WORKSPACE_ID
+from inventory_batches import stock_batches, batch_stock_quantity
 
 
 def _owner(client):
@@ -60,29 +61,78 @@ def _catalog(client, incoming):
 
 
 def _upsert_product(client,product):
+    """Edit master-product metadata without touching quantities or batches."""
     if not isinstance(product,dict):
-        raise DeviceError("Ürün bilgileri geçersiz", 422)
+        raise DeviceError("Ürün bilgileri geçersiz",422)
     pid=str(product.get("id") or uuid.uuid4())
-    if not pid or any(c in pid for c in '.#$[]/'):
-        raise DeviceError("Geçersiz ürün kimliği", 422)
+    if not pid or any(ch in pid for ch in ".#$[]/"):
+        raise DeviceError("Geçersiz ürün kimliği",422)
     title=str(product.get("title") or "").strip()
     if not title:
-        raise DeviceError("Ürün adı zorunlu", 422)
+        raise DeviceError("Ürün adı zorunlu",422)
+    allowed=("sku","title","category","tags","description",
+             "attributes","image_url","active")
     for _ in range(8):
         old,etag,_=client._request("GET","inventory/products/"+pid,etag=True)
+        if old is not None and not isinstance(old,dict):
+            raise DeviceError("Ürün kaydı bozuk",422)
         now=datetime.now(timezone.utc).isoformat()
-        fresh={**(old or {}),**product,"id":pid,"title":title,
-               "workspace_id":WORKSPACE_ID,"updated_at":now,
-               "created_at":(old or {}).get("created_at") or now}
+        fresh=copy.deepcopy(old) if old else {
+            "quantity":0,"cost_price":0.0,"sale_price":0.0,
+            "in_inventory":False,"sales_history":{}}
+        for key in allowed:
+            if key in product:
+                fresh[key]=copy.deepcopy(product[key])
+        fresh.update(id=pid,title=title,workspace_id=WORKSPACE_ID,
+                     updated_at=now,created_at=(old or {}).get("created_at") or now)
         fresh["version"]=int((old or {}).get("version") or 0)+1
-        fresh["quantity"]=max(0,int(fresh.get("quantity") or 0))
+        if old is None:
+            fresh["in_inventory"]=False
         try:
             client._request("PUT","inventory/products/"+pid,fresh,match=etag)
-            client._bump("inventory")
+            try:client._bump("inventory")
+            except DeviceError:pass
             return {"product":fresh}
-        except DeviceError as error:
-            if error.status!=409:raise
-    raise DeviceError("Ürün eşzamanlı düzenleniyor; tekrar deneyin", 409)
+        except DeviceError as exc:
+            if exc.status!=409:raise
+    raise DeviceError("Ürün eşzamanlı düzenleniyor; yeniden deneyin",409)
+
+
+def _acquire_product(client,product_id,quantity,unit_cost):
+    """Owner adds a distinct timestamped purchase-cost batch with ETag CAS."""
+    pid=str(product_id or "")
+    try:
+        qty=int(quantity)
+        cost=round(float(unit_cost),2)
+    except (TypeError,ValueError,OverflowError):
+        raise DeviceError("Alım adedi veya maliyeti geçersiz",422) from None
+    if qty<1 or qty>100000 or not 0<=cost<=999999999:
+        raise DeviceError("Alım adedi veya maliyeti geçersiz",422)
+    batch_id=str(uuid.uuid4())
+    for _ in range(8):
+        current,etag,_=client._request("GET","inventory/products/"+pid,etag=True)
+        if not isinstance(current,dict) or not current.get("active",True):
+            raise DeviceError("Katalog ürünü bulunamadı",404)
+        fresh=copy.deepcopy(current)
+        if batch_stock_quantity(fresh)!=int(fresh.get("quantity") or 0):
+            raise DeviceError("Stok toplamı ile parti kayıtları uyuşmuyor",409)
+        batches=stock_batches(fresh)
+        now=datetime.now(timezone.utc).isoformat()
+        batch={"id":batch_id,"quantity":qty,"remaining":qty,
+               "unit_cost":cost,"received_at":now,"device_id":client.uid}
+        batches[batch_id]=batch
+        fresh.update(stock_batches=batches,
+                     quantity=int(fresh.get("quantity") or 0)+qty,
+                     cost_price=cost,in_inventory=True,
+                     updated_at=now,version=int(fresh.get("version") or 0)+1)
+        try:
+            client._request("PUT","inventory/products/"+pid,fresh,match=etag)
+            try:client._bump("inventory")
+            except DeviceError:pass
+            return {"product_id":pid,"batch":batch,"quantity":fresh["quantity"]}
+        except DeviceError as exc:
+            if exc.status!=409:raise
+    raise DeviceError("Stok başka bilgisayarda değişti; yeniden deneyin",409)
 
 
 def _payment(client,days,paid,fingerprints):
@@ -150,6 +200,9 @@ def admin_request(cloud,action,timeout=None,**kwargs):
                 "audit_events":list(audit.values()) if isinstance(audit,dict) else []}
     if action=="admin_inventory_upsert":
         return _upsert_product(client,kwargs.get("product"))
+    if action=="admin_inventory_acquire":
+        return _acquire_product(client,kwargs.get("product_id"),
+                                kwargs.get("quantity"),kwargs.get("unit_cost"))
     if action=="admin_inventory_image":
         if kwargs.get("mime")!="image/jpeg":
             raise DeviceError("Sadece JPEG görsel destekleniyor",422)
