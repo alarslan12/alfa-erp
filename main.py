@@ -2,7 +2,7 @@
 import sys, traceback, os, json
 from pathlib import Path
 from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBoxLayout,QStackedWidget,
- QLabel,QFrame,QGridLayout,QPushButton,QMessageBox,QInputDialog,QLineEdit)
+ QLabel,QFrame,QGridLayout,QPushButton,QMessageBox,QInputDialog,QLineEdit,QSystemTrayIcon)
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QIcon,QPixmap,QPainter,QFont,QColor
 from database import ERPDatabase
@@ -18,6 +18,7 @@ from alfa_rtdb import Workstation
 from bulut_canli import Sync
 from ayar_yonetimi import UserSettings, theme_styles
 from widgets import text,button,panel,Covers
+from alfa_hatalar import install_reporter,record_error,connect_device
 
 ROOT=Path(__file__).resolve().parent
 VERSION='6.5.0'
@@ -175,6 +176,15 @@ class AlfaMain(QMainWindow):
             self.settings_page=SettingsPage(self.db,self.config)
         for page in (self.catalog,self.orders,self.analytics,self.inventory_host,self.settings_page):self.stack.addWidget(page)
         self.device=Workstation()
+        # Reuse the existing Workstation for event-only exception reports.
+        # Never send credentials, order content or stack locals to Firebase.
+        connect_device(lambda:self.device)
+        if OWNER_EDITION:
+            self.settings_page.enable_error_stream(self.device)
+            self._error_tray=QSystemTrayIcon(self.make_icon(),self)
+            self._error_tray.setToolTip("ALFA ERP · Yönetici hata bildirimleri")
+            if QSystemTrayIcon.isSystemTrayAvailable():
+                self._error_tray.show()
         if OWNER_EDITION:
             from rtdb_owner_admin import admin_request
             # Owner role verified with RTDB Security Rules on every write.
@@ -330,6 +340,9 @@ class AlfaMain(QMainWindow):
             else:
                 self.live.activate()
             self.cloud_connect.setText('Cihaz yetkisi')
+            connect_device(lambda:self.device)
+            if OWNER_EDITION:
+                self.settings_page.enable_error_stream(self.device)
             self.cloud_badge.setToolTip('Firebase Realtime Database eşitlemesi kontrol ediliyor.')
         except Exception as exc:
             self.cloud_badge.setText('◌ Bulut bağlantısı beklemede')
@@ -435,6 +448,15 @@ class AlfaMain(QMainWindow):
         except Exception as exc:
             QMessageBox.warning(self,'Yedekleme hatası',str(exc))
 
+    def notify_admin_error(self,count):
+        """One user-visible notification per real incoming cloud event."""
+        msg=f"⚠ {count} yeni bilgisayar hata raporu · Ayarlar → Hata Merkezi"
+        self.statusBar().showMessage(msg,18000)
+        tray=getattr(self,"_error_tray",None)
+        if tray and tray.isVisible():
+            tray.showMessage("ALFA ERP · Yeni hata raporu",msg,
+                             QSystemTrayIcon.MessageIcon.Warning,12000)
+
     def order_created(self):
         """Do not interrupt repeat order entry with automatic navigation."""
         if not hasattr(self,'_order_saved_toast'):
@@ -479,6 +501,7 @@ def _install_error_diagnostics():
     except (OSError,RuntimeError,ValueError):
         pass
     def report(error_type,error,tb):
+        record_error(error_type,error,tb,source="gui")
         try:
             trace=traceback.extract_tb(tb)
             lines=[datetime.datetime.now().isoformat(timespec='seconds'),
@@ -496,9 +519,18 @@ def _install_error_diagnostics():
         except Exception:pass
         # Do not allow the default PySide6 exception hook to abort the process.
     sys.excepthook=report
+    # Background worker exceptions are caught as sanitized crashes too.
+    import threading
+    def background_exception(args):
+        record_error(args.exc_type,args.exc_value,args.exc_traceback,source="thread")
+    threading.excepthook=background_exception
 
 
 def start():
+    local=os.environ.get('ALFA_ERP_DATA_DIR') or str(
+        Path(os.environ.get('LOCALAPPDATA') or Path.home())/'AlfaERP')
+    install_reporter(VERSION,"owner" if OWNER_EDITION else "staff",
+                     data_dir=local)
     _install_error_diagnostics()
     app=QApplication(sys.argv);app.setApplicationName('ALFA ERP');app.setStyle('Fusion')
     app.setStyleSheet(QSS)
@@ -520,6 +552,7 @@ def start():
             main.move(frame.topLeft())
         main.show();return app.exec()
     except Exception as exc:
+        record_error(type(exc),exc,exc.__traceback__,source="startup")
         QMessageBox.critical(None,'ALFA ERP başlangıç hatası',str(exc)+'\n\n'+traceback.format_exc(limit=3))
         return 1
 
