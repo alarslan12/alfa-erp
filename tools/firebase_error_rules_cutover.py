@@ -65,11 +65,11 @@ def _rules_call(method,token,data=None):
         # Limit diagnostic characters. Rule compilation errors contain only
         # line/column and parser text; do not print unexpected response bodies.
         if details and len(details)<=1200 and all(
-                c.isprintable() or c in "\\n\\r\\t" for c in details):
+                c.isprintable() or c in "\n\r\t" for c in details):
             import re
-            details=re.sub(r"(?i)(access_token|id_token|authorization)\\s*[:=]\\s*[^\\s,]+",
-                           r"\\1=[REDACTED]",details)
-            details=re.sub(r"ya29\\.[A-Za-z0-9_.-]+","[REDACTED]",details)
+            details=re.sub(r"(?i)(access_token|id_token|authorization)\s*[:=]\s*[^\s,]+",
+                           r"\1=[REDACTED]",details)
+            details=re.sub(r"ya29\.[A-Za-z0-9_.-]+","[REDACTED]",details)
             info=": "+details[:900]
         else:
             info=" (detaylı hata metni mevcut değil)"
