@@ -321,9 +321,24 @@ class AlfaMain(QMainWindow):
                 'Cihaz oturumu kaydedilemedi. Veriler yerelde korunuyor.')
             return
         self._auto_enroll_retry.stop()
-        self.live.activate()
-        self.cloud_connect.setText('Cihaz yetkisi')
-        self.cloud_badge.setToolTip('Firebase Realtime Database eşitlemesi başlatıldı.')
+        # Start network threads in the NEXT GUI event loop, after the modal
+        # pairing dialog and its QThread have been fully disposed.
+        self.cloud_connect.setEnabled(False)
+        QTimer.singleShot(150, self._activate_cloud_after_pairing)
+
+    def _activate_cloud_after_pairing(self):
+        try:
+            if not self.device.paired:
+                raise RuntimeError("Firebase cihaz kimliği kaydedilemedi.")
+            self.live.activate()
+            self.cloud_connect.setText('Cihaz yetkisi')
+            self.cloud_badge.setToolTip('Firebase Realtime Database eşitlemesi başlatıldı.')
+        except Exception as exc:
+            self.cloud_badge.setText('◌ Bulut bağlantısı beklemede')
+            QMessageBox.warning(self,'Firebase eşitleme başlatılamadı',
+                str(exc) + '\\nCihaz kaydı korunuyor; yeniden yetkilendirme gerekmez.')
+        finally:
+            self.cloud_connect.setEnabled(True)
 
     def navigate(self,index):
         if index==2 and not self._analytics_unlocked:
@@ -425,7 +440,38 @@ class AlfaMain(QMainWindow):
     def order_created(self):
         self.open_order_status('havuz')
 
+def _install_error_diagnostics():
+    """Persist sanitized callback failures; no customer rows or tokens logged."""
+    import datetime
+    from pathlib import Path as _Path
+    root=_Path(os.environ.get('ALFA_ERP_DATA_DIR') or
+               _Path(os.environ.get('LOCALAPPDATA') or _Path.home())/'AlfaERP')
+    errors=root/'logs'
+    errors.mkdir(parents=True,exist_ok=True)
+    outfile=errors/'last_error.txt'
+    old_hook=sys.excepthook
+    def report(error_type,error,tb):
+        try:
+            trace=traceback.extract_tb(tb)
+            lines=[datetime.datetime.now().isoformat(timespec='seconds'),
+                   'Exception: '+error_type.__name__,
+                   *('  '+_Path(frame.filename).name+':'+str(frame.lineno)+
+                     ' in '+frame.name for frame in trace[-20:])]
+            outfile.write_text('\\n'.join(lines)+'\\n',encoding='utf-8')
+        except Exception:pass
+        try:
+            QMessageBox.critical(None,'ALFA ERP beklenmedik hata',
+                 'Uygulamada beklenmedik bir hata oluştu.\\n'
+                 'Hata türü: '+error_type.__name__+'\\n'
+                 'Kayıt: '+str(outfile)+'\\n'
+                 'Cihazı yeniden yetkilendirmene gerek yok.')
+        except Exception:pass
+        # Do not allow the default PySide6 exception hook to abort the process.
+    sys.excepthook=report
+
+
 def start():
+    _install_error_diagnostics()
     app=QApplication(sys.argv);app.setApplicationName('ALFA ERP');app.setStyle('Fusion')
     app.setStyleSheet(QSS)
     try:

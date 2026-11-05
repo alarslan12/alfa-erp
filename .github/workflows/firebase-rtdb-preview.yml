@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -58,3 +58,17 @@ jobs:
             output/RTDB_KURULUM.md
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publish corrected Firebase preview as a direct-download prerelease
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag='v6.3.0-firebase-pairing-fix-preview'
+          gh release view $tag --repo $env:GITHUB_REPOSITORY 2>$null | Out-Null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --prerelease --title 'ALFA ERP V6.3.0 Firebase Pairing Fix - TEST ONIZLEME' --notes 'ONIZLEME - Qt cihaz onay penceresi is parcacigi temizligi, bulut gecikmeli baslatma ve hata kayitlari eklendi. Windows Firebase canli is akisi henuz dogrulanmadi. V6.2.2 kurulumunu kaldirmayin.'
+            if ($LASTEXITCODE -ne 0) { throw 'Release could not be created' }
+          }
+          gh release upload $tag .\output\ALFA_ERP_Yonetici_Setup_V6_3_0.exe .\output\ALFA_ERP_Personel_Setup_V6_3_0.exe .\output\SHA256SUMS.txt --repo $env:GITHUB_REPOSITORY --clobber
+          if ($LASTEXITCODE -ne 0) { throw 'Release upload failed' }

@@ -1,7 +1,7 @@
 """One-time Firebase RTDB device activation, with no recurring login screen."""
 from __future__ import annotations
 import socket
-from PySide6.QtCore import QThread, Signal, Qt
+from PySide6.QtCore import QThread, Signal, Qt, QTimer
 from PySide6.QtWidgets import (QDialog,QVBoxLayout,QLabel,QPushButton,
                                QApplication,QInputDialog,QMessageBox)
 from alfa_rtdb import Workstation,DeviceError
@@ -24,6 +24,7 @@ class PairDialog(QDialog):
         self.client=client or Workstation()
         self.owner=bool(owner)
         self._task=None
+        self._workers=[]
         self._accept_pending=False
         self.setWindowTitle("ALFA ERP · Firebase cihaz bağlantısı")
         self.setMinimumWidth(540)
@@ -61,20 +62,36 @@ class PairDialog(QDialog):
         if self._task and self._task.isRunning():return
         worker=Task(fn,self)
         self._task=worker
+        # Keep an explicit strong reference until QThread is completely stopped.
+        # Closing a dialog while its QThread is still running can abort Qt.
+        self._workers.append(worker)
         self.create.setEnabled(False)
         self.check.setEnabled(False)
         worker.done.connect(done)
         worker.failed.connect(lambda message:self.status.setText(message))
         def finish():
-            self._task=None
+            # The 'finished' signal can fire during Qt thread teardown.
+            # wait() is immediate or near-immediate here, and guarantees that
+            # destroying the dialog cannot destroy a still-running QThread.
+            worker.wait()
+            if self._task is worker:
+                self._task=None
             self.create.setEnabled(True)
             self.check.setEnabled(True)
             if self._accept_pending:
                 self._accept_pending=False
-                self.accept()
+                QTimer.singleShot(0,self.accept)
+            try:self._workers.remove(worker)
+            except ValueError:pass
         worker.finished.connect(finish)
         worker.finished.connect(worker.deleteLater)
         worker.start()
+
+    def reject(self):
+        if any(worker.isRunning() for worker in self._workers):
+            self.status.setText("Cihaz işlemi tamamlanıyor. Lütfen pencereyi henüz kapatmayın.")
+            return
+        super().reject()
 
     def register(self):
         def run():
