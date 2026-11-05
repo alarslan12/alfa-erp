@@ -11,6 +11,8 @@ from database import ERPDatabase
 from widgets import button
 from rtdb_owner_admin import admin_request
 from yonetici_gunluk import AuditFeed
+from hata_merkezi_ui import ErrorInbox
+from bulut_canli import RtdbWatch
 
 class RequestJob(QThread):
     success=Signal(object)
@@ -28,12 +30,19 @@ class OwnerSettingsPage(SettingsPage):
         self.cloud=cloud
         self.jobs=set()
         self._audit_last_loaded=0.0
+        self._error_watch=None
+        self._error_client=None
+        self._error_loading=False
+        self._error_first_snapshot=False
+        self._error_known=set()
+        self._error_refresh_again=False
         # Settings remain one built-in owner page; no separate admin app.
         nav=self.layout().itemAt(1).layout()
         for title,page in [('Excel kataloğu',self.catalog_page()),
                            ('Bilgisayarlar',self.devices_page()),
                            ('İşlem günlüğü',self.audit_page()),
-                           ('Sistem sağlığı',self.health_page())]:
+                           ('Sistem sağlığı',self.health_page()),
+                           ('Hata Merkezi',self.error_page())]:
             idx=self.stack.count()
             b=button(title,'SettingsNav');b.setCheckable(True)
             b.clicked.connect(lambda _=False,i=idx:self.show_tab(i))
@@ -256,6 +265,86 @@ class OwnerSettingsPage(SettingsPage):
             QMessageBox.warning(self,'İşlem günlüğü',message)
         self._job(lambda:self._admin('admin_audit'),success,failed)
 
+    def error_page(self):
+        self.error_inbox=ErrorInbox(self)
+        self.error_inbox.refresh_requested.connect(
+            lambda:self.refresh_error_reports(force=True))
+        self.error_inbox.review_requested.connect(self.review_error_report)
+        return self.error_inbox
+
+    def enable_error_stream(self,client):
+        """One owner-only SSE connection, not a recurring query timer."""
+        self._error_client=client
+        if not client or not client.paired or self._error_watch is not None:
+            return
+        self._error_watch=RtdbWatch(
+            client,"error_reports",self,
+            query={"orderBy":'"$key"',"limitToLast":70})
+        self._error_watch.changed.connect(self._on_error_stream_event)
+        self._error_watch.start()
+        from PySide6.QtWidgets import QApplication
+        app=QApplication.instance()
+        if app:
+            app.aboutToQuit.connect(self._error_watch.stop)
+        # SSE itself sends an initial bounded "put" and triggers first load.
+
+    def _on_error_stream_event(self):
+        self.refresh_error_reports()
+
+    def refresh_error_reports(self,force=False):
+        """One small owner read on SSE event, manual click or page open."""
+        client=self._error_client or getattr(self.window(),"device",None)
+        if client is None or not client.paired:
+            self.error_inbox.summary.setText(
+                "Hata Merkezi için Yönetici cihazının Firebase bağlantısı gerekli.")
+            return
+        self.enable_error_stream(client)
+        if self._error_loading:
+            self._error_refresh_again=True
+            return
+        self._error_loading=True
+        self._error_refresh_again=False
+        def fetch():
+            return {"reports":client.read_error_reports(70),
+                    "acks":client.read_error_acks()}
+        def accepted(result):
+            self._error_loading=False
+            reports=result.get("reports") or {}
+            ids=set(str(x) for x in reports)
+            new=ids-self._error_known if self._error_first_snapshot else set()
+            self._error_first_snapshot=True
+            self._error_known.update(ids)
+            pending=self.error_inbox.set_entries(
+                reports,result.get("acks") or {})
+            if self.nav and len(self.nav)>6:
+                self.nav[6].setText(
+                    "⚠ Hata Merkezi ("+str(pending)+")" if pending else "Hata Merkezi")
+            if new:
+                parent=self.window()
+                if hasattr(parent,"notify_admin_error"):
+                    parent.notify_admin_error(len(new))
+                elif hasattr(parent,"statusBar"):
+                    parent.statusBar().showMessage(
+                        f"⚠ {len(new)} yeni cihaz hatası · Ayarlar → Hata Merkezi",18000)
+            if self._error_refresh_again:
+                self._error_refresh_again=False
+                self.refresh_error_reports(force=True)
+        def failed(message):
+            self._error_loading=False
+            self.error_inbox.summary.setText(
+                "Hata raporları alınamadı: "+str(message)[:160]+
+                " · Firebase Rules henüz dağıtılmadıysa önce yetkilendir.")
+        self._job(fetch,accepted,failed)
+
+    def review_error_report(self,report_id):
+        client=self._error_client or getattr(self.window(),"device",None)
+        if client is None or not client.paired:
+            QMessageBox.warning(self,"Hata Merkezi","Yönetici cihazı bağlı değil.")
+            return
+        self._job(
+            lambda:client.review_error_report(report_id),
+            lambda _response:self.refresh_error_reports(force=True))
+
     def health_page(self):
         """Lightweight on-demand diagnostics. No Firebase polling added."""
         page=QWidget();page.setObjectName('OwnerToolPage')
@@ -386,13 +475,13 @@ class OwnerSettingsPage(SettingsPage):
         QPushButton#OwnerFilter:hover, QPushButton#OwnerPrimary:hover,
         QPushButton#OwnerDanger:hover {border-color:%(major)s;background:%(hover)s;}
         QPushButton#OwnerFilter:checked {border:2px solid %(major)s;background:%(selection)s;}
-        QTableWidget#OwnerDeviceTable {
+        QTableWidget#OwnerDeviceTable, QTableWidget#OwnerErrorTable {
             background:%(card)s;color:%(text)s;
             alternate-background-color:%(input)s;gridline-color:%(border)s;
             border:1px solid %(border)s;border-radius:10px;
             selection-background-color:%(selection)s;selection-color:%(text)s;
         }
-        QTableWidget#OwnerDeviceTable QHeaderView::section {
+        QTableWidget#OwnerDeviceTable QHeaderView::section, QTableWidget#OwnerErrorTable QHeaderView::section {
             background:%(head)s;color:%(text)s;
             padding:11px;border:0;border-bottom:1px solid %(border)s;font-weight:800;
         }
@@ -411,3 +500,4 @@ class OwnerSettingsPage(SettingsPage):
         if index==3:self.refresh_devices()
         if index==4:self.refresh_audit()
         if index==5:self.refresh_health()
+        if index==6:self.refresh_error_reports()
