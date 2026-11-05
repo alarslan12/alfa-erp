@@ -1,7 +1,7 @@
 """One-time Firebase RTDB device activation, with no recurring login screen."""
 from __future__ import annotations
 import socket
-from PySide6.QtCore import QThread, Signal
+from PySide6.QtCore import QThread, Signal, Qt
 from PySide6.QtWidgets import (QDialog,QVBoxLayout,QLabel,QPushButton,
                                QApplication,QInputDialog,QMessageBox)
 from alfa_rtdb import Workstation,DeviceError
@@ -24,6 +24,7 @@ class PairDialog(QDialog):
         self.client=client or Workstation()
         self.owner=bool(owner)
         self._task=None
+        self._accept_pending=False
         self.setWindowTitle("ALFA ERP · Firebase cihaz bağlantısı")
         self.setMinimumWidth(540)
         layout=QVBoxLayout(self)
@@ -35,9 +36,7 @@ class PairDialog(QDialog):
         layout.addWidget(intro)
         self.identity=QLabel("Cihaz kimliği: " + (self.client.uid or "henüz oluşturulmadı"))
         self.identity.setWordWrap(True)
-        self.identity.setTextInteractionFlags(
-            self.identity.textInteractionFlags() |
-            self.identity.textInteractionFlags().TextSelectableByMouse)
+        self.identity.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         layout.addWidget(self.identity)
         self.status=QLabel("")
         self.status.setWordWrap(True)
@@ -70,6 +69,9 @@ class PairDialog(QDialog):
             self._task=None
             self.create.setEnabled(True)
             self.check.setEnabled(True)
+            if self._accept_pending:
+                self._accept_pending=False
+                self.accept()
         worker.finished.connect(finish)
         worker.finished.connect(worker.deleteLater)
         worker.start()
@@ -98,7 +100,7 @@ class PairDialog(QDialog):
                     self.status.setText("Bu cihaz personel rolünde; Yönetici kurulumu açılamaz.")
                     return
                 self.status.setText("Onaylandı. ALFA ERP bulut bağlantısı açılıyor.")
-                self.accept()
+                self._accept_pending=True
             else:
                 self.status.setText(
                     "Henüz onay yok. Cihaz UID: "+str(self.client.uid)+
