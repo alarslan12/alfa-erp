@@ -167,6 +167,16 @@ def request(client, method, path, payload=None, etag=False, match=None):
     if result.status_code in (401, 403):
         raise RuntimeError("Firebase IAM permission denied; verify the signed-in project owner")
     if result.status_code >= 400 and result.status_code != 412:
+        if path == ".settings/rules":
+            # Rules compilation errors contain source positions; no database
+            # rows or credentials are printed with this diagnostic.
+            try:
+                detail = result.json()
+                detail = detail.get("error", detail) if isinstance(detail, dict) else detail
+                detail = str(detail)[:1100]
+            except (ValueError, TypeError):
+                detail = "No structured compiler diagnostic returned"
+            raise RuntimeError(f"Firebase Rules HTTP {result.status_code}: {detail}")
         raise RuntimeError(f"Firebase HTTP {result.status_code}, {path}")
     return (result.json() if result.content else None), result.headers.get("ETag"), result.status_code
 
@@ -198,8 +208,18 @@ def migrate(folder, apply=False, promote=False, deploy_rules=False, rules_file=N
             raise RuntimeError("Root read must be false")
         if parsed_rules.get("rules", {}).get(".write") is not False:
             raise RuntimeError("Root write must be false")
+        # Back up exact existing rules before replacing them.
+        # The backup remains private beside the source snapshot.
+        current_rules, _, _ = request(client, "GET", ".settings/rules")
+        backup = Path(folder) / "rtdb_rules_before_import.json"
+        if not backup.exists():
+            backup.write_bytes(packed(current_rules))
+            backup.chmod(0o600)
         result, _, code = request(client, "PUT", ".settings/rules", parsed_rules)
-        print("Rules deployment status:", code)
+        confirmed, _, _ = request(client, "GET", ".settings/rules")
+        if confirmed != parsed_rules:
+            raise RuntimeError("Published RTDB rules do not match local rules file")
+        print("Rules deployment verified:", code)
     if apply:
         existing, etag, _ = request(client, "GET", "migration_staging/" + stage_id, etag=True)
         if existing is not None and existing.get("manifest_sha256") != digest:
