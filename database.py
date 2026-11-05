@@ -47,10 +47,15 @@ class ERPDatabase:
         self._pending_file=Path(self.siparis_dosyasi).parent/'alfa_outbox.json'
         self._pending={};self._progress_events=[];self._status_events=[];self._conflicts=[];self._next_revision=0
         self._pending_started=0.0
+        # Protect locally deleted orders against a late, pre-delete Firebase
+        # snapshot arriving while the optimistic outbox is still in flight.
+        self._deleted_cloud_ids=set()
         if self._pending_file.exists():
             try:
                 stored=json.loads(self._pending_file.read_text(encoding='utf-8'))
                 self._pending=stored.get('edits',{})
+                self._deleted_cloud_ids.update(str(p.get('uuid')) for p in
+                    self._pending.values() if p.get('delete') and p.get('uuid'))
                 self._progress_events=stored.get('progress',[])
                 self._status_events=stored.get('status_events',[])
                 # Existing V6 queue retained; sequence new actions monotonically.
@@ -520,9 +525,15 @@ class ERPDatabase:
         pending_requests={str(o.get('bulut_istem_id')) for o in self.siparisler
             if str(o.get('id')) in self._pending and o.get('bulut_istem_id')}
         staged=[]
+        deleted_inflight=self._deleted_cloud_ids | {
+            str(p.get('uuid')) for p in self._pending.values()
+            if p.get('delete') and p.get('uuid')}
         for row in payload['orders']:
             uid=str(row.get('id') or '')
             if not uid:continue
+            # A concurrent GET can return the order as it looked just before
+            # our successful soft-delete; never re-add that ghost into the pool.
+            if uid in deleted_inflight:continue
             local=existing.get(uid)
             if local is None and str(row.get('client_request_id') or '') in pending_requests:
                 continue  # Creation reached server; preserve local optimistic row until ack.
@@ -754,11 +765,14 @@ class ERPDatabase:
             previous_seen = self.bulut_bilinen_kayitlar()
             previous_seen.add(str(siparis['bulut_id']))
             self._atomik_json_yaz(self.bulut_gorulenler_dosyasi, sorted(previous_seen))
+        cloud_id=str(siparis.get('bulut_id') or '')
+        if cloud_id:self._deleted_cloud_ids.add(cloud_id)
         self.siparisler.pop(position)
         try:
             self.siparisleri_kaydet()
         except Exception:
             self.siparisler.insert(position, siparis)
+            if cloud_id:self._deleted_cloud_ids.discard(cloud_id)
             raise
 
     def siparis_ozeti(self, siparis):
