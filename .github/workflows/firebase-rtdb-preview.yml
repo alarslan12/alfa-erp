@@ -64,10 +64,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag='v6.3.0-firebase-pairing-fix-preview'
+          $tag='v6.3.0-firebase-checkout-fix-preview'
           gh release view $tag --repo $env:GITHUB_REPOSITORY 2>$null | Out-Null
           if ($LASTEXITCODE -ne 0) {
-            gh release create $tag --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --prerelease --title 'ALFA ERP V6.3.0 Firebase Pairing Fix - TEST ONIZLEME' --notes 'ONIZLEME - Qt cihaz onay penceresi is parcacigi temizligi, bulut gecikmeli baslatma ve hata kayitlari eklendi. Windows Firebase canli is akisi henuz dogrulanmadi. V6.2.2 kurulumunu kaldirmayin.'
+            gh release create $tag --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --prerelease --title 'ALFA ERP V6.3.0 Firebase Mobile Checkout Fix - TEST ONIZLEME' --notes 'ONIZLEME - Firebase numeric-key public_catalog JSON array normallestirmesi; onceki mobil istekler uygulama yeniden acildiginda tekrar denenir. Qt pairing duzeltmeleri korunur. Canli Windows entegre testleri tamamlanmadi. V6.2.2 surumunu silmeyin.'
             if ($LASTEXITCODE -ne 0) { throw 'Release could not be created' }
           }
           gh release upload $tag .\output\ALFA_ERP_Yonetici_Setup_V6_3_0.exe .\output\ALFA_ERP_Personel_Setup_V6_3_0.exe .\output\SHA256SUMS.txt --repo $env:GITHUB_REPOSITORY --clobber

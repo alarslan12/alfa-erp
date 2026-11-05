@@ -98,6 +98,7 @@ class Workstation:
         self._id_token = None
         self._token_expires = 0.0
         self._checkout_dirty = True
+        self._checkout_last_checked = 0.0
         self._catalog_cache = None
         self.token = self._identity.get("refresh_token") if self._identity else None
 
@@ -514,15 +515,32 @@ class Workstation:
         Never trusts customer-supplied order status, order number or page count.
         Duplicate adoption across workstations is prevented with an ETag.
         """
-        if not self._checkout_dirty:
+        # SSE is best-effort. Periodically re-check pending anonymous checkout
+        # requests, even if a Windows firewall interrupted the Firebase stream.
+        now = time.monotonic()
+        if not self._checkout_dirty and now - self._checkout_last_checked < 45:
             return
         inbox = self._get("checkout") or {}
-        self._checkout_dirty = False
         if not isinstance(inbox, dict):
-            return
+            raise DeviceError("Firebase mobil sipariş isteklerinin veri biçimi beklenmiyor.")
         if self._catalog_cache is None:
-            self._catalog_cache = self._get("public_catalog") or {}
+            raw_catalog = self._get("public_catalog") or {}
+            # Every ALFA book code is numeric (29..513). RTDB automatically
+            # serializes sufficiently dense numeric-key maps as JSON arrays.
+            # Mobile browsers handle Object.values(array), but the Windows
+            # importer previously called .get() on the resulting Python list.
+            if isinstance(raw_catalog, (dict, list)):
+                values = (raw_catalog.values() if isinstance(raw_catalog, dict)
+                          else raw_catalog)
+                self._catalog_cache = {
+                    str(book["code"]): book for book in values
+                    if isinstance(book, dict) and book.get("code") is not None
+                }
+            else:
+                raise DeviceError("Firebase mobil kitap kataloğu okunamadı.")
         books = self._catalog_cache
+        self._checkout_last_checked = now
+        self._checkout_dirty = False
         for uid, requests in inbox.items():
             if not isinstance(requests, dict):
                 continue
