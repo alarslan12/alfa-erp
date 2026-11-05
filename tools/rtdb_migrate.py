@@ -38,8 +38,9 @@ def prune_empty(value):
     # Firebase RTDB stores empty objects as absent nodes, unlike SQL/JSON.
     # Canonicalize both the staged input and readback for exact verification.
     if isinstance(value, dict):
-        return {k: v for k, raw in value.items()
+        kept = {k: v for k, raw in value.items()
                 if (v := prune_empty(raw)) is not None}
+        return kept or None
     if isinstance(value, list):
         return [prune_empty(x) for x in value]
     return value
