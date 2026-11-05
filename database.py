@@ -449,6 +449,8 @@ class ERPDatabase:
         from mobil_siparis_donusum import convert_mobile_order
         if not isinstance(payload,dict):
             raise ValueError('Bulut yanıtı geçersiz.')
+        reset_changes=[]
+        full_order_snapshot=('orders' in payload and 'items' in payload)
         # Revision-aware snapshots omit unchanged order rows entirely.
         # Keep the existing local orders; only process books/inventory/accounting.
         if 'orders' not in payload and 'items' not in payload:
@@ -467,6 +469,10 @@ class ERPDatabase:
                 try:old_epoch=json.loads(marker.read_text(encoding='utf-8')).get('epoch')
                 except (OSError,ValueError):old_epoch=None
             if old_epoch!=new_epoch:
+                # Preserve any unsent edits instead of resetting the local outbox.
+                if self.pending_count:
+                    raise ValueError('Yeni Firebase nesli algılandı ancak bekleyen yerel işlemler var. İşlemler korunuyor; önce kuyruğu inceleyin.')
+                reset_changes=['__siparisler__'] if self.siparisler else []
                 data_root=Path(self.siparis_dosyasi).parent
                 backup=data_root/'arsiv_eski_test_kayitlari'
                 backup.mkdir(parents=True,exist_ok=True)
@@ -478,14 +484,19 @@ class ERPDatabase:
                     old_file=data_root/name
                     if old_file.exists():
                         dest=backup/(new_epoch+'_'+name)
-                        if not dest.exists():shutil.move(str(old_file),str(dest))
-                        else:old_file.unlink()
+                        counter=1
+                        while dest.exists():
+                            dest=backup/(new_epoch+'_'+str(counter)+'_'+name)
+                            counter+=1
+                        shutil.move(str(old_file),str(dest))
                 self.siparisler.clear();self._son_id=0
                 self.cloud_accounting_rows=[];self.cloud_accounting_loaded=False
                 self.secili_siparisler={};self.hafiza_sepet={}
                 self._pending.clear();self._progress_events.clear();self._status_events.clear();self._conflicts.clear()
                 self._pending_started=0
                 self._write_outbox()
+                self._atomik_json_yaz(self.siparis_dosyasi,[])
+                self._atomik_json_yaz(self.sayac_dosyasi,{'son_id':0})
                 self._atomik_json_yaz(marker,{'epoch':new_epoch})
             self.cloud_epoch=new_epoch
         self.recover_old_outbox(payload)
@@ -523,7 +534,22 @@ class ERPDatabase:
                 continue  # Keep optimistic state until its pending work is acknowledged.
             elif local is None or int(local.get('bulut_version',0))!=int(row.get('version') or 0):
                 staged.append((uid,convert_mobile_order(row,items.get(uid,[]),{**self.katalog,**getattr(self,'archived_catalog',{})})))
-        if not staged:return (['__muhasebe__'] if accounting_changed else [])+(['__katalog__'] if catalog_changed else [])+(['__envanter__'] if inventory_changed else [])
+        if full_order_snapshot:
+            # A complete RTDB response is authoritative, including zero rows.
+            # Old local cloud orders omitted after production cutover are ghosts;
+            # retain work explicitly in the durable outbox and never prune it.
+            remote_ids={str(r.get('id')) for r in payload['orders']
+                        if isinstance(r,dict) and r.get('id') and not r.get('deleted_at')}
+            staged_ids={uid for uid,_ in staged}
+            protected=set(self._pending)
+            protected.update(str(e.get('local_id'))
+                for e in self._progress_events+self._status_events)
+            for local in list(self.siparisler):
+                uid=str(local.get('bulut_id') or '')
+                if uid and uid not in remote_ids and uid not in staged_ids and str(local.get('id')) not in protected:
+                    staged.append((uid,None))
+                    staged_ids.add(uid)
+        if not staged:return reset_changes+(['__muhasebe__'] if accounting_changed else [])+(['__katalog__'] if catalog_changed else [])+(['__envanter__'] if inventory_changed else [])
         previous=[dict(x) for x in self.siparisler]
         ids={int(x['id']) for x in self.siparisler if str(x.get('id','')).isdigit()}
         latest=max(ids or {0});changed=[]
@@ -550,7 +576,7 @@ class ERPDatabase:
         if accounting_changed:changed.append('__muhasebe__')
         if catalog_changed:changed.append('__katalog__')
         if inventory_changed:changed.append('__envanter__')
-        return changed
+        return reset_changes+changed
 
     def apply_cloud_catalog(self,payload):
         revision=payload.get('catalog_revision')
@@ -575,6 +601,11 @@ class ERPDatabase:
             groups.setdefault(book['grup'],[]).append(code)
         if not mapping:
             raise ValueError('Bulut katalog boş, yerel katalog korunuyor.')
+        # The RTDB UUID-key iteration order is NOT the book code order.
+        def sort_code(book):
+            code=str(book.get('kod') or '').strip()
+            return (0,int(code),code) if code.isdecimal() else (1,code.casefold(),code)
+        books.sort(key=sort_code)
         self.katalog.clear();self.katalog.update(mapping)
         self.kitaplar.clear();self.kitaplar.extend(books)
         self.gruplar.clear();self.gruplar.update(groups)

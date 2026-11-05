@@ -265,7 +265,13 @@ class KatalogView(QWidget):
 
     def filtered(self):
         q=self.search.text()
-        return [book for book in self.db.kitaplar if metin_eslesiyor_mu(q,book)]
+        rows=[book for book in self.db.kitaplar if metin_eslesiyor_mu(q,book)]
+        # Both the initial Excel and Firebase-origin catalog use stable
+        # numerical order; data/code values are not rewritten.
+        def book_key(book):
+            code=str(book.get('kod') or '').strip()
+            return (0,int(code),code) if code.isdecimal() else (1,code.casefold(),code)
+        return sorted(rows,key=book_key)
     def reset_results(self,*args):self.page=0;self.refresh_grid()
     def _column_count(self):
         # Görünür katalog genişliğini kullan; tüm pencere genişliğini değil.

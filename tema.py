@@ -1447,3 +1447,158 @@ QPushButton#TrackSelectAllToggle, QPushButton#TrackUnpreparedToggle, QPushButton
 QFrame#TrackActionReady:hover {border:1px solid #b69cfa; background:#343456;}
 QFrame#TrackActionBoxed:hover {border:1px solid #79dfc1; background:#244a4a;}
 """
+
+
+QSS += """
+/* ALFA 6.4.1 - crisp professional operations design.
+   Strong navy surfaces, deliberate semantic highlights, contrast and hover.
+   No widget geometry or business behavior is modified by this layer. */
+QWidget#AppRoot, QWidget#AppBody, QWidget#CatalogHost,
+QWidget#InventoryHost, QWidget#AnalyticsPage {
+    background:#0b1828; color:#f4f8ff;
+}
+QFrame#Header {
+    background:#0d2138; border:0; border-bottom:2px solid #2873b8;
+}
+QFrame#OrdersSubbar {
+    background:#102b47; border:0; border-bottom:1px solid #356c99;
+}
+QLabel#PageTitle, QLabel#AnalyticsTitle, QLabel#SettingsTitle {
+    color:#f5f9ff; font-weight:900;
+}
+QPushButton#Nav {
+    color:#ccdef0; background:transparent; border:0;
+    border-radius:0; border-bottom:3px solid transparent;
+    padding:10px 18px 8px; font-weight:850;
+}
+QPushButton#Nav:hover {
+    color:#ffffff; background:#1d3c5c;
+    border-bottom:3px solid #62b4ff;
+}
+QPushButton#Nav:checked {
+    color:#ffffff; background:#214e78;
+    border-bottom:3px solid #ffbc52;
+}
+QPushButton#OrdersSubnav {
+    color:#c9e2f7; background:#17334e;
+    border:1px solid #315779; border-radius:6px;
+    padding:5px 14px; font-weight:850;
+}
+QPushButton#OrdersSubnav:hover {
+    color:#fff; background:#29557b; border-color:#6cbaff;
+}
+QPushButton#OrdersSubnav:checked {
+    color:#ffffff; background:#24649b; border-color:#7ccaff;
+}
+QPushButton#InventoryModeTab {
+    color:#cadff3; background:#172d47;
+    border:1px solid #476c91; border-radius:8px;
+    padding:8px 20px; font-weight:850; font-size:12px;
+}
+QPushButton#InventoryModeTab:hover {
+    color:#ffffff; background:#29537b; border-color:#7bc8ff;
+}
+QPushButton#InventoryModeTab:checked {
+    color:#ffffff; background:#1765a7;
+    border:1px solid #76c6ff; border-bottom:3px solid #ffc15b;
+}
+QFrame#Panel, QFrame#Card, QFrame#OrderRow,
+QFrame#BasketRow, QFrame#BasketPanel, QFrame#CatalogToolbar,
+QFrame#OrderToolbar, QFrame#AnalyticsMetric,
+QFrame#AnalyticsTable, QFrame#AnalyticsMetricGroup,
+QFrame#AnalyticsToolbar, QFrame#AccountingCalendarPanel,
+QFrame#AccountingPill, QFrame#SettingsCard, QFrame#TrackBookCard,
+QFrame#TrackActionToolbar, QFrame#OrderRightPanel,
+QFrame#PoolBookRow, QFrame#BookPoolToolbar {
+    background:#14263b; border:1px solid #426487;
+    border-radius:9px;
+}
+QFrame#Card:hover, QFrame#OrderRow:hover, QFrame#TrackBookCard:hover,
+QFrame#AccountingPill:hover, QFrame#PoolBookRow:hover {
+    background:#1b3652; border:1px solid #75baff;
+}
+QFrame#OrderRow[orderStatus="havuz"] {border-left:4px solid #f6b750;}
+QFrame#OrderRow[orderStatus="aktif"] {border-left:4px solid #429fff;}
+QFrame#OrderRow[orderStatus="tamamlandi"] {border-left:4px solid #29d79a;}
+QFrame#OrderRow[orderSelected="true"] {
+    background:#252c50; border:2px solid #bc96ff;
+}
+QFrame#OrderRow[orderRecent="true"] {
+    background:#1c3c59; border:2px solid #70c8ff;
+}
+QLabel#Muted, QLabel#Tiny, QLabel#OrderMetrics, QLabel#AccountingPillTitle,
+QLabel#AnalyticsHint, QLabel#AccountingHelp {
+    color:#bdd2e7;
+}
+QLabel#AnalyticsGroupTitle {color:#d6e9ff; font-weight:900;}
+QLabel#AnalyticsGroupTitle[groupKind="finance"] {color:#3de2b0;}
+QLabel#AnalyticsGroupTitle[groupKind="shipping"] {color:#ffc06b;}
+QLabel#AnalyticsGroupTitle[groupKind="orders"] {color:#6cb8ff;}
+QLabel#AnalyticsGroupTitle[groupKind="books"] {color:#c5a6ff;}
+QLabel#AnalyticsGroupTitle[groupKind="printing"] {color:#ff9a81;}
+QLabel#AnalyticsValue, QLabel#AccountingPillValue {
+    color:#64c1ff; font-weight:900;
+}
+QLabel#OrderMoney, QLabel#OrderRevenuePill {color:#50e2b2;}
+QPushButton {
+    color:#f3f8ff; background:#234465;
+    border:1px solid #4d7ba6; border-radius:8px;
+    font-weight:750;
+}
+QPushButton:hover {background:#316089; border-color:#91ceff; color:#ffffff;}
+QPushButton:pressed {background:#16436a; border-color:#ffffff;}
+QPushButton:disabled {
+    background:#233346; color:#8199af; border-color:#35516a;
+}
+QPushButton#Accent, QPushButton#OwnerPrimary {
+    background:#1f82cd; color:#ffffff; border:1px solid #75c9ff;
+    font-weight:850;
+}
+QPushButton#Accent:hover, QPushButton#OwnerPrimary:hover {
+    background:#349fe8; border-color:#c8eaff;
+}
+QPushButton#Success, QPushButton#TrackBulkPositive {
+    background:#1f9a76; color:#ffffff; border:1px solid #6ceac0;
+    font-weight:850;
+}
+QPushButton#Success:hover, QPushButton#TrackBulkPositive:hover {
+    background:#2fba91; border-color:#b4ffe2;
+}
+QPushButton#Danger, QPushButton#OwnerDanger {
+    background:#793c4a; color:#ffeaec; border:1px solid #ce7184;
+}
+QPushButton#Danger:hover, QPushButton#OwnerDanger:hover {
+    background:#a74e60; border-color:#ffa8b6;
+}
+QPushButton#OrderPrintCTA {
+    background:#f4b452; color:#172334; border:1px solid #ffdb95;
+    font-weight:900;
+}
+QPushButton#OrderPrintCTA:hover {background:#ffcd79; border-color:#ffebb6;}
+QPushButton#OrderPoolCTA {
+    background:#6555b4; color:#fff; border:1px solid #b4a1fa;
+    font-weight:900;
+}
+QPushButton#OrderPoolCTA:hover {background:#806dd0; border-color:#dcd2ff;}
+QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox, QTextEdit,
+QTableWidget {
+    color:#f3f8ff; background:#12253b; border:1px solid #48698c;
+    selection-background-color:#276ea4;
+}
+QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus,
+QComboBox:focus, QTextEdit:focus {border:2px solid #80c7ff;}
+QHeaderView::section {
+    color:#f4f8ff; background:#204362; font-weight:850;
+    border:0; border-bottom:1px solid #5782a9;
+}
+QScrollBar::handle:vertical, QScrollBar::handle:horizontal {
+    background:#466e94; border-radius:4px;
+}
+QScrollBar::handle:vertical:hover, QScrollBar::handle:horizontal:hover {
+    background:#75b8ea;
+}
+QToolTip {
+    color:#ffffff; background:#173754; border:1px solid #72baff;
+    padding:5px;
+}
+"""

@@ -14,13 +14,13 @@ from widgets import button, text, scrollable
 from muhasebe_veri import PaymentDays, accounting_days, completed_summary, html_report, completion_fingerprints
 from takvim import MONTHS, WEEK
 
-NAVY='#182638'
-FG='#edf4fc'
-MUTED='#9badc2'
-BLUE='#67b8ff'
-MINT='#54d6b1'
-AMBER='#f3bb69'
-PURPLE='#c5a1ff'
+NAVY='#10243a'
+FG='#f5f9ff'
+MUTED='#c0d4e8'
+BLUE='#409fff'
+MINT='#35dda9'
+AMBER='#ffc05a'
+PURPLE='#b693ff'
 CREAM_BG='#fbf7ef'
 CREAM_PANEL='#f3ebdf'
 CREAM_BORDER='#d6c7b0'

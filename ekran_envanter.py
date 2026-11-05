@@ -251,7 +251,7 @@ class EnvanterView(QWidget):
         title=QHBoxLayout()
         heading=QLabel('Ürünler & Envanter');heading.setObjectName('PageTitle');title.addWidget(heading)
         title.addStretch()
-        self.sync_note=QLabel('Supabase · ortak ürün kataloğu');self.sync_note.setObjectName('Muted')
+        self.sync_note=QLabel('Firebase · ortak envanter');self.sync_note.setObjectName('Muted')
         title.addWidget(self.sync_note)
         self.add_button=QPushButton('＋  Katalogdan envantere ekle');self.add_button.setObjectName('Accent')
         self.add_button.clicked.connect(self.add_from_catalog);title.addWidget(self.add_button)
@@ -380,7 +380,7 @@ class EnvanterView(QWidget):
                         key=lambda p:str(p.get('title') or '').casefold())
         if not products:
             QMessageBox.information(self,'Envanter',
-                'Genel ürün kataloğu boş. Önce Katalog → Genel Ürünler sekmesinde ürün oluştur.')
+                'Genel ürün kataloğu boş. Önce Envanter → Genel Ürünler sekmesinde ürün oluştur.')
             return
         dialog=QDialog(self)
         dialog.setWindowTitle('Genel katalogdan envantere ürün ekle')
@@ -524,7 +524,7 @@ class EnvanterView(QWidget):
         elif theme=='kontrast':
             colors=('#101010','#181818','#f3f3f3','#ffffff','#f3f3f3','#ffe07b','#191919')
         else:
-            colors=('#1c2838','#23384c','#486079','#eef5fc','#b9c9d7','#89d6cd','#203947')
+            colors=('#14263d','#1a3553','#4c739b','#f4f8ff','#b9cee4','#34d2b4','#214966')
         surface,pic,border,text,muted,accent,tag=colors
         self.setStyleSheet(f'''
             QFrame#InventoryCard {{background:{surface};border:1px solid {border};border-radius:17px;}}
