@@ -12,7 +12,8 @@
           "$uid": {
             ".read": "auth !== null && (auth.uid === $uid || (root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'owner' && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true))",
             ".write": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'owner' && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true && newData.hasChildren(['role','active']) && (newData.child('role').val() === 'owner' || newData.child('role').val() === 'staff') && newData.child('active').isBoolean()"
-          }
+          },
+          ".read": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'owner' && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true"
         },
         "meta": {
           ".read": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true",
@@ -54,7 +55,8 @@
           "$uid": {
             ".read": "auth !== null && (auth.uid === $uid || root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'owner')",
             ".write": "auth !== null && auth.uid === $uid && !data.exists() && newData.hasChildren(['name','created_at']) && newData.child('name').isString() && newData.child('name').val().length <= 120"
-          }
+          },
+          ".read": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'owner' && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true"
         },
         "checkout": {
           ".read": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true",

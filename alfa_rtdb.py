@@ -97,6 +97,8 @@ class Workstation:
         self._identity = load_identity()
         self._id_token = None
         self._token_expires = 0.0
+        self._checkout_dirty = True
+        self._catalog_cache = None
         self.token = self._identity.get("refresh_token") if self._identity else None
 
     @property
@@ -466,10 +468,15 @@ class Workstation:
         Never trusts customer-supplied order status, order number or page count.
         Duplicate adoption across workstations is prevented with an ETag.
         """
+        if not self._checkout_dirty:
+            return
         inbox = self._get("checkout") or {}
+        self._checkout_dirty = False
         if not isinstance(inbox, dict):
             return
-        books = self._get("public_catalog") or {}
+        if self._catalog_cache is None:
+            self._catalog_cache = self._get("public_catalog") or {}
+        books = self._catalog_cache
         for uid, requests in inbox.items():
             if not isinstance(requests, dict):
                 continue
@@ -542,6 +549,8 @@ class Workstation:
                         line=stream.readline().decode("utf-8","replace").strip()
                         if not line:
                             if event in ("put","patch"):
+                                if location == "checkout":
+                                    self._checkout_dirty = True
                                 callback()
                             if event in ("auth_revoked","cancel"):
                                 break
