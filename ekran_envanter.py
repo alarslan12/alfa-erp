@@ -367,7 +367,7 @@ class EnvanterView(QWidget):
         self.history_period.currentIndexChanged.connect(
             lambda *_:self.update_analytics(
                 [p for p in self.db.inventory_products
-                 if p.get('active',True) and p.get('in_inventory',True)],
+                 if p.get('in_inventory',True)],
                 self.db.inventory_sales))
         sales_layout.addStretch()
         analysis_scroll.setWidget(summary_host)
@@ -740,7 +740,9 @@ class EnvanterView(QWidget):
         self.category.blockSignals(False)
         self.apply_theme()
         self.render()
-        self.update_analytics(active,sales)
+        # Archived products remain in stock and historical reports; only the
+        # active sales catalogue hides them.
+        self.update_analytics([p for p in rows if p.get('in_inventory',True)],sales)
 
     def update_analytics(self,products,sales):
         """Inventory-only reporting from synced ledger; no additional reads."""
@@ -844,9 +846,13 @@ class EnvanterView(QWidget):
         index=self.history_table.currentRow()
         item=(self._history_display[index] if
               0<=index<len(self._history_display) else None)
+        product=next((p for p in (self.db.inventory_products or [])
+                      if item and str(p.get('id'))==str(item.get('product_id'))),None)
+        recorded=((product.get('sales_history') or {}).get(str(item.get('id')))
+                  if isinstance(product,dict) and item else None)
         self.cancel_sale_button.setEnabled(bool(
-            self.owner and item and item.get('id') and
-            item.get('product_id') and not item.get('cancelled_at')))
+            self.owner and item and recorded and
+            not item.get('cancelled_at')))
 
     def cancel_selected_sale(self):
         index=self.history_table.currentRow()
