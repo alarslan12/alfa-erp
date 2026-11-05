@@ -39,9 +39,9 @@ Name: "{userdesktop}\ALFA ERP Yönetici"; Filename: "{app}\AlfaERPYonetici.exe";
 Name: "{userprograms}\ALFA ERP Yönetici"; Filename: "{app}\AlfaERPYonetici.exe"; WorkingDir: "{app}"; Check: IsOwner
 
 [Run]
-Filename: "{app}\AlfaERP.exe"; Description: "ALFA ERP Personel uygulamasını aç"; Flags: nowait postinstall skipifsilent; Check: IsStaff
-Filename: "{app}\Bildirim\AlfaBildirim.exe"; Description: "Sipariş bildiricisini başlat"; Flags: nowait postinstall skipifsilent; Check: IsStaff
-Filename: "{app}\AlfaERPYonetici.exe"; Description: "ALFA ERP Yönetici uygulamasını aç"; Flags: nowait postinstall skipifsilent; Check: IsOwner
+Filename: "{app}\AlfaERP.exe"; Description: "ALFA ERP Personel uygulamasını aç"; Flags: nowait postinstall skipifsilent; Check: RunStaff
+Filename: "{app}\Bildirim\AlfaBildirim.exe"; Description: "Sipariş bildiricisini başlat"; Flags: nowait postinstall skipifsilent; Check: RunStaff
+Filename: "{app}\AlfaERPYonetici.exe"; Description: "ALFA ERP Yönetici uygulamasını aç"; Flags: nowait postinstall skipifsilent; Check: RunOwner
 
 [Code]
 var
@@ -56,6 +56,31 @@ end;
 function IsStaff(): Boolean;
 begin
   Result := not IsOwner();
+end;
+
+// When the update helper is responsible for restarting the app, do
+// not start an extra app copy from Inno Setup's Finish page.
+function HasUpdateFlag(): Boolean;
+var
+  I: Integer;
+begin
+  Result := False;
+  for I := 1 to ParamCount() do
+    if CompareText(ParamStr(I), '/ALFAUPDATE') = 0 then
+    begin
+      Result := True;
+      Exit;
+    end;
+end;
+
+function RunStaff(): Boolean;
+begin
+  Result := IsStaff() and not HasUpdateFlag();
+end;
+
+function RunOwner(): Boolean;
+begin
+  Result := IsOwner() and not HasUpdateFlag();
 end;
 
 function EditionAppId(Param: String): String;
