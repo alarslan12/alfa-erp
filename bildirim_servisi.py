@@ -9,6 +9,7 @@ from alfa_rtdb import Workstation
 from bildirim_sesleri import configured_sound,play_order_sound
 from alfa_hatalar import install_reporter,record_error,connect_device
 from bulut_canli import RtdbWatch
+from ayar_yonetimi import UserSettings
 STATE=DATA/'alfa_bildirim_durumu.json'
 class Reader(QThread):
     done=Signal(dict);error=Signal(str)
@@ -25,12 +26,34 @@ class Reader(QThread):
         except Exception as exc:self.error.emit(str(exc)[:200])
 class Popup(QDialog):
     def __init__(self,numbers):
-        super().__init__();self.setWindowTitle('ALFA ERP · Yeni Sipariş')
+        super().__init__()
+        self.setObjectName('OrderArrivedPopup')
+        self.setWindowTitle('ALFA ERP · Yeni Sipariş')
         self.setWindowFlags(Qt.WindowType.Tool|Qt.WindowType.WindowStaysOnTopHint)
-        self.resize(350,150);layout=QVBoxLayout(self)
-        title=QLabel('Yeni sipariş geldi!');title.setStyleSheet('font-size:18px;font-weight:bold')
-        layout.addWidget(title);content=QLabel(numbers);content.setWordWrap(True);layout.addWidget(content)
-        button=QPushButton('Kapat');button.clicked.connect(self.close);layout.addWidget(button)
+        self.resize(370,175)
+        theme=UserSettings(DATA).get('tema','koyu')
+        if theme=='acik':
+            bg,fg,muted,button_bg,edge='#fffaf2','#253d55','#556b80','#dce9f2','#bfaf98'
+        elif theme=='kontrast':
+            bg,fg,muted,button_bg,edge='#080d13','#ffffff','#e6f5ff','#21486b','#91adcb'
+        else:
+            bg,fg,muted,button_bg,edge='#14263b','#f5f9ff','#c8dded','#244b6d','#567e9d'
+        self.setStyleSheet(f"""
+            QDialog#OrderArrivedPopup {{background:{bg};color:{fg};
+                border:1px solid {edge};}}
+            QLabel#OrderArrivedTitle {{color:{fg};font-size:18px;
+                font-weight:850;background:transparent;}}
+            QLabel#OrderArrivedBody {{color:{muted};font-size:13px;
+                background:transparent;}}
+            QPushButton {{background:{button_bg};color:{fg};
+                border:1px solid {edge};border-radius:7px;padding:8px;}}
+        """)
+        layout=QVBoxLayout(self);layout.setContentsMargins(17,16,17,14)
+        title=QLabel('Yeni sipariş geldi!');title.setObjectName('OrderArrivedTitle')
+        layout.addWidget(title)
+        content=QLabel(numbers);content.setObjectName('OrderArrivedBody')
+        content.setWordWrap(True);layout.addWidget(content)
+        close=QPushButton('Kapat');close.clicked.connect(self.close);layout.addWidget(close)
         QTimer.singleShot(14000,self.close)
 def icon():
     pix=QPixmap(64,64);pix.fill(QColor('#23345b'))
@@ -128,7 +151,7 @@ class Service:
         self.popup=Popup(caption);self.popup.show()
 def main():
     DATA.mkdir(parents=True,exist_ok=True)
-    install_reporter("6.6.0","staff",data_dir=DATA)
+    install_reporter("1.1.0","staff",data_dir=DATA)
     def _error_hook(error_type,error,tb):
         record_error(error_type,error,tb,source="tray")
     sys.excepthook=_error_hook

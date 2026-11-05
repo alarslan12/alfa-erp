@@ -98,6 +98,85 @@ def _upsert_product(client,product):
     raise DeviceError("Ürün eşzamanlı düzenleniyor; yeniden deneyin",409)
 
 
+
+def _archive_product(client,product_id,active):
+    """Soft archive/restore; never remove purchases or sales from Firebase."""
+    pid=str(product_id or "")
+    if not pid:
+        raise DeviceError("Ürün kimliği gerekli",422)
+    for _ in range(8):
+        old,etag,_=client._request("GET","inventory/products/"+pid,etag=True)
+        if not isinstance(old,dict):
+            raise DeviceError("Ürün bulunamadı",404)
+        updated=copy.deepcopy(old)
+        now=datetime.now(timezone.utc).isoformat()
+        updated["active"]=bool(active)
+        updated["archived_at"]=None if active else now
+        updated["archived_by"]=None if active else client.uid
+        updated["version"]=int(old.get("version") or 0)+1
+        updated["updated_at"]=now
+        try:
+            client._request("PUT","inventory/products/"+pid,updated,match=etag)
+            try:client._bump("inventory")
+            except DeviceError:pass
+            return {"active":bool(active),"product_id":pid}
+        except DeviceError as exc:
+            if exc.status!=409:raise
+    raise DeviceError("Ürün başka cihazda değiştiriliyor; yeniden dene",409)
+
+
+def _cancel_sale(client,product_id,sale_id,reason):
+    """Compensate a completed sale inside ONE conditional product write.
+
+    Keep the original sale, purchase lot and costs for immutable audit.
+    Exactly one reversal is possible, even when two owners click together.
+    """
+    pid=str(product_id or "")
+    sid=str(sale_id or "")
+    reason=str(reason or "").strip()[:180]
+    if not pid or not sid or not reason:
+        raise DeviceError("Satış, ürün ve iptal nedeni zorunludur",422)
+    for _ in range(8):
+        old,etag,_=client._request("GET","inventory/products/"+pid,etag=True)
+        if not isinstance(old,dict):
+            raise DeviceError("Satışa ait ürün bulunamadı",404)
+        updated=copy.deepcopy(old)
+        history=updated.get("sales_history") or {}
+        sale=history.get(sid)
+        if not isinstance(sale,dict):
+            raise DeviceError("Bu satış kaydı bulunamadı",404)
+        if sale.get("cancelled_at"):
+            return {"already_cancelled":True,"sale_id":sid}
+        batches=stock_batches(updated)
+        lot_id=str(sale.get("batch_id") or "")
+        batch=batches.get(lot_id)
+        if not isinstance(batch,dict):
+            raise DeviceError("Eski alım partisi bulunamadı; otomatik iptal güvenli değil",409)
+        qty=int(sale.get("quantity") or 0)
+        total=int(batch.get("quantity") or 0)
+        remaining=int(batch.get("remaining") or 0)
+        if qty<1 or remaining<0 or remaining+qty>total:
+            raise DeviceError("Stok hareketleri tutarsız; iptal için manuel inceleme gerekli",409)
+        if batch_stock_quantity(updated)!=int(updated.get("quantity") or 0):
+            raise DeviceError("Stok ve parti toplamları farklı; iptal engellendi",409)
+        batch["remaining"]=remaining+qty
+        batches[lot_id]=batch
+        now=datetime.now(timezone.utc).isoformat()
+        sale.update(cancelled_at=now,cancelled_by=client.uid,cancel_reason=reason)
+        history[sid]=sale
+        updated.update(stock_batches=batches,sales_history=history,
+                       quantity=int(old.get("quantity") or 0)+qty,
+                       updated_at=now,version=int(old.get("version") or 0)+1)
+        try:
+            client._request("PUT","inventory/products/"+pid,updated,match=etag)
+            try:client._bump("inventory")
+            except DeviceError:pass
+            return {"cancelled":True,"sale_id":sid,"restored_quantity":qty}
+        except DeviceError as exc:
+            if exc.status!=409:raise
+    raise DeviceError("İptal sırasında eşzamanlı stok değişikliği; yeniden dene",409)
+
+
 def _acquire_product(client,product_id,quantity,unit_cost):
     """Owner adds a distinct timestamped purchase-cost batch with ETag CAS."""
     pid=str(product_id or "")
@@ -200,6 +279,11 @@ def admin_request(cloud,action,timeout=None,**kwargs):
                 "audit_events":list(audit.values()) if isinstance(audit,dict) else []}
     if action=="admin_inventory_upsert":
         return _upsert_product(client,kwargs.get("product"))
+    if action=="admin_inventory_archive":
+        return _archive_product(client,kwargs.get("product_id"),kwargs.get("active"))
+    if action=="admin_inventory_cancel_sale":
+        return _cancel_sale(client,kwargs.get("product_id"),
+                            kwargs.get("sale_id"),kwargs.get("reason"))
     if action=="admin_inventory_acquire":
         return _acquire_product(client,kwargs.get("product_id"),
                                 kwargs.get("quantity"),kwargs.get("unit_cost"))

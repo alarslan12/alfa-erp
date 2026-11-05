@@ -213,7 +213,26 @@ def install_reporter(version,edition,data_dir=None):
 
 def record_error(error_type,error,tb,source="application"):
     if REPORTER:
-        REPORTER.report(error_type,error,tb,source)
+        return bool(REPORTER.report(error_type,error,tb,source))
+    return False
+
+
+def report_manual_error(category):
+    """User-initiated report, with only a vetted category and no free text.
+
+    This preserves RTDB's existing strict 10-field report schema and never
+    uploads customer details, order identifiers or local exception messages.
+    """
+    kinds={
+        'orders':'ManualOrderReport',
+        'inventory':'ManualInventoryReport',
+        'sync':'ManualSyncReport',
+        'theme':'ManualThemeReport',
+        'other':'ManualOtherReport',
+    }
+    kind=kinds.get(str(category))
+    if not kind:return False
+    return record_error(type(kind,(RuntimeError,),{}),None,None,source='manual')
 
 
 def connect_device(provider):

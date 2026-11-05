@@ -8,7 +8,7 @@ import base64
 from PySide6.QtCore import Qt,QTimer
 from PySide6.QtWidgets import (
     QApplication,QWidget,QVBoxLayout,QHBoxLayout,QLabel,QLineEdit,QPushButton,
-    QTableWidget,QTableWidgetItem,QHeaderView,QAbstractItemView,QMessageBox,QDialog
+    QTableWidget,QTableWidgetItem,QHeaderView,QAbstractItemView,QMessageBox,QDialog,QCheckBox
 )
 from ekran_envanter import ProductDialog,InventoryJob
 
@@ -38,6 +38,13 @@ class GeneralProductCatalog(QWidget):
         self.edit_button.setObjectName('GeneralCatalogAction')
         self.edit_button.clicked.connect(self.edit_selected)
         row.addWidget(self.edit_button)
+        self.archive_button=QPushButton('Seçili ürünü arşivle')
+        self.archive_button.setObjectName('GeneralCatalogAction')
+        self.archive_button.clicked.connect(self.toggle_archive)
+        row.addWidget(self.archive_button)
+        self.show_archived=QCheckBox('Arşivlenenleri göster')
+        self.show_archived.toggled.connect(self.render)
+        row.addWidget(self.show_archived)
         root.addLayout(row)
         self.table=QTableWidget(0,5)
         self.table.setObjectName('GeneralCatalogTable')
@@ -55,6 +62,7 @@ class GeneralProductCatalog(QWidget):
         head.setSectionResizeMode(3,QHeaderView.ResizeMode.ResizeToContents)
         head.setSectionResizeMode(4,QHeaderView.ResizeMode.ResizeToContents)
         self.table.doubleClicked.connect(lambda _:self.edit_selected())
+        self.table.itemSelectionChanged.connect(self._update_archive_action)
         root.addWidget(self.table,1)
         self.counter=QLabel('')
         self.counter.setObjectName('GeneralCatalogHint');root.addWidget(self.counter)
@@ -67,12 +75,13 @@ class GeneralProductCatalog(QWidget):
     def refresh(self):
         self.new_button.setVisible(self.can_edit)
         self.edit_button.setVisible(self.can_edit)
+        self.archive_button.setVisible(self.can_edit)
         self.apply_theme()
         self.render()
 
     def render(self,*_):
         products=[p for p in (getattr(self.db,'inventory_products',[]) or [])
-                  if p.get('active',True)]
+                  if p.get('active',True) or self.show_archived.isChecked()]
         products.sort(key=lambda p:(str(p.get('title') or '').casefold(),
                                     str(p.get('sku') or '').casefold()))
         term=self.search.text().strip().casefold()
@@ -88,7 +97,8 @@ class GeneralProductCatalog(QWidget):
                 str(p.get('sku') or ''),str(p.get('title') or ''),
                 str(p.get('category') or 'Genel'),
                 f"{int(p.get('quantity') or 0):,} adet",
-                'Stokta' if p.get('in_inventory',True) else 'Henüz eklenmedi'
+                ('Arşivde' if not p.get('active',True) else
+                 'Stokta' if p.get('in_inventory',True) else 'Henüz eklenmedi')
             ]
             for col,val in enumerate(values):
                 item=QTableWidgetItem(val)
@@ -97,7 +107,16 @@ class GeneralProductCatalog(QWidget):
                 if col==0 and str(p.get('id'))==selected:
                     self.table.selectRow(n)
         self.table.blockSignals(False)
-        self.counter.setText(f'{len(products)} ürün · katalog tüm eşleşmiş bilgisayarlarda ortaktır.')
+        self._update_archive_action()
+        self.counter.setText(f'{len(products)} ürün · arşivleme stok ve satış geçmişini silmez.')
+
+    def _update_archive_action(self):
+        selected_product=next((p for p in (self.db.inventory_products or [])
+                               if str(p.get('id'))==self.selected_id()),None)
+        self.archive_button.setEnabled(bool(self.can_edit and selected_product))
+        self.archive_button.setText('Ürünü geri getir' if selected_product and
+                                    not selected_product.get('active',True)
+                                    else 'Seçili ürünü arşivle')
 
     def selected_id(self):
         row=self.table.currentRow()
@@ -112,6 +131,37 @@ class GeneralProductCatalog(QWidget):
             QMessageBox.information(self,'Ürün kataloğu','Önce bir ürün seçin.')
             return
         self.edit_product(product)
+
+    def toggle_archive(self):
+        target=self.selected_id()
+        product=next((p for p in self.db.inventory_products
+                      if str(p.get('id'))==target),None)
+        request=getattr(self.db,'owner_admin_request',None)
+        if not product or not callable(request):return
+        restore=not product.get('active',True)
+        if not restore:
+            notice=('Ürün katalogdan ve satış listesinden gizlenecek. '
+                    'Stok, alım partileri ve geçmiş satışlar korunacak.\n\n'
+                    'Arşivlensin mi?')
+            if QMessageBox.question(self,'Ürünü arşivle',notice,
+                    QMessageBox.StandardButton.Yes|QMessageBox.StandardButton.No
+                    )!=QMessageBox.StandardButton.Yes:return
+        def do():
+            return request('admin_inventory_archive',product_id=target,active=restore)
+        job=InventoryJob('general_catalog_archive',do,self)
+        self.jobs.add(job)
+        def done(_):
+            self.jobs.discard(job)
+            self.counter.setText('Katalog güncellendi · bulut eşitleniyor…')
+            live=getattr(self.window(),'live',None)
+            if live is not None:
+                live.force_pull=True
+                QTimer.singleShot(200,live.pull)
+        def error(message):
+            self.jobs.discard(job)
+            QMessageBox.warning(self,'Katalog değiştirilemedi',message)
+        job.success.connect(done);job.error.connect(error)
+        job.finished.connect(job.deleteLater);job.start()
 
     def edit_product(self,product):
         request=getattr(self.db,'owner_admin_request',None)

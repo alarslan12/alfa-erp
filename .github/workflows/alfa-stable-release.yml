@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       source_run_id:
-        description: 'Successful run ID with ALFA ERP v1.0 unified installer'
+        description: 'Successful run ID with ALFA ERP v1.1 unified installer'
         type: string
         required: true
 
@@ -28,7 +28,7 @@ jobs:
           fi
       - uses: actions/download-artifact@v4
         with:
-          name: ALFA_ERP_V1_0_0_Unified_Setup
+          name: ALFA_ERP_V1_1_0_Unified_Setup
           run-id: ${{ inputs.source_run_id }}
           github-token: ${{ github.token }}
           path: ./release
@@ -37,7 +37,7 @@ jobs:
         run: |
           set -euo pipefail
           cd release
-          test -s ALFA_ERP_Setup_V1_0_0.exe
+          test -s ALFA_ERP_Setup_V1_1_0.exe
           test -s SHA256SUMS.txt
           sha256sum -c SHA256SUMS.txt
           test "$(wc -l < SHA256SUMS.txt)" -eq 1
@@ -49,7 +49,7 @@ jobs:
           RUN_ID: ${{ inputs.source_run_id }}
         run: |
           set -euo pipefail
-          tag='v1.0.0'
+          tag='v1.1.0'
           if gh release view "$tag" --repo "$REPO" >/dev/null 2>&1; then
             echo 'Stable release already exists. Refusing to replace assets.'
             exit 1
@@ -62,7 +62,7 @@ jobs:
           test -n "$source_sha"
           gh release create "$tag" \
             --repo "$REPO" --target "$source_sha" \
-            --title 'ALFA ERP v1.0 · Kararlı Windows sürümü' \
-            --notes 'Tek Windows kurulumu: Personel veya Yönetici seçilir. Yönetici kurulumu ayrı sabit parola kapısına, bulut işlemleri ayrıca Firebase owner cihaz yetkisine bağlıdır. Sipariş/katalog görünümü korunur; olay bazlı Hata Merkezi ve SHA-256 doğrulanan Güncelleme Merkezi içerir. Kurulum dosyası ilk 6.x sürümünden manuel indirilmelidir.' \
-            ./release/ALFA_ERP_Setup_V1_0_0.exe \
+            --title 'ALFA ERP v1.1 · Envanter ve Kullanılabilirlik Güncellemesi' \
+            --notes 'v1.1: geri alınabilir envanter satış iptali; ürün arşivleme/geri getirme; daha düzenli pillbox satış formu; sipariş senkronizasyonu ve 409 ETag çakışma düzeltmeleri; açık tema kontrastı; personel üst panel, hata bildir ve otomatik popup duyuruları. Tek Setup.exe, SHA-256 doğrulanmıştır. Sipariş ve maliyet geçmişi korunur.' \
+            ./release/ALFA_ERP_Setup_V1_1_0.exe \
             ./release/SHA256SUMS.txt

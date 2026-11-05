@@ -19,9 +19,11 @@ from bulut_canli import Sync
 from ayar_yonetimi import UserSettings, theme_styles
 from widgets import text,button,panel,Covers
 from alfa_hatalar import install_reporter,record_error,connect_device
+from guncelleme_arayuzu import CheckWorker,should_check_today,mark_checked
+from duyuru_merkezi import AnnouncementsDialog,ManualReportDialog
 
 ROOT=Path(__file__).resolve().parent
-VERSION='1.0.0'
+VERSION='1.1.0'
 OWNER_EDITION=(ROOT/'YONETICI_SURUMU.flag').exists()
 
 
@@ -56,8 +58,14 @@ class AlfaMain(QMainWindow):
         header=QFrame();header.setObjectName('Header')
         main_bar=QGridLayout(header)
         main_bar.setContentsMargins(14,0,14,0)
-        main_bar.setColumnStretch(0,1)
-        main_bar.setColumnStretch(2,1)
+        main_bar.setColumnStretch(0,0)
+        main_bar.setColumnStretch(1,1)
+        main_bar.setColumnStretch(2,0)
+        self.brand=QLabel('ALFA ERP · '+('YÖNETİCİ' if OWNER_EDITION else 'PERSONEL')+'  v'+VERSION)
+        self.brand.setObjectName('AlfaEditionBrand')
+        self.brand.setStyleSheet('font-size:12px;font-weight:900;padding:0 3px;')
+        self.brand.setToolTip('Bu bilgisayarda kurulu ALFA ERP sürümü: v'+VERSION)
+        main_bar.addWidget(self.brand,0,0,Qt.AlignmentFlag.AlignLeft|Qt.AlignmentFlag.AlignVCenter)
         nav_box=QWidget();nav_row=QHBoxLayout(nav_box)
         nav_row.setContentsMargins(0,0,0,0);nav_row.setSpacing(8)
         self.nav={}
@@ -84,17 +92,35 @@ class AlfaMain(QMainWindow):
         settings_btn.setCheckable(True)
         settings_btn.clicked.connect(lambda checked=False:self.navigate(4))
         self.settings_btn=settings_btn
-        right_row.addWidget(settings_btn)
+        settings_btn.setVisible(OWNER_EDITION)
+        if OWNER_EDITION:right_row.addWidget(settings_btn)
+        self.announcements_button=QPushButton('◉ Duyurular')
+        self.announcements_button.setToolTip('Sürüm notları ve Güncelleme Merkezi')
+        self.announcements_button.clicked.connect(self.open_announcements)
+        right_row.addWidget(self.announcements_button)
+        if not OWNER_EDITION:
+            self.staff_theme_switch=QPushButton('')
+            self.staff_theme_switch.setObjectName('StaffThemeSwitch')
+            self.staff_theme_switch.setCheckable(True)
+            self.staff_theme_switch.setChecked(self.config.get('tema')=='acik')
+            self.staff_theme_switch.setText('☼ Açık' if self.staff_theme_switch.isChecked() else '☾ Koyu')
+            self.staff_theme_switch.setToolTip('Açık / koyu görünümü anında değiştir')
+            self.staff_theme_switch.clicked.connect(self.toggle_staff_theme)
+            right_row.addWidget(self.staff_theme_switch)
         self.cloud_badge=text('◌ Bağlanıyor…','Tiny')
         self.cloud_badge.setToolTip('Siparişler yalnızca eşleştirilmiş cihazlarda buluta aktarılır.')
         right_row.addWidget(self.cloud_badge)
+        if not OWNER_EDITION:
+            self.report_button=QPushButton('⚠ Hata Bildir')
+            self.report_button.setToolTip('Seçilen teknik hata türünü Yönetici Hata Merkezi’ne bildir')
+            self.report_button.clicked.connect(self.open_manual_report)
+            right_row.addWidget(self.report_button)
         self.cloud_connect=QPushButton('Buluta bağla')
         self.cloud_connect.setObjectName('CloudConnect')
         self.cloud_connect.setToolTip(
             'İlk kurulumda bir kez cihazı yetkilendir; sonraki açılışlar girişsiz.')
         self.cloud_connect.clicked.connect(self.connect_cloud)
         right_row.addWidget(self.cloud_connect)
-        right_row.addWidget(text('v'+VERSION,'Tiny'))
         main_bar.addWidget(right_box,0,2,Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignVCenter)
         header.setFixedHeight(57)
         root.addWidget(header)
@@ -210,6 +236,18 @@ class AlfaMain(QMainWindow):
         self.live.status.connect(self._cloud_status)
         self.catalog.order_created.connect(self.order_created)
         self.navigate(0)
+        # One local daily timer; only a due check makes one GitHub API GET.
+        # No Firebase reads or dedicated polling service are added.
+        self._update_job=None
+        self._update_available=None
+        self._announcements_dialog=None
+        self._update_daily=QTimer(self)
+        self._update_daily.setInterval(24*60*60*1000)
+        self._update_daily.timeout.connect(self.check_background_updates)
+        self._update_daily.start()
+        QTimer.singleShot(2000,self._show_whats_new_once)
+        QTimer.singleShot(3500,self.check_background_updates)
+        QApplication.instance().aboutToQuit.connect(self._stop_update_job)
         # Firebase pairing is explicit and remembered; legacy ticket timers
         # were intentionally removed (no idle work, no repeat login).
 
@@ -273,6 +311,87 @@ class AlfaMain(QMainWindow):
         paint.end()
         return QIcon(pix)
 
+    def toggle_staff_theme(self):
+        if OWNER_EDITION:return
+        key='acik' if self.staff_theme_switch.isChecked() else 'koyu'
+        self.staff_theme_switch.setText('☼ Açık' if key=='acik' else '☾ Koyu')
+        self.config.set('tema',key)
+        app=QApplication.instance()
+        app.setProperty('alfa_theme',key)
+        app.setStyleSheet(QSS+theme_styles(key))
+        self.inventory.apply_theme()
+        self.general_catalog.apply_theme()
+        from widgets import refresh_cover_placeholders
+        refresh_cover_placeholders()
+
+    def open_manual_report(self):
+        if not OWNER_EDITION:
+            ManualReportDialog(self).exec()
+
+    def open_announcements(self,release=None):
+        edition='owner' if OWNER_EDITION else 'staff'
+        dialog=AnnouncementsDialog(VERSION,edition,self.config.data_dir,
+                                    release or self._update_available,self)
+        self._announcements_dialog=dialog
+        dialog.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
+
+    def _show_whats_new_once(self):
+        # The in-app changelog is bundled; no network request for this popup.
+        file=Path(self.config.data_dir)/'alfa_whats_new.json'
+        try:
+            before=json.loads(file.read_text(encoding='utf-8'))
+        except (OSError,ValueError,TypeError):
+            before={}
+        if before.get('version')==VERSION:return
+        # Only the requested first official v1.1 release creates a notice.
+        if VERSION!='1.1.0':return
+        try:
+            file.parent.mkdir(parents=True,exist_ok=True)
+            file.write_text(json.dumps({'version':VERSION}),encoding='utf-8')
+        except OSError:
+            pass
+        self.open_announcements()
+
+    def check_background_updates(self):
+        if self._update_job is not None:return
+        edition='owner' if OWNER_EDITION else 'staff'
+        if not should_check_today(self.config.data_dir,edition):return
+        try:mark_checked(self.config.data_dir,edition)
+        except (OSError,ValueError):return
+        job=CheckWorker(VERSION,edition,self)
+        self._update_job=job
+        outcome={'release':None}
+        job.done.connect(lambda data:outcome.update(release=data))
+        def completed():
+            job.wait()
+            self._update_job=None
+            data=outcome['release']
+            if data and data.get('available'):
+                self._update_available=data
+                tag=str(data.get('version') or '')
+                notice=Path(self.config.data_dir)/('alfa_last_update_popup_'+edition+'.json')
+                try:
+                    saved=json.loads(notice.read_text(encoding='utf-8'))
+                except (OSError,ValueError,TypeError):
+                    saved={}
+                if saved.get('version')!=tag:
+                    try:notice.write_text(json.dumps({'version':tag}),encoding='utf-8')
+                    except OSError:pass
+                    self.statusBar().showMessage('Yeni kararlı sürüm: v'+tag,22000)
+                    QTimer.singleShot(250,lambda:self.open_announcements(data))
+        job.finished.connect(completed)
+        job.finished.connect(job.deleteLater)
+        job.start()
+
+    def _stop_update_job(self):
+        job=self._update_job
+        if job is not None and job.isRunning():
+            job.requestInterruption()
+            job.wait()
+
     def open_last_orders(self):
         if self._last_orders_tab=='pool':
             self.open_book_pool()
@@ -284,7 +403,7 @@ class AlfaMain(QMainWindow):
         self.nav[1].setChecked(index==1)
         self.nav[2].setChecked(index==2)
         self.nav[3].setChecked(index==3)
-        self.settings_btn.setChecked(index==4)
+        self.settings_btn.setChecked(OWNER_EDITION and index==4)
         self.orders_subbar.setVisible(index==1)
         self.title_widget.setVisible(index==0)
         self.catalog.toolbar.setVisible(index==0)
@@ -357,7 +476,7 @@ class AlfaMain(QMainWindow):
             self.analytics.refresh()
         elif index==3:
             self.select_inventory(self.inventory_view.currentIndex())
-        elif index==4:
+        elif index==4 and OWNER_EDITION:
             self.settings_page.show_tab(self.settings_page.current_tab)
 
     def _cloud_orders_changed(self,ids):
@@ -380,7 +499,9 @@ class AlfaMain(QMainWindow):
         self._error_was_online=bool(online)
         if online and not previous:
             connect_device(lambda:self.device)
-        self.setWindowTitle('ALFA ERP · '+('Bulut bağlı' if online else 'Bağlantı bekleniyor'))
+        self.setWindowTitle('ALFA ERP '+('Yönetici' if OWNER_EDITION else 'Personel')+
+                            ' v'+VERSION+' · '+
+                            ('Bulut bağlı' if online else 'Bağlantı bekleniyor'))
         self.setToolTip(message)
         conflicts=self.db.unreviewed_cloud_conflicts
         if conflicts:
