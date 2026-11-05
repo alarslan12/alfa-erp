@@ -85,3 +85,22 @@ python3 tools/rtdb_prepare_production.py --apply
 - [ ] Firebase Rules sürümü ve GitHub kodu eşleşti.
 - [ ] Firebase özel yedeği alındı, yeni epoch'a güvenli geçildi.
 
+
+## Mobil katalog için kalıcı yayın
+
+Firebase Hosting'deki geçici önizleme linkleri **1 gün sonra sona erebilir**.
+Üretim veritabanına güvenli geçiş ve iki uygulamada test tamamlandıktan sonra
+aşağıdaki komutlar Cloud Shell'de kalıcı Hosting canlı kanalına yalnızca
+HTML katalog dosyalarını yayımlar:
+
+\`\`\`bash
+cd ~/alfa-erp
+git pull --ff-only
+bash tools/firebase_mobile_production.sh
+\`\`\`
+
+Terminal onayı \`ALFA-MOBIL-YAYINLA\` yazılmadan canlı sitenin üzerine
+yazılmaz. **Veritabanı, cihaz izinleri ve Firebase Security Rules değişmez.**
+Canlı Hosting yayını projenin mevcut web sitesini değiştirebilir; sitede başka
+içerik barındırılıyorsa önce ayrıca yedekle.
+
