@@ -1,6 +1,6 @@
-"""Server-verified Analytics PIN. No plaintext PIN or verifier in Windows setup.
+"""Firebase RTDB Analytics PIN UI gate. No plaintext PIN stored in the Windows installer.
 
-Staff may verify the owner-defined PIN, but cannot create or modify it.
+Staff can unlock the UI with the owner-defined PIN, but server roles still control database writes.
 Firebase Realtime Database PIN is a UI gate; not a server-enforced secret verifier.
 Do not treat it as a separate authorization boundary. Device roles remain enforced by RTDB Rules.
 """
