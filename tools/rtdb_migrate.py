@@ -46,6 +46,49 @@ def prune_empty(value):
     return value
 
 
+def rtdb_canonical(value):
+    """Normalize the JSON tree as RTDB stores it, without losing any values.
+
+    RTDB does not store nulls or empty containers. Integer-keyed objects
+    are returned as arrays by REST; normalize *both* back to path-key maps.
+    Numeric values, strings and booleans are not relaxed or discarded.
+    """
+    if isinstance(value, dict):
+        mapped = {}
+        for key, item in value.items():
+            normalized = rtdb_canonical(item)
+            if normalized is not None:
+                mapped[str(key)] = normalized
+        return mapped or None
+    if isinstance(value, list):
+        mapped = {}
+        for index, item in enumerate(value):
+            normalized = rtdb_canonical(item)
+            if normalized is not None:
+                mapped[str(index)] = normalized
+        return mapped or None
+    return value
+
+
+def _shape_diagnostics(expected, actual):
+    """Only report public structural section names. Never print row values."""
+    if not isinstance(expected, dict) or not isinstance(actual, dict):
+        return "root payload type differs"
+    bad = []
+    for key in sorted(set(expected) | set(actual)):
+        if key == "candidate":
+            exp = expected.get(key) or {}
+            got = actual.get(key) or {}
+            if not isinstance(exp, dict) or not isinstance(got, dict):
+                bad.append("candidate shape")
+            else:
+                bad.extend("candidate/" + section for section in sorted(
+                    set(exp) | set(got)) if exp.get(section) != got.get(section))
+        elif expected.get(key) != actual.get(key):
+            bad.append(key)
+    return ", ".join(bad[:16]) or "nested tree difference"
+
+
 def load_snapshot(folder):
     folder = Path(folder)
     raw_manifest = (folder / "manifest.json").read_bytes()
@@ -190,7 +233,7 @@ def request(client, method, path, payload=None, etag=False, match=None):
     return value, result.headers.get("ETag"), result.status_code
 
 
-def migrate(folder, apply=False, promote=False, deploy_rules=False, rules_file=None):
+def migrate(folder, apply=False, promote=False, deploy_rules=False, rules_file=None, verify_only=False):
     manifest, data, digest = load_snapshot(folder)
     candidate, counts = candidate_from_rows(manifest, data)
     wsid = manifest["workspace_id"]
@@ -205,7 +248,7 @@ def migrate(folder, apply=False, promote=False, deploy_rules=False, rules_file=N
     print("Source:", sum(counts.values()), "rows; orders:", counts["orders"],
           "items:", counts["order_items"], "books:", counts["books"])
     print("RTDB staging path: migration_staging/" + stage_id)
-    if not apply and not promote and not deploy_rules:
+    if not apply and not promote and not deploy_rules and not verify_only:
         print("DRY RUN: No Firebase network access, no writes.")
         return
     client = session()
@@ -235,8 +278,10 @@ def migrate(folder, apply=False, promote=False, deploy_rules=False, rules_file=N
         if confirmed != parsed_rules:
             raise RuntimeError("Published RTDB rules do not match local rules file")
         print("Rules deployment verified:", code)
-    if apply:
+    if apply or verify_only:
         existing, etag, _ = request(client, "GET", "migration_staging/" + stage_id, etag=True)
+        if existing is None and verify_only:
+            raise RuntimeError("No existing RTDB staging snapshot to verify; nothing written")
         if existing is not None and existing.get("manifest_sha256") != digest:
             raise RuntimeError("Staging ID belongs to a different snapshot")
         if existing is None:
@@ -245,21 +290,25 @@ def migrate(folder, apply=False, promote=False, deploy_rules=False, rules_file=N
             if code != 200:
                 raise RuntimeError("Concurrent staging write; no overwrite")
         echoed, _, _ = request(client, "GET", "migration_staging/" + stage_id)
-        if prune_empty(echoed) != payload:
-            raise RuntimeError("Staging validation mismatch; live data untouched")
+        normalized_received = rtdb_canonical(echoed)
+        normalized_expected = rtdb_canonical(payload)
+        if normalized_received != normalized_expected:
+            sections = _shape_diagnostics(normalized_expected, normalized_received)
+            raise RuntimeError("Staging content differs in sections: " + sections +
+                               "; live data untouched")
         print("STAGING VERIFIED", sum(counts.values()), "source rows")
     if promote:
         staged, _, _ = request(client, "GET", "migration_staging/" + stage_id)
         if not staged or staged.get("manifest_sha256") != digest:
             raise RuntimeError("Verified private staging is required before promotion")
-        if prune_empty(staged.get("candidate")) != prune_empty(candidate):
+        if rtdb_canonical(staged.get("candidate")) != rtdb_canonical(candidate):
             raise RuntimeError("Staging does not match local snapshot")
         _, _, code = request(client, "PUT", "alfa/" + wsid,
                              candidate, match="null_etag")
         if code == 412:
             raise RuntimeError("Live RTDB workspace already exists. Refusing overwrite.")
         final, _, _ = request(client, "GET", "alfa/" + wsid)
-        if prune_empty(final) != prune_empty(candidate):
+        if rtdb_canonical(final) != rtdb_canonical(candidate):
             raise RuntimeError("Promotion readback mismatch; investigate immediately")
         print("LIVE RTDB COPY VERIFIED. Supabase was NOT changed.")
         print("Clients must remain on legacy backend until explicit coordinated cutover.")
@@ -269,12 +318,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", required=True)
     parser.add_argument("--apply", action="store_true", help="Create and verify private staging")
+    parser.add_argument("--verify-only", action="store_true", help="Read-only verification of existing staging; never writes")
     parser.add_argument("--promote", action="store_true", help="Promote only if live workspace is empty")
     parser.add_argument("--deploy-rules", action="store_true")
     parser.add_argument("--rules-file", default="firebase/database.rules.json")
     args = parser.parse_args()
     try:
         migrate(args.input, apply=args.apply, promote=args.promote,
-                deploy_rules=args.deploy_rules, rules_file=args.rules_file)
+                deploy_rules=args.deploy_rules, rules_file=args.rules_file,
+                verify_only=args.verify_only)
     except Exception as exc:
         sys.exit("RTDB migration stopped: " + str(exc))
