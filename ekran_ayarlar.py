@@ -1,45 +1,244 @@
-"""Minimal staff settings; administrative functions moved to separate app."""
+"""ALFA ERP desktop settings: appearance, notification tones and local PDF covers."""
 from pathlib import Path
-from PySide6.QtWidgets import QWidget,QVBoxLayout,QHBoxLayout,QFrame,QFileDialog,QMessageBox,QApplication,QStackedWidget
+
+from PySide6.QtCore import QThread, Signal, QTimer
+from PySide6.QtWidgets import (
+    QApplication, QWidget, QVBoxLayout, QHBoxLayout, QFrame, QComboBox,
+    QFileDialog, QMessageBox, QStackedWidget, QLabel
+)
 from ayar_yonetimi import theme_styles
 from tema import QSS
 from pdf_kitap import PdfKutuphane
-from widgets import button,text,refresh_cover_placeholders
+from pdf_kapak import refresh_pdf_covers
+from bildirim_sesleri import SOUND_CHOICES, play_order_sound
+from widgets import (
+    button, text, refresh_cover_placeholders, refresh_all_cover_labels
+)
+
+
+class CoverWorker(QThread):
+    progress=Signal(int,int)
+    completed=Signal(dict)
+    failed=Signal(str)
+
+    def __init__(self,data_dir,codes,parent=None):
+        super().__init__(parent)
+        self.data_dir=Path(data_dir)
+        self.codes=tuple(codes)
+
+    def run(self):
+        def progress(done,total):
+            if self.isInterruptionRequested():
+                raise InterruptedError()
+            if done==total or done%20==0:
+                self.progress.emit(done,total)
+        try:
+            outcome=refresh_pdf_covers(self.data_dir,self.codes,progress=progress)
+            if not self.isInterruptionRequested():
+                self.completed.emit(outcome)
+        except InterruptedError:
+            pass
+        except Exception as exc:
+            if not self.isInterruptionRequested():
+                self.failed.emit(str(exc)[:260])
+
+
 class SettingsPage(QWidget):
     def __init__(self,db,config):
-        super().__init__();self.db=db;self.config=config
+        super().__init__()
+        self.db=db
+        self.config=config
         self.pdf=PdfKutuphane(Path(db.siparis_dosyasi).parent)
-        root=QVBoxLayout(self);root.addWidget(text('ÇALIŞMA AYARLARI','SettingsTitle'))
-        self.nav=[];nav=QHBoxLayout()
-        for i,label in enumerate(('Görünüm','Kitap PDF klasörü')):
-            b=button(label,'SettingsNav');b.setCheckable(True)
-            b.clicked.connect(lambda checked=False,x=i:self.show_tab(x));nav.addWidget(b);self.nav.append(b)
-        nav.addStretch();root.addLayout(nav)
-        self.stack=QStackedWidget();root.addWidget(self.stack)
-        page=QWidget();col=QVBoxLayout(page);card=QFrame();card.setObjectName('SettingsCard');controls=QVBoxLayout(card)
-        controls.addWidget(text('Görünüm','SettingsHeading'));row=QHBoxLayout();self.themes=[]
+        self._cover_worker=None
+        root=QVBoxLayout(self)
+        root.addWidget(text('ÇALIŞMA AYARLARI','SettingsTitle'))
+        self.nav=[]
+        nav=QHBoxLayout()
+        for i,label in enumerate(('Görünüm ve bildirimler','Kitap PDF klasörü')):
+            tab=button(label,'SettingsNav')
+            tab.setCheckable(True)
+            tab.clicked.connect(lambda checked=False,x=i:self.show_tab(x))
+            nav.addWidget(tab)
+            self.nav.append(tab)
+        nav.addStretch()
+        root.addLayout(nav)
+        self.stack=QStackedWidget()
+        root.addWidget(self.stack)
+
+        # Existing appearance tab, adding sound selection in the SAME page
+        # (keeps owner settings' tab indices and navigation unchanged).
+        page=QWidget()
+        col=QVBoxLayout(page)
+        card=QFrame();card.setObjectName('SettingsCard')
+        controls=QVBoxLayout(card)
+        controls.addWidget(text('Görünüm','SettingsHeading'))
+        theme_row=QHBoxLayout()
+        self.themes=[]
         for key,label in [('koyu','Koyu'),('acik','Açık'),('kontrast','Yüksek kontrast')]:
-            b=button(label,'SettingsThemeOption');b.setCheckable(True)
-            b.clicked.connect(lambda checked=False,k=key:self.set_theme(k));row.addWidget(b);self.themes.append((key,b))
-        controls.addLayout(row);col.addWidget(card);col.addStretch();self.stack.addWidget(page)
-        page=QWidget();col=QVBoxLayout(page);card=QFrame();card.setObjectName('SettingsCard');controls=QVBoxLayout(card)
-        controls.addWidget(text('PDF kütüphanesi','SettingsHeading'));self.path=text('','SettingsHint',wrap=True);controls.addWidget(self.path)
-        row=QHBoxLayout();pick=button('PDF klasörü seç','Accent');pick.clicked.connect(self.select_pdf)
-        reload=button('Yenile','SmallAction');reload.clicked.connect(self.rescan_pdf)
-        row.addWidget(pick);row.addWidget(reload);controls.addLayout(row);col.addWidget(card);col.addStretch();self.stack.addWidget(page)
+            action=button(label,'SettingsThemeOption')
+            action.setCheckable(True)
+            action.clicked.connect(lambda checked=False,k=key:self.set_theme(k))
+            theme_row.addWidget(action)
+            self.themes.append((key,action))
+        controls.addLayout(theme_row)
+        col.addWidget(card)
+
+        sound_card=QFrame();sound_card.setObjectName('SettingsCard')
+        sound_col=QVBoxLayout(sound_card)
+        sound_col.addWidget(text('Yeni sipariş bildirim sesi','SettingsHeading'))
+        explain=QLabel('Personel bildirici çalışırken de geçerlidir. '
+            'Farklı tonları dinleyebilir veya her siparişte değişen sesi seçebilirsin.')
+        explain.setObjectName('SettingsHint')
+        explain.setWordWrap(True)
+        sound_col.addWidget(explain)
+        sound_row=QHBoxLayout()
+        self.sound=QComboBox()
+        for mode,label in SOUND_CHOICES:
+            self.sound.addItem(label,mode)
+        chosen=str(config.get('bildirim_sesi','klasik'))
+        index=self.sound.findData(chosen)
+        self.sound.setCurrentIndex(max(0,index))
+        self.sound.currentIndexChanged.connect(self.save_sound)
+        sound_row.addWidget(self.sound,1)
+        preview=button('▶  Sesi dinle','Accent')
+        preview.clicked.connect(self.preview_sound)
+        sound_row.addWidget(preview)
+        sound_col.addLayout(sound_row)
+        col.addWidget(sound_card)
+        col.addStretch()
+        self.stack.addWidget(page)
+
+        # Existing PDF folder selection, now also drives incremental covers.
+        page=QWidget()
+        col=QVBoxLayout(page)
+        card=QFrame();card.setObjectName('SettingsCard')
+        controls=QVBoxLayout(card)
+        controls.addWidget(text('PDF kütüphanesi ve otomatik kitap kapakları','SettingsHeading'))
+        note=QLabel('PDF dosya adında kitap kodu bulunması yeterli: '
+            '31.pdf, kitap_31.pdf veya 31-endodonti.pdf. '
+            'Yalnızca ilk sayfa JPEG kapağa dönüştürülür. '
+            'Elle eklediğin kapaklar korunur; PDF dosyaları internete yüklenmez.')
+        note.setObjectName('SettingsHint')
+        note.setWordWrap(True)
+        controls.addWidget(note)
+        self.path=text('','SettingsHint',wrap=True)
+        controls.addWidget(self.path)
+        pdf_row=QHBoxLayout()
+        pick=button('PDF klasörü seç','Accent')
+        pick.clicked.connect(self.select_pdf)
+        reload=button('Tara ve kapakları güncelle','SmallAction')
+        reload.clicked.connect(self.rescan_pdf)
+        pdf_row.addWidget(pick)
+        pdf_row.addWidget(reload)
+        controls.addLayout(pdf_row)
+        self.pdf_status=QLabel('PDF kapağı üretimi henüz yapılmadı.')
+        self.pdf_status.setObjectName('SettingsHint')
+        self.pdf_status.setWordWrap(True)
+        controls.addWidget(self.pdf_status)
+        col.addWidget(card)
+        col.addStretch()
+        self.stack.addWidget(page)
+
         self.show_tab(0)
+        # Only filesystem mtime checks on later app launches; no PDF pages
+        # are rendered again unless changed or newly added.
+        app=QApplication.instance()
+        if app:
+            app.aboutToQuit.connect(self._stop_cover_worker)
+        if self.pdf.folder:
+            QTimer.singleShot(2400,self.generate_pdf_covers)
+
     def show_tab(self,index):
-        self.current_tab=index;self.stack.setCurrentIndex(index)
-        for i,b in enumerate(self.nav):b.setChecked(i==index)
-        for key,b in self.themes:b.setChecked(self.config.get('tema','koyu')==key)
-        self.path.setText('PDF: '+str(self.pdf.folder or 'Klasör seçilmedi'))
+        self.current_tab=index
+        self.stack.setCurrentIndex(index)
+        for i,tab in enumerate(self.nav):
+            tab.setChecked(i==index)
+        for key,tab in self.themes:
+            tab.setChecked(self.config.get('tema','koyu')==key)
+        self.path.setText('PDF klasörü: '+str(self.pdf.folder or 'Henüz seçilmedi'))
+
     def set_theme(self,key):
-        self.config.set('tema',key);QApplication.instance().setProperty('alfa_theme',key)
-        QApplication.instance().setStyleSheet(QSS+theme_styles(key));refresh_cover_placeholders();self.show_tab(0)
+        self.config.set('tema',key)
+        QApplication.instance().setProperty('alfa_theme',key)
+        QApplication.instance().setStyleSheet(QSS+theme_styles(key))
+        refresh_cover_placeholders()
+        self.show_tab(0)
+
+    def save_sound(self,*_):
+        mode=str(self.sound.currentData() or 'klasik')
+        self.config.set('bildirim_sesi',mode)
+
+    def preview_sound(self):
+        mode=str(self.sound.currentData() or 'klasik')
+        if not play_order_sound(mode,self.config.data_dir):
+            QMessageBox.information(self,'Bildirim sesi',
+                'Bu bilgisayarda Windows ses çıkışı kullanılamıyor.')
+
     def select_pdf(self):
-        path=QFileDialog.getExistingDirectory(self,'PDF klasörünü seç',str(self.pdf.folder or Path.home()))
-        if path:
-            try:self.pdf.set_folder(path);self.show_tab(1)
-            except Exception as exc:QMessageBox.warning(self,'PDF',str(exc))
+        folder=QFileDialog.getExistingDirectory(
+            self,'PDF klasörünü seç',str(self.pdf.folder or Path.home()))
+        if not folder:
+            return
+        try:
+            self.pdf.set_folder(folder)
+            self.show_tab(1)
+            self.generate_pdf_covers()
+        except Exception as exc:
+            QMessageBox.warning(self,'PDF',str(exc))
+
     def rescan_pdf(self):
-        self.pdf.scan();self.show_tab(1)
+        self.generate_pdf_covers()
+
+    def generate_pdf_covers(self):
+        if self._cover_worker and self._cover_worker.isRunning():
+            self.pdf_status.setText('PDF kapak taraması zaten devam ediyor.')
+            return
+        if not self.pdf.folder:
+            self.pdf_status.setText('Kapak oluşturmak için PDF klasörü seç.')
+            return
+        codes=[str(book.get('kod') or '') for book in self.db.kitaplar]
+        self.pdf_status.setText(
+            f'{len(codes)} kitap kodu için PDF kapakları kontrol ediliyor…')
+        worker=CoverWorker(self.pdf.data_dir,codes,self)
+        self._cover_worker=worker
+        worker.progress.connect(self._cover_progress)
+        worker.completed.connect(self._covers_done)
+        worker.failed.connect(self._covers_failed)
+        worker.finished.connect(self._cover_finished)
+        worker.finished.connect(worker.deleteLater)
+        worker.start()
+
+    def _cover_progress(self,done,total):
+        self.pdf_status.setText(f'PDF klasörü kontrol ediliyor: {done}/{total}')
+
+    def _covers_done(self,counts):
+        result=(
+            f"PDF eşleşmesi: {counts.get('matched',0)} · "
+            f"Yeni/güncel kapak: {counts.get('created',0)} · "
+            f"Önbellekten: {counts.get('unchanged',0)} · "
+            f"Elle eklenmiş kapak: {counts.get('manual',0)} · "
+            f"Eşleşmeyen: {counts.get('missing',0)} · "
+            f"Hata: {counts.get('errors',0)}")
+        self.pdf_status.setText(result)
+        main=self.window()
+        covers=getattr(main,'covers',None)
+        if covers:
+            covers.refresh()
+            refresh_all_cover_labels()
+
+    def _covers_failed(self,message):
+        self.pdf_status.setText('PDF kapak taraması tamamlanamadı: '+message)
+
+    def _cover_finished(self):
+        # A reused variable must not point at an already deleted Qt object.
+        self._cover_worker=None
+
+    def _stop_cover_worker(self):
+        worker=self._cover_worker
+        if worker is not None:
+            try:
+                if worker.isRunning():
+                    worker.requestInterruption()
+                    worker.wait()
+            except RuntimeError:
+                pass
