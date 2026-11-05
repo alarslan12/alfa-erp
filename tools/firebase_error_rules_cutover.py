@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Backup and optionally deploy ONLY additive RTDB error-report rules.
+"""Backup and optionally deploy RTDB error-report rules plus safe order guard.
 
 Never writes business data. Validates current live rules against the checked-in
-baseline after removing the two NEW error rule branches. If another operator
+baseline after removing the two new error branches and accepting only the\nexact previous order-write rule. If another operator
 changed existing rules, STOP instead of overwriting their changes.
 
 Cloud Shell:
