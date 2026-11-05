@@ -1,5 +1,30 @@
 # ALFA ERP · Sürüm Geçmişi
 
+## [v1.1.1] — 2026-11-06
+
+Güncelleme Merkezi güvenilirlik düzeltmesi · Tek Windows kurulum paketi.
+
+- **Ana pencere kapanışı:** Güncelleme komutu modal pencerenin içinden
+  çağrılsa da gerçek Yönetici/Personel ana penceresini bulur ve
+  güncellemeden önce kapatır. Windows kurulum yardımcısı eski EXE açıkken
+  üzerine yazmaya çalışmaz.
+- **Bekleyen sipariş güvenliği:** Güncelleme Duyurular popup'ı içinden
+  açıldığında bile ana uygulamanın gerçek bekleyen bulut işlemleri
+  denetlenir; eşitleme sürüyorsa güncelleme engellenir.
+- **Yeniden başlatma:** Kurulum başarıyla bitince doğru Personel/Yönetici
+  EXE'si yalnızca bir kez açılır. Yönetici kurulum parolası geçerlidir.
+- **Sorun raporu:** Kurulum yardımcısının bekleme, SHA-256, Windows
+  yükleme ve yeniden başlatma aşamaları yerel durum dosyasına yazılır.
+  Hata oluşursa sebep Güncelleme Merkezi'nin sonraki açılışında gösterilir.
+  Tanı kayıtları Firebase'e yüklenmez.
+- **Geçiş notu:** v1.0 ve v1.1'deki güncelleyici bu hatayı içerdiği
+  için **v1.1.1 ilk kez GitHub'ın resmî Setup.exe dosyasından manuel
+  kurulmalıdır**. Sonraki v1.x güncellemeleri uygulama içinden yapılabilir.
+- Siparişler, envanter, maliyet geçmişi, Firebase Rules ve cihaz
+  kimlikleri değiştirilmez. Otomatik işlev testleri çalıştırılmadı;
+  Windows derleme, paketleme ve SHA-256 doğrulaması uygulanır.
+
+
 ## [v1.1.0] — 2026-11-05
 
 İlk resmi güncelleme · Firebase Realtime Database · Windows 11 · tek Setup.exe.
