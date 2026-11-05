@@ -18,21 +18,37 @@ class Covers:
         self.user.mkdir(exist_ok=True,parents=True)
         self.refresh()
     def refresh(self):
-        self.index={}
-        for directory in (self.root/'assets'/'kapaklar',self.root/'kapaklar',
-                          self.user/'pdf_otomatik',self.user):
+        self.manual_index={}
+        self.auto_index={}
+        manual_dirs=(self.root/'assets'/'kapaklar',self.root/'kapaklar',self.user)
+        for directory in manual_dirs:
             if not directory.exists():continue
             for file in directory.iterdir():
-                if file.suffix.lower() in IMAGE_SUFFIXES and file.is_file():
-                    self.index[normal(file.stem)] = file
-    def path(self, book):
-        code=str(book['kod']); title=normal(book['isim'])
-        for name in (normal(code),title):
-            if name in self.index:return self.index[name]
-        # Kod dosya adı uzun bir varyasyonun başında/sonunda olabilir.
-        for key,file in self.index.items():
-            if re.fullmatch(r'(?:kitap|kod|book)?0*'+re.escape(code)+r'(?:kapak|cover)?',key):return file
+                if file.is_file() and file.suffix.lower() in IMAGE_SUFFIXES:
+                    self.manual_index[normal(file.stem)]=file
+        automated=self.user/'pdf_otomatik'
+        if automated.is_dir():
+            for file in automated.iterdir():
+                if file.is_file() and file.suffix.lower() in IMAGE_SUFFIXES:
+                    self.auto_index[normal(file.stem)]=file
+        # Backward-compatible index for non-cover callers.
+        self.index={**self.auto_index,**self.manual_index}
+
+    def path(self,book):
+        code=str(book['kod'])
+        title=normal(book['isim'])
+        # Manual overrides have priority EVEN if named after the book
+        # rather than its numeric code. Auto renders are a fallback only.
+        for index in (self.manual_index,self.auto_index):
+            for key in (normal(code),title):
+                if key in index:return index[key]
+            for key,file in index.items():
+                if re.fullmatch(
+                    r'(?:kitap|kod|book)?0*'+re.escape(code)+
+                    r'(?:kapak|cover)?',key):
+                    return file
         return None
+
     def import_file(self, book, source):
         src=Path(source)
         if src.suffix.lower() not in IMAGE_SUFFIXES:raise ValueError('JPG, PNG, WEBP veya BMP seçin.')

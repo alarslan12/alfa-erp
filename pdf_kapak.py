@@ -10,7 +10,8 @@ import json
 import os
 from pathlib import Path
 import tempfile
-from PySide6.QtCore import QSize
+from PySide6.QtCore import QSize, Qt
+from PySide6.QtGui import QImage, QPainter
 from PySide6.QtPdf import QPdfDocument
 
 from pdf_kitap import PdfKutuphane
@@ -47,11 +48,18 @@ def render_first_page(source,target):
         picture=pdf.render(0,size)
         if picture.isNull():
             raise ValueError("PDF kapağı oluşturulamadı")
+        # PDFium page backgrounds can be transparent; JPEG lacks alpha.
+        # Paint on white before encoding or text-only covers become black.
+        opaque=QImage(size,QImage.Format.Format_RGB32)
+        opaque.fill(Qt.GlobalColor.white)
+        painter=QPainter(opaque)
+        try:painter.drawImage(0,0,picture)
+        finally:painter.end()
         target.parent.mkdir(parents=True,exist_ok=True)
         fd,temp=tempfile.mkstemp(prefix=".alfa_pdf_",suffix=".tmp",dir=target.parent)
         os.close(fd)
         try:
-            if not picture.save(temp,"JPEG",83):
+            if not opaque.save(temp,"JPEG",83):
                 raise OSError("JPEG kapağı diske kaydedilemedi")
             os.replace(temp,target)
         finally:
