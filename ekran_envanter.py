@@ -538,7 +538,35 @@ class EnvanterView(QWidget):
                 'Önce Envanter → Genel Ürünler sekmesinde ürün kartı oluştur.')
             return
         dialog=QDialog(self);dialog.setWindowTitle('Yeni stok alımı · Fiyat partisi')
-        dialog.resize(610,325)
+        dialog.setObjectName('InventoryAcquireDialog')
+        dialog.resize(685,350)
+        palette={
+            'acik':('#fffaf3','#243a51','#d7c7b2','#dcebf3','#255572'),
+            'koyu':('#101d2d','#f3f8fe','#536f8e','#254966','#f3f8fe'),
+            'kontrast':('#080d13','#ffffff','#9cb9d6','#294b6b','#ffffff')}
+        bg,fg,edge,stepbg,stepfg=palette.get(
+            str(QApplication.instance().property('alfa_theme') or 'koyu'),
+            palette['koyu'])
+        dialog.setStyleSheet(f"""
+            QDialog#InventoryAcquireDialog {{background:{bg};color:{fg};}}
+            QDialog#InventoryAcquireDialog QLabel {{color:{fg};background:transparent;}}
+            QDialog#InventoryAcquireDialog QSpinBox,
+            QDialog#InventoryAcquireDialog QDoubleSpinBox,
+            QDialog#InventoryAcquireDialog QComboBox {{
+                color:{fg};background:{bg};border:1px solid {edge};
+                border-radius:7px;min-height:35px;padding:3px 10px;
+            }}
+            QDialog#InventoryAcquireDialog QToolButton#InventoryStep {{
+                color:{stepfg};background:{stepbg};border:1px solid {edge};
+                border-radius:7px;font-size:20px;font-weight:850;
+            }}
+            QDialog#InventoryAcquireDialog QToolButton#InventoryStep:hover {{
+                border:2px solid {fg};
+            }}
+            QDialog#InventoryAcquireDialog QToolButton#InventoryStep:disabled {{
+                color:{edge};background:{bg};
+            }}
+        """)
         layout=QVBoxLayout(dialog)
         intro=QLabel('Her alış ayrı tarih, saat ve birim maliyetle saklanır. '
             'Önceki stok partilerinin maliyeti ve kalan adedi değişmez.')
@@ -557,6 +585,28 @@ class EnvanterView(QWidget):
         quantity.setValue(1)
         unit_cost=QDoubleSpinBox();unit_cost.setRange(0,999999999)
         unit_cost.setDecimals(2);unit_cost.setSuffix(' TL')
+        unit_cost.setSingleStep(1.0)
+        # Native Windows up/down arrows were invisible and offset by the
+        # inherited global QSS. Explicit high-contrast stepper pills avoid
+        # OS-specific subcontrol positions in every theme.
+        def stepper(spin):
+            spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+            spin.setMinimumWidth(190)
+            host=QWidget()
+            bar=QHBoxLayout(host)
+            bar.setContentsMargins(0,0,0,0);bar.setSpacing(7)
+            bar.addWidget(spin,1)
+            for sign,fn in (('−',spin.stepDown),('+',spin.stepUp)):
+                btn=QToolButton()
+                btn.setObjectName('InventoryStep')
+                btn.setText(sign)
+                btn.setFixedSize(39,39)
+                btn.setAccessibleName('Bir azalt' if sign=='−' else 'Bir artır')
+                btn.clicked.connect(fn)
+                bar.addWidget(btn)
+            return host
+        quantity_controls=stepper(quantity)
+        cost_controls=stepper(unit_cost)
         summary=QLabel('');summary.setWordWrap(True)
         def selected(index):
             if 0<=index<len(products):
@@ -567,8 +617,8 @@ class EnvanterView(QWidget):
                 unit_cost.setValue(float(current.get('cost_price') or 0))
         choice.currentIndexChanged.connect(selected)
         form.addRow('Genel katalog ürünü',choice)
-        form.addRow('Yeni alınan adet',quantity)
-        form.addRow('Bu alışın birim maliyeti',unit_cost)
+        form.addRow('Yeni alınan adet',quantity_controls)
+        form.addRow('Bu alışın birim maliyeti',cost_controls)
         form.addRow('Alım tarihi',QLabel('Kaydettiğiniz anın tarih ve saati'))
         layout.addLayout(form);layout.addWidget(summary)
         actions=QHBoxLayout();actions.addStretch()
