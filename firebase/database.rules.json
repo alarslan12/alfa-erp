@@ -69,6 +69,15 @@
                   ".validate": "newData.hasChildren(['code','print_type','quantity']) && newData.child('code').isString() && newData.child('code').val().length <= 100 && (newData.child('print_type').val() === 'SB' || newData.child('print_type').val() === 'RNK') && newData.child('quantity').isNumber() && newData.child('quantity').val() >= 1 && newData.child('quantity').val() <= 100000",
                   "$other": {
                     ".validate": false
+                  },
+                  "code": {
+                    ".validate": true
+                  },
+                  "print_type": {
+                    ".validate": true
+                  },
+                  "quantity": {
+                    ".validate": true
                   }
                 }
               },
