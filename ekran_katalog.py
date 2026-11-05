@@ -3,6 +3,7 @@ from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QFrame,QGridLayou
  QScrollArea,QLabel,QCheckBox,QDialog,QFormLayout,QDoubleSpinBox,QFileDialog,QMessageBox,QSizePolicy,QButtonGroup,QPushButton,QGraphicsOpacityEffect,QApplication)
 from PySide6.QtCore import Qt, Signal, QTimer, QEvent, QPropertyAnimation, QRect, QEasingCurve
 from utils import metin_eslesiyor_mu, otomatik_platform_bul,format_kargo_kodu
+from datetime import datetime
 from PySide6.QtGui import QDoubleValidator
 from widgets import cover_label, text,button,panel,clear_layout,scrollable,error,confirm
 
@@ -167,6 +168,38 @@ class KitapKarti(QWidget):
         state['value']=int(value)
         label.setText(str(value))
 
+def _ask_before_duplicate_shipping_code(parent,db,code):
+    """Explicit warning for duplicate tracking/shipping codes, no new API call."""
+    matches=db.ayni_kargo_kodlu_siparisler(code)
+    if not matches:return True
+    statuses={'havuz':'Havuzda','aktif':'Aktif / hazırlanıyor',
+              'tamamlandi':'Tamamlandı'}
+    details=[]
+    for previous in matches:
+        stamp=str(previous.get('tarih') or '')
+        try:stamp=datetime.fromisoformat(stamp.replace('Z','+00:00')).astimezone().strftime('%d.%m.%Y %H:%M')
+        except (ValueError,TypeError,OverflowError):stamp=stamp[:19] or 'Tarih bilinmiyor'
+        status=statuses.get(db.siparis_durumu(previous),'Bilinmiyor')
+        number=str(previous.get('bulut_siparis_no') or previous.get('id') or '?')
+        details.append(f"#{number}  ·  {stamp}  ·  {status}")
+    notice=QMessageBox(parent)
+    notice.setIcon(QMessageBox.Icon.Warning)
+    notice.setWindowTitle('Kargo kodu daha önce kullanılmış')
+    notice.setText(f'{code} koduyla daha önce {len(matches)} sipariş oluşturulmuş.')
+    lines='\n'.join(details[:7])
+    if len(details)>7:
+        lines+=f'\n… ve {len(details)-7} diğer sipariş'
+        notice.setDetailedText('\n'.join(details))
+    notice.setInformativeText(
+        'Önceki siparişler:\n'+lines+
+        '\n\nBu kodla bir sipariş daha oluşturmak istiyor musun?')
+    accept=notice.addButton('Yine de oluştur',QMessageBox.ButtonRole.AcceptRole)
+    cancel=notice.addButton('Vazgeç',QMessageBox.ButtonRole.RejectRole)
+    notice.setDefaultButton(cancel)
+    notice.exec()
+    return notice.clickedButton() is accept
+
+
 class SiparisBilgiDialog(QDialog):
     def __init__(self,db,cart,parent=None):
         super().__init__(parent);self.db=db;self.cart=cart;self.setWindowTitle('Siparişi havuza ekle');self.setMinimumWidth(430)
@@ -193,8 +226,12 @@ class SiparisBilgiDialog(QDialog):
             for kind in ('SB','RNK'):
                 amount=int(variants.get(kind,0))
                 if amount>0:items.append({'kod':code,'tur':kind,'adet':amount,'hazir':0,'koli':0})
+        code=format_kargo_kodu(self.shipping.text(),self.platform_value)
+        if code and not _ask_before_duplicate_shipping_code(self,self.db,code):
+            return
         try:
-            self.db.yeni_siparis_olustur({'kod':format_kargo_kodu(self.shipping.text(),self.platform_value),'platform':self.platform_value, 'ciro':self.revenue.value(),'siparis_turu':self.order_type.currentText()},items)
+            self.db.yeni_siparis_olustur({'kod':code,'platform':self.platform_value,
+                'ciro':self.revenue.value(),'siparis_turu':self.order_type.currentText()},items)
         except Exception as exc:return error(self,str(exc))
         self.accept()
 
@@ -417,6 +454,8 @@ class KatalogView(QWidget):
         info={'kod':format_kargo_kodu(self.shipping.text(),self.platform_value),
               'platform':self.platform_value,'ciro':self.revenue.value(),
               'siparis_turu':'Telafi Sipariş' if self.special_btn.isChecked() else 'Normal Sipariş'}
+        if info['kod'] and not _ask_before_duplicate_shipping_code(self,self.db,info['kod']):
+            return
         try:self.db.yeni_siparis_olustur(info,items)
         except Exception as exc:return error(self,str(exc))
         self.cart.clear();self.db.sepeti_yaz(self.cart)
