@@ -239,7 +239,7 @@ try {
     }
     Write-UpdateStatus 'Windows kurulum sihirbazi aciliyor'
     $p = Start-Process -FilePath $Setup -ArgumentList @(
-        $editionArg, '/NORESTART', '/CLOSEAPPLICATIONS'
+        $editionArg, '/ALFAUPDATE', '/NORESTART', '/CLOSEAPPLICATIONS'
     ) -PassThru -Wait -ErrorAction Stop
     if ($p.ExitCode -ne 0) {
         throw "Kurulum tamamlanmadi (cikis kodu $($p.ExitCode))."
