@@ -21,7 +21,7 @@ from widgets import text,button,panel,Covers
 from alfa_hatalar import install_reporter,record_error,connect_device
 
 ROOT=Path(__file__).resolve().parent
-VERSION='6.5.0'
+VERSION='6.6.0'
 OWNER_EDITION=(ROOT/'YONETICI_SURUMU.flag').exists()
 
 
@@ -209,14 +209,9 @@ class AlfaMain(QMainWindow):
         self.live.changed.connect(self._cloud_orders_changed)
         self.live.status.connect(self._cloud_status)
         self.catalog.order_created.connect(self.order_created)
-        self._auto_enroll_worker=None
-        self._auto_enroll_retry=QTimer(self)
-        self._auto_enroll_retry.setInterval(60000)
-        self._auto_enroll_retry.timeout.connect(self.try_auto_enrollment)
         self.navigate(0)
-        # A private setup bundle can provide the one-time code without typing
-        # or requiring an owner/staff login. Never block the first window.
-        QTimer.singleShot(350,self.try_auto_enrollment)
+        # Firebase pairing is explicit and remembered; legacy ticket timers
+        # were intentionally removed (no idle work, no repeat login).
 
     def showEvent(self,event):
         super().showEvent(event)
@@ -306,10 +301,6 @@ class AlfaMain(QMainWindow):
         else:
             self.general_catalog.refresh()
 
-    def try_auto_enrollment(self):
-        """Old Supabase setup tickets are intentionally ignored in Firebase mode."""
-        self._auto_enroll_retry.stop()
-
     def connect_cloud(self):
         """One-time anonymous Firebase identity plus owner device approval."""
         from firebase_pair_ui import PairDialog
@@ -323,7 +314,6 @@ class AlfaMain(QMainWindow):
             QMessageBox.warning(self,'Firebase bağlantısı',
                 'Cihaz oturumu kaydedilemedi. Veriler yerelde korunuyor.')
             return
-        self._auto_enroll_retry.stop()
         self.cloud_connect.setEnabled(False)
         QTimer.singleShot(150, self._activate_cloud_after_pairing)
 
@@ -532,7 +522,11 @@ def start():
     install_reporter(VERSION,"owner" if OWNER_EDITION else "staff",
                      data_dir=local)
     _install_error_diagnostics()
-    app=QApplication(sys.argv);app.setApplicationName('ALFA ERP');app.setStyle('Fusion')
+    app=QApplication(sys.argv)
+    app.setApplicationName('ALFA ERP')
+    app.setApplicationVersion(VERSION)
+    app.setProperty('alfa_edition',"owner" if OWNER_EDITION else "staff")
+    app.setStyle('Fusion')
     app.setStyleSheet(QSS)
     try:
         # Both editions open immediately, without blocking authentication
