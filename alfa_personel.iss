@@ -20,7 +20,8 @@ DisableProgramGroupPage=yes
 Source: "dist\AlfaERP\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
 Source: "dist\AlfaBildirim\*"; DestDir: "{app}\Bildirim"; Flags: recursesubdirs createallsubdirs ignoreversion
 [Icons]
-Name: "{autodesktop}\ALFA ERP Personel"; Filename: "{app}\AlfaERP.exe"; WorkingDir: "{app}"
+Name: "{userdesktop}\ALFA ERP Personel"; Filename: "{app}\AlfaERP.exe"; WorkingDir: "{app}"; Comment: "ALFA ERP Personel uygulamasını aç"
+Name: "{userprograms}\ALFA ERP Personel"; Filename: "{app}\AlfaERP.exe"; WorkingDir: "{app}"; Comment: "ALFA ERP Personel uygulamasını aç"
 Name: "{userstartup}\ALFA ERP Bildirim"; Filename: "{app}\Bildirim\AlfaBildirim.exe"; WorkingDir: "{app}\Bildirim"
 [Run]
 Filename: "{app}\AlfaERP.exe"; Description: "ALFA ERP Personel uygulamasını başlat"; Flags: nowait postinstall skipifsilent
