@@ -1,6 +1,9 @@
-name: ALFA ERP 6.4.1 Windows build (artifacts only)
+name: ALFA ERP 6.4.2 Windows build (artifacts only)
 
 on:
+  push:
+    branches: [firebase-rtdb-final]
+    paths: ['.github/workflows/firebase-rtdb-preview.yml']
   workflow_dispatch:
 
 permissions:
@@ -23,7 +26,7 @@ jobs:
       - name: Compile Python source (syntax only; no tests)
         shell: pwsh
         run: |
-          python -m compileall -q main.py alfa_rtdb.py rtdb_owner_admin.py firebase_pair_ui.py bulut_canli.py bildirim_servisi.py analytics_access.py yonetici_giris.py yonetici_kompakt.py
+          python -m compileall -q main.py alfa_rtdb.py rtdb_owner_admin.py firebase_pair_ui.py bulut_canli.py bildirim_servisi.py analytics_access.py yonetici_giris.py yonetici_kompakt.py ekran_envanter.py urun_katalogu.py inventory_batches.py
           if ($LASTEXITCODE -ne 0) { throw 'Python syntax check failed' }
       - name: Install Inno Setup 6
         shell: pwsh
@@ -40,7 +43,7 @@ jobs:
       - name: Verify files and collect checksums
         shell: pwsh
         run: |
-          $files = @(Get-ChildItem .\output -Filter '*V6_4_1.exe' -File)
+          $files = @(Get-ChildItem .\output -Filter '*V6_4_2.exe' -File)
           if ($files.Count -ne 2) { throw "Expected 2 setup EXEs; got $($files.Count)" }
           $files | ForEach-Object { "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash)  $($_.Name)" } |
             Set-Content -Path .\output\SHA256SUMS.txt -Encoding utf8
@@ -48,10 +51,10 @@ jobs:
       - name: Upload PREVIEW only (not production)
         uses: actions/upload-artifact@v4
         with:
-          name: ALFA_ERP_Firebase_RTDB_V6_4_1_PREVIEW
+          name: ALFA_ERP_Firebase_RTDB_V6_4_2_PREVIEW
           path: |
-            output/ALFA_ERP_Yonetici_Setup_V6_4_1.exe
-            output/ALFA_ERP_Personel_Setup_V6_4_1.exe
+            output/ALFA_ERP_Yonetici_Setup_V6_4_2.exe
+            output/ALFA_ERP_Personel_Setup_V6_4_2.exe
             output/SHA256SUMS.txt
             output/RTDB_KURULUM.md
           if-no-files-found: error
