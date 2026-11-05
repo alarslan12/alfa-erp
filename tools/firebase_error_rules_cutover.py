@@ -25,6 +25,9 @@ from urllib.request import Request,urlopen
 PROJECT="alfa-erp-8700c"
 RULES_URL="https://alfa-erp-8700c-default-rtdb.europe-west1.firebasedatabase.app/.settings/rules.json"
 NEW_BRANCHES=("error_reports","error_acks")
+# Old live rules allowed an entire order node to be deleted. The only
+# supported order-rule change is appending this hard-delete guard.
+HARD_DELETE_GUARD=" && newData.exists()"
 
 
 def _oauth():
@@ -62,6 +65,20 @@ def _without_extras(payload):
     return clean
 
 
+def _baseline_matches(current,desired):
+    """Accept only exact old/new order-write rule plus the two error nodes."""
+    clean=_without_extras(current)
+    expected=_without_extras(desired)
+    live_order=clean["rules"]["alfa"]["$workspace"]["orders"]["$id"]
+    source_order=expected["rules"]["alfa"]["$workspace"]["orders"]["$id"]
+    source_write=source_order[".write"]
+    if not source_write.endswith(HARD_DELETE_GUARD):
+        raise RuntimeError("Kaynak sipariş silme koruması eksik")
+    if live_order[".write"] == source_write[:-len(HARD_DELETE_GUARD)]:
+        live_order[".write"] = source_write
+    return clean==expected
+
+
 def _backup(payload):
     root=Path.home()/"alfa_erp_private_backups"
     root.mkdir(parents=True,exist_ok=True,mode=0o700)
@@ -91,7 +108,7 @@ def main():
         raise RuntimeError("Hata raporu kuralları kaynak kodda eksik")
     token=_oauth()
     current=_rules_call("GET",token)
-    if _without_extras(current)!=_without_extras(desired):
+    if not _baseline_matches(current,desired):
         raise RuntimeError(
             "CANLI kurallar ile depodaki önceki güvenlik kuralları farklı. "
             "Üzerine yazılmadı; önce farkları elle incele.")
@@ -109,7 +126,8 @@ def main():
         return 0
     if not sys.stdin.isatty():
         raise RuntimeError("Güvenlik kuralları için terminal onayı gerekli")
-    print("Yalnız error_reports ve error_acks kuralları eklenecek.")
+    print("Hata raporu kuralları eklenecek; sipariş kökünde")
+    print("doğrudan silme engellenecek (uygulamanın soft delete işlemi korunur).")
     print("Kitaplar, siparişler, stoklar, kullanıcılar SİLİNMEYECEK.")
     approve=input("Devam için ALFA-HATA-KURALLARINI-AC yaz: ").strip()
     if approve!="ALFA-HATA-KURALLARINI-AC":
@@ -123,7 +141,7 @@ def main():
     verified=_rules_call("GET",token)
     if verified!=desired:
         raise RuntimeError("Yayın sonrası Rules doğrulanamadı; yedeği kontrol et")
-    print("FIREBASE ERROR RULES VERIFIED — Yalnız rapor erişimi açıldı.")
+    print("FIREBASE RULES VERIFIED — Hata Merkezi izinleri ve sipariş silme koruması.")
     return 0
 
 
