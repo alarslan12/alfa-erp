@@ -21,7 +21,7 @@ from widgets import text,button,panel,Covers
 from alfa_hatalar import install_reporter,record_error,connect_device
 
 ROOT=Path(__file__).resolve().parent
-VERSION='6.6.0'
+VERSION='1.0.0'
 OWNER_EDITION=(ROOT/'YONETICI_SURUMU.flag').exists()
 
 

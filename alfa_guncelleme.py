@@ -5,8 +5,8 @@ accepted. Downloaded Windows setups require a matching SHA256SUMS.txt entry.
 A detached PowerShell helper waits for the ERP to exit BEFORE installing.
 No order data, authentication secret, device UID or customer file is uploaded.
 
-IMPORTANT: Updates remain unavailable until the owner actually publishes a
-durable GitHub Release with both installers and SHA256SUMS.txt.
+IMPORTANT: Updates remain unavailable until the owner publishes a
+durable GitHub Release with the unified setup and SHA256SUMS.txt.
 """
 from __future__ import annotations
 
@@ -98,9 +98,10 @@ def check_for_update(current,edition):
     available=version_tuple(tag)
     if available<=version_tuple(current):
         return {"available":False,"latest":tag}
-    kind="Yonetici" if edition=="owner" else "Personel"
+    # Both editions are distributed in ONE setup; the user selects the
+    # edition in the installer and owner installs require the setup password.
     version="_".join(str(x) for x in available)
-    name=f"ALFA_ERP_{kind}_Setup_V{version}.exe"
+    name=f"ALFA_ERP_Setup_V{version}.exe"
     assets=data.get("assets") or []
     installer=_asset(assets,name,tag)
     checksum=_asset(assets,"SHA256SUMS.txt",tag)
@@ -210,8 +211,13 @@ try {
     if (-not (Test-Path -LiteralPath $Setup -PathType Leaf)) { throw 'Installer missing' }
     $actual = (Get-FileHash -LiteralPath $Setup -Algorithm SHA256).Hash.ToLowerInvariant()
     if ($actual -ne $Sha256.ToLowerInvariant()) { throw 'SHA256 verification failed' }
+    # Unified setup MUST run interactively. In particular, the owner
+    # password page must never be bypassed by a silent upgrade.
+    $editionArg = if ([IO.Path]::GetFileName($TargetExe) -ieq 'AlfaERPYonetici.exe') {
+        '/ALFAOWNER'
+    } else { '/ALFASTAFF' }
     $p=Start-Process -FilePath $Setup -ArgumentList @(
-        '/VERYSILENT','/NORESTART','/SUPPRESSMSGBOXES','/CLOSEAPPLICATIONS'
+        $editionArg,'/NORESTART','/CLOSEAPPLICATIONS'
     ) -PassThru -Wait
     if ($p.ExitCode -ne 0) { throw "Installer exited with $($p.ExitCode)" }
     if (Test-Path -LiteralPath $TargetExe -PathType Leaf) {

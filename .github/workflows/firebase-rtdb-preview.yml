@@ -1,4 +1,4 @@
-name: ALFA ERP 6.6.0 Stable Windows build (artifacts only)
+name: ALFA ERP v1.0 Unified Windows installer build
 
 on:
   push:
@@ -11,6 +11,10 @@ on:
       - 'alfa_rtdb.py'
       - 'firebase/database.rules.json'
       - 'tools/firebase_error_rules_cutover.py'
+      - 'ALFA_BUILD_WINDOWS.ps1'
+      - 'alfa_tek_kurulum.iss'
+      - 'main.py'
+      - 'alfa_guncelleme.py'
   workflow_dispatch:
 
 permissions:
@@ -18,7 +22,7 @@ permissions:
 
 jobs:
   build:
-    name: Two stable Windows installers - syntax and bundled dependencies
+    name: One setup with staff/owner editions - syntax and bundled dependencies
     runs-on: windows-2022
     timeout-minutes: 65
     env:
@@ -41,12 +45,15 @@ jobs:
           $iscc = Join-Path ([Environment]::GetFolderPath('ProgramFilesX86')) 'Inno Setup 6\ISCC.exe'
           if (-not (Test-Path $iscc)) { choco install innosetup --yes --no-progress }
           if (-not (Test-Path $iscc)) { throw 'Inno Setup 6 required' }
-      - name: Build owner Setup EXE
+      - name: Package owner application files
         shell: pwsh
-        run: .\ALFA_BUILD_WINDOWS.ps1 -Edition yonetici
-      - name: Build staff Setup EXE and notification service
+        run: .\ALFA_BUILD_WINDOWS.ps1 -Edition yonetici -SkipInstaller
+      - name: Package staff application and notification service
         shell: pwsh
-        run: .\ALFA_BUILD_WINDOWS.ps1 -Edition personel
+        run: .\ALFA_BUILD_WINDOWS.ps1 -Edition personel -SkipInstaller
+      - name: Compile one edition-selectable Windows Setup
+        shell: pwsh
+        run: .\ALFA_BUILD_WINDOWS.ps1 -Edition ortak
       - name: Verify bundled Qt PDF dependency is importable
         shell: pwsh
         run: |
@@ -55,18 +62,17 @@ jobs:
       - name: Verify files and collect checksums
         shell: pwsh
         run: |
-          $files = @(Get-ChildItem .\output -Filter '*V6_6_0.exe' -File)
-          if ($files.Count -ne 2) { throw "Expected 2 setup EXEs; got $($files.Count)" }
+          $files = @(Get-ChildItem .\output -Filter 'ALFA_ERP_Setup_V1_0_0.exe' -File)
+          if ($files.Count -ne 1) { throw "Expected one unified Setup EXE; got $($files.Count)" }
           $files | ForEach-Object { "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash)  $($_.Name)" } |
             Set-Content -Path .\output\SHA256SUMS.txt -Encoding utf8
           Copy-Item .\firebase\RTDB_KURULUM.md .\output\RTDB_KURULUM.md
-      - name: Upload verified first stable installer binaries
+      - name: Upload checked unified installer binary
         uses: actions/upload-artifact@v4
         with:
-          name: ALFA_ERP_Firebase_RTDB_V6_6_0_PREVIEW
+          name: ALFA_ERP_V1_0_0_Unified_Setup
           path: |
-            output/ALFA_ERP_Yonetici_Setup_V6_6_0.exe
-            output/ALFA_ERP_Personel_Setup_V6_6_0.exe
+            output/ALFA_ERP_Setup_V1_0_0.exe
             output/SHA256SUMS.txt
             output/RTDB_KURULUM.md
           if-no-files-found: error
@@ -76,8 +82,8 @@ jobs:
         shell: pwsh
         run: |
           @'
-          ## ALFA ERP 6.6.0 Windows installers successfully built
-          Owner, Staff installers and SHA256SUMS.txt are stored in this run's Artifacts section.
+          ## ALFA ERP v1.0 unified Windows installer successfully built
+          One edition-selectable Setup.exe and SHA256SUMS.txt are in Artifacts.
           Sign in to GitHub to download Actions artifacts. These workflow artifacts expire after 14 days.
           A durable GitHub Release requires manual scoped repository authorization.
           It is intentionally not attempted by this preview build workflow.

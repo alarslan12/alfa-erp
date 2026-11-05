@@ -1,0 +1,141 @@
+#define MyAppName "ALFA ERP"
+#define MyAppVersion "1.0.0"
+
+[Setup]
+; Keep the old edition-specific AppIds and install paths so upgrades preserve
+; existing Windows shortcuts/uninstall data and never touch %LOCALAPPDATA%\AlfaERP.
+AppId={code:EditionAppId}
+AppName={#MyAppName}
+AppVersion={#MyAppVersion}
+AppVerName=ALFA ERP v1.0
+DefaultDirName={code:EditionDirectory}
+DefaultGroupName=ALFA ERP
+OutputDir=output
+OutputBaseFilename=ALFA_ERP_Setup_V1_0_0
+Compression=lzma2
+SolidCompression=yes
+PrivilegesRequired=lowest
+WizardStyle=modern
+SetupIconFile=assets\icons\alfa_personel.ico
+AppPublisher=ALFA ERP
+UninstallDisplayIcon={app}\{code:EditionExe}
+DisableDirPage=yes
+DisableProgramGroupPage=yes
+SetupLogging=yes
+CloseApplications=yes
+RestartApplications=no
+
+[Files]
+Source: "dist\AlfaERP\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion; Check: IsStaff
+Source: "dist\AlfaBildirim\*"; DestDir: "{app}\Bildirim"; Flags: recursesubdirs createallsubdirs ignoreversion; Check: IsStaff
+Source: "dist\AlfaERPYonetici\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion; Check: IsOwner
+
+[Icons]
+Name: "{userdesktop}\ALFA ERP Personel"; Filename: "{app}\AlfaERP.exe"; WorkingDir: "{app}"; Check: IsStaff
+Name: "{userprograms}\ALFA ERP Personel"; Filename: "{app}\AlfaERP.exe"; WorkingDir: "{app}"; Check: IsStaff
+Name: "{userstartup}\ALFA ERP Bildirim"; Filename: "{app}\Bildirim\AlfaBildirim.exe"; WorkingDir: "{app}\Bildirim"; Check: IsStaff
+Name: "{userdesktop}\ALFA ERP Yönetici"; Filename: "{app}\AlfaERPYonetici.exe"; WorkingDir: "{app}"; Check: IsOwner
+Name: "{userprograms}\ALFA ERP Yönetici"; Filename: "{app}\AlfaERPYonetici.exe"; WorkingDir: "{app}"; Check: IsOwner
+
+[Run]
+Filename: "{app}\AlfaERP.exe"; Description: "ALFA ERP Personel uygulamasını aç"; Flags: nowait postinstall skipifsilent; Check: IsStaff
+Filename: "{app}\Bildirim\AlfaBildirim.exe"; Description: "Sipariş bildiricisini başlat"; Flags: nowait postinstall skipifsilent; Check: IsStaff
+Filename: "{app}\AlfaERPYonetici.exe"; Description: "ALFA ERP Yönetici uygulamasını aç"; Flags: nowait postinstall skipifsilent; Check: IsOwner
+
+[Code]
+var
+  EditionPage: TInputOptionWizardPage;
+  OwnerPasswordPage: TInputQueryWizardPage;
+
+function IsOwner(): Boolean;
+begin
+  Result := (EditionPage <> nil) and (EditionPage.SelectedValueIndex = 1);
+end;
+
+function IsStaff(): Boolean;
+begin
+  Result := not IsOwner();
+end;
+
+function EditionAppId(Param: String): String;
+begin
+  if IsOwner() then
+    Result := '{E151CC0D-9154-42D0-BF2F-E01CE71C5C36}'
+  else
+    Result := '{19DBD961-38BC-4D5A-A2FE-7E87D50986E0}';
+end;
+
+function EditionDirectory(Param: String): String;
+begin
+  if IsOwner() then
+    Result := ExpandConstant('{localappdata}\Programs\ALFA ERP Yönetici')
+  else
+    Result := ExpandConstant('{localappdata}\Programs\ALFA ERP Personel');
+end;
+
+function EditionExe(Param: String): String;
+begin
+  if IsOwner() then
+    Result := 'AlfaERPYonetici.exe'
+  else
+    Result := 'AlfaERP.exe';
+end;
+
+function OwnerPasswordValid(): Boolean;
+begin
+  // Deliberately store only a salted SHA-256 verifier, NEVER the password.
+  // This gates edition selection; Firebase 'owner' role is still mandatory.
+  Result := CompareText(
+    GetSHA256OfString('ALFA-ERP-OWNER-SETUP-v1-4a81f7|' + OwnerPasswordPage.Values[0]),
+    '60d251ed1c49cd140d00d6caae45f13bbab68322b0735f03b4142e2fe36210a7'
+  ) = 0;
+end;
+
+procedure InitializeWizard();
+var
+  I: Integer;
+begin
+  EditionPage := CreateInputOptionPage(wpWelcome,
+    'Kurulum türü', 'Bu bilgisayara hangi ALFA ERP sürümü kurulacak?',
+    'Personel veya Yönetici seçin. Yalnızca seçilen sürüm yüklenir.',
+    True, False);
+  EditionPage.Add('Personel (sipariş, katalog, bildirimler)');
+  EditionPage.Add('Yönetici (yönetim, cihazlar, hata merkezi)');
+  EditionPage.SelectedValueIndex := 0;
+  // An in-app update selects the current edition by default; the owner
+  // must still enter the password to proceed.
+  for I := 1 to ParamCount() do
+    if CompareText(ParamStr(I), '/ALFAOWNER') = 0 then
+      EditionPage.SelectedValueIndex := 1;
+
+  OwnerPasswordPage := CreateInputQueryPage(EditionPage.ID,
+    'Yönetici doğrulaması', 'Yönetici kurulum parolası gerekli',
+    'Bu parola yalnız Yönetici kurulumunu açar. Bulut yetkisi için ayrıca Firebase owner rolü gereklidir.');
+  OwnerPasswordPage.Add('Kurulum parolası:', True);
+end;
+
+function ShouldSkipPage(PageID: Integer): Boolean;
+begin
+  Result := (PageID = OwnerPasswordPage.ID) and not IsOwner();
+end;
+
+function NextButtonClick(CurPageID: Integer): Boolean;
+begin
+  Result := True;
+  if CurPageID = EditionPage.ID then
+    WizardForm.DirEdit.Text := EditionDirectory('');
+  if (CurPageID = OwnerPasswordPage.ID) and IsOwner() then
+  begin
+    Result := OwnerPasswordValid();
+    if not Result then
+      MsgBox('Yönetici kurulum parolası geçersiz.', mbError, MB_OK);
+  end;
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+begin
+  Result := '';
+  // Do not allow a silent-mode bypass of the password page.
+  if IsOwner() and not OwnerPasswordValid() then
+    Result := 'Yönetici kurulumu için geçerli kurulum parolası gerekli.';
+end;
