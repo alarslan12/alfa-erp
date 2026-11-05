@@ -9,7 +9,7 @@ from PySide6.QtCore import Qt,QThread,Signal
 from ekran_ayarlar import SettingsPage
 from database import ERPDatabase
 from widgets import button
-from yonetici_giris import admin_request
+from rtdb_owner_admin import admin_request
 from yonetici_gunluk import AuditFeed
 
 class RequestJob(QThread):

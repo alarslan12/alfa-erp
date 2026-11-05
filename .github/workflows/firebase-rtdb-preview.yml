@@ -3,6 +3,12 @@ name: ALFA ERP 6.3 Firebase RTDB Windows preview
 on:
   push:
     branches: [firebase-rtdb-final]
+    paths:
+      - '**/*.py'
+      - '**/*.iss'
+      - 'ALFA_BUILD_WINDOWS.ps1'
+      - 'requirements.txt'
+      - '.github/workflows/firebase-rtdb-preview.yml'
   workflow_dispatch:
 
 permissions:
@@ -57,7 +63,7 @@ jobs:
             output/SHA256SUMS.txt
             output/RTDB_KURULUM.md
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 7
 
       - name: Publish corrected Firebase preview as a direct-download prerelease
         shell: pwsh
