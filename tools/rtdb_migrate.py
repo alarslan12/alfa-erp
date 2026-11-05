@@ -34,6 +34,17 @@ def packed(obj):
                       separators=(",", ":"), allow_nan=False).encode("utf-8")
 
 
+def prune_empty(value):
+    # Firebase RTDB stores empty objects as absent nodes, unlike SQL/JSON.
+    # Canonicalize both the staged input and readback for exact verification.
+    if isinstance(value, dict):
+        return {k: v for k, raw in value.items()
+                if (v := prune_empty(raw)) is not None}
+    if isinstance(value, list):
+        return [prune_empty(x) for x in value]
+    return value
+
+
 def load_snapshot(folder):
     folder = Path(folder)
     raw_manifest = (folder / "manifest.json").read_bytes()
@@ -164,13 +175,13 @@ def migrate(folder, apply=False, promote=False, deploy_rules=False, rules_file=N
     candidate, counts = candidate_from_rows(manifest, data)
     wsid = manifest["workspace_id"]
     stage_id = "alfa_erp_" + wsid.replace("-", "") + "_" + digest[:12]
-    payload = {
+    payload = prune_empty({
         "manifest_sha256": digest,
         "workspace_id": wsid,
         "source_count": counts,
         "candidate": candidate,
         "state": "staged",
-    }
+    })
     print("Source:", sum(counts.values()), "rows; orders:", counts["orders"],
           "items:", counts["order_items"], "books:", counts["books"])
     print("RTDB staging path: migration_staging/" + stage_id)
@@ -198,21 +209,21 @@ def migrate(folder, apply=False, promote=False, deploy_rules=False, rules_file=N
             if code != 200:
                 raise RuntimeError("Concurrent staging write; no overwrite")
         echoed, _, _ = request(client, "GET", "migration_staging/" + stage_id)
-        if echoed != payload:
+        if prune_empty(echoed) != payload:
             raise RuntimeError("Staging validation mismatch; live data untouched")
         print("STAGING VERIFIED", sum(counts.values()), "source rows")
     if promote:
         staged, _, _ = request(client, "GET", "migration_staging/" + stage_id)
         if not staged or staged.get("manifest_sha256") != digest:
             raise RuntimeError("Verified private staging is required before promotion")
-        if staged.get("candidate") != candidate:
+        if prune_empty(staged.get("candidate")) != prune_empty(candidate):
             raise RuntimeError("Staging does not match local snapshot")
         _, _, code = request(client, "PUT", "alfa/" + wsid,
                              candidate, match="null_etag")
         if code == 412:
             raise RuntimeError("Live RTDB workspace already exists. Refusing overwrite.")
         final, _, _ = request(client, "GET", "alfa/" + wsid)
-        if final != candidate:
+        if prune_empty(final) != prune_empty(candidate):
             raise RuntimeError("Promotion readback mismatch; investigate immediately")
         print("LIVE RTDB COPY VERIFIED. Supabase was NOT changed.")
         print("Clients must remain on legacy backend until explicit coordinated cutover.")
