@@ -16,8 +16,10 @@ from PySide6.QtWidgets import (
     QApplication, QWidget, QFrame, QDialog, QVBoxLayout, QHBoxLayout,
     QLayout, QLabel, QLineEdit, QComboBox, QPushButton, QScrollArea,
     QTextEdit, QSpinBox, QDoubleSpinBox, QMessageBox, QFileDialog,
-    QSizePolicy, QFormLayout, QStackedWidget, QProgressBar, QCompleter
+    QSizePolicy, QFormLayout, QStackedWidget, QProgressBar, QCompleter,
+    QTableWidget, QTableWidgetItem, QHeaderView, QAbstractItemView
 )
+from inventory_batches import sorted_batches, batch_stock_value
 
 
 class MosaicLayout(QLayout):
@@ -106,9 +108,7 @@ class ProductDialog(QDialog):
             ('Özellikler (satır başına ad: değer)',self.attributes)]
         if not self.catalog_only:
             fields.append(('Envanterdeki adet',self.quantity))
-        fields.append(('Satış fiyatı',self.price))
-        if not self.catalog_only:
-            fields.append(('Birim maliyet',self.cost))
+        # Stok ve fiyat artık ürün ana kartından değil, alım/satım işlemlerinden girilir.
         for title,widget in fields:
             form.addRow(title,widget)
         form.addRow('Ürün görseli',picture)
@@ -156,45 +156,70 @@ class ProductDialog(QDialog):
             'in_inventory':bool(self.product.get('in_inventory',not self.catalog_only))}
 
 
+
+def _date_label(value):
+    if not value:return "Eski stok"
+    try:
+        return datetime.fromisoformat(str(value).replace("Z","+00:00")).astimezone().strftime("%d.%m.%Y %H:%M")
+    except (ValueError,TypeError,OverflowError):
+        return str(value)[:16]
+
+
 class ProductCard(QFrame):
+    """Compact product card with recent cost/date batches."""
     def __init__(self,product,sales,largeness,owner,on_sale,on_edit,on_details,on_cover):
         super().__init__()
         self.product=product;self.setObjectName('InventoryCard')
-        width,height=((215,286),(263,328),(311,375))[largeness]
+        width,height=((225,360),(267,395),(312,433))[largeness]
         self.setFixedSize(width,height)
-        self.setCursor(Qt.CursorShape.ArrowCursor)
-        box=QVBoxLayout(self);box.setContentsMargins(13,13,13,13);box.setSpacing(5)
-        line=QHBoxLayout()
-        category=QLabel(str(product.get('category') or 'Genel')[:30]);category.setObjectName('InventoryCategory')
-        line.addWidget(category,1)
+        root=QVBoxLayout(self);root.setContentsMargins(12,12,12,12);root.setSpacing(5)
+        top=QHBoxLayout()
+        category=QLabel(str(product.get('category') or 'Genel')[:26])
+        category.setObjectName('InventoryCategory');top.addWidget(category,1)
         stock=int(product.get('quantity') or 0)
-        qty=QLabel(f'{stock} adet');qty.setObjectName('InventoryQty')
-        line.addWidget(qty);box.addLayout(line)
+        badge=QLabel(f'{stock} adet');badge.setObjectName('InventoryQty')
+        top.addWidget(badge);root.addLayout(top)
         picture=QLabel('📦');picture.setObjectName('InventoryPicture')
-        picture.setAlignment(Qt.AlignmentFlag.AlignCenter);picture.setFixedHeight({0:105,1:135,2:166}[largeness])
-        picture.setMinimumWidth(100)
-        box.addWidget(picture)
+        picture.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        picture.setFixedHeight({0:78,1:107,2:138}[largeness])
+        root.addWidget(picture)
         if product.get('image_url'):on_cover(picture,str(product['image_url']))
         name=QLabel(str(product.get('title') or 'İsimsiz ürün'))
         name.setObjectName('InventoryName');name.setWordWrap(True)
-        name.setMaximumHeight(46);box.addWidget(name)
-        tags=', '.join(str(x) for x in (product.get('tags') or [])[:3])
-        meta=QLabel(tags or str(product.get('sku') or ''))
-        meta.setObjectName('InventoryMeta');meta.setWordWrap(True);meta.setMaximumHeight(33)
-        box.addWidget(meta)
-        box.addStretch(1)
-        price=QHBoxLayout();cost=QLabel(f"{float(product.get('sale_price') or 0):,.2f} TL")
-        cost.setObjectName('InventoryPrice');price.addWidget(cost);price.addStretch()
-        if sales:price.addWidget(QLabel(f"{sales} satış"))
-        box.addLayout(price)
-        controls=QHBoxLayout();controls.setSpacing(5)
-        detail=QPushButton('Detay');detail.clicked.connect(lambda:on_details(product))
-        controls.addWidget(detail,1)
-        sell=QPushButton('Satış');sell.setEnabled(stock>0);sell.setAccessibleName('Ürün satışı kaydet')
-        sell.clicked.connect(lambda:on_sale(product));controls.addWidget(sell,1)
+        name.setMaximumHeight(45);root.addWidget(name)
+        tags=', '.join(str(t) for t in (product.get('tags') or [])[:2])
+        meta=QLabel((str(product.get('sku') or '')+(' · '+tags if tags else ''))[:85])
+        meta.setObjectName('InventoryMeta')
+        meta.setWordWrap(True);meta.setMaximumHeight(28);root.addWidget(meta)
+        title=QLabel('ALIŞ PARTİLERİ · KALAN')
+        title.setObjectName('InventoryLotHeading');root.addWidget(title)
+        lots=sorted_batches(product)
+        lines=[
+            f"{_date_label(batch.get('received_at'))} · {int(batch.get('remaining') or 0)} ad · {float(batch.get('unit_cost') or 0):,.2f} TL"
+            for batch in lots[:2]]
+        if len(lots)>2:lines.append(f'+ {len(lots)-2} parti daha')
+        compact=QLabel('\n'.join(lines) if lines else 'Henüz stok girişi yok')
+        compact.setObjectName('InventoryLotList')
+        compact.setWordWrap(True);compact.setFixedHeight(60)
+        compact.setToolTip('\n'.join(
+            f"{_date_label(b.get('received_at'))} · {int(b.get('remaining') or 0)} adet · {float(b.get('unit_cost') or 0):,.2f} TL"
+            for b in lots))
+        root.addWidget(compact);root.addStretch(1)
+        price=QHBoxLayout()
+        capital=QLabel(f"Stok maliyeti: {batch_stock_value(product):,.2f} TL")
+        capital.setObjectName('InventoryPrice');price.addWidget(capital,1)
+        if sales:price.addWidget(QLabel(f'{sales} satış'))
+        root.addLayout(price)
+        buttons=QHBoxLayout();buttons.setSpacing(5)
+        detail=QPushButton('Partiler');detail.clicked.connect(lambda:on_details(product))
+        buttons.addWidget(detail,1)
+        sell=QPushButton('Satış')
+        sell.setEnabled(stock>0 and bool(lots))
+        sell.clicked.connect(lambda:on_sale(product));buttons.addWidget(sell,1)
         if owner:
-            edit=QPushButton('Düzenle');edit.clicked.connect(lambda:on_edit(product));controls.addWidget(edit,1)
-        box.addLayout(controls)
+            edit=QPushButton('Düzenle');edit.clicked.connect(lambda:on_edit(product))
+            buttons.addWidget(edit,1)
+        root.addLayout(buttons)
 
 
 class SalesBars(QWidget):
@@ -243,7 +268,7 @@ class SalesBars(QWidget):
 class EnvanterView(QWidget):
     def __init__(self,db,parent=None):
         super().__init__(parent)
-        self.db=db;self.jobs=set();self.last_signature=None
+        self.db=db;self.jobs=set();self.last_signature=None;self._busy_sales=set()
         self.network=QNetworkAccessManager(self)
         self.image_cache={};self.pending_images={}
         self.setObjectName('InventoryRoot')
@@ -253,7 +278,7 @@ class EnvanterView(QWidget):
         title.addStretch()
         self.sync_note=QLabel('Firebase · ortak envanter');self.sync_note.setObjectName('Muted')
         title.addWidget(self.sync_note)
-        self.add_button=QPushButton('＋  Katalogdan envantere ekle');self.add_button.setObjectName('Accent')
+        self.add_button=QPushButton('＋  Alım partisi ekle');self.add_button.setObjectName('Accent')
         self.add_button.clicked.connect(self.add_from_catalog);title.addWidget(self.add_button)
         main.addLayout(title)
         self.summary=QLabel('Ürünler yükleniyor…')
@@ -453,7 +478,7 @@ class EnvanterView(QWidget):
                 'Ürün kataloğunu düzenlemek için üstteki Yönetim düğmesine basıp yönetici girişi yapın.\n'
                 'Sonra bu sekmeye dönerek ürün ekleyebilirsiniz.')
             return
-        editor=ProductDialog(product,self)
+        editor=ProductDialog(product,self,catalog_only=True)
         if editor.exec()!=QDialog.DialogCode.Accepted:return
         payload=editor.value();image=editor.image_bytes
         self.sync_note.setText('Ürün buluta gönderiliyor…')
@@ -537,6 +562,12 @@ class EnvanterView(QWidget):
             QLabel#InventorySummary {{color:{text};background:{surface};border:1px solid {border};
                 border-radius:13px;padding:15px;font-size:13px;}}
             QLabel#InventoryImagePreview {{background:{pic};border:1px dashed {border};border-radius:9px;}}
+            QLabel#InventoryLotHeading {{color:{accent};font-size:10px;font-weight:900;}}
+            QLabel#InventoryLotList {{background:{pic};color:{text};font-size:10px;
+                border:1px solid {border};border-radius:7px;padding:4px;}}
+            QTableWidget#InventoryHistoryTable {{background:{surface};color:{text};
+                alternate-background-color:{pic};border:1px solid {border};}}
+            QLabel#InventoryHistoryCount {{color:{muted};font-weight:700;}}
         ''')
 
     def refresh(self):
@@ -626,7 +657,7 @@ class EnvanterView(QWidget):
             item=self.flow.takeAt(0)
             if item.widget():item.widget().deleteLater()
         if not rows:
-            empty=QLabel('Envanter henüz boş. Yönetici olarak Katalog → Genel Ürünler bölümünden ürün oluşturup burada Katalogdan envantere ekle seçeneğini kullanabilirsin.')
+            empty=QLabel('Envanter henüz boş. Önce Envanter → Genel Ürünler bölümünden ürün kartı oluşturup Alım partisi ekle seçeneğini kullanabilirsin.')
             empty.setWordWrap(True);empty.setMinimumHeight(170)
             empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.flow.addWidget(empty)
