@@ -4,7 +4,35 @@ Never blocks a Qt button handler with network I/O. All responses are applied
 only on the GUI thread; failed writes stay in the encrypted-device's local outbox.
 """
 import time
+import threading
 from PySide6.QtCore import QObject, QThread, QTimer, Signal
+from PySide6.QtWidgets import QApplication
+
+
+class RtdbWatch(QObject):
+    """Daemon SSE watcher; Qt signals route updates to the GUI thread."""
+    changed = Signal()
+
+    def __init__(self, client, location, parent=None):
+        super().__init__(parent)
+        self.client, self.location = client, location
+        self._stopping = False
+        self._thread = None
+
+    def start(self):
+        if self._thread and self._thread.is_alive():
+            return
+        self._stopping = False
+        self._thread = threading.Thread(
+            target=lambda: self.client.watch(self.changed.emit,
+                                              lambda: self._stopping,
+                                              location=self.location),
+            daemon=True, name="alfa-firebase-sse")
+        self._thread.start()
+
+    def stop(self):
+        self._stopping = True
+
 
 
 class Pull(QThread):
@@ -68,6 +96,7 @@ class Sync(QObject):
         self._last_pending_count = db.pending_count
         self.current_batch = None
         self.isolate_batch=False
+        self._realtime_watchers=[]
         self._last_status = None
         self.timer = QTimer(self)
         self._recent_until = time.monotonic() + 16
@@ -93,8 +122,24 @@ class Sync(QObject):
         self.retry_after=0
         if not self.timer.isActive():self.timer.start()
         if not self.sender.isActive():self.sender.start()
-        self._status(False,'Cihaz eşleşti · ilk bulut eşitlemesi başlıyor')
+        if not self._realtime_watchers and hasattr(self.client,"watch"):
+            for location in ("meta/revisions","checkout"):
+                watcher=RtdbWatch(self.client,location,self)
+                watcher.changed.connect(self._realtime_event)
+                watcher.start()
+                self._realtime_watchers.append(watcher)
+            app=QApplication.instance()
+            if app:app.aboutToQuit.connect(self._stop_realtime_watchers)
+        self._status(False,'Firebase bağlı · ilk eşitleme başlıyor')
         QTimer.singleShot(100,self.pull)
+
+    def _realtime_event(self):
+        self.force_pull=True
+        QTimer.singleShot(90,self.pull)
+
+    def _stop_realtime_watchers(self):
+        for watcher in self._realtime_watchers:
+            watcher.stop()
 
     def _retune_poll(self):
         # Frequent changes receive fast checks; an idle window is inexpensive.
