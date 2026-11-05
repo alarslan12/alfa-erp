@@ -412,7 +412,88 @@ class Workstation:
             results.append(self._atomic_order(order_id, create, allow_create=True))
         return results
 
+    def _apply_progress_events(self, events):
+        """Commit every consecutive progress change for ONE order in ONE CAS.
+
+        A bulk 'Hepsini seç' action records one local batch of per-book
+        deltas. Previously each event performed an independent Firebase PUT;
+        remote workstations saw dozens of intermediate order snapshots.
+        Keep op_id history so a network retry or partial previous delivery
+        never applies a delta twice.
+        """
+        results=[]
+        groups=[]
+        for event in events:
+            order_id=str(event["order_id"])
+            if not groups or groups[-1][0]!=order_id:
+                groups.append((order_id,[]))
+            groups[-1][1].append(event)
+
+        for order_id, group in groups:
+            def mutate(row):
+                processed=row.setdefault("ops",{})
+                # An already-acknowledged replay stays valid even if another
+                # device has since completed or moved this order.
+                if all(str(event["op_id"]) in processed for event in group):
+                    return None,[{"op_id":str(event["op_id"]),
+                                  "order_id":order_id,
+                                  "version":int(processed[str(event["op_id"])])}
+                                 for event in group]
+                if row.get("status")!="aktif":
+                    raise DeviceError("İşlem için sipariş aktif olmalı",409)
+                items=row.get("items") or {}
+                if not isinstance(items,dict):
+                    raise DeviceError("Sipariş kitap satırları geçersiz",422)
+                by_key={(str(item.get("book_code")),str(item.get("print_type"))):item
+                        for item in items.values() if isinstance(item,dict)}
+                changed=[]
+                for event in group:
+                    op_id=str(event["op_id"])
+                    if op_id in processed:
+                        continue
+                    key=(str(event.get("book_code")),str(event.get("print_type")))
+                    match=by_key.get(key)
+                    if match is None:
+                        raise DeviceError("Sipariş kitap satırı bulunamadı",422)
+                    qty=int(match.get("quantity") or 0)
+                    ready=int(match.get("prepared_count") or 0)+int(event.get("delta_ready") or 0)
+                    boxed=int(match.get("boxed_count") or 0)+int(event.get("delta_boxed") or 0)
+                    if not 0<=boxed<=ready<=qty:
+                        raise DeviceError("Hazırlanan/kolilenen adet sınır dışında",422)
+                    match["prepared_count"]=ready
+                    match["boxed_count"]=boxed
+                    match["version"]=int(match.get("version") or 1)+1
+                    changed.append(event)
+                if not changed:
+                    return None,[{"op_id":str(event["op_id"]),
+                                  "order_id":order_id,
+                                  "version":int(processed[str(event["op_id"])])}
+                                 for event in group]
+                now=datetime.now(timezone.utc).isoformat()
+                row["version"]=int(row.get("version") or 1)+1
+                row["updated_at"]=now
+                version=row["version"]
+                history=row.setdefault("event_log",{})
+                for event in changed:
+                    op_id=str(event["op_id"])
+                    processed[op_id]=version
+                    history[op_id]={
+                        "id":op_id,"action":"progress","device_id":self.uid,
+                        "device_name":socket.gethostname()[:120],
+                        "order_ids":[order_id],"created_at":now,
+                        "details":{"events":[copy.deepcopy(event)]}}
+                return row,[{"op_id":str(event["op_id"]),
+                             "order_id":order_id,
+                             "version":int(processed[str(event["op_id"])])}
+                            for event in group]
+            # One conditional Firebase PUT for all selected books in this
+            # order; a concurrent change retries the whole group with ETag.
+            results.extend(self._atomic_order(order_id,mutate))
+        return results
+
     def _apply_events(self, events, kind):
+        if kind=="progress":
+            return self._apply_progress_events(events)
         results=[]
         for event in events:
             order_id=str(event["order_id"])

@@ -285,7 +285,15 @@ class ERPDatabase:
             first=combined[0];kind=first.get('kind','progress')
             selected=[]
             for event in combined:
-                if event.get('kind','progress')!=kind or len(selected)>=max_events:break
+                if event.get('kind','progress')!=kind:break
+                if kind=='progress':
+                    # Never split a single order's bulk ready/box action into
+                    # 30 separate network rounds. All consecutive variants
+                    # for this order are one atomic Firebase transaction.
+                    if selected and str(event.get('order_id'))!=str(first.get('order_id')):
+                        break
+                elif len(selected)>=max_events:
+                    break
                 selected.append(copy.deepcopy(event))
             return {'kind':kind,'events':selected}
         if self._pending:

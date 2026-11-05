@@ -64,10 +64,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag='v6.3.0-firebase-pair-stability-preview'
+          $tag='v6.3.0-firebase-bulk-sync-preview'
           gh release view $tag --repo $env:GITHUB_REPOSITORY 2>$null | Out-Null
           if ($LASTEXITCODE -ne 0) {
-            gh release create $tag --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --prerelease --title 'ALFA ERP V6.3.0 Firebase Pairing Stability - TEST ONIZLEME' --notes 'ONIZLEME - Firebase cihaz onay penceresi artik otomatik kapanmaz: once yetkiyi kontrol et, sonra Baglantiyi baslat. QThread GUI slot ile temizlenir, aktif cloud baglantisi iki kez baslatilmaz; fatal Python/Qt logs. Eski kullanici verisini silmeyin. Canli Windows cihazi uzerinde test bekleniyor.'
+            gh release create $tag --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --prerelease --title 'ALFA ERP V6.3.0 Firebase Atomic Bulk Progress - TEST ONIZLEME' --notes 'ONIZLEME - Hepsini sec hazirlandi/kolilendi eyleminde ayni siparisin kitaplari RTDB ETag kosullu tek yazmayla guncellenir; op_id tekrarlarini engelleme korunur. Mevcut siparis arayuzu ve onceki Firebase baglanti duzeltmeleri korunur. Uc nokta Windows/Firebase canli testi yapilmadi. Eski surumu silmeyin.'
             if ($LASTEXITCODE -ne 0) { throw 'Release could not be created' }
           }
           gh release upload $tag .\output\ALFA_ERP_Yonetici_Setup_V6_3_0.exe .\output\ALFA_ERP_Personel_Setup_V6_3_0.exe .\output\SHA256SUMS.txt --repo $env:GITHUB_REPOSITORY --clobber
