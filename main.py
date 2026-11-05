@@ -92,35 +92,28 @@ class AlfaMain(QMainWindow):
         settings_btn.setCheckable(True)
         settings_btn.clicked.connect(lambda checked=False:self.navigate(4))
         self.settings_btn=settings_btn
-        settings_btn.setVisible(OWNER_EDITION)
+        # Owner header stays unchanged; staff gets one compact settings
+        # pill at the far right instead of three scattered controls.
         if OWNER_EDITION:right_row.addWidget(settings_btn)
         self.announcements_button=QPushButton('◉ Duyurular')
         self.announcements_button.setToolTip('Sürüm notları ve Güncelleme Merkezi')
         self.announcements_button.clicked.connect(self.open_announcements)
         right_row.addWidget(self.announcements_button)
-        if not OWNER_EDITION:
-            self.staff_theme_switch=QPushButton('')
-            self.staff_theme_switch.setObjectName('StaffThemeSwitch')
-            self.staff_theme_switch.setCheckable(True)
-            self.staff_theme_switch.setChecked(self.config.get('tema')=='acik')
-            self.staff_theme_switch.setText('☼ Açık' if self.staff_theme_switch.isChecked() else '☾ Koyu')
-            self.staff_theme_switch.setToolTip('Açık / koyu görünümü anında değiştir')
-            self.staff_theme_switch.clicked.connect(self.toggle_staff_theme)
-            right_row.addWidget(self.staff_theme_switch)
         self.cloud_badge=text('◌ Bağlanıyor…','Tiny')
         self.cloud_badge.setToolTip('Siparişler yalnızca eşleştirilmiş cihazlarda buluta aktarılır.')
         right_row.addWidget(self.cloud_badge)
-        if not OWNER_EDITION:
-            self.report_button=QPushButton('⚠ Hata Bildir')
-            self.report_button.setToolTip('Seçilen teknik hata türünü Yönetici Hata Merkezi’ne bildir')
-            self.report_button.clicked.connect(self.open_manual_report)
-            right_row.addWidget(self.report_button)
-        self.cloud_connect=QPushButton('Buluta bağla')
+        self.cloud_connect=QPushButton('Buluta bağla',header)
         self.cloud_connect.setObjectName('CloudConnect')
         self.cloud_connect.setToolTip(
             'İlk kurulumda bir kez cihazı yetkilendir; sonraki açılışlar girişsiz.')
         self.cloud_connect.clicked.connect(self.connect_cloud)
-        right_row.addWidget(self.cloud_connect)
+        if OWNER_EDITION:
+            right_row.addWidget(self.cloud_connect)
+        else:
+            self.cloud_connect.hide()
+            settings_btn.setToolTip('Personel ayarları · PDF ve kapaklar, tema, '
+                                    'bildirim sesi, cihaz yetkisi, hata bildir')
+            right_row.addWidget(settings_btn)
         main_bar.addWidget(right_box,0,2,Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignVCenter)
         header.setFixedHeight(57)
         root.addWidget(header)
@@ -199,7 +192,9 @@ class AlfaMain(QMainWindow):
             from yonetici_kompakt import OwnerSettingsPage
             self.settings_page=OwnerSettingsPage(self.db,self.config,self.admin_cloud)
         else:
-            self.settings_page=SettingsPage(self.db,self.config)
+            self.settings_page=SettingsPage(self.db,self.config,staff_mode=True)
+            self.settings_page.set_staff_actions(self.connect_cloud,
+                                                  self.open_manual_report)
         for page in (self.catalog,self.orders,self.analytics,self.inventory_host,self.settings_page):self.stack.addWidget(page)
         self.device=Workstation()
         # Reuse the existing Workstation for event-only exception reports.
@@ -312,17 +307,13 @@ class AlfaMain(QMainWindow):
         return QIcon(pix)
 
     def toggle_staff_theme(self):
+        # Keep old integrations working; the actual switch is now located
+        # inside the Personel Settings page.
         if OWNER_EDITION:return
-        key='acik' if self.staff_theme_switch.isChecked() else 'koyu'
-        self.staff_theme_switch.setText('☼ Açık' if key=='acik' else '☾ Koyu')
-        self.config.set('tema',key)
-        app=QApplication.instance()
-        app.setProperty('alfa_theme',key)
-        app.setStyleSheet(QSS+theme_styles(key))
+        key='acik' if self.config.get('tema','koyu')!='acik' else 'koyu'
+        self.settings_page.set_theme(key)
         self.inventory.apply_theme()
         self.general_catalog.apply_theme()
-        from widgets import refresh_cover_placeholders
-        refresh_cover_placeholders()
 
     def open_manual_report(self):
         if not OWNER_EDITION:
@@ -403,7 +394,7 @@ class AlfaMain(QMainWindow):
         self.nav[1].setChecked(index==1)
         self.nav[2].setChecked(index==2)
         self.nav[3].setChecked(index==3)
-        self.settings_btn.setChecked(OWNER_EDITION and index==4)
+        self.settings_btn.setChecked(index==4)
         self.orders_subbar.setVisible(index==1)
         self.title_widget.setVisible(index==0)
         self.catalog.toolbar.setVisible(index==0)
@@ -476,7 +467,7 @@ class AlfaMain(QMainWindow):
             self.analytics.refresh()
         elif index==3:
             self.select_inventory(self.inventory_view.currentIndex())
-        elif index==4 and OWNER_EDITION:
+        elif index==4:
             self.settings_page.show_tab(self.settings_page.current_tab)
 
     def _cloud_orders_changed(self,ids):
