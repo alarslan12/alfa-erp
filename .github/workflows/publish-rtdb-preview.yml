@@ -1,0 +1,42 @@
+name: Publish ALFA ERP Firebase RTDB preview downloads
+
+on:
+  push:
+    branches: [firebase-rtdb-final]
+    paths: [.github/workflows/publish-rtdb-preview.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  prerelease:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Fetch verified prior Windows build
+        uses: actions/download-artifact@v4
+        with:
+          name: ALFA_ERP_Firebase_RTDB_V6_3_0_PREVIEW
+          run-id: 41994163828
+          repository: ${{ github.repository }}
+          github-token: ${{ github.token }}
+          path: preview
+      - name: Check two installers and checksums exist
+        shell: bash
+        run: |
+          test -s preview/ALFA_ERP_Yonetici_Setup_V6_3_0.exe
+          test -s preview/ALFA_ERP_Personel_Setup_V6_3_0.exe
+          test -s preview/SHA256SUMS.txt
+          cd preview
+          sha256sum -c SHA256SUMS.txt
+      - name: Publish clearly labeled prerelease
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view v6.3.0-firebase-preview >/dev/null 2>&1; then
+            gh release create v6.3.0-firebase-preview --repo "$GITHUB_REPOSITORY" --target 45e0486a33ae9efca33db84a380ff1d84b3167f1 --prerelease --title 'ALFA ERP 6.3.0 Firebase RTDB - TEST ONIZLEME' --notes 'TEST/ONIZLEME. Canli Firebase guvenlik ve siparis akislari dogrulanmadan uretimde kullanmayin. Bu kurulular 45e0486a kodundan derlenmistir; daha sonraki degisiklikleri icermez. Supabase V6.2.2 sistemini silmeyin.'
+          fi
+          gh release upload v6.3.0-firebase-preview --repo "$GITHUB_REPOSITORY" preview/ALFA_ERP_Yonetici_Setup_V6_3_0.exe preview/ALFA_ERP_Personel_Setup_V6_3_0.exe preview/SHA256SUMS.txt --clobber
