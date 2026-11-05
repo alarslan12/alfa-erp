@@ -1,0 +1,86 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "alfa": {
+      "$workspace": {
+        "public_catalog": {
+          ".read": true,
+          ".write": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'owner' && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true"
+        },
+        "members": {
+          "$uid": {
+            ".read": "auth !== null && (auth.uid === $uid || (root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'owner' && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true))",
+            ".write": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'owner' && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true && newData.hasChildren(['role','active']) && (newData.child('role').val() === 'owner' || newData.child('role').val() === 'staff') && newData.child('active').isBoolean()"
+          }
+        },
+        "meta": {
+          ".read": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true",
+          "revisions": {
+            "$kind": {
+              ".write": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true && ($kind === 'orders' || $kind === 'catalog' || $kind === 'inventory') && newData.isNumber()"
+            }
+          },
+          "order_counter": {
+            ".write": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true && newData.isNumber() && newData.val() === data.val()+1"
+          }
+        },
+        "books": {
+          ".read": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true",
+          "$id": {
+            ".write": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'owner' && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true"
+          }
+        },
+        "orders": {
+          ".read": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true",
+          "$id": {
+            ".write": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true && (root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'owner' || root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'staff')",
+            ".validate": "newData.hasChildren(['id','status','version','order_number']) && newData.child('id').val() === $id && (newData.child('status').val() === 'havuz' || newData.child('status').val() === 'aktif' || newData.child('status').val() === 'tamamlandi') && newData.child('version').isNumber() && newData.child('version').val() >= 1 && (!data.exists() || newData.child('version').val() === data.child('version').val()+1)"
+          }
+        },
+        "inventory": {
+          ".read": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true",
+          "$id": {
+            ".write": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true"
+          }
+        },
+        "accounting": {
+          ".read": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true",
+          "$day": {
+            ".write": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'owner' && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true"
+          }
+        },
+        "device_requests": {
+          "$uid": {
+            ".read": "auth !== null && (auth.uid === $uid || root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'owner')",
+            ".write": "auth !== null && auth.uid === $uid && !data.exists() && newData.hasChildren(['name','created_at']) && newData.child('name').isString() && newData.child('name').val().length <= 120"
+          }
+        },
+        "checkout": {
+          ".read": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true",
+          "$uid": {
+            "$requestId": {
+              ".read": "auth !== null && auth.uid === $uid",
+              ".write": "auth !== null && auth.uid === $uid && !data.exists() && newData.exists() && newData.hasChildren(['uid','request_id','shipping_reference','platform','gross_amount','items']) && newData.child('uid').val() === auth.uid && newData.child('request_id').val() === $requestId && newData.child('shipping_reference').isString() && newData.child('shipping_reference').val().length <= 500 && newData.child('gross_amount').isNumber() && newData.child('gross_amount').val() >= 0 && newData.child('gross_amount').val() <= 999999999 && newData.child('items').numChildren() > 0 && newData.child('items').numChildren() <= 300",
+              "items": {
+                "$line": {
+                  ".validate": "newData.hasChildren(['code','print_type','quantity']) && newData.child('code').isString() && newData.child('code').val().length <= 100 && (newData.child('print_type').val() === 'SB' || newData.child('print_type').val() === 'RNK') && newData.child('quantity').isNumber() && newData.child('quantity').val() >= 1 && newData.child('quantity').val() <= 100000"
+                }
+              }
+            }
+          }
+        },
+        "audit": {
+          ".read": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'owner' && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true",
+          "$id": {
+            ".write": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true && !data.exists()"
+          }
+        }
+      }
+    },
+    "migration_staging": {
+      ".read": false,
+      ".write": false
+    }
+  }
+}
