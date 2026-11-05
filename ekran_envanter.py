@@ -17,7 +17,8 @@ from PySide6.QtWidgets import (
     QLayout, QLabel, QLineEdit, QComboBox, QPushButton, QScrollArea,
     QTextEdit, QSpinBox, QDoubleSpinBox, QMessageBox, QFileDialog,
     QSizePolicy, QFormLayout, QStackedWidget, QProgressBar, QCompleter,
-    QTableWidget, QTableWidgetItem, QHeaderView, QAbstractItemView, QInputDialog
+    QTableWidget, QTableWidgetItem, QHeaderView, QAbstractItemView, QInputDialog,
+    QToolButton, QAbstractSpinBox
 )
 from inventory_batches import sorted_batches, batch_stock_value
 
@@ -429,8 +430,11 @@ class EnvanterView(QWidget):
         subtitle.setWordWrap(True);layout.addWidget(subtitle)
         layout.addWidget(QLabel('ALIŞ TARİHİ / MALİYETİ / KALAN PARTİLER'))
         lots=sorted_batches(product,include_empty=True)
-        table=QTableWidget(len(lots),5)
-        table.setHorizontalHeaderLabels(['Alış tarihi ve saati','İlk adet','Kalan','Alış / adet','Kalan maliyet'])
+        table=QTableWidget(len(lots),6)
+        table.setHorizontalHeaderLabels(['Alış tarihi ve saati','İlk adet','Kalan',
+                                         'Alış / adet','Kalan maliyet','Durum'])
+        table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         table.verticalHeader().hide()
         table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
@@ -440,9 +444,15 @@ class EnvanterView(QWidget):
                     str(int(lot.get('quantity') or 0)),
                     str(int(lot.get('remaining') or 0)),
                     f"{float(lot.get('unit_cost') or 0):,.2f} TL",
-                    f"{int(lot.get('remaining') or 0)*float(lot.get('unit_cost') or 0):,.2f} TL"]
+                    f"{int(lot.get('remaining') or 0)*float(lot.get('unit_cost') or 0):,.2f} TL",
+                    "İptal edildi" if lot.get('voided_at') else
+                    "Kullanılmadı" if int(lot.get('remaining') or 0)==int(lot.get('quantity') or 0)
+                    else "Kısmen/tamamen kullanıldı"]
             for j,value in enumerate(values):
-                table.setItem(i,j,QTableWidgetItem(value))
+                item=QTableWidgetItem(value)
+                if j==0:
+                    item.setData(Qt.ItemDataRole.UserRole,str(lot.get('id') or ''))
+                table.setItem(i,j,item)
         layout.addWidget(table,1)
         info=QTextEdit();info.setReadOnly(True);info.setMaximumHeight(110)
         attrs=product.get('attributes') or {}
@@ -452,8 +462,89 @@ class EnvanterView(QWidget):
                 f'{key}: {value}' for key,value in attrs.items())
         info.setPlainText(details or 'Ürün açıklaması yok.')
         layout.addWidget(info)
+        actions=QHBoxLayout()
+        void=QPushButton('↶ Seçili yanlış alımı geri al')
+        void.setToolTip('Yalnız hiç kullanılmamış ve satışa bağlanmamış gerçek alım partileri geri alınabilir.')
+        void.setVisible(self.owner)
+        void.setEnabled(False)
+        def selected_lot():
+            index=table.currentRow()
+            return lots[index] if 0<=index<len(lots) else None
+        def selection_changed():
+            lot=selected_lot()
+            history=(product.get('sales_history') or {}).values()
+            used=any(isinstance(x,dict) and
+                     str(x.get('batch_id'))==str((lot or {}).get('id')) for x in history)
+            void.setEnabled(bool(self.owner and lot and not used and
+                not lot.get('legacy') and not lot.get('voided_at') and
+                int(lot.get('quantity') or 0)>0 and
+                int(lot.get('remaining') or 0)==int(lot.get('quantity') or 0)))
+        table.itemSelectionChanged.connect(selection_changed)
+        def reverse_selected():
+            lot=selected_lot()
+            if not lot:return
+            bid=str(lot.get('id') or '')
+            pid=str(product.get('id') or '')
+            reason,ok=QInputDialog.getText(dialog,'Yanlış alım partisi',
+                f"{int(lot.get('quantity') or 0)} adetlik kullanılmamış alış geri alınacak.\n"
+                "Stoktan çıkarılır, tarih/maliyet kaydı silinmez.\nGerekçe:")
+            if not ok or not reason.strip():return
+            if QMessageBox.question(dialog,'Alımı geri al',
+                'Bu alım partisi stoktan düşülecek, işlemin kaydı korunacak. Onaylıyor musun?',
+                QMessageBox.StandardButton.Yes|QMessageBox.StandardButton.No
+                )!=QMessageBox.StandardButton.Yes:return
+            dialog.accept()
+            self._run_job('inventory_void_acquisition',
+                lambda:self._admin_request()('admin_inventory_void_acquisition',
+                    product_id=pid,batch_id=bid,reason=reason.strip()),
+                lambda _:(self.sync_note.setText('Yanlış alım geri alındı · stok eşitleniyor'),
+                           self._parent_sync()))
+        void.clicked.connect(reverse_selected)
+        actions.addWidget(void)
+        remove=QPushButton('Envanterden çıkar')
+        remove.setToolTip('Stok sıfırsa ürünü envanterden gizler. Genel katalog ve geçmiş korunur.')
+        remove.setVisible(self.owner)
+        remove.setEnabled(int(product.get('quantity') or 0)==0 and self.owner)
+        def remove_inventory():
+            pid=str(product.get('id') or '')
+            if QMessageBox.question(dialog,'Envanterden çıkar',
+                'Stok sıfır. Ürün envanter ekranından kaldırılacak; '
+                'Genel Ürünler kartı, alım ve satış geçmişi korunacak. Devam edilsin mi?',
+                QMessageBox.StandardButton.Yes|QMessageBox.StandardButton.No
+                )!=QMessageBox.StandardButton.Yes:return
+            dialog.accept()
+            self._run_job('inventory_remove',
+                lambda:self._admin_request()('admin_inventory_remove',product_id=pid),
+                lambda _:(self.sync_note.setText('Ürün envanterden çıkarıldı'),
+                           self._parent_sync()))
+        remove.clicked.connect(remove_inventory)
+        actions.addWidget(remove)
+        archive=QPushButton('Katalogdan arşivle')
+        archive.setToolTip('Ürünü iki listeden gizler; stok, alışlar ve satış geçmişi korunur. '
+                           'Genel Ürünler → Arşivlenenleri göster ile geri alınabilir.')
+        archive.setVisible(self.owner)
+        def archive_product():
+            pid=str(product.get('id') or '')
+            count=int(product.get('quantity') or 0)
+            warning=(f"Bu üründe {count} adet stok kaydı bulunuyor.\n"
+                     "Arşivleme stoğu silmez veya düşmez.\n\n"
+                     "Ürün aktif listelerden gizlenecek; Genel Ürünler → "
+                     "Arşivlenenleri göster ile tekrar açılabilir. Devam edilsin mi?")
+            if QMessageBox.question(dialog,'Ürünü arşivle',warning,
+                    QMessageBox.StandardButton.Yes|QMessageBox.StandardButton.No
+                    )!=QMessageBox.StandardButton.Yes:return
+            dialog.accept()
+            self._run_job('inventory_archive',
+                lambda:self._admin_request()('admin_inventory_archive',
+                                              product_id=pid,active=False),
+                lambda _:(self.sync_note.setText('Ürün arşivlendi · geçmiş korundu'),
+                           self._parent_sync()))
+        archive.clicked.connect(archive_product)
+        actions.addWidget(archive)
+        actions.addStretch()
         dismiss=QPushButton('Kapat');dismiss.clicked.connect(dialog.accept)
-        layout.addWidget(dismiss)
+        actions.addWidget(dismiss)
+        layout.addLayout(actions)
         dialog.exec()
 
     def add_from_catalog(self):
@@ -469,7 +560,35 @@ class EnvanterView(QWidget):
                 'Önce Envanter → Genel Ürünler sekmesinde ürün kartı oluştur.')
             return
         dialog=QDialog(self);dialog.setWindowTitle('Yeni stok alımı · Fiyat partisi')
-        dialog.resize(610,325)
+        dialog.setObjectName('InventoryAcquireDialog')
+        dialog.resize(685,350)
+        palette={
+            'acik':('#fffaf3','#243a51','#d7c7b2','#dcebf3','#255572'),
+            'koyu':('#101d2d','#f3f8fe','#536f8e','#254966','#f3f8fe'),
+            'kontrast':('#080d13','#ffffff','#9cb9d6','#294b6b','#ffffff')}
+        bg,fg,edge,stepbg,stepfg=palette.get(
+            str(QApplication.instance().property('alfa_theme') or 'koyu'),
+            palette['koyu'])
+        dialog.setStyleSheet(f"""
+            QDialog#InventoryAcquireDialog {{background:{bg};color:{fg};}}
+            QDialog#InventoryAcquireDialog QLabel {{color:{fg};background:transparent;}}
+            QDialog#InventoryAcquireDialog QSpinBox,
+            QDialog#InventoryAcquireDialog QDoubleSpinBox,
+            QDialog#InventoryAcquireDialog QComboBox {{
+                color:{fg};background:{bg};border:1px solid {edge};
+                border-radius:7px;min-height:35px;padding:3px 10px;
+            }}
+            QDialog#InventoryAcquireDialog QToolButton#InventoryStep {{
+                color:{stepfg};background:{stepbg};border:1px solid {edge};
+                border-radius:7px;font-size:20px;font-weight:850;
+            }}
+            QDialog#InventoryAcquireDialog QToolButton#InventoryStep:hover {{
+                border:2px solid {fg};
+            }}
+            QDialog#InventoryAcquireDialog QToolButton#InventoryStep:disabled {{
+                color:{edge};background:{bg};
+            }}
+        """)
         layout=QVBoxLayout(dialog)
         intro=QLabel('Her alış ayrı tarih, saat ve birim maliyetle saklanır. '
             'Önceki stok partilerinin maliyeti ve kalan adedi değişmez.')
@@ -488,6 +607,28 @@ class EnvanterView(QWidget):
         quantity.setValue(1)
         unit_cost=QDoubleSpinBox();unit_cost.setRange(0,999999999)
         unit_cost.setDecimals(2);unit_cost.setSuffix(' TL')
+        unit_cost.setSingleStep(1.0)
+        # Native Windows up/down arrows were invisible and offset by the
+        # inherited global QSS. Explicit high-contrast stepper pills avoid
+        # OS-specific subcontrol positions in every theme.
+        def stepper(spin):
+            spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+            spin.setMinimumWidth(190)
+            host=QWidget()
+            bar=QHBoxLayout(host)
+            bar.setContentsMargins(0,0,0,0);bar.setSpacing(7)
+            bar.addWidget(spin,1)
+            for sign,fn in (('−',spin.stepDown),('+',spin.stepUp)):
+                btn=QToolButton()
+                btn.setObjectName('InventoryStep')
+                btn.setText(sign)
+                btn.setFixedSize(39,39)
+                btn.setAccessibleName('Bir azalt' if sign=='−' else 'Bir artır')
+                btn.clicked.connect(fn)
+                bar.addWidget(btn)
+            return host
+        quantity_controls=stepper(quantity)
+        cost_controls=stepper(unit_cost)
         summary=QLabel('');summary.setWordWrap(True)
         def selected(index):
             if 0<=index<len(products):
@@ -498,8 +639,8 @@ class EnvanterView(QWidget):
                 unit_cost.setValue(float(current.get('cost_price') or 0))
         choice.currentIndexChanged.connect(selected)
         form.addRow('Genel katalog ürünü',choice)
-        form.addRow('Yeni alınan adet',quantity)
-        form.addRow('Bu alışın birim maliyeti',unit_cost)
+        form.addRow('Yeni alınan adet',quantity_controls)
+        form.addRow('Bu alışın birim maliyeti',cost_controls)
         form.addRow('Alım tarihi',QLabel('Kaydettiğiniz anın tarih ve saati'))
         layout.addLayout(form);layout.addWidget(summary)
         actions=QHBoxLayout();actions.addStretch()
@@ -742,7 +883,9 @@ class EnvanterView(QWidget):
         self.render()
         # Archived products remain in stock and historical reports; only the
         # active sales catalogue hides them.
-        self.update_analytics([p for p in rows if p.get('in_inventory',True)],sales)
+        # Removed/archived stock cards must not erase old sales from reports.
+        # Capital remains derived from each lot's remaining quantity.
+        self.update_analytics(rows,sales)
 
     def update_analytics(self,products,sales):
         """Inventory-only reporting from synced ledger; no additional reads."""
