@@ -1,43 +1,101 @@
-# ALFA ERP V4.32 — Desktop / PySide6
+# ALFA ERP 6.6.0 — Windows Yönetici ve Personel
 
-Kitap kataloğu, sipariş havuzu, aktif kitap baskı/kolileme, tamamlanan sipariş arşivi, yerel muhasebe takvimi ve işlem günlüğü.
+**Üretim kodu:** Firebase Realtime Database üzerinde çoklu cihazlı,
+Windows 11 / PySide6 masaüstü uygulaması. Bu dal: \`firebase-rtdb-final\`.
 
-**Windows:** İlk kurulum `KUR_WINDOWS.bat`; programı başlatma `BASLAT_WINDOWS.bat`. Önce mevcut proje klasörünü ve `%LOCALAPPDATA%\AlfaERP` verilerini yedekleyin.
+Bu depo 2026-11-05 itibarıyla tek etkin Firebase Windows paketleme iş akışı
+ve ayrı, manuel kararlı yayın iş akışı içerir. Önceki Supabase uygulaması
+\`main\` dalında korunmuştur. **Geliştirme dalını ana dal ile körlemesine
+birleştirmeyin; Firebase kuralları ve release yetkilerini önce doğrulayın.**
 
-**Katalog ve aktif siparişler:** V4.25 görünümü ve baskı işlevleri korunur. **Havuz:** büyük Sipariş Detayı / Aktife Al / Sil tuşları; detayda yalnızca kitap grupları ve miktarlar.
+## Çalışan modüller
 
-**Analitik:** Yerleşik takvimle tek gün veya tarih aralığı seçilir. Sadece **tamamlanan siparişler**, **tamamlandıkları gün** esas alınarak muhasebeleştirilir. Ciro, kargo sonrası ciro, Telafi/Açık Adres gideri, kitap/sayfa ve günlük sipariş eğilimi gösterilir. Seçili dönem **HTML raporu** olarak dışa aktarılır.
+- Kitap kataloğu (Excel / Firebase), sayısal kod sıralaması, PDF ilk sayfadan
+  yerel JPEG kapak önbelleği, manüel kapak önceliği.
+- Katalogdan sipariş: aynı kargo kodu uyarısı (önceki siparişin tarih ve durumu),
+  işlemden sonra Katalog'da kalma, kısa başarı bildirimi.
+- Sipariş havuzu / aktif / tamamlanan, hazırlama-kolileme için aynı siparişte
+  gruplanmış Firebase ETag koşullu yazma.
+- Analitik PIN'i, muhasebe, ayrıntılı işlem günlüğü.
+- Envanter: tarih ve maliyete göre alım partileri, satarken parti + fiyat
+  seçimi, işlem geçmişi, ciro / maliyet / brüt fark.
+- Personel arka plan bildiricisi: özel sesler ve Windows toast.
+- Güncelleme Merkezi: en fazla 24 saatte bir GitHub kararlı sürüm kontrolü
+  (tek GET), kullanıcı onaylı SHA-256 doğrulanmış Windows kurulumu.
+- Hata Merkezi: Personel/Yönetici beklenmedik hata ve kalıcı bulut redlerinde
+  tek olay raporu, yerel kalıcı kuyruk, Yönetici'de Firebase SSE ile canlı
+  ve incelenebilir günlük. Müşteri verisi ve token gönderilmez.
 
-**Ödeme günleri:** Sarı tamamlandı, parlak mavi ödendi, soluk mavi sadece aktif sipariş günü. ÖDENDİ/ÖDENMEDİ işaretleri yerel `%LOCALAPPDATA%\AlfaERP\alfa_muhasebe_gunleri.json` dosyasında kalıcı saklanır ve Ayarlar > Yedek kapsamında dışa aktarılır. Ödenmiş günün tamamlanan kayıtları değişirse gün yeniden muhasebe kontrolü gerektirir.
+## Kritik: Hata Merkezi için Firebase Rules geçişi
 
-**Ayarlar ⚙:** işlem günlüğü, koyu/açık/kontrast tema, Excel katalog, PDF klasörü ve veri yedeği.
+Yeni \`error_reports\` / \`error_acks\` alanlarının owner-only read,
+authenticated-device create ve owner-only acknowledgement kuralları
+\`firebase/database.rules.json\` dosyasında hazırlanmıştır.
 
-**Sınırlar:** Farklı internet bağlantıları üzerinden çoklu bilgisayar senkronizasyonu henüz yoktur. Bu sürüm yerel veri tutar; Windows için PySide6 gerekir. Tamamlanma tarihi olmayan eski siparişlere sahte tarih atılmaz.
+**Canlı veritabanındaki kurallar otomatik değiştirilmedi.** Cloud Shell'de:
 
-Ayrıntı: `SURUM_NOTLARI_V4_27.md`.
+\`\`\`bash
+cd ~/alfa-erp
+git checkout firebase-rtdb-final
+git pull --ff-only
+python3 tools/firebase_error_rules_cutover.py
+\`\`\`
 
-**V4.27 — Analitik görünüm:** İnce çizgiye daralan KPI kutuları sabit, okunabilir 70px yüksekliğe alındı. Seçilen tamamlanma gününe göre 20 sayısal metrik, 4 grafik, en çok tamamlanan kitaplar, platform kırılımı ve HTML raporu sağlanır. 7 gün / 30 gün / Bu ay hızlı takvim seçenekleri. Katalog, Siparişler, ayarlar ve veritabanının kayıt akışı korunur.
+Bu komut yalnız mevcut Rules'u kontrol edip yedekler. Kaynak kurallar ile
+mevcut kurallar (iki yeni alan hariç) farklıysa durur. Yedek ayrı güvenli yere
+alındıktan sonra, iki uygulamanın yeni sürümü kullanılmadan önce:
 
+\`\`\`bash
+python3 tools/firebase_error_rules_cutover.py --apply
+\`\`\`
 
-### V4.29: Analitik ve tamamlanan sipariş arşivi
-Analitik değerler Finans/Ciro, Kargo, Sipariş/İş Günü, Kitap/Sayfa ve SB/RNK başlıklarında sınıflandırılır. 7/30 gün düğmeleri kaldırıldı. Tamamlanan siparişlerde son 5 takvim günü otomatik gösterilir; eski siparişler "Arşivi aç" ile 25’erli yüklenir. Analitik hesapları tüm tamamlanan siparişleri kullanır.
+Terminal yalnız \`ALFA-HATA-KURALLARINI-AC\` onayıyla dağıtır.
+İşlem **sipariş, katalog, cihaz ve stok verilerini silmez**. Kuralların
+dağıtılmadığı bilgisayarlarda raporlar yerel kuyrukta saklanır ve
+Yönetici'de bulut hata ekranı erişim uyarısı gösterir.
 
+## Windows kurulum ve kararlı güncelleme
 
-### V4.30 — UI polish
-Üst Siparişler işlem düğmeleri ortak şekil, filtre kontrol hizası, kart hover/seçim vurguları ve tema tutarlılığı iyileştirildi. Ayrıntılar `SURUM_NOTLARI_V4_30.md`.
+GitHub Actions: \`.github/workflows/firebase-rtdb-preview.yml\` çalıştığında
+iki ayrı Inno Setup EXE ve \`SHA256SUMS.txt\` üretir.
+Büyük uygulama testleri koşulmaz; derlemede Python sözdizimi ve
+PDF modülü bulunabilirliği kontrol edilir.
 
+Güncelleme Merkezi **yalnızca GitHub Releases/latest** üzerinden kalıcı,
+\`draft=false\`, \`prerelease=false\` sürümleri kabul eder. Her sürüm
+yüklemesinde aynı isimli Windows Setup.exe'ler ve SHA256SUMS.txt bulunmalıdır.
+Yeni release eski çalışan EXE'yi zorla değiştirmez: indirme,
+SHA doğrulaması, eşitlenecek iş yokluğu ve kullanıcı onayı gereklidir.
 
-### V4.31 — Sipariş detay ve aksiyon alanları
-Sipariş detayı popup'ında sekme alanı başlığı ve açık sekme sayacı, toplu işlem araçlarında ayırt edilebilir panel, kitap baskı kontrollerinde bölüm başlıkları; aktif sipariş kartlarında progress bar ve aksiyonlar için ortak hizalanmış sağ panel. Mevcut işlevler ve veri kaydı korunur.
+**GitHub Release yayını otomatik değildir.** Eski GitHub 403 workflow yetki
+sorununu önlemek için \`.github/workflows/alfa-stable-release.yml\`
+yalnızca açık yetkilendirmeyle manuel çalıştırılır. GitHub UI'da
+\`ALFA_RELEASE_TOKEN\` (yalnız bu depo, Contents write, Workflows write)
+tanımlanmalı; ilgili workflow GitHub'ın varsayılan dalında da mevcut
+olmalıdır. Alternatif olarak yetkili repo sahibi GitHub Releases
+web arayüzünden manuel tag/asset yayımlayabilir. **Token'ı koda koyma.**
 
+Güncelleme başarısız olursa uygulama verileri, cihaz kimliği ve indirilen
+kurulum korunur; \`%LOCALAPPDATA%\AlfaERP\updates\last_update_error.txt\`
+yerel tanılama bilgisi saklar.
 
-### V4.32 — Aktif kitap havuzu, temalı tarih listesi ve daha net toplu işlemler
-Siparişlere Genel Bakış penceresi artık yalnızca aktif siparişlerin kitaplarını ve baskı adetlerini toplar; havuz ve tamamlanan kayıtlar burada görünmez. Hazırla/Kolile/Geri al toplu işlem düğmeleri daha belirgin, aynı ölçülerde ve hizalıdır. Tarih seç ve sıralama kontrolleri beyaz boş şerit oluşturmayan temalı açılır menü kullanır. Koyu/kremsi açık tema hover ve konturları iyileştirilmiştir.
+## Kota ve temizlik
 
+- Hata gönderimi **olay başına**, tekrarlar 5 dakika sınırlı; ayrı poll yok.
+- Yönetici SSE akışını dinler (tek açık Firebase bağlantısı); yalnız
+  değişiklikte en son 70 rapor ve en son 150 incelenme kaydı çekilir.
+- Python traceback/mesaj, müşteri adresleri, PDF'ler ve token buluta yüklenmez.
+- Güncelleme denetimi günde en fazla bir kez; indirmeler manuel onaylıdır.
+- Eski Windows build/release workflow dosyaları yalnız Firebase dalından
+  kaldırıldı; \`main\` sürümü ve Git geçmişi yerinde.
+- Canlı veritabanının \`orders\`, \`inventory\`, \`audit\` alanları
+  **performans için silinmedi veya sıfırlanmadı**. İleri tarihli
+  arşiv/retention ancak yedek ve ayrı denetimden sonra yapılabilir.
 
-## V4.34
-Açık tema renk paleti katalog ve sipariş ekranlarında kremsi tonlarla yeniden dengelendi.
+Güncel Firebase kota takibi: <https://console.firebase.google.com/project/alfa-erp-8700c/database>
 
-
-## V4.35
-Açık temada kalan koyu hover, sekme, kargo kodu ve katalog başlıkları düzeltildi. Toplu işlem toolbar'ı eş ölçülere alındı.
+İlgili rehberler:
+- \`docs/URETIM_OPERASYON_REHBERI.md\`
+- \`docs/ALFA_ERP_V650_STABLE.md\`
+- \`docs/ENVANTER_PARTI_SATIS_V642.md\`
+- \`docs/GITHUB_YAYIN_KONTROLU.md\`
