@@ -107,7 +107,13 @@ def refresh_pdf_covers(data_dir,book_codes,progress=None):
             manual_exists=any((manual/(code+ext)).exists()
                 for ext in (".jpg",".jpeg",".png",".webp",".bmp"))
             if manual_exists:
+                # A user-supplied cover has higher priority, so do not render
+                # its PDF at all; avoid waste when hundreds were hand-curated.
                 stats["manual"]+=1
+                if recorded.get(code)==signature and target.exists():
+                    current[code]=signature
+                if progress:progress(index,len(codes))
+                continue
             if (recorded.get(code)==signature and target.exists() and
                     target.stat().st_size>0):
                 stats["unchanged"]+=1
