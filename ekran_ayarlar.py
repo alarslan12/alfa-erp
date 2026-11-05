@@ -253,7 +253,7 @@ class SettingsPage(QWidget):
 
     def _update_identity(self):
         app=QApplication.instance()
-        version=app.applicationVersion() or "6.6.0"
+        version=app.applicationVersion() or "1.1.0"
         edition=str(app.property("alfa_edition") or "staff")
         return version,edition
 
