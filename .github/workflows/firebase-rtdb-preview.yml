@@ -1,13 +1,6 @@
 name: ALFA ERP 6.4.1 Windows build (artifacts only)
 
 on:
-  push:
-    branches: [firebase-rtdb-final]
-    paths:
-      - '**/*.py'
-      - '**/*.iss'
-      - 'ALFA_BUILD_WINDOWS.ps1'
-      - 'requirements.txt'
   workflow_dispatch:
 
 permissions:
