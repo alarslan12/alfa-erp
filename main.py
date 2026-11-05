@@ -13,6 +13,7 @@ from tema import QSS
 from ekran_analitik import AnalitikView
 from ekran_envanter import EnvanterView
 from urun_katalogu import GeneralProductCatalog
+from ekran_yazdirma import PrintSurveillanceView
 from ekran_ayarlar import SettingsPage
 from alfa_rtdb import Workstation
 from bulut_canli import Sync
@@ -83,6 +84,14 @@ class AlfaMain(QMainWindow):
                 action.clicked.connect(lambda checked=False:self.navigate(3))
             self.nav[index]=action
             nav_row.addWidget(action)
+        # Additional subsystem uses page index 5: the existing 0-4
+        # screen indices (especially owner settings) remain unchanged.
+        print_tab=button('🖨  Yazdırma','Nav')
+        print_tab.setCheckable(True)
+        print_tab.setToolTip('Bütün Windows yazıcıları, kalıcı kuyruk hafızası ve uyarılar')
+        print_tab.clicked.connect(lambda checked=False:self.navigate(5))
+        self.nav[5]=print_tab
+        nav_row.addWidget(print_tab)
         main_bar.addWidget(nav_box,0,1,Qt.AlignmentFlag.AlignCenter)
         right_box=QWidget();right_row=QHBoxLayout(right_box)
         right_row.setContentsMargins(0,0,0,0);right_row.setSpacing(10)
@@ -196,6 +205,10 @@ class AlfaMain(QMainWindow):
             self.settings_page.set_staff_actions(self.connect_cloud,
                                                   self.open_manual_report)
         for page in (self.catalog,self.orders,self.analytics,self.inventory_host,self.settings_page):self.stack.addWidget(page)
+        self.print_watch=PrintSurveillanceView(self.config.data_dir,self)
+        self.stack.addWidget(self.print_watch)   # Index 5; OwnerSettings remains 4.
+        self.print_watch.notify.connect(lambda info:
+            self.statusBar().showMessage('Yazdırma uyarısı · '+str(info),14000))
         self.device=Workstation()
         # Reuse the existing Workstation for event-only exception reports.
         # Never send credentials, order content or stack locals to Firebase.
@@ -394,6 +407,7 @@ class AlfaMain(QMainWindow):
         self.nav[1].setChecked(index==1)
         self.nav[2].setChecked(index==2)
         self.nav[3].setChecked(index==3)
+        self.nav[5].setChecked(index==5)
         self.settings_btn.setChecked(index==4)
         self.orders_subbar.setVisible(index==1)
         self.title_widget.setVisible(index==0)

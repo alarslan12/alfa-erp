@@ -281,7 +281,7 @@ class SettingsPage(QWidget):
         # These views maintain scoped palette QSS in addition to the app QSS.
         # Reapply on the same click so switching to light mode is immediate.
         main=self.window()
-        for attr in ('inventory','general_catalog'):
+        for attr in ('inventory','general_catalog','print_watch'):
             view=getattr(main,attr,None)
             if view is not None and hasattr(view,'apply_theme'):
                 view.apply_theme()
