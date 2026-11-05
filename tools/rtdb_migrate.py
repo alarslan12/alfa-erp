@@ -178,7 +178,16 @@ def request(client, method, path, payload=None, etag=False, match=None):
                 detail = "No structured compiler diagnostic returned"
             raise RuntimeError(f"Firebase Rules HTTP {result.status_code}: {detail}")
         raise RuntimeError(f"Firebase HTTP {result.status_code}, {path}")
-    return (result.json() if result.content else None), result.headers.get("ETag"), result.status_code
+    # Firebase returns RTDB rules as raw source, which can contain // comments.
+    # Such rules are valid Firebase source but NOT strict JSON; keep them as text.
+    # Never parse old rules with result.json(): preserve the exact source backup.
+    if path == ".settings/rules":
+        return result.text, result.headers.get("ETag"), result.status_code
+    try:
+        value = result.json() if result.content else None
+    except ValueError as exc:
+        raise RuntimeError(f"Firebase response is not JSON (HTTP {result.status_code}, {path})") from exc
+    return value, result.headers.get("ETag"), result.status_code
 
 
 def migrate(folder, apply=False, promote=False, deploy_rules=False, rules_file=None):
@@ -208,15 +217,21 @@ def migrate(folder, apply=False, promote=False, deploy_rules=False, rules_file=N
             raise RuntimeError("Root read must be false")
         if parsed_rules.get("rules", {}).get(".write") is not False:
             raise RuntimeError("Root write must be false")
-        # Back up exact existing rules before replacing them.
-        # The backup remains private beside the source snapshot.
+        # Firebase RTDB accepts comments in rule source. Preserve the
+        # original text byte-for-byte before any replacement.
         current_rules, _, _ = request(client, "GET", ".settings/rules")
-        backup = Path(folder) / "rtdb_rules_before_import.json"
+        if not isinstance(current_rules, str) or not current_rules.strip():
+            raise RuntimeError("Cannot safely back up existing Firebase Rules")
+        backup = Path(folder) / "rtdb_rules_before_import.raw.txt"
         if not backup.exists():
-            backup.write_bytes(packed(current_rules))
+            backup.write_text(current_rules, encoding="utf-8")
             backup.chmod(0o600)
-        result, _, code = request(client, "PUT", ".settings/rules", parsed_rules)
-        confirmed, _, _ = request(client, "GET", ".settings/rules")
+        _, _, code = request(client, "PUT", ".settings/rules", parsed_rules)
+        published, _, _ = request(client, "GET", ".settings/rules")
+        try:
+            confirmed = json.loads(published)
+        except (ValueError, TypeError) as exc:
+            raise RuntimeError("Published rules are not strictly parseable; backup retained") from exc
         if confirmed != parsed_rules:
             raise RuntimeError("Published RTDB rules do not match local rules file")
         print("Rules deployment verified:", code)
