@@ -182,11 +182,13 @@ class Workstation:
             self._token_expires = time.monotonic() + int(fresh.get("expires_in", 3600))
             return self._id_token
 
-    def _request(self, method, path, body=None, *, etag=False, match=None, timeout=20):
+    def _request(self, method, path, body=None, *, etag=False, match=None, timeout=20, query=None):
         safe_path = "/".join(urllib.parse.quote(p, safe="") for p in
                              (ROOT + "/" + path.strip("/")).split("/"))
         token = urllib.parse.quote(self._get_id_token(), safe="")
         url = DB_URL + "/" + safe_path + ".json?auth=" + token
+        if query:
+            url += "&" + urllib.parse.urlencode(query)
         headers = {}
         if etag:
             headers["X-Firebase-ETag"] = "true"
@@ -196,6 +198,42 @@ class Workstation:
 
     def _get(self, path):
         return self._request("GET", path)[0]
+
+    def send_error_report(self,report,timeout=15):
+        """One sanitized exception event; Firebase Rules reject impostor UIDs."""
+        if not isinstance(report,dict):
+            raise DeviceError("Hata kaydı geçersiz",422)
+        key=str(report.get("id") or "")
+        if not key or any(c in key for c in ".#$[]/") or len(key)>80:
+            raise DeviceError("Hata kaydı kimliği geçersiz",422)
+        if str(report.get("device_id"))!=str(self.uid):
+            raise DeviceError("Hata raporu cihaz kimliği uyuşmuyor",403)
+        if len(json.dumps(report,ensure_ascii=False))>7500:
+            raise DeviceError("Hata raporu çok büyük",422)
+        self._request("PUT","error_reports/"+key,report,timeout=timeout)
+        return key
+
+    def read_error_reports(self,limit=70):
+        """Owner-only, bounded reads; no full history download."""
+        maximum=max(1,min(100,int(limit)))
+        payload=self._request("GET","error_reports",
+              query={"orderBy":'"$key"',"limitToLast":maximum})[0]
+        return payload if isinstance(payload,dict) else {}
+
+    def review_error_report(self,report_id):
+        """Owner-only acknowledgement stored separately from immutable event."""
+        report_id=str(report_id)
+        if not report_id or any(c in report_id for c in ".#$[]/"):
+            raise DeviceError("Hata kaydı kimliği geçersiz",422)
+        payload={"reviewed_by":str(self.uid),
+                 "reviewed_at":datetime.now(timezone.utc).isoformat(timespec="seconds")}
+        self._request("PUT","error_acks/"+report_id,payload)
+        return payload
+
+    def read_error_acks(self):
+        records=self._get("error_acks")
+        return records if isinstance(records,dict) else {}
+
 
     def _bump(self, kind):
         if kind not in ("orders", "catalog", "inventory"):
@@ -727,7 +765,7 @@ class Workstation:
                     # Leave the source request intact for review/retry.
                     continue
 
-    def watch(self, callback, stop_requested, location="meta/revisions"):
+    def watch(self, callback, stop_requested, location="meta/revisions", query=None):
         """Server-Sent Events: no repeated full REST snapshot polling."""
         pause=1
         while not stop_requested():
@@ -736,7 +774,8 @@ class Workstation:
                               (ROOT+"/"+location).split("/"))
                 token=urllib.parse.quote(self._get_id_token(),safe="")
                 req=urllib.request.Request(
-                    DB_URL+"/"+path+".json?auth="+token,
+                    DB_URL+"/"+path+".json?auth="+token+
+                    ("&"+urllib.parse.urlencode(query) if query else ""),
                     headers={"Accept":"text/event-stream"})
                 with urllib.request.urlopen(req,timeout=75) as stream:
                     pause=1

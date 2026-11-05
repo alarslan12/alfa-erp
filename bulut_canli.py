@@ -13,9 +13,10 @@ class RtdbWatch(QObject):
     """Daemon SSE watcher; Qt signals route updates to the GUI thread."""
     changed = Signal()
 
-    def __init__(self, client, location, parent=None):
+    def __init__(self, client, location, parent=None, query=None):
         super().__init__(parent)
         self.client, self.location = client, location
+        self.query=query
         self._stopping = False
         self._thread = None
 
@@ -26,7 +27,8 @@ class RtdbWatch(QObject):
         self._thread = threading.Thread(
             target=lambda: self.client.watch(self.changed.emit,
                                               lambda: self._stopping,
-                                              location=self.location),
+                                              location=self.location,
+                                              query=self.query),
             daemon=True, name="alfa-firebase-sse")
         self._thread.start()
 
