@@ -104,3 +104,28 @@ yazılmaz. **Veritabanı, cihaz izinleri ve Firebase Security Rules değişmez.*
 Canlı Hosting yayını projenin mevcut web sitesini değiştirebilir; sitede başka
 içerik barındırılıyorsa önce ayrıca yedekle.
 
+
+
+## Eski sistem ve Cloud Shell yedek güvenliği
+
+- **Supabase eski V6.2.2:** Firebase'e geçiş tamamen doğrulanana kadar eski projeyi silme.
+  Supabase Free: 500 MB veritabanı, aylık 5 GB egress; inaktif Free projeler
+  yaklaşık 7 gün yetersiz etkinlikle duraklatılabilir. Aktif siparişlerle
+  Firebase tarafı **eşzamanlı güncellenmez**. Üretim açıldıktan sonra ayrı
+  CSV/SQL arşivi tutup eski projeyi bilinçli olarak sonlandır.
+  https://supabase.com/docs/guides/platform/billing-on-supabase
+- **Google Cloud Shell:** Ücretsiz 5 GB kalıcı HOME alanı vardır, ancak
+  Cloud Shell'e 120 gün erişilmezse HOME temizlenebilir. Özel Firebase
+  yedeğinin TEK kopyasını orada bırakma; yerel şifreli diske indir.
+  https://docs.cloud.google.com/shell/docs/how-cloud-shell-works
+- **Firebase Security Rules:** Uygulamadaki kimlik kontrolü çözülebilmiş
+  olsa da kuralları değiştirmeden önce Rules kaynak dosyasını yedekle;
+  \`audit\` erişimi owner-only kalır.
+- **Kod/GitHub güvenliği:** Admin SDK anahtarı, servis hesabı JSON'u,
+  Firebase veritabanı dökümü veya Cloud Shell \`*.json.gz\` yedeği kesinlikle
+  halka açık GitHub deposuna yüklenmemeli. Firebase istemci apiKey'i
+  güvenlik sınırı değil, RTDB Rules güvenlik sınırıdır.
+- **Sürüm politikası:** Release Candidate (RC) canlı işletmede nihai sürüm
+  sayılmaz. Üretim temizliği ve ikili cihaz kontrolü bittikten sonra tek
+  stabil etiket ve iki Setup EXE yayımlanır. Eski installer paketlerini
+  sürüm etiketi olmadan karıştırma.
