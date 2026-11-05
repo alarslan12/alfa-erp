@@ -51,9 +51,29 @@ def _rules_call(method,token,data=None):
         with urlopen(req,timeout=35) as response:
             return json.loads(response.read())
     except HTTPError as error:
-        raise RuntimeError(
-            "Firebase Rules API erişimi reddedildi (HTTP "+
-            str(error.code)+"). Yetkileri kontrol edin.") from None
+        # Firebase returns parse/validation diagnostics in the response body.
+        # The previous generic "permission" message hid HTTP 400 syntax
+        # errors. Never echo the URL or OAuth token.
+        try:
+            payload=json.loads(error.read(8192).decode("utf-8","replace"))
+            details=payload.get("error","") if isinstance(payload,dict) else ""
+            if isinstance(details,dict):
+                details=details.get("message","")
+            details=str(details).strip()
+        except (ValueError,TypeError,UnicodeError,OSError):
+            details=""
+        # Limit diagnostic characters. Rule compilation errors contain only
+        # line/column and parser text; do not print unexpected response bodies.
+        if details and len(details)<=1200 and all(
+                c.isprintable() or c in "\\n\\r\\t" for c in details):
+            import re
+            details=re.sub(r"(?i)(access_token|id_token|authorization)\\s*[:=]\\s*[^\\s,]+",
+                           r"\\1=[REDACTED]",details)
+            details=re.sub(r"ya29\\.[A-Za-z0-9_.-]+","[REDACTED]",details)
+            info=": "+details[:900]
+        else:
+            info=" (detaylı hata metni mevcut değil)"
+        raise RuntimeError("Firebase Rules HTTP "+str(error.code)+info) from None
     except (URLError,OSError,TimeoutError):
         raise RuntimeError("Firebase Rules API bağlantısı başarısız.") from None
 
