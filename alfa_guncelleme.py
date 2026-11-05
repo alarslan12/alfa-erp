@@ -96,7 +96,11 @@ def check_for_update(current,edition):
         raise UpdateError("Önizleme sürümleri otomatik yüklenmez")
     tag=str(data.get("tag_name") or "")
     available=version_tuple(tag)
-    if available<=version_tuple(current):
+    running=version_tuple(current)
+    # Product numbering restarted at v1.0.0 after the Firebase 6.x preview.
+    # Until v1 reaches GitHub Releases/latest, do NOT treat the legacy
+    # v6.x release as a newer compatible unified-installer update.
+    if (running[0]==1 and available[0]>=6) or available<=running:
         return {"available":False,"latest":tag}
     # Both editions are distributed in ONE setup; the user selects the
     # edition in the installer and owner installs require the setup password.
