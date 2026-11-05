@@ -47,7 +47,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.ALFA_RELEASE_TOKEN }}
           REPO: ${{ github.repository }}
-          COMMIT: ${{ github.sha }}
+          RUN_ID: ${{ inputs.source_run_id }}
         run: |
           set -euo pipefail
           tag='v6.6.0'
@@ -55,8 +55,14 @@ jobs:
             echo 'Stable release already exists. Refusing to replace assets.'
             exit 1
           fi
+          state="$(gh api "repos/$REPO/actions/runs/$RUN_ID" --jq '.conclusion')"
+          branch="$(gh api "repos/$REPO/actions/runs/$RUN_ID" --jq '.head_branch')"
+          source_sha="$(gh api "repos/$REPO/actions/runs/$RUN_ID" --jq '.head_sha')"
+          test "$state" = success
+          test "$branch" = firebase-rtdb-final
+          test -n "$source_sha"
           gh release create "$tag" \
-            --repo "$REPO" --target "$COMMIT" \
+            --repo "$REPO" --target "$source_sha" \
             --title 'ALFA ERP 6.6.0 · Stable Windows' \
             --notes 'Stable owner and staff Windows installers. On-error sanitized reports; owner-only event-driven Firebase inbox; SHA256-checked Update Center; original catalog/order/inventory workflows retained. Enable error report Security Rules using the separate guarded cutover tool. Windows device acceptance remains mandatory.' \
             ./release/ALFA_ERP_Yonetici_Setup_V6_6_0.exe \
