@@ -33,12 +33,11 @@ Run $Virtual @('-m','pip','install','--disable-pip-version-check','-r','requirem
 # Generate branded multi-resolution .ico assets before PyInstaller and Inno Setup.
 Run $Virtual @('tools\build_icons.py')
 if($Edition -eq 'personel') {
- # Generic installer: enrollment is supplied in an optional one-use JSON
- # beside the Setup.exe at installation, NOT baked into executable assets.
+ # Generic Firebase installer: no secrets or legacy Supabase enrollment
+ # tickets are embedded in executable assets.
  Run $Virtual @('-m','PyInstaller','--noconfirm','--clean','--onedir','--windowed',
   '--name','AlfaERP','--icon=assets\icons\alfa_personel.ico','--add-data','KİTAPS.xlsx;.','--add-data','katalog.json;.',
-  '--add-data','assets;assets','--hidden-import=auto_eslestir',
-  '--hidden-import=ekran_ayarlar_calisan','main.py')
+  '--add-data','assets;assets','main.py')
  Run $Virtual @('-m','PyInstaller','--noconfirm','--clean','--onedir','--windowed',
   '--name','AlfaBildirim','--icon=assets\icons\alfa_personel.ico','bildirim_servisi.py')
  $iss='alfa_personel.iss'
@@ -46,8 +45,7 @@ if($Edition -eq 'personel') {
  Run $Virtual @('-m','PyInstaller','--noconfirm','--clean','--onedir','--windowed',
   '--name','AlfaERPYonetici','--icon=assets\icons\alfa_yonetici.ico','--add-data','YONETICI_SURUMU.flag;.',
   '--add-data','KİTAPS.xlsx;.','--add-data','katalog.json;.',
-  '--add-data','assets;assets','--hidden-import=yonetici_giris',
-  '--hidden-import=yonetici_kompakt','--hidden-import=personel_paketi','main.py')
+  '--add-data','assets;assets','--hidden-import=yonetici_kompakt','main.py')
  $iss='alfa_yonetici.iss'
 }
 $Candidates=@(

@@ -495,7 +495,12 @@ class Workstation:
                     "device_id":self.uid,
                     "device_name":socket.gethostname()[:120],
                     "order_ids":[order_id],"created_at":now,
-                    "details":{"events":[copy.deepcopy(event) for event in changed]}}
+                    "details":{"events":[{
+                        "book_code":str(event.get("book_code") or ""),
+                        "print_type":str(event.get("print_type") or ""),
+                        "delta_ready":int(event.get("delta_ready") or 0),
+                        "delta_boxed":int(event.get("delta_boxed") or 0),
+                    } for event in changed]}}
                 return row,[{"op_id":str(event["op_id"]),
                              "order_id":order_id,
                              "version":int(processed[str(event["op_id"])])}

@@ -3,7 +3,7 @@ import sys, traceback, os, json
 from pathlib import Path
 from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBoxLayout,QStackedWidget,
  QLabel,QFrame,QGridLayout,QPushButton,QMessageBox,QInputDialog,QLineEdit)
-from PySide6.QtCore import Qt, QTimer, QThread, Signal
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QIcon,QPixmap,QPainter,QFont,QColor
 from database import ERPDatabase
 from ekran_katalog import KatalogView
@@ -20,21 +20,8 @@ from ayar_yonetimi import UserSettings, theme_styles
 from widgets import text,button,panel,Covers
 
 ROOT=Path(__file__).resolve().parent
-VERSION='6.3.0'
+VERSION='6.4.0'
 OWNER_EDITION=(ROOT/'YONETICI_SURUMU.flag').exists()
-
-
-class AutoEnrollment(QThread):
-    """Consume an optional private one-time Setup ticket after GUI is visible."""
-    succeeded=Signal()
-    failed=Signal(str)
-    def run(self):
-        try:
-            from auto_eslestir import main as enroll
-            enroll(install_startup=False)
-            self.succeeded.emit()
-        except Exception as exc:
-            self.failed.emit(str(exc)[:220])
 
 
 class AlfaMain(QMainWindow):
@@ -512,63 +499,5 @@ def start():
 
 
 
-def release_smoke_test():
-    """Offline startup and navigation probe used by Windows CI after PyInstaller.
-
-    Uses a fresh temporary directory and NEVER connects to production Supabase.
-    """
-    import json as _json
-    import tempfile as _tempfile
-    import traceback as _traceback
-    from pathlib import Path as _Path
-    os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
-    class _OfflineDevice:
-        paired=False
-        token=None
-    original_workstation=globals()['Workstation']
-    globals()['Workstation']=_OfflineDevice
-    with _tempfile.TemporaryDirectory(prefix='alfa_win_smoke_') as data_path:
-        os.environ['ALFA_ERP_DATA_DIR']=data_path
-        app=QApplication.instance() or QApplication(['AlfaERP-smoke'])
-        app.setApplicationName('ALFA ERP CI')
-        app.setStyle('Fusion')
-        window=None
-        try:
-            window=AlfaMain(admin_cloud=None)
-            from alfa_cihaz import OWNER_APP,SECRET
-            from auto_eslestir import ROOT as PRIVATE_TICKET_ROOT
-            if OWNER_APP != OWNER_EDITION:
-                raise RuntimeError('Owner/staff installer credential scope mismatch')
-            if bool('alfa_owner_cihaz.bin' in str(SECRET)) != OWNER_EDITION:
-                raise RuntimeError('Incorrect private DPAPI credential location')
-            if getattr(sys,'frozen',False) and PRIVATE_TICKET_ROOT != Path(sys.executable).resolve().parent:
-                raise RuntimeError('Private enrollment ticket location does not match installer')
-            if window.stack.count()!=5 or not window.db.katalog:
-                raise RuntimeError('Missing expected ERP page or book catalog')
-            # Headless test cannot answer the staff Analytics password dialog.
-            # Bypass the dialog only in this offline self-test invocation.
-            # Normal staff startup still requires the Analytics password.
-            window._analytics_unlocked = True
-            for index in range(5):
-                window.navigate(index)
-                app.processEvents()
-                if window.stack.currentIndex()!=index:
-                    raise RuntimeError(f'Navigation failed: {index}')
-            report={'ok': True, 'version': VERSION, 'pages':5,
-                    'books':len(window.db.katalog), 'mode':'owner' if OWNER_EDITION else 'staff'}
-            code=0
-        except Exception:
-            report={'ok':False, 'traceback':_traceback.format_exc()}
-            code=2
-        finally:
-            if window is not None:
-                window.close()
-            app.quit()
-        result_path=os.environ.get('ALFA_SMOKE_RESULT_PATH')
-        if result_path:
-            _Path(result_path).write_text(_json.dumps(report,ensure_ascii=False),encoding='utf-8')
-        globals()['Workstation']=original_workstation
-        return code
-
 if __name__=='__main__':
-    sys.exit(release_smoke_test() if '--self-test' in sys.argv else start())
+    sys.exit(start())
