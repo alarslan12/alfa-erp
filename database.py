@@ -287,10 +287,11 @@ class ERPDatabase:
             for event in combined:
                 if event.get('kind','progress')!=kind:break
                 if kind=='progress':
-                    # Never split a single order's bulk ready/box action into
-                    # 30 separate network rounds. All consecutive variants
-                    # for this order are one atomic Firebase transaction.
-                    if selected and str(event.get('order_id'))!=str(first.get('order_id')):
+                    # Normal path: all books for one order are one atomic PUT.
+                    # Error recovery sets max_events=1 to isolate bad events;
+                    # that mode MUST still return exactly one event.
+                    if selected and (max_events==1 or
+                       str(event.get('order_id'))!=str(first.get('order_id'))):
                         break
                 elif len(selected)>=max_events:
                     break
