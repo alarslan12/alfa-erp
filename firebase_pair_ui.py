@@ -29,6 +29,24 @@ class PairDialog(QDialog):
         self._verified=False
         self._task_done=None
         self.setWindowTitle("ALFA ERP · Firebase cihaz bağlantısı")
+        self.setObjectName("FirebasePairDialog")
+        theme=str(QApplication.instance().property('alfa_theme') or 'koyu')
+        palettes={
+            'acik':('#f6f1e8','#fffaf3','#253d55','#566e82','#c7b69f','#dce9f1'),
+            'koyu':('#102033','#1b3045','#f0f6fc','#bacfe1','#527395','#25486a'),
+            'kontrast':('#060b11','#15283d','#ffffff','#e5f5ff','#91adcb','#29496d')}
+        bg,card,fg,muted,edge,button=palettes.get(theme,palettes['koyu'])
+        self.setStyleSheet(f"""
+            QDialog#FirebasePairDialog {{background:{bg};color:{fg};}}
+            QLabel {{background:transparent;color:{fg};font-size:12px;}}
+            QLineEdit,QComboBox {{background:{card};color:{fg};
+                border:1px solid {edge};padding:7px;}}
+            QPushButton {{background:{button};color:{fg};
+                border:1px solid {edge};border-radius:8px;
+                padding:9px 12px;font-weight:700;}}
+            QPushButton:hover {{border:2px solid {edge};}}
+            QPushButton:disabled {{color:{muted};background:{card};}}
+        """)
         self.setMinimumWidth(540)
         layout=QVBoxLayout(self)
         intro=QLabel(
