@@ -231,7 +231,9 @@ class Workstation:
         return payload
 
     def read_error_acks(self):
-        records=self._get("error_acks")
+        """Bound acknowledgement downloads; never read the entire history."""
+        records=self._request("GET","error_acks",
+            query={"orderBy":'"$key"',"limitToLast":150})[0]
         return records if isinstance(records,dict) else {}
 
 

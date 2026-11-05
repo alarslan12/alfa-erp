@@ -313,7 +313,7 @@ class OwnerSettingsPage(SettingsPage):
             ids=set(str(x) for x in reports)
             new=ids-self._error_known if self._error_first_snapshot else set()
             self._error_first_snapshot=True
-            self._error_known.update(ids)
+            self._error_known=ids  # bounded to visible report window
             pending=self.error_inbox.set_entries(
                 reports,result.get("acks") or {})
             if self.nav and len(self.nav)>6:

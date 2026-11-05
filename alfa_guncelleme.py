@@ -142,6 +142,17 @@ def _download_asset(asset,destination,max_bytes,progress=None):
             os.unlink(name)
 
 
+
+def _file_hash(path):
+    digest=hashlib.sha256()
+    with open(path,"rb") as reader:
+        while True:
+            chunk=reader.read(512*1024)
+            if not chunk:break
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def _expected_checksum(content,filename):
     for line in content.splitlines():
         columns=line.strip().split(None,1)
@@ -166,7 +177,7 @@ def download_update(release,storage,progress=None):
         release["installer"]["name"])
     setup=target/release["installer"]["name"]
     if setup.exists():
-        sha=hashlib.sha256(setup.read_bytes()).hexdigest()
+        sha=_file_hash(setup)
         if sha==expected:
             if progress:progress(setup.stat().st_size,setup.stat().st_size)
             return {"path":str(setup),"sha256":expected,
@@ -232,7 +243,7 @@ def launch_update(verified,storage,app_executable,pending=0):
     expected=str(verified.get("sha256") or "").lower()
     if not re.fullmatch(r"[0-9a-f]{64}",expected):
         raise UpdateError("Güncelleme SHA-256 geçersiz")
-    actual=hashlib.sha256(setup.read_bytes()).hexdigest()
+    actual=_file_hash(setup)
     if actual!=expected:
         raise UpdateError("Güncelleme dosyası değişmiş; işlem iptal edildi")
     script_dir=Path(storage)/"updates"

@@ -374,6 +374,12 @@ class AlfaMain(QMainWindow):
         if self.stack.currentWidget() is self.analytics:self.analytics.refresh()
 
     def _cloud_status(self,online,message):
+        # Pending crash reports retry ONLY on an actual connectivity transition,
+        # not from a polling timer or on every ordinary sync status string.
+        previous=getattr(self,"_error_was_online",False)
+        self._error_was_online=bool(online)
+        if online and not previous:
+            connect_device(lambda:self.device)
         self.setWindowTitle('ALFA ERP · '+('Bulut bağlı' if online else 'Bağlantı bekleniyor'))
         self.setToolTip(message)
         conflicts=self.db.unreviewed_cloud_conflicts
