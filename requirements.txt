@@ -1,3 +1,4 @@
 # Windows 11 / Python 3.13 64-bit icin test hedefi
 PySide6==6.12.0
+PySide6-Pdf==6.12.0.140
 openpyxl==3.1.5

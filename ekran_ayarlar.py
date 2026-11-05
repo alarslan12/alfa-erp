@@ -204,7 +204,7 @@ class SettingsPage(QWidget):
         worker.progress.connect(self._cover_progress)
         worker.completed.connect(self._covers_done)
         worker.failed.connect(self._covers_failed)
-        worker.finished.connect(self._cover_finished)
+        worker.finished.connect(lambda w=worker:self._cover_finished(w))
         worker.finished.connect(worker.deleteLater)
         worker.start()
 
@@ -229,9 +229,9 @@ class SettingsPage(QWidget):
     def _covers_failed(self,message):
         self.pdf_status.setText('PDF kapak taraması tamamlanamadı: '+message)
 
-    def _cover_finished(self):
-        # A reused variable must not point at an already deleted Qt object.
-        self._cover_worker=None
+    def _cover_finished(self,worker):
+        if self._cover_worker is worker:
+            self._cover_worker=None
 
     def _stop_cover_worker(self):
         worker=self._cover_worker

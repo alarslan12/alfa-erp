@@ -37,7 +37,7 @@ if($Edition -eq 'personel') {
  # tickets are embedded in executable assets.
  Run $Virtual @('-m','PyInstaller','--noconfirm','--clean','--onedir','--windowed',
   '--name','AlfaERP','--icon=assets\icons\alfa_personel.ico','--add-data','KİTAPS.xlsx;.','--add-data','katalog.json;.',
-  '--add-data','assets;assets','main.py')
+  '--add-data','assets;assets','--hidden-import=PySide6.QtPdf','main.py')
  Run $Virtual @('-m','PyInstaller','--noconfirm','--clean','--onedir','--windowed',
   '--name','AlfaBildirim','--icon=assets\icons\alfa_personel.ico','bildirim_servisi.py')
  $iss='alfa_personel.iss'
@@ -45,7 +45,7 @@ if($Edition -eq 'personel') {
  Run $Virtual @('-m','PyInstaller','--noconfirm','--clean','--onedir','--windowed',
   '--name','AlfaERPYonetici','--icon=assets\icons\alfa_yonetici.ico','--add-data','YONETICI_SURUMU.flag;.',
   '--add-data','KİTAPS.xlsx;.','--add-data','katalog.json;.',
-  '--add-data','assets;assets','--hidden-import=yonetici_kompakt','main.py')
+  '--add-data','assets;assets','--hidden-import=PySide6.QtPdf','--hidden-import=yonetici_kompakt','main.py')
  $iss='alfa_yonetici.iss'
 }
 $Candidates=@(
