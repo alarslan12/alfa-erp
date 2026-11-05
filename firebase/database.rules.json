@@ -35,7 +35,7 @@
         "orders": {
           ".read": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true",
           "$id": {
-            ".write": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true && (root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'owner' || root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'staff')",
+            ".write": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true && (root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'owner' || root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'staff') && newData.exists()",
             ".validate": "newData.hasChildren(['id','status','version','order_number']) && newData.child('id').val() === $id && (newData.child('status').val() === 'havuz' || newData.child('status').val() === 'aktif' || newData.child('status').val() === 'tamamlandi') && newData.child('version').isNumber() && newData.child('version').val() >= 1 && (!data.exists() || newData.child('version').val() === data.child('version').val()+1) && (!data.exists() || newData.child('order_number').val() === data.child('order_number').val())"
           }
         },
