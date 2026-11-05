@@ -213,6 +213,9 @@ class Sync(QObject):
             self.pull_task=None
             self.force_pull=True
             self._consecutive_pull_failures+=1
+            if self._consecutive_pull_failures==4:
+                from alfa_hatalar import record_operational_error
+                record_operational_error("RepeatedPull",status)
             self._pull_retry_after=time.monotonic()+min(
                 600,(60 if status in (429,500,502,503,504) else 30)*
                 (2**min(self._consecutive_pull_failures-1,4)))
@@ -271,6 +274,8 @@ class Sync(QObject):
                 # A stale version/invalid operation is not a network outage.
                 # Quarantine a SINGLE poison entry; keep all other work flowing.
                 self.db.quarantine_batch(batch,message)
+                from alfa_hatalar import record_operational_error
+                record_operational_error("RejectedWrite",status)
                 self.retry_after=time.monotonic()+0.25
                 self._status(True,
                     f'{len(self.db._conflicts)} çakışma kayıt altına alındı · '
@@ -280,6 +285,9 @@ class Sync(QObject):
             # Network/timeouts/503 and revoked keys are NOT permanent poison
             # actions. Preserve the exact op_id so retries stay idempotent.
             self._consecutive_push_failures+=1
+            if self._consecutive_push_failures==4:
+                from alfa_hatalar import record_operational_error
+                record_operational_error("RepeatedPush",status)
             self.retry_after=time.monotonic()+min(
                 600,45*(2**min(self._consecutive_push_failures-1,4)))
             self._status(False,'Bulut işlemi geçici beklemede: '+

@@ -207,3 +207,12 @@ def record_error(error_type,error,tb,source="application"):
 def connect_device(provider):
     if REPORTER:
         REPORTER.set_device_provider(provider)
+
+def record_operational_error(category,status=0):
+    """Report a significant business sync failure without its message/payload."""
+    category=_name(category)
+    try:code=max(0,min(999,int(status)))
+    except (ValueError,TypeError):code=0
+    name="Cloud"+category+"Error"+str(code)
+    cls=type(name,(RuntimeError,),{})
+    record_error(cls,None,None,source="sync")
