@@ -33,7 +33,12 @@ export SUPABASE_DATABASE_URL
 trap 'unset SUPABASE_DATABASE_URL' EXIT
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 EXPORT_DIR="firebase/migration_exports/rtdb_$STAMP"
-python3 tools/firebase_export_supabase.py --output "$EXPORT_DIR"
+# Keep TLS enabled. On newer OpenSSL builds, hybrid post-quantum
+# ClientHello can exceed the Supavisor pooler's 1024-byte startup guard.
+# Limit only the PostgreSQL import connection to classical, still secure
+# X25519/P-256 ECDHE groups (do not disable encryption).
+PGGSSENCMODE=disable PGSSLMODE=require OPENSSL_CONF="$PWD/firebase/openssl-pooler.cnf" \
+  python3 tools/firebase_export_supabase.py --output "$EXPORT_DIR"
 unset SUPABASE_DATABASE_URL
 python3 tools/rtdb_migrate.py --input "$EXPORT_DIR"
 echo
