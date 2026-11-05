@@ -1,0 +1,48 @@
+name: Package verified ALFA ERP 6.5.0 stable Windows installers separately
+
+on:
+  push:
+    branches: [firebase-rtdb-final]
+    paths: ['.github/workflows/split-v650-installers.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  split:
+    name: Deliver prebuilt 6.5.0 installers (no rebuild)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Download verified final Windows build
+        uses: actions/download-artifact@v4
+        with:
+          name: ALFA_ERP_Firebase_RTDB_V6_5_0_PREVIEW
+          run-id: 42053258994
+          github-token: ${{ github.token }}
+          path: dist
+      - name: Verify SHA-256 before packaging
+        shell: bash
+        run: |
+          cd dist
+          sha256sum -c SHA256SUMS.txt
+          test -s ALFA_ERP_Yonetici_Setup_V6_5_0.exe
+          test -s ALFA_ERP_Personel_Setup_V6_5_0.exe
+      - name: Single Yönetici Setup archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: ALFA_ERP_Yonetici_V6_5_0_Stable_Kurulum
+          path: dist/ALFA_ERP_Yonetici_Setup_V6_5_0.exe
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+      - name: Single Personel Setup archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: ALFA_ERP_Personel_V6_5_0_Stable_Kurulum
+          path: dist/ALFA_ERP_Personel_Setup_V6_5_0.exe
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
