@@ -519,6 +519,28 @@ class EnvanterView(QWidget):
                            self._parent_sync()))
         remove.clicked.connect(remove_inventory)
         actions.addWidget(remove)
+        archive=QPushButton('Katalogdan arşivle')
+        archive.setToolTip('Ürünü iki listeden gizler; stok, alışlar ve satış geçmişi korunur. '
+                           'Genel Ürünler → Arşivlenenleri göster ile geri alınabilir.')
+        archive.setVisible(self.owner)
+        def archive_product():
+            pid=str(product.get('id') or '')
+            count=int(product.get('quantity') or 0)
+            warning=(f"Bu üründe {count} adet stok kaydı bulunuyor.\n"
+                     "Arşivleme stoğu silmez veya düşmez.\n\n"
+                     "Ürün aktif listelerden gizlenecek; Genel Ürünler → "
+                     "Arşivlenenleri göster ile tekrar açılabilir. Devam edilsin mi?")
+            if QMessageBox.question(dialog,'Ürünü arşivle',warning,
+                    QMessageBox.StandardButton.Yes|QMessageBox.StandardButton.No
+                    )!=QMessageBox.StandardButton.Yes:return
+            dialog.accept()
+            self._run_job('inventory_archive',
+                lambda:self._admin_request()('admin_inventory_archive',
+                                              product_id=pid,active=False),
+                lambda _:(self.sync_note.setText('Ürün arşivlendi · geçmiş korundu'),
+                           self._parent_sync()))
+        archive.clicked.connect(archive_product)
+        actions.addWidget(archive)
         actions.addStretch()
         dismiss=QPushButton('Kapat');dismiss.clicked.connect(dialog.accept)
         actions.addWidget(dismiss)
