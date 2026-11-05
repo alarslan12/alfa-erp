@@ -28,7 +28,7 @@ jobs:
           fi
       - uses: actions/download-artifact@v4
         with:
-          name: ALFA_ERP_6_6_0_STABLE_INSTALLERS
+          name: ALFA_ERP_Firebase_RTDB_V6_6_0_PREVIEW
           run-id: ${{ inputs.source_run_id }}
           github-token: ${{ github.token }}
           path: ./release
