@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
     QLayout, QLabel, QLineEdit, QComboBox, QPushButton, QScrollArea,
     QTextEdit, QSpinBox, QDoubleSpinBox, QMessageBox, QFileDialog,
     QSizePolicy, QFormLayout, QStackedWidget, QProgressBar, QCompleter,
-    QTableWidget, QTableWidgetItem, QHeaderView, QAbstractItemView
+    QTableWidget, QTableWidgetItem, QHeaderView, QAbstractItemView, QInputDialog
 )
 from inventory_batches import sorted_batches, batch_stock_value
 
@@ -335,19 +335,28 @@ class EnvanterView(QWidget):
                           ('Son 30 gün',30),('Son 90 gün',90),('Son 365 gün',365)):
             self.history_period.addItem(name,days)
         row.addWidget(self.history_period)
+        self.cancel_sale_button=QPushButton('↶ Seçili satışı iptal et')
+        self.cancel_sale_button.setObjectName('Danger')
+        self.cancel_sale_button.setEnabled(False)
+        self.cancel_sale_button.setVisible(self.owner)
+        self.cancel_sale_button.clicked.connect(self.cancel_selected_sale)
+        row.addWidget(self.cancel_sale_button)
         sales_layout.addLayout(row)
         self.history_count=QLabel('')
         self.history_count.setObjectName('InventoryHistoryCount')
         self.history_count.setWordWrap(True)
         sales_layout.addWidget(self.history_count)
-        self.history_table=QTableWidget(0,8)
+        self._history_display=[]
+        self.history_table=QTableWidget(0,9)
         self.history_table.setObjectName('InventoryHistoryTable')
         self.history_table.setHorizontalHeaderLabels([
             'Satış tarihi','Ürün','Alım / parti',
-            'Adet','Alış/adet','Satış/adet','Ciro','Brüt fark'])
+            'Adet','Alış/adet','Satış/adet','Ciro','Brüt fark','Durum'])
         self.history_table.verticalHeader().hide()
         self.history_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.history_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.history_table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.history_table.itemSelectionChanged.connect(self._sale_selection_changed)
         self.history_table.setAlternatingRowColors(True)
         self.history_table.setShowGrid(False)
         self.history_table.setMinimumHeight(350)
@@ -553,8 +562,25 @@ class EnvanterView(QWidget):
             return
         dialog=QDialog(self)
         dialog.setWindowTitle('Satış · Alım partisini ve satış fiyatını seç')
-        dialog.resize(650,330)
-        layout=QVBoxLayout(dialog)
+        dialog.resize(680,400)
+        theme=str(QApplication.instance().property('alfa_theme') or 'koyu')
+        if theme=='acik':
+            bg,card,fg,border='#f6f1e8','#fffaf2','#243a51','#cbbca5'
+        elif theme=='kontrast':
+            bg,card,fg,border='#060b11','#172638','#ffffff','#85a9ce'
+        else:
+            bg,card,fg,border='#102033','#1b3045','#eef4fb','#527395'
+        dialog.setStyleSheet(f"""
+            QDialog {{background:{bg};color:{fg};}}
+            QFrame#InventorySaleCard {{background:{card};border:1px solid {border};
+                border-radius:12px;}}
+            QLabel#InventorySalePill {{background:{card};color:{fg};
+                border:1px solid {border};border-radius:8px;padding:9px;font-weight:700;}}
+            QLabel#PageTitle, QLabel {{color:{fg};}}
+            QComboBox,QSpinBox,QDoubleSpinBox {{background:{card};color:{fg};
+                border:1px solid {border};padding:7px;border-radius:6px;}}
+        """)
+        layout=QVBoxLayout(dialog);layout.setSpacing(12)
         heading=QLabel(str(product.get('title') or 'Ürün'))
         heading.setObjectName('PageTitle');layout.addWidget(heading)
         note=QLabel('Hangi alıştan satıldığını seç; satış fiyatını satışı '
@@ -587,11 +613,23 @@ class EnvanterView(QWidget):
         picker.currentIndexChanged.connect(preview)
         quantity.valueChanged.connect(preview)
         selling.valueChanged.connect(preview)
-        form=QFormLayout()
-        form.addRow('Hangi stok partisinden?',picker)
-        form.addRow('Satılan adet',quantity)
+        # A clear sale form split into pill-like summary and input groups.
+        pills=QHBoxLayout()
+        stock_pill=QLabel(f"📦 Stok  {int(product.get('quantity') or 0)} adet")
+        stock_pill.setObjectName('InventorySalePill')
+        lots_pill=QLabel(f"◈ {len(lots)} alım partisi")
+        lots_pill.setObjectName('InventorySalePill')
+        detail_pill=QLabel('✓ Firebase kayıtlı satış')
+        detail_pill.setObjectName('InventorySalePill')
+        for pill in (stock_pill,lots_pill,detail_pill):pills.addWidget(pill,1)
+        layout.addLayout(pills)
+        card=QFrame();card.setObjectName('InventorySaleCard')
+        form=QFormLayout(card)
+        form.setContentsMargins(16,14,16,14);form.setSpacing(12)
+        form.addRow('Alım partisi',picker)
+        form.addRow('Satış adedi',quantity)
         form.addRow('Birim satış fiyatı',selling)
-        layout.addLayout(form);layout.addWidget(estimate)
+        layout.addWidget(card);layout.addWidget(estimate)
         actions=QHBoxLayout();actions.addStretch()
         cancel=QPushButton('Vazgeç');cancel.clicked.connect(dialog.reject)
         submit=QPushButton('Satışı kaydet');submit.setObjectName('Accent')
@@ -680,6 +718,7 @@ class EnvanterView(QWidget):
         sales=getattr(self.db,'inventory_sales',[]) or []
         counts=defaultdict(int);money=0.0;cost=0.0
         for sale in sales:
+            if sale.get('cancelled_at'):continue
             n=int(sale.get('quantity') or 0)
             counts[str(sale.get('product_id'))]+=n
             money+=n*float(sale.get('sale_price') or 0)
@@ -687,6 +726,7 @@ class EnvanterView(QWidget):
         self.sales_counts=dict(counts)
         self.sales_amounts=defaultdict(float)
         for sale in sales:
+            if sale.get('cancelled_at'):continue
             self.sales_amounts[str(sale.get('product_id'))]+=int(sale.get('quantity') or 0)*float(sale.get('sale_price') or 0)
         active=[p for p in rows if p.get('active',True) and p.get('in_inventory',True)]
         self.summary.setText(f'   {len(active)} ürün     ·     {sum(int(p.get("quantity") or 0) for p in active):,} mevcut adet'
@@ -715,13 +755,17 @@ class EnvanterView(QWidget):
         window=int(self.history_period.currentData() or 0)
         cutoff=today-timedelta(days=window-1) if window else None
         filtered=[]
+        history_filtered=[]
         for record in rows:
             try:day=date.fromisoformat(str(record.get('created_at') or '')[:10])
             except (ValueError,TypeError):day=None
             amount=int(record.get('quantity') or 0)*float(record.get('sale_price') or 0)
-            if day in days:days[day]+=amount
             if cutoff is None or (day is not None and day>=cutoff):
-                filtered.append(record)
+                history_filtered.append(record)
+                if not record.get('cancelled_at'):
+                    filtered.append(record)
+            if day in days and not record.get('cancelled_at'):
+                days[day]+=amount
         self.bars.set_data([(day.isoformat(),amount) for day,amount in days.items()])
         units=sum(int(row.get('quantity') or 0) for row in filtered)
         revenue=sum(int(row.get('quantity') or 0)*float(row.get('sale_price') or 0)
@@ -759,11 +803,14 @@ class EnvanterView(QWidget):
                 bar.setFormat(f'{amount} adet');line.addWidget(bar,1)
                 wrapper=QWidget();wrapper.setLayout(line)
                 self.top_products.addWidget(wrapper)
-        filtered.sort(key=lambda row:str(row.get('created_at') or ''),reverse=True)
-        shown=filtered[:250]
+        history_filtered.sort(key=lambda row:str(row.get('created_at') or ''),reverse=True)
+        shown=history_filtered[:250]
+        self._history_display=shown
         self.history_count.setText(
-            f'{len(filtered):,} kayıt · {len(shown)} satır gösteriliyor. '
-            'Satış kârı, satılan partinin gerçek birim alış maliyetine göre hesaplanır.')
+            f'{len(filtered):,} geçerli satış · '
+            f'{len(history_filtered)-len(filtered):,} iptal · '
+            f'{len(shown)} satır gösteriliyor. '
+            'İptaller stok partisine iade edilir ve geçmişte görünür.')
         self.history_table.setRowCount(len(shown))
         for i,record in enumerate(shown):
             pid=str(record.get('product_id') or '')
@@ -777,16 +824,61 @@ class EnvanterView(QWidget):
             batch_id=str(record.get('batch_id') or '')
             batch_text=_date_label(record.get('purchase_at'))
             if batch_id:batch_text+=' · '+batch_id[:8]
+            cancelled=bool(record.get('cancelled_at'))
             values=(
                 _date_label(record.get('created_at')),name,batch_text,
                 str(quantity),f'{bought:,.2f} TL',
                 f'{sold:,.2f} TL',f'{revenue_row:,.2f} TL',
-                f'{gain_row:+,.2f} TL')
+                f'{gain_row:+,.2f} TL',
+                'İPTAL · '+_date_label(record.get('cancelled_at')) if cancelled else 'Geçerli')
             for column,value in enumerate(values):
                 cell=QTableWidgetItem(value)
-                if column==7:
-                    cell.setForeground(QColor('#42dbae' if gain_row>=0 else '#ff8ea1'))
+                if column==7 and not cancelled:
+                    cell.setForeground(QColor('#17805c' if gain_row>=0 else '#b44255'))
+                if cancelled:
+                    cell.setForeground(QColor('#9a7780'))
                 self.history_table.setItem(i,column,cell)
+        self._sale_selection_changed()
+
+    def _sale_selection_changed(self):
+        index=self.history_table.currentRow()
+        item=(self._history_display[index] if
+              0<=index<len(self._history_display) else None)
+        self.cancel_sale_button.setEnabled(bool(
+            self.owner and item and item.get('id') and
+            item.get('product_id') and not item.get('cancelled_at')))
+
+    def cancel_selected_sale(self):
+        index=self.history_table.currentRow()
+        if not (0<=index<len(self._history_display)):return
+        sale=self._history_display[index]
+        if sale.get('cancelled_at'):return
+        request=self._admin_request()
+        if not callable(request):
+            QMessageBox.warning(self,'Satış iptali','Yönetici yetkisi gereklidir.')
+            return
+        qty=int(sale.get('quantity') or 0)
+        question=(f"{qty} adetlik satış iptal edilecek.\n"
+                  "Aynı alım partisine stok geri eklenecek; satış geçmişi silinmeyecek.\n"
+                  "Devam edilsin mi?")
+        if QMessageBox.question(self,'Satışı iptal et',question,
+                QMessageBox.StandardButton.Yes|QMessageBox.StandardButton.No
+                )!=QMessageBox.StandardButton.Yes:return
+        reason,ok=QInputDialog.getText(self,'Satış iptal nedeni',
+                                        'İşlem geçmişi için kısa açıklama:')
+        if not ok or not reason.strip():return
+        pid=str(sale['product_id'])
+        sid=str(sale['id'])
+        self.cancel_sale_button.setEnabled(False)
+        self.sync_note.setText('Satış iptal işlemi Firebase’de doğrulanıyor…')
+        def done(_):
+            self.sync_note.setText('Satış iptal edildi · stok güncelleniyor')
+            self._parent_sync()
+        def failed(_):
+            self.sync_note.setText('Satış iptal edilemedi; stok korunuyor')
+            self._sale_selection_changed()
+        self._run_job('cancel_sale',lambda:request('admin_inventory_cancel_sale',
+                      product_id=pid,sale_id=sid,reason=reason.strip()),done,failed)
 
     def render(self,*_):
         rows=[x for x in (getattr(self.db,'inventory_products',[]) or [])
