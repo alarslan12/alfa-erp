@@ -1,6 +1,6 @@
 """Shared general product catalogue, separate from the printed-book ordering catalogue.
 
-Product master records live in erp_inventory_products. Only products explicitly
+Product master records live in the shared Firebase Realtime Database. Only products explicitly
 assigned to inventory appear in the stock/sales panel. Staff can browse the
 general catalogue; only an authenticated owner can make modifications.
 """
@@ -28,7 +28,7 @@ class GeneralProductCatalog(QWidget):
         self.new_button.clicked.connect(lambda:self.edit_product(None))
         header.addWidget(self.new_button)
         root.addLayout(header)
-        info=QLabel('Ürün önce burada kaydedilir. Stok tanımlamak için Envanter → Katalogdan ekle yolunu kullan.')
+        info=QLabel('Ürün önce burada kaydedilir. Alım yapmak için Envanter → Stok ve Envanter → Alım partisi ekle yolunu kullan.')
         info.setWordWrap(True);info.setObjectName('GeneralCatalogHint');root.addWidget(info)
         row=QHBoxLayout()
         self.search=QLineEdit();self.search.setPlaceholderText('Ürün adı, kodu, kategori veya etikette ara…')
@@ -41,7 +41,7 @@ class GeneralProductCatalog(QWidget):
         root.addLayout(row)
         self.table=QTableWidget(0,5)
         self.table.setObjectName('GeneralCatalogTable')
-        self.table.setHorizontalHeaderLabels(['Ürün kodu','Ürün adı','Kategori','Satış fiyatı','Envanter'])
+        self.table.setHorizontalHeaderLabels(['Ürün kodu','Ürün adı','Kategori','Mevcut stok','Envanter'])
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
@@ -87,7 +87,7 @@ class GeneralProductCatalog(QWidget):
             values=[
                 str(p.get('sku') or ''),str(p.get('title') or ''),
                 str(p.get('category') or 'Genel'),
-                f"{float(p.get('sale_price') or 0):,.2f} TL",
+                f"{int(p.get('quantity') or 0):,} adet",
                 'Stokta' if p.get('in_inventory',True) else 'Henüz eklenmedi'
             ]
             for col,val in enumerate(values):
