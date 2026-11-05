@@ -1,5 +1,8 @@
 """ALFA ERP desktop settings: appearance, notification tones and local PDF covers."""
 from pathlib import Path
+import os
+import shutil
+import tempfile
 
 from PySide6.QtCore import QThread, Signal, QTimer
 from PySide6.QtWidgets import (
@@ -44,11 +47,61 @@ class CoverWorker(QThread):
                 self.failed.emit(str(exc)[:260])
 
 
+class PdfImportWorker(QThread):
+    """Copy selected PDF files without freezing the Qt interface.
+
+    Never overwrite an existing filename or upload PDF data to Firebase.
+    Temporary files are discarded if copying fails or the app exits.
+    """
+    completed=Signal(dict)
+    failed=Signal(str)
+
+    def __init__(self,files,destination,parent=None):
+        super().__init__(parent)
+        self.sources=tuple(str(item) for item in files)
+        self.destination=Path(destination)
+
+    def run(self):
+        copied=0;skipped=0
+        try:
+            self.destination.mkdir(parents=True,exist_ok=True)
+            for raw in self.sources:
+                if self.isInterruptionRequested():return
+                source=Path(raw)
+                if (not source.is_file() or source.suffix.lower()!='.pdf'
+                    or source.stat().st_size>200*1024*1024):
+                    skipped+=1;continue
+                dest=self.destination/source.name
+                if dest.exists() or source.resolve()==dest.resolve():
+                    skipped+=1;continue
+                fd,tmp=tempfile.mkstemp(prefix='.alfa_pdf_import_',suffix='.tmp',
+                                         dir=self.destination)
+                try:
+                    with os.fdopen(fd,'wb') as out, open(source,'rb') as inp:
+                        shutil.copyfileobj(inp,out,1024*1024)
+                        out.flush();os.fsync(out.fileno())
+                    if dest.exists():
+                        skipped+=1
+                    else:
+                        os.replace(tmp,dest)
+                        copied+=1
+                finally:
+                    if os.path.exists(tmp):os.unlink(tmp)
+            if not self.isInterruptionRequested():
+                self.completed.emit({'copied':copied,'skipped':skipped})
+        except (OSError,ValueError) as exc:
+            self.failed.emit(str(exc)[:240])
+
+
 class SettingsPage(QWidget):
-    def __init__(self,db,config):
+    def __init__(self,db,config,staff_mode=False):
         super().__init__()
         self.db=db
         self.config=config
+        # OwnerSettingsPage subclasses this page; its historical tab
+        # indexes remain untouched. Only staff gets the support tab.
+        self.staff_mode=bool(staff_mode)
+        self._pdf_import_worker=None
         self.pdf=PdfKutuphane(Path(db.siparis_dosyasi).parent)
         self._cover_worker=None
         self._update_check_worker=None
@@ -56,7 +109,8 @@ class SettingsPage(QWidget):
         root.addWidget(text('ÇALIŞMA AYARLARI','SettingsTitle'))
         self.nav=[]
         nav=QHBoxLayout()
-        for i,label in enumerate(('Görünüm ve bildirimler','Kitap PDF klasörü')):
+        for i,label in enumerate(('Görünüm ve bildirimler','Kitap PDF klasörü')+
+                                 (('Cihaz ve destek',) if self.staff_mode else ())):
             tab=button(label,'SettingsNav')
             tab.setCheckable(True)
             tab.clicked.connect(lambda checked=False,x=i:self.show_tab(x))
@@ -143,7 +197,13 @@ class SettingsPage(QWidget):
         pick.clicked.connect(self.select_pdf)
         reload=button('Tara ve kapakları güncelle','SmallAction')
         reload.clicked.connect(self.rescan_pdf)
+        import_pdfs=button('PDF dosyalarını içe aktar','SmallAction')
+        import_pdfs.setToolTip('PDF dosyalarını seçilen kütüphaneye kopyalar, '
+                               'kitap koduyla eşleştirir ve kapak üretir; '
+                               'var olan dosyaları değiştirmez.')
+        import_pdfs.clicked.connect(self.import_pdf_files)
         pdf_row.addWidget(pick)
+        pdf_row.addWidget(import_pdfs)
         pdf_row.addWidget(reload)
         controls.addLayout(pdf_row)
         self.pdf_status=QLabel('PDF kapağı üretimi henüz yapılmadı.')
@@ -154,17 +214,55 @@ class SettingsPage(QWidget):
         col.addStretch()
         self.stack.addWidget(page)
 
+        if self.staff_mode:
+            support=QWidget()
+            support_col=QVBoxLayout(support)
+            device_card=QFrame();device_card.setObjectName('SettingsCard')
+            device_col=QVBoxLayout(device_card)
+            device_col.addWidget(text('Cihaz yetkisi','SettingsHeading'))
+            hint=QLabel('Bu bilgisayarın Firebase yetkisini kontrol et veya '
+                        'ilk kez bağlan. Yetki yöneticiden alınır; '
+                        'PDF ve kapak dosyaları yerel bilgisayarda kalır.')
+            hint.setObjectName('SettingsHint');hint.setWordWrap(True)
+            device_col.addWidget(hint)
+            self.staff_device_button=button('◉ Cihaz yetkisini aç','Accent')
+            self.staff_device_button.setEnabled(False)
+            device_col.addWidget(self.staff_device_button)
+            support_col.addWidget(device_card)
+            report_card=QFrame();report_card.setObjectName('SettingsCard')
+            report_col=QVBoxLayout(report_card)
+            report_col.addWidget(text('Hata bildir','SettingsHeading'))
+            note=QLabel('Yönetici Hata Merkezi’ne kişisel sipariş içeriği '
+                        'olmadan teknik sorun kategorisi gönder.')
+            note.setObjectName('SettingsHint');note.setWordWrap(True)
+            report_col.addWidget(note)
+            self.staff_report_button=button('⚠ Hata Bildir','SmallAction')
+            self.staff_report_button.setEnabled(False)
+            report_col.addWidget(self.staff_report_button)
+            support_col.addWidget(report_card)
+            support_col.addStretch()
+            self.stack.addWidget(support)
+
         self.show_tab(0)
         # Only filesystem mtime checks on later app launches; no PDF pages
         # are rendered again unless changed or newly added.
         app=QApplication.instance()
         if app:
             app.aboutToQuit.connect(self._stop_cover_worker)
+            app.aboutToQuit.connect(self._stop_pdf_import_worker)
             app.aboutToQuit.connect(self._stop_update_worker)
         if self.pdf.folder:
             QTimer.singleShot(2400,self.generate_pdf_covers)
         # One background release check at most once per 24h. No periodic timer.
         QTimer.singleShot(11000,self.check_updates_on_startup)
+
+    def set_staff_actions(self,connect_device,report_error):
+        """Wire staff-only buttons to the existing trusted GUI workflows."""
+        if not self.staff_mode:return
+        self.staff_device_button.clicked.connect(connect_device)
+        self.staff_report_button.clicked.connect(report_error)
+        self.staff_device_button.setEnabled(True)
+        self.staff_report_button.setEnabled(True)
 
     def show_tab(self,index):
         self.current_tab=index
@@ -203,6 +301,56 @@ class SettingsPage(QWidget):
             self.generate_pdf_covers()
         except Exception as exc:
             QMessageBox.warning(self,'PDF',str(exc))
+
+    def import_pdf_files(self):
+        """Bring actual PDFs into the local library, never the cloud."""
+        if self._pdf_import_worker and self._pdf_import_worker.isRunning():
+            self.pdf_status.setText('PDF içe aktarma zaten devam ediyor.')
+            return
+        files,_=QFileDialog.getOpenFileNames(self,'İçe aktarılacak kitap PDF dosyaları',
+                                             str(self.pdf.folder or Path.home()),
+                                             'PDF dosyaları (*.pdf)')
+        if not files:return
+        if len(files)>150:
+            QMessageBox.warning(self,'PDF içe aktarma',
+                                'Tek seferde en fazla 150 PDF seçilebilir.')
+            return
+        destination=self.pdf.folder or (self.pdf.data_dir/'pdf_ice_aktarilanlar')
+        if self.pdf.folder:
+            response=QMessageBox.question(self,'PDF dosyalarını içe aktar',
+                f"{len(files)} PDF seçildi.\n\nDosyalar mevcut PDF "
+                f"kütüphanesine kopyalanacak:\n{destination}\n\n"
+                "Aynı isimli dosyalar atlanacak, değiştirilmez. Devam edilsin mi?",
+                QMessageBox.StandardButton.Yes|QMessageBox.StandardButton.No)
+            if response!=QMessageBox.StandardButton.Yes:return
+        worker=PdfImportWorker(files,destination,self)
+        self._pdf_import_worker=worker
+        self.pdf_status.setText(f'{len(files)} PDF güvenli biçimde içe aktarılıyor…')
+        def finished(result):
+            try:
+                if self.pdf.folder is None:
+                    self.pdf.set_folder(destination)
+                else:
+                    self.pdf.scan()
+                self.show_tab(1)
+                self.pdf_status.setText(
+                    f"PDF içe aktarma: {result['copied']} yeni · "
+                    f"{result['skipped']} zaten var / atlandı. "
+                    "Kapaklar güncelleniyor…")
+                self.generate_pdf_covers()
+            except Exception as exc:
+                self.pdf_status.setText(
+                    'Dosyalar korundu fakat PDF kütüphanesi güncellenemedi: '+str(exc)[:180])
+        worker.completed.connect(finished)
+        worker.failed.connect(lambda message:self.pdf_status.setText(
+            'PDF içe aktarma durduruldu, mevcut dosyalar korunuyor: '+message))
+        worker.finished.connect(lambda w=worker:self._pdf_import_finished(w))
+        worker.finished.connect(worker.deleteLater)
+        worker.start()
+
+    def _pdf_import_finished(self,worker):
+        if self._pdf_import_worker is worker:
+            self._pdf_import_worker=None
 
     def rescan_pdf(self):
         self.generate_pdf_covers()
@@ -299,6 +447,16 @@ class SettingsPage(QWidget):
                 if job.isRunning():
                     job.requestInterruption()
                     job.wait()
+            except RuntimeError:
+                pass
+
+    def _stop_pdf_import_worker(self):
+        worker=self._pdf_import_worker
+        if worker is not None:
+            try:
+                if worker.isRunning():
+                    worker.requestInterruption()
+                    worker.wait()
             except RuntimeError:
                 pass
 
