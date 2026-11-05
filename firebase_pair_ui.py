@@ -67,22 +67,30 @@ class PairDialog(QDialog):
         self._workers.append(worker)
         self.create.setEnabled(False)
         self.check.setEnabled(False)
-        worker.done.connect(done)
-        worker.failed.connect(lambda message:self.status.setText(message))
+        if self.owner:self.approve.setEnabled(False)
+        # Do not execute dialog callbacks on "done": QThread.run() may
+        # still be active when that signal is delivered. "finished" is the
+        # only safe point to open another modal or close this dialog.
+        outcome={'value':None,'error':None}
+        worker.done.connect(lambda value:outcome.__setitem__('value',value))
+        worker.failed.connect(lambda message:outcome.__setitem__('error',message))
         def finish():
-            # The 'finished' signal can fire during Qt thread teardown.
-            # wait() is immediate or near-immediate here, and guarantees that
-            # destroying the dialog cannot destroy a still-running QThread.
             worker.wait()
             if self._task is worker:
                 self._task=None
+            try:self._workers.remove(worker)
+            except ValueError:pass
             self.create.setEnabled(True)
             self.check.setEnabled(True)
+            if self.owner:self.approve.setEnabled(True)
+            if outcome['error'] is not None:
+                self.status.setText(str(outcome['error']))
+            else:
+                try:done(outcome['value'])
+                except Exception as exc:self.status.setText("Cihaz işlemi: "+str(exc)[:190])
             if self._accept_pending:
                 self._accept_pending=False
                 QTimer.singleShot(0,self.accept)
-            try:self._workers.remove(worker)
-            except ValueError:pass
         worker.finished.connect(finish)
         worker.finished.connect(worker.deleteLater)
         worker.start()

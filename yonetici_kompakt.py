@@ -41,14 +41,24 @@ class OwnerSettingsPage(SettingsPage):
 
     def _job(self,fn,on_success,on_error=None):
         work=RequestJob(fn,self);self.jobs.add(work)
-        def done(value):
-            self.jobs.discard(work);on_success(value)
-        def fail(msg):
+        outcome={'ok':False,'value':None,'error':None}
+        work.success.connect(lambda value:outcome.update(ok=True,value=value))
+        work.failure.connect(lambda msg:outcome.update(error=msg))
+        def finished():
+            # A dialog may be opened by a result callback. Ensure QThread
+            # is fully stopped before invoking GUI callbacks or releasing it.
+            work.wait()
             self.jobs.discard(work)
-            if on_error:on_error(msg)
-            else:QMessageBox.warning(self,'Yönetici',msg)
-        work.success.connect(done);work.failure.connect(fail)
-        work.finished.connect(work.deleteLater);work.start()
+            try:
+                if outcome['ok']:on_success(outcome['value'])
+                elif on_error:on_error(outcome['error'] or 'Yönetici işlemi başarısız')
+                else:QMessageBox.warning(self,'Yönetici',
+                    outcome['error'] or 'Yönetici işlemi başarısız')
+            except Exception as exc:
+                QMessageBox.warning(self,'Yönetici',str(exc)[:240])
+        work.finished.connect(finished)
+        work.finished.connect(work.deleteLater)
+        work.start()
 
     def catalog_page(self):
         page=QWidget();page.setObjectName('OwnerToolPage');col=QVBoxLayout(page)

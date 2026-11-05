@@ -4,7 +4,7 @@ Staff can unlock the UI with the owner-defined PIN, but server roles still contr
 Firebase Realtime Database PIN is a UI gate; not a server-enforced secret verifier.
 Do not treat it as a separate authorization boundary. Device roles remain enforced by RTDB Rules.
 """
-from PySide6.QtCore import Qt,QThread,Signal
+from PySide6.QtCore import Qt,QThread,Signal,QTimer
 from PySide6.QtWidgets import (
     QDialog,QVBoxLayout,QHBoxLayout,QLabel,QLineEdit,QPushButton
 )
@@ -58,6 +58,7 @@ class AnalyticsGate(QDialog):
         self.owner=bool(owner)
         self.mode='verify'
         self._worker=None
+        self._workers=[]
         self.setWindowTitle('ALFA ERP · Analitik PIN')
         self.setMinimumWidth(410)
         root=QVBoxLayout(self)
@@ -131,17 +132,25 @@ class AnalyticsGate(QDialog):
         self.note.setText('PIN güvenli sunucuda kontrol ediliyor…')
         worker=PINWorker(self.mode,pin,token,self)
         self._worker=worker
+        self._workers.append(worker)
         self.pin.clear()
         self.confirm.clear()
         result={'ok':False,'error':None}
         worker.succeeded.connect(lambda:result.__setitem__('ok',True))
         worker.failed.connect(lambda error:result.__setitem__('error',error))
         def finished():
-            self._worker=None
+            # Qt signals may be delivered before the worker thread is fully
+            # torn down. Never destroy the PIN dialog (and its QThread child)
+            # while that thread is still alive.
+            worker.wait()
+            if self._worker is worker:
+                self._worker=None
+            try:self._workers.remove(worker)
+            except ValueError:pass
             self.button.setEnabled(True)
             if self.set_button:self.set_button.setEnabled(True)
             if result['ok']:
-                self.accept()
+                QTimer.singleShot(0,self.accept)
             else:
                 self.note.setText(str(result['error'] or 'PIN kontrolü tamamlanamadı'))
         worker.finished.connect(finished)
@@ -149,7 +158,7 @@ class AnalyticsGate(QDialog):
         worker.start()
 
     def reject(self):
-        if self._worker and self._worker.isRunning():
+        if any(worker.isRunning() for worker in self._workers):
             self.note.setText('PIN kontrolü tamamlanıyor…')
             return
         super().reject()

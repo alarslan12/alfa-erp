@@ -15,6 +15,9 @@ WizardStyle=modern
 SetupIconFile=assets\icons\alfa_personel.ico
 AppPublisher=ALFA ERP
 UninstallDisplayIcon={app}\AlfaERP.exe
+SetupLogging=yes
+DisableWelcomePage=no
+DisableReadyPage=no
 DisableProgramGroupPage=yes
 [Files]
 Source: "dist\AlfaERP\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
