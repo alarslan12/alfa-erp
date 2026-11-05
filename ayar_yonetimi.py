@@ -135,6 +135,9 @@ def theme_styles(name):
         QPushButton#OrderPrintCTA {background:#efb05f; color:#152335; border:2px solid #ffe7a4;}
         QPushButton#OrderPrintCTA:disabled {background:#3a4550; color:#b5c0cd; border-color:#657587;}
         QPushButton#TrackSelectAllToggle:checked {background:#8e63c0; color:#fff; border-color:#d9beff;}
+        QWidget#InventoryHost {background:#060b11;color:#ffffff;}
+        QPushButton#InventoryModeTab {background:#142741;color:#ffffff;border:1px solid #a3d4ff;}
+        QPushButton#InventoryModeTab:checked {background:#195c9a;border:2px solid #ffe28e;color:#ffffff;}
         QPushButton#TrackUnpreparedToggle:checked {background:#927038; color:#fff; border-color:#f5d183;}
         '''
     if name=='acik':
@@ -159,6 +162,9 @@ def theme_styles(name):
         QPushButton#Accent {background:#d8a25f; color:#fffaf1; border-color:#c89557;}
         QPushButton#Success {background:#cde7d8; color:#24513f; border-color:#8ab79e;}
         QPushButton#Danger {background:#efd6d1; color:#723f44; border-color:#d3a0a0;}
+        QPushButton#InventoryModeTab {background:#e8dcc9;color:#28485f;border:1px solid #ad9677;}
+        QPushButton#InventoryModeTab:hover {background:#d5c2a6;color:#18334d;border-color:#a88c65;}
+        QPushButton#InventoryModeTab:checked {background:#d8a45c;color:#17324b;border:2px solid #a97d3c;}
         QPushButton#Nav {color:#31506b; background:transparent;}
         QPushButton#Nav:hover {background:#efe4d4; color:#21405b;}
         QPushButton#Nav:checked {color:#21405b; background:#e2d2bb; border-bottom:2px solid #c89252;}

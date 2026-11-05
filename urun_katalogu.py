@@ -151,7 +151,7 @@ class GeneralProductCatalog(QWidget):
     def apply_theme(self):
         name=QApplication.instance().property('alfa_theme') or 'koyu'
         palettes={
-            'koyu':('#142234','#21374e','#f0f7ff','#abc2d6','#47627d','#31566f'),
+            'koyu':('#10243a','#1b3655','#f4f9ff','#b9d3eb','#4f7da7','#1a73b8'),
             'acik':('#f6f1e8','#fffaf2','#243a51','#63788c','#cfbea7','#e7d9c3'),
             'kontrast':('#070b10','#152b44','#ffffff','#e6f5ff','#91adcb','#284762')
         }

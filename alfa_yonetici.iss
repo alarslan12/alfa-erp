@@ -1,5 +1,5 @@
 #define MyAppName "ALFA ERP Yönetici"
-#define MyAppVersion "6.4.0"
+#define MyAppVersion "6.4.1"
 [Setup]
 AppId={{E151CC0D-9154-42D0-BF2F-E01CE71C5C36}
 AppName={#MyAppName}
@@ -7,7 +7,7 @@ AppVersion={#MyAppVersion}
 DefaultDirName={localappdata}\Programs\ALFA ERP Yönetici
 DefaultGroupName={#MyAppName}
 OutputDir=output
-OutputBaseFilename=ALFA_ERP_Yonetici_Setup_V6_4_0
+OutputBaseFilename=ALFA_ERP_Yonetici_Setup_V6_4_1
 Compression=lzma2
 SolidCompression=yes
 PrivilegesRequired=lowest
