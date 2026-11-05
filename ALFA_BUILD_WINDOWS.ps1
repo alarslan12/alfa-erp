@@ -1,4 +1,4 @@
-param([ValidateSet('personel','yonetici')][string]$Edition='personel')
+param([ValidateSet('personel','yonetici','ortak')][string]$Edition='personel',[switch]$SkipInstaller)
 $ErrorActionPreference='Stop'
 Set-Location -LiteralPath $PSScriptRoot
 function Run([string]$exe,[string[]]$argv) {
@@ -41,13 +41,19 @@ if($Edition -eq 'personel') {
  Run $Virtual @('-m','PyInstaller','--noconfirm','--clean','--onedir','--windowed',
   '--name','AlfaBildirim','--icon=assets\icons\alfa_personel.ico','bildirim_servisi.py')
  $iss='alfa_personel.iss'
-} else {
+} elseif($Edition -eq 'yonetici') {
  Run $Virtual @('-m','PyInstaller','--noconfirm','--clean','--onedir','--windowed',
   '--name','AlfaERPYonetici','--icon=assets\icons\alfa_yonetici.ico','--add-data','YONETICI_SURUMU.flag;.',
   '--add-data','KİTAPS.xlsx;.','--add-data','katalog.json;.',
   '--add-data','assets;assets','--hidden-import=PySide6.QtPdf','--hidden-import=yonetici_kompakt','main.py')
  $iss='alfa_yonetici.iss'
+} else {
+ foreach($required in @('dist\AlfaERP\AlfaERP.exe','dist\AlfaERPYonetici\AlfaERPYonetici.exe','dist\AlfaBildirim\AlfaBildirim.exe')) {
+  if(-not (Test-Path $required)){ throw "Ortak kurulum icin eksik uygulama: $required" }
+ }
+ $iss='alfa_tek_kurulum.iss'
 }
+if($SkipInstaller){Write-Host "Sadece $Edition EXE hazirlandi."; return}
 $Candidates=@(
  "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
  "$env:ProgramFiles\Inno Setup 6\ISCC.exe",
