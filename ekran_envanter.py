@@ -326,6 +326,40 @@ class EnvanterView(QWidget):
         sales_layout.addWidget(detail_title)
         self.top_products=QVBoxLayout();self.top_products.setSpacing(9)
         sales_layout.addLayout(self.top_products)
+        row=QHBoxLayout()
+        history_title=QLabel('SATIŞ GEÇMİŞİ · ALIŞ MALİYETİ VE KÂR')
+        history_title.setObjectName('PageTitle')
+        row.addWidget(history_title,1)
+        self.history_period=QComboBox()
+        for name,days in (('Tüm zamanlar',0),('Son 7 gün',7),
+                          ('Son 30 gün',30),('Son 90 gün',90),('Son 365 gün',365)):
+            self.history_period.addItem(name,days)
+        row.addWidget(self.history_period)
+        sales_layout.addLayout(row)
+        self.history_count=QLabel('')
+        self.history_count.setObjectName('InventoryHistoryCount')
+        self.history_count.setWordWrap(True)
+        sales_layout.addWidget(self.history_count)
+        self.history_table=QTableWidget(0,8)
+        self.history_table.setObjectName('InventoryHistoryTable')
+        self.history_table.setHorizontalHeaderLabels([
+            'Satış tarihi','Ürün','Alım / parti',
+            'Adet','Alış/adet','Satış/adet','Ciro','Brüt fark'])
+        self.history_table.verticalHeader().hide()
+        self.history_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.history_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.history_table.setAlternatingRowColors(True)
+        self.history_table.setShowGrid(False)
+        self.history_table.setMinimumHeight(350)
+        head=self.history_table.horizontalHeader()
+        head.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        head.setSectionResizeMode(1,QHeaderView.ResizeMode.Stretch)
+        sales_layout.addWidget(self.history_table,1)
+        self.history_period.currentIndexChanged.connect(
+            lambda *_:self.update_analytics(
+                [p for p in self.db.inventory_products
+                 if p.get('active',True) and p.get('in_inventory',True)],
+                self.db.inventory_sales))
         sales_layout.addStretch()
         analysis_scroll.setWidget(summary_host)
         self.views.addWidget(analysis_scroll)
@@ -669,42 +703,90 @@ class EnvanterView(QWidget):
         self.update_analytics(active,sales)
 
     def update_analytics(self,products,sales):
+        """Inventory-only reporting from synced ledger; no additional reads."""
         today=date.today();start=today-timedelta(days=29)
         days={start+timedelta(days=i):0.0 for i in range(30)}
-        gross=0.0;profit=0.0;counts=defaultdict(int)
-        for sale in sales:
-            n=int(sale.get('quantity') or 0)
-            amount=n*float(sale.get('sale_price') or 0)
-            gross+=amount
-            profit+=n*(float(sale.get('sale_price') or 0)-float(sale.get('cost_price') or 0))
-            counts[str(sale.get('product_id'))]+=n
-            try:dt=date.fromisoformat(str(sale.get('created_at') or '')[:10])
-            except ValueError:continue
-            if dt in days:days[dt]+=amount
+        # Imported legacy entries may overlap nested per-product sales_history.
+        unique={}
+        for index,row in enumerate(sales):
+            if isinstance(row,dict):
+                unique[str(row.get('id') or ('legacy-'+str(index)))]=row
+        rows=list(unique.values())
+        window=int(self.history_period.currentData() or 0)
+        cutoff=today-timedelta(days=window-1) if window else None
+        filtered=[]
+        for record in rows:
+            try:day=date.fromisoformat(str(record.get('created_at') or '')[:10])
+            except (ValueError,TypeError):day=None
+            amount=int(record.get('quantity') or 0)*float(record.get('sale_price') or 0)
+            if day in days:days[day]+=amount
+            if cutoff is None or (day is not None and day>=cutoff):
+                filtered.append(record)
         self.bars.set_data([(day.isoformat(),amount) for day,amount in days.items()])
+        units=sum(int(row.get('quantity') or 0) for row in filtered)
+        revenue=sum(int(row.get('quantity') or 0)*float(row.get('sale_price') or 0)
+                    for row in filtered)
+        costs=sum(int(row.get('quantity') or 0)*float(row.get('cost_price') or 0)
+                  for row in filtered)
+        gain=revenue-costs
+        margin=gain/revenue*100 if revenue else 0.0
+        capital=sum(batch_stock_value(p) for p in products)
         self.sales_stats.setText(
-            f'Toplam {sum(counts.values()):,} adet satış   •   Ciro: {gross:,.2f} TL'
-            f'   •   Brüt fark: {profit:,.2f} TL   •   Ürün çeşidi: {len(products):,}')
+            f'{len(filtered):,} satış işlemi  ·  {units:,} adet  ·  '
+            f'Ciro: {revenue:,.2f} TL  ·  Alış maliyeti: {costs:,.2f} TL\n'
+            f'Brüt fark: {gain:,.2f} TL (%{margin:.1f})  ·  '
+            f'Mevcut stok sermayesi: {capital:,.2f} TL  ·  '
+            f'Ürün çeşidi: {len(products):,}')
+        counts=defaultdict(int)
+        for row in filtered:
+            counts[str(row.get('product_id') or '')]+=int(row.get('quantity') or 0)
         while self.top_products.count():
             entry=self.top_products.takeAt(0)
             if entry.widget():entry.widget().deleteLater()
-        product_by_id={str(x['id']):x for x in products}
-        ranking=sorted(counts.items(),key=lambda x:-x[1])[:9]
+        product_map={str(p.get('id')):p for p in products}
+        ranking=sorted(counts.items(),key=lambda row:-row[1])[:9]
         if not ranking:
-            self.top_products.addWidget(QLabel('Henüz satış kaydı yok.'))
-            return
-        largest=max(counts.values())
-        for product_id,n in ranking:
-            p=product_by_id.get(product_id)
-            if not p:continue
-            line=QHBoxLayout()
-            name=QLabel(str(p.get('title') or 'Ürün'))
-            name.setMinimumWidth(180);name.setMaximumWidth(300);line.addWidget(name)
-            bar=QProgressBar();bar.setRange(0,largest)
-            bar.setValue(n);bar.setFormat(f'{n} adet')
-            line.addWidget(bar,1)
-            wrapper=QWidget();wrapper.setLayout(line)
-            self.top_products.addWidget(wrapper)
+            self.top_products.addWidget(QLabel('Bu dönemde satış bulunmuyor.'))
+        else:
+            maximum=max(counts.values())
+            for product_id,amount in ranking:
+                product=product_map.get(product_id)
+                label=str(product.get('title') or product_id[:12]) if product else product_id[:12]
+                line=QHBoxLayout()
+                name=QLabel(label);name.setMinimumWidth(180)
+                name.setMaximumWidth(300);line.addWidget(name)
+                bar=QProgressBar();bar.setRange(0,maximum);bar.setValue(amount)
+                bar.setFormat(f'{amount} adet');line.addWidget(bar,1)
+                wrapper=QWidget();wrapper.setLayout(line)
+                self.top_products.addWidget(wrapper)
+        filtered.sort(key=lambda row:str(row.get('created_at') or ''),reverse=True)
+        shown=filtered[:250]
+        self.history_count.setText(
+            f'{len(filtered):,} kayıt · {len(shown)} satır gösteriliyor. '
+            'Satış kârı, satılan partinin gerçek birim alış maliyetine göre hesaplanır.')
+        self.history_table.setRowCount(len(shown))
+        for i,record in enumerate(shown):
+            pid=str(record.get('product_id') or '')
+            p=product_map.get(pid)
+            name=str(p.get('title') or p.get('sku') or pid[:12]) if p else pid[:12]
+            quantity=int(record.get('quantity') or 0)
+            bought=float(record.get('cost_price') or 0)
+            sold=float(record.get('sale_price') or 0)
+            revenue_row=quantity*sold
+            gain_row=quantity*(sold-bought)
+            batch_id=str(record.get('batch_id') or '')
+            batch_text=_date_label(record.get('purchase_at'))
+            if batch_id:batch_text+=' · '+batch_id[:8]
+            values=(
+                _date_label(record.get('created_at')),name,batch_text,
+                str(quantity),f'{bought:,.2f} TL',
+                f'{sold:,.2f} TL',f'{revenue_row:,.2f} TL',
+                f'{gain_row:+,.2f} TL')
+            for column,value in enumerate(values):
+                cell=QTableWidgetItem(value)
+                if column==7:
+                    cell.setForeground(QColor('#42dbae' if gain_row>=0 else '#ff8ea1'))
+                self.history_table.setItem(i,column,cell)
 
     def render(self,*_):
         rows=[x for x in (getattr(self.db,'inventory_products',[]) or [])
