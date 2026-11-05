@@ -1,20 +1,21 @@
 """One-time Firebase RTDB device activation, with no recurring login screen."""
 from __future__ import annotations
 import socket
-from PySide6.QtCore import QThread, Signal, Qt, QTimer
+from PySide6.QtCore import QThread, Qt, Slot
 from PySide6.QtWidgets import (QDialog,QVBoxLayout,QLabel,QPushButton,
                                QApplication,QInputDialog,QMessageBox)
 from alfa_rtdb import Workstation,DeviceError
 
 class Task(QThread):
-    done=Signal(object)
-    failed=Signal(str)
+    """The background function stores its result; only GUI-owned slots touch Qt."""
     def __init__(self,fn,parent=None):
         super().__init__(parent)
         self.fn=fn
+        self.result=None
+        self.failure=None
     def run(self):
-        try:self.done.emit(self.fn())
-        except Exception as exc:self.failed.emit(str(exc)[:260])
+        try:self.result=self.fn()
+        except Exception as exc:self.failure=str(exc)[:260]
 
 
 class PairDialog(QDialog):
@@ -25,7 +26,8 @@ class PairDialog(QDialog):
         self.owner=bool(owner)
         self._task=None
         self._workers=[]
-        self._accept_pending=False
+        self._verified=False
+        self._task_done=None
         self.setWindowTitle("ALFA ERP · Firebase cihaz bağlantısı")
         self.setMinimumWidth(540)
         layout=QVBoxLayout(self)
@@ -48,6 +50,10 @@ class PairDialog(QDialog):
         self.check=QPushButton("Yönetici onayını kontrol et")
         self.check.clicked.connect(self.check_approval)
         layout.addWidget(self.check)
+        self.activate=QPushButton("Bağlantıyı başlat")
+        self.activate.setEnabled(False)
+        self.activate.clicked.connect(self.start_approved_connection)
+        layout.addWidget(self.activate)
         if owner:
             self.approve=QPushButton("Bekleyen personel cihazını onayla")
             self.approve.clicked.connect(self.approve_staff)
@@ -56,56 +62,73 @@ class PairDialog(QDialog):
         close.clicked.connect(self.reject)
         layout.addWidget(close)
         if self.client.paired:
-            self.check_approval()
+            self.status.setText(
+                "Cihaz kimliği kaydedilmiş. Onay durumunu kontrol etmek için "
+                "'Yönetici onayını kontrol et' düğmesine bas. "
+                "Bağlantı penceresi kendiliğinden kapanmayacak.")
 
     def _work(self,fn,done):
-        if self._task and self._task.isRunning():return
+        if self._task is not None:return
         worker=Task(fn,self)
         self._task=worker
-        # Keep an explicit strong reference until QThread is completely stopped.
-        # Closing a dialog while its QThread is still running can abort Qt.
-        self._workers.append(worker)
+        self._task_done=done
         self.create.setEnabled(False)
         self.check.setEnabled(False)
+        self.activate.setEnabled(False)
         if self.owner:self.approve.setEnabled(False)
-        # Do not execute dialog callbacks on "done": QThread.run() may
-        # still be active when that signal is delivered. "finished" is the
-        # only safe point to open another modal or close this dialog.
-        outcome={'value':None,'error':None}
-        worker.done.connect(lambda value:outcome.__setitem__('value',value))
-        worker.failed.connect(lambda message:outcome.__setitem__('error',message))
-        def finish():
-            worker.wait()
-            if self._task is worker:
-                self._task=None
-            try:self._workers.remove(worker)
-            except ValueError:pass
-            self.create.setEnabled(True)
-            self.check.setEnabled(True)
-            if self.owner:self.approve.setEnabled(True)
-            if outcome['error'] is not None:
-                self.status.setText(str(outcome['error']))
-            else:
-                try:done(outcome['value'])
-                except Exception as exc:self.status.setText("Cihaz işlemi: "+str(exc)[:190])
-            if self._accept_pending:
-                self._accept_pending=False
-                QTimer.singleShot(0,self.accept)
-        worker.finished.connect(finish)
-        worker.finished.connect(worker.deleteLater)
+        # QObject slot with an explicitly queued connection: no UI changes
+        # or dialog destruction on the network worker's thread.
+        worker.finished.connect(self._work_completed,
+                                Qt.ConnectionType.QueuedConnection)
         worker.start()
 
+    @Slot()
+    def _work_completed(self):
+        worker=self._task
+        if worker is None:return
+        worker.wait()
+        self._task=None
+        done=self._task_done
+        self._task_done=None
+        self.create.setEnabled(True)
+        self.check.setEnabled(True)
+        if self.owner:self.approve.setEnabled(True)
+        failure,result=worker.failure,worker.result
+        worker.deleteLater()
+        if failure is not None:
+            self.status.setText(failure)
+        elif done is not None:
+            try:done(result)
+            except Exception as exc:self.status.setText("Cihaz işlemi: "+str(exc)[:190])
+        self.activate.setEnabled(self._verified)
+
+    def start_approved_connection(self):
+        if self._task is not None:return
+        if not self._verified:
+            self.status.setText("Önce cihaz onayını kontrol et.")
+            return
+        self.accept()
+
     def reject(self):
-        if any(worker.isRunning() for worker in self._workers):
-            self.status.setText("Cihaz işlemi tamamlanıyor. Lütfen pencereyi henüz kapatmayın.")
+        if self._task is not None:
+            self.status.setText("Cihaz işlemi tamamlanıyor. Pencereyi henüz kapatmayın.")
             return
         super().reject()
+
+    def closeEvent(self,event):
+        if self._task is not None:
+            event.ignore()
+            self.status.setText("Cihaz işlemi tamamlanıyor. Pencereyi henüz kapatmayın.")
+            return
+        super().closeEvent(event)
 
     def register(self):
         def run():
             self.client.enroll_anonymous(socket.gethostname())
             return self.client.uid
         def done(uid):
+            self._verified=False
+            self.activate.setEnabled(False)
             self.identity.setText("Cihaz kimliği: " + str(uid))
             self.status.setText(
                 "Kimliği kopyalayabilirsin. Yönetici bu cihazı onaylayınca "
@@ -120,16 +143,19 @@ class PairDialog(QDialog):
             return self.client._get("members/"+self.client.uid)
         def done(record):
             role=str((record or {}).get("role") or "")
+            self._verified=False
             if record and record.get("active") is True and role in ("owner","staff"):
                 if self.owner and role!="owner":
                     self.status.setText("Bu cihaz personel rolünde; Yönetici kurulumu açılamaz.")
                     return
-                self.status.setText("Onaylandı. ALFA ERP bulut bağlantısı açılıyor.")
-                self._accept_pending=True
+                self._verified=True
+                self.status.setText(
+                    "Cihaz onaylandı. Bulut eşitlemesini açmak için "
+                    "'Bağlantıyı başlat' düğmesine bas.")
             else:
                 self.status.setText(
                     "Henüz onay yok. Cihaz UID: "+str(self.client.uid)+
-                    "\nİlk yönetici yetkilendirmesi Google Cloud Shell yönetici aracıyla yapılır.")
+                    "\nYönetici uygulamasında bekleyen cihazı onayla; sonra tekrar kontrol et.")
         self._work(run,done)
 
     def approve_staff(self):

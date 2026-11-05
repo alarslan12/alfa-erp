@@ -315,14 +315,14 @@ class AlfaMain(QMainWindow):
         dialog=PairDialog(client=self.device,owner=OWNER_EDITION,parent=self)
         if dialog.exec()!=dialog.DialogCode.Accepted:
             return
-        self.device.reload()
+        # PairDialog shares self.device: identity was already persisted by the
+        # registration worker. reload() here can race concurrent Firebase
+        # refresh/SSE threads and reset a working token unnecessarily.
         if not self.device.paired:
             QMessageBox.warning(self,'Firebase bağlantısı',
                 'Cihaz oturumu kaydedilemedi. Veriler yerelde korunuyor.')
             return
         self._auto_enroll_retry.stop()
-        # Start network threads in the NEXT GUI event loop, after the modal
-        # pairing dialog and its QThread have been fully disposed.
         self.cloud_connect.setEnabled(False)
         QTimer.singleShot(150, self._activate_cloud_after_pairing)
 
@@ -330,9 +330,16 @@ class AlfaMain(QMainWindow):
         try:
             if not self.device.paired:
                 raise RuntimeError("Firebase cihaz kimliği kaydedilemedi.")
-            self.live.activate()
+            # An already-paired machine started Sync at application launch.
+            # Refresh it in place instead of starting its timers/watchers again.
+            if self.live.timer.isActive():
+                self.live.force_pull=True
+                self.live._pull_retry_after=0
+                self.live.pull()
+            else:
+                self.live.activate()
             self.cloud_connect.setText('Cihaz yetkisi')
-            self.cloud_badge.setToolTip('Firebase Realtime Database eşitlemesi başlatıldı.')
+            self.cloud_badge.setToolTip('Firebase Realtime Database eşitlemesi kontrol ediliyor.')
         except Exception as exc:
             self.cloud_badge.setText('◌ Bulut bağlantısı beklemede')
             QMessageBox.warning(self,'Firebase eşitleme başlatılamadı',
@@ -449,7 +456,15 @@ def _install_error_diagnostics():
     errors=root/'logs'
     errors.mkdir(parents=True,exist_ok=True)
     outfile=errors/'last_error.txt'
-    old_hook=sys.excepthook
+    # Capture native Qt/PySide fatal aborts, which bypass sys.excepthook.
+    # Only technical Python stack frames are written, not credentials or rows.
+    try:
+        import faulthandler
+        native_log=(errors/'fatal_error.log').open('a',encoding='utf-8')
+        faulthandler.enable(file=native_log,all_threads=True)
+        globals()['_alfa_native_log_handle']=native_log
+    except (OSError,RuntimeError,ValueError):
+        pass
     def report(error_type,error,tb):
         try:
             trace=traceback.extract_tb(tb)
