@@ -1,4 +1,4 @@
-# ALFA ERP v1.1.0 — Personel ve Yönetici için tek Windows kurulumu
+# ALFA ERP v1.1.1 — Personel ve Yönetici için tek Windows kurulumu
 
 Windows 11 · PySide6 · Firebase Realtime Database · ortak çoklu cihaz sipariş havuzu.
 
@@ -8,7 +8,7 @@ kararlı yayın [GitHub Releases](https://github.com/alarslan12/alfa-erp/release
 
 ## Kurulum ve erişim
 
-`ALFA_ERP_Setup_V1_1_0.exe` tek dosya olarak **Personel / Yönetici**
+`ALFA_ERP_Setup_V1_1_1.exe` tek dosya olarak **Personel / Yönetici**
 seçtirir; her bilgisayara seçilen uygulama kurulur.
 
 - **Personel:** katalog, siparişler, envanter, açık/koyu tema anahtarı,
@@ -19,6 +19,19 @@ seçtirir; her bilgisayara seçilen uygulama kurulur.
   **Bu parola bulutta yönetici rolü oluşturmaz.** Firebase
   `members/{uid}.role=owner` ve `active=true` kontrolünü ayrıca uygular.
 - Yerel `%LOCALAPPDATA%\AlfaERP` veri ve cihaz dosyaları silinmez.
+
+## v1.1.1 Güncelleme Merkezi onarımı
+
+Güncelleme komutu ana ERP penceresini doğru kapatır; doğrulanmış Windows
+kurulumu kullanıcıya açılır, başarıyla tamamlanınca aynı sürüm
+(Personel veya Yönetici) tek kez yeniden başlatılır. Kurulumdaki
+başarısızlık sebebi yalnız cihazda güncelleme durum dosyasında tutulur;
+bir sonraki Güncelleme Merkezi açılışında görünür.
+
+**İlk geçiş:** v1.0.0/v1.1.0 Güncelleme Merkezi'nde bu başlatma hatası
+bulunduğu için v1.1.1'in resmî Setup.exe dosyasını **bir defa
+GitHub Releases'den indirip manuel kurun**. Eski kurulumun üzerine
+kurulur, `%LOCALAPPDATA%\\AlfaERP` ve Firebase kimliği korunur.
 
 ## v1.1 yenilikleri
 

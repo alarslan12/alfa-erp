@@ -1,5 +1,5 @@
 #define MyAppName "ALFA ERP"
-#define MyAppVersion "1.1.0"
+#define MyAppVersion "1.1.1"
 
 [Setup]
 ; Keep the old edition-specific AppIds and install paths so upgrades preserve
@@ -8,11 +8,11 @@ AppId={code:EditionAppId}
 UsePreviousLanguage=no
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
-AppVerName=ALFA ERP v1.1
+AppVerName=ALFA ERP v1.1.1
 DefaultDirName={code:EditionDirectory}
 DefaultGroupName=ALFA ERP
 OutputDir=output
-OutputBaseFilename=ALFA_ERP_Setup_V1_1_0
+OutputBaseFilename=ALFA_ERP_Setup_V1_1_1
 Compression=lzma2
 SolidCompression=yes
 PrivilegesRequired=lowest
@@ -39,9 +39,9 @@ Name: "{userdesktop}\ALFA ERP Yönetici"; Filename: "{app}\AlfaERPYonetici.exe";
 Name: "{userprograms}\ALFA ERP Yönetici"; Filename: "{app}\AlfaERPYonetici.exe"; WorkingDir: "{app}"; Check: IsOwner
 
 [Run]
-Filename: "{app}\AlfaERP.exe"; Description: "ALFA ERP Personel uygulamasını aç"; Flags: nowait postinstall skipifsilent; Check: IsStaff
-Filename: "{app}\Bildirim\AlfaBildirim.exe"; Description: "Sipariş bildiricisini başlat"; Flags: nowait postinstall skipifsilent; Check: IsStaff
-Filename: "{app}\AlfaERPYonetici.exe"; Description: "ALFA ERP Yönetici uygulamasını aç"; Flags: nowait postinstall skipifsilent; Check: IsOwner
+Filename: "{app}\AlfaERP.exe"; Description: "ALFA ERP Personel uygulamasını aç"; Flags: nowait postinstall skipifsilent; Check: RunStaff
+Filename: "{app}\Bildirim\AlfaBildirim.exe"; Description: "Sipariş bildiricisini başlat"; Flags: nowait postinstall skipifsilent; Check: RunStaff
+Filename: "{app}\AlfaERPYonetici.exe"; Description: "ALFA ERP Yönetici uygulamasını aç"; Flags: nowait postinstall skipifsilent; Check: RunOwner
 
 [Code]
 var
@@ -56,6 +56,31 @@ end;
 function IsStaff(): Boolean;
 begin
   Result := not IsOwner();
+end;
+
+// When the update helper is responsible for restarting the app, do
+// not start an extra app copy from Inno Setup's Finish page.
+function HasUpdateFlag(): Boolean;
+var
+  I: Integer;
+begin
+  Result := False;
+  for I := 1 to ParamCount() do
+    if CompareText(ParamStr(I), '/ALFAUPDATE') = 0 then
+    begin
+      Result := True;
+      Exit;
+    end;
+end;
+
+function RunStaff(): Boolean;
+begin
+  Result := IsStaff() and not HasUpdateFlag();
+end;
+
+function RunOwner(): Boolean;
+begin
+  Result := IsOwner() and not HasUpdateFlag();
 end;
 
 function EditionAppId(Param: String): String;

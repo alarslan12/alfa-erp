@@ -23,7 +23,7 @@ from guncelleme_arayuzu import CheckWorker,should_check_today,mark_checked
 from duyuru_merkezi import AnnouncementsDialog,ManualReportDialog
 
 ROOT=Path(__file__).resolve().parent
-VERSION='1.1.0'
+VERSION='1.1.1'
 OWNER_EDITION=(ROOT/'YONETICI_SURUMU.flag').exists()
 
 
@@ -347,7 +347,7 @@ class AlfaMain(QMainWindow):
             before={}
         if before.get('version')==VERSION:return
         # Only the requested first official v1.1 release creates a notice.
-        if VERSION!='1.1.0':return
+        if VERSION!='1.1.1':return
         try:
             file.parent.mkdir(parents=True,exist_ok=True)
             file.write_text(json.dumps({'version':VERSION}),encoding='utf-8')

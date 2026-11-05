@@ -12,7 +12,7 @@ import os
 from pathlib import Path
 import sys
 import time
-from PySide6.QtCore import Qt,QThread,Signal
+from PySide6.QtCore import Qt,QThread,Signal,QTimer
 from PySide6.QtWidgets import (
     QApplication,QDialog,QVBoxLayout,QHBoxLayout,QLabel,QPushButton,
     QMessageBox,QProgressBar,QTextEdit,QFrame
@@ -69,6 +69,16 @@ class UpdateDialog(QDialog):
         root.addWidget(title)
         self.message=QLabel("Kurulu sürüm: "+self.version+" · yeni sürüm kontrol edilmedi")
         self.message.setWordWrap(True)
+        # The helper outlives the ERP process. Its last failure must be
+        # visible on the next launch rather than disappearing in the tray.
+        previous=self.storage/"updates"/"last_update_error.txt"
+        if previous.is_file():
+            try:
+                failure=previous.read_text(encoding="utf-8-sig").strip()[:260]
+                if failure:
+                    self.message.setText("Önceki güncelleme tamamlanamadı: "+failure)
+            except OSError:
+                pass
         root.addWidget(self.message)
         info=QLabel("Yalnızca GitHub'da kalıcı yayımlanmış kararlı sürümler "
             "kabul edilir. Kurulum SHA-256 ile doğrulanır. "
@@ -169,11 +179,31 @@ class UpdateDialog(QDialog):
             self.download.setEnabled(True)
         self._worker(worker,accepted,failed)
 
+    def _main_application(self):
+        """Find the real QMainWindow, even when opened via Duyurular popup.
+
+        A child AnnouncementDialog is itself a top-level window, so .window()
+        can be that dialog instead of the ERP. The old implementation then
+        skipped the pending-outbox guard and did not close the real app.
+        """
+        current=self.parent()
+        while current is not None:
+            if getattr(current,"db",None) is not None and hasattr(current,"live"):
+                return current
+            current=current.parent()
+        for window in QApplication.topLevelWidgets():
+            if getattr(window,"db",None) is not None and hasattr(window,"live"):
+                return window
+        return None
+
     def install_now(self):
         if not self.verified:return
-        parent=self.parent()
-        database=getattr(parent,"db",None)
-        main=parent.window() if parent else None
+        main=self._main_application()
+        if main is None:
+            QMessageBox.warning(self,"Güncelleme",
+                "Ana ALFA ERP penceresi bulunamadı. Uygulamayı yeniden açıp deneyin.")
+            return
+        database=main.db
         pending=int(getattr(database,"pending_count",0) or 0)
         live=getattr(main,"live",None)
         if pending:
@@ -185,8 +215,9 @@ class UpdateDialog(QDialog):
                 "Şu anda eşitleme sürüyor. İşlem bitince yeniden deneyin.")
             return
         yes=QMessageBox.question(self,"Kurulumu başlat",
-            "ALFA ERP kapanacak ve doğrulanmış yeni sürüm yüklenecek. "
-            "Veriler ve cihaz yetkileri korunacak. Devam edilsin mi?",
+            "ALFA ERP kapanacak. Ardından Windows kurulum sihirbazı açılacak "
+            "(Yönetici için kurulum parolası gerekir). Kurulum tamamlanırsa "
+            "uygulama otomatik yeniden başlatılacak. Devam edilsin mi?",
             QMessageBox.StandardButton.Yes|QMessageBox.StandardButton.No)
         if yes!=QMessageBox.StandardButton.Yes:return
         try:
@@ -194,7 +225,18 @@ class UpdateDialog(QDialog):
         except (UpdateError,OSError,RuntimeError) as exc:
             QMessageBox.warning(self,"Güncelleme başlatılamadı",str(exc))
             return
-        QApplication.instance().quit()
+        # QDialog.exec() creates a nested event loop. Calling app.quit()
+        # directly from inside the modal loop may not close the main
+        # application, leaving PowerShell waiting for its parent PID.
+        self.accept()
+        def close_real_erp():
+            if not main.close():
+                QMessageBox.warning(main,"Güncelleme",
+                    "ALFA ERP kapanamadı. Kurulum başlatılmadı. "
+                    "Önce tüm açık pencereleri kapatıp yeniden deneyin.")
+                return
+            QApplication.instance().quit()
+        QTimer.singleShot(0,close_real_erp)
 
     def closeEvent(self,event):
         if self._workers:

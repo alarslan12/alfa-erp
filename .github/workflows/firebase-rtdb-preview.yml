@@ -1,4 +1,4 @@
-name: ALFA ERP v1.1 Unified Windows installer build
+name: ALFA ERP v1.1.1 Updater Hotfix Windows build
 
 on:
   push:
@@ -15,6 +15,7 @@ on:
       - 'alfa_tek_kurulum.iss'
       - 'main.py'
       - 'alfa_guncelleme.py'
+      - 'guncelleme_arayuzu.py'
       - 'duyuru_merkezi.py'
       - 'ekran_envanter.py'
       - 'rtdb_owner_admin.py'
@@ -71,7 +72,7 @@ jobs:
       - name: Verify files and collect checksums
         shell: pwsh
         run: |
-          $files = @(Get-ChildItem .\output -Filter 'ALFA_ERP_Setup_V1_1_0.exe' -File)
+          $files = @(Get-ChildItem .\output -Filter 'ALFA_ERP_Setup_V1_1_1.exe' -File)
           if ($files.Count -ne 1) { throw "Expected one unified Setup EXE; got $($files.Count)" }
           $files | ForEach-Object { "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash)  $($_.Name)" } |
             Set-Content -Path .\output\SHA256SUMS.txt -Encoding utf8
@@ -79,9 +80,9 @@ jobs:
       - name: Upload checked unified installer binary
         uses: actions/upload-artifact@v4
         with:
-          name: ALFA_ERP_V1_1_0_Unified_Setup
+          name: ALFA_ERP_V1_1_1_Unified_Setup
           path: |
-            output/ALFA_ERP_Setup_V1_1_0.exe
+            output/ALFA_ERP_Setup_V1_1_1.exe
             output/SHA256SUMS.txt
             output/RTDB_KURULUM.md
           if-no-files-found: error
@@ -91,7 +92,7 @@ jobs:
         shell: pwsh
         run: |
           @'
-          ## ALFA ERP v1.1 unified Windows installer successfully built
+          ## ALFA ERP v1.1.1 unified Windows hotfix successfully built
           One edition-selectable Setup.exe and SHA256SUMS.txt are in Artifacts.
           Sign in to GitHub to download Actions artifacts. These workflow artifacts expire after 14 days.
           A durable GitHub Release requires manual scoped repository authorization.
