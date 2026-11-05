@@ -6,6 +6,7 @@ from PySide6.QtWidgets import QApplication,QSystemTrayIcon,QMenu,QDialog,QVBoxLa
 from PySide6.QtGui import QPixmap,QIcon,QPainter,QColor,QFont,QAction
 from alfa_cihaz import DATA
 from alfa_rtdb import Workstation
+from bildirim_sesleri import configured_sound,play_order_sound
 from bulut_canli import RtdbWatch
 STATE=DATA/'alfa_bildirim_durumu.json'
 class Reader(QThread):
@@ -117,10 +118,9 @@ class Service:
     def notify(self,numbers,count):
         caption=f'{count} yeni sipariş · {numbers}'
         self.tray.showMessage('ALFA ERP · Yeni Sipariş',caption,QSystemTrayIcon.MessageIcon.Information,12000)
-        try:
-            import winsound
-            winsound.PlaySound('SystemExclamation',winsound.SND_ALIAS|winsound.SND_ASYNC)
-        except (ImportError,OSError,RuntimeError):pass
+        # Reread the saved preference on every genuine new order so changing
+        # the tone in either desktop app takes effect without restarting tray.
+        play_order_sound(configured_sound(DATA),DATA)
         if self.popup:self.popup.close()
         self.popup=Popup(caption);self.popup.show()
 def main():

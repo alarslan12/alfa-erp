@@ -19,7 +19,8 @@ class Covers:
         self.refresh()
     def refresh(self):
         self.index={}
-        for directory in (self.root/'assets'/'kapaklar',self.root/'kapaklar',self.user):
+        for directory in (self.root/'assets'/'kapaklar',self.root/'kapaklar',
+                          self.user/'pdf_otomatik',self.user):
             if not directory.exists():continue
             for file in directory.iterdir():
                 if file.suffix.lower() in IMAGE_SUFFIXES and file.is_file():
@@ -116,6 +117,11 @@ class ThemedCoverLabel(QLabel):
         self.setStyleSheet('background:transparent; border:0; padding:0;')
         self.refresh_cover_theme()
 
+    def reload_cover_from_disk(self):
+        """Refresh a live book card when PDF thumbnails were regenerated."""
+        self._is_placeholder=True
+        self.refresh_cover_theme()
+
     def refresh_cover_theme(self):
         # Gerçek kitap kapağı değişmeyeceğinden büyük dosyaları yeniden yükleme.
         if not self._is_placeholder:
@@ -145,6 +151,17 @@ def refresh_cover_placeholders():
         refresh = getattr(widget, 'refresh_cover_theme', None)
         if refresh is not None and callable(refresh):
             refresh()
+
+
+def refresh_all_cover_labels():
+    """Reload automatically extracted covers without rebuilding order cards."""
+    app=QApplication.instance()
+    if app is None:return
+    for widget in app.allWidgets():
+        reload=getattr(widget,'reload_cover_from_disk',None)
+        if callable(reload):
+            try:reload()
+            except RuntimeError:pass
 
 
 def vbox(*children, gap=8, margin=0):
