@@ -3,7 +3,14 @@ name: ALFA ERP 6.6.0 Stable Windows build (artifacts only)
 on:
   push:
     branches: [firebase-rtdb-final]
-    paths: ['.github/workflows/firebase-rtdb-preview.yml']
+    # Build only when release-critical Firebase code or this workflow changes.
+    # No timer, no tests: syntax, packaging, Qt PDF import and installer hashes.
+    paths:
+      - '.github/workflows/firebase-rtdb-preview.yml'
+      - 'alfa_hatalar.py'
+      - 'alfa_rtdb.py'
+      - 'firebase/database.rules.json'
+      - 'tools/firebase_error_rules_cutover.py'
   workflow_dispatch:
 
 permissions:
