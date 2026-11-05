@@ -62,6 +62,7 @@ class GeneralProductCatalog(QWidget):
         head.setSectionResizeMode(3,QHeaderView.ResizeMode.ResizeToContents)
         head.setSectionResizeMode(4,QHeaderView.ResizeMode.ResizeToContents)
         self.table.doubleClicked.connect(lambda _:self.edit_selected())
+        self.table.itemSelectionChanged.connect(self._update_archive_action)
         root.addWidget(self.table,1)
         self.counter=QLabel('')
         self.counter.setObjectName('GeneralCatalogHint');root.addWidget(self.counter)
@@ -106,13 +107,16 @@ class GeneralProductCatalog(QWidget):
                 if col==0 and str(p.get('id'))==selected:
                     self.table.selectRow(n)
         self.table.blockSignals(False)
+        self._update_archive_action()
+        self.counter.setText(f'{len(products)} ürün · arşivleme stok ve satış geçmişini silmez.')
+
+    def _update_archive_action(self):
         selected_product=next((p for p in (self.db.inventory_products or [])
                                if str(p.get('id'))==self.selected_id()),None)
-        self.archive_button.setEnabled(bool(selected_product))
+        self.archive_button.setEnabled(bool(self.can_edit and selected_product))
         self.archive_button.setText('Ürünü geri getir' if selected_product and
                                     not selected_product.get('active',True)
                                     else 'Seçili ürünü arşivle')
-        self.counter.setText(f'{len(products)} ürün · arşivleme stok ve satış geçmişini silmez.')
 
     def selected_id(self):
         row=self.table.currentRow()
