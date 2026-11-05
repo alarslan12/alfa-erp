@@ -724,13 +724,18 @@ class Workstation:
                 try:
                     order_id = str(uuid.uuid5(uuid.UUID(WORKSPACE_ID),
                                               "checkout:" + uid + ":" + request_id))
-                    if use_shallow_lookup:
-                        if existing_order_ids is None:
+                    if use_shallow_lookup and existing_order_ids is None:
+                        try:
                             keys=self._request("GET","orders",
                                 query={"shallow":"true"})[0]
                             if keys is not None and not isinstance(keys,dict):
                                 raise DeviceError("Sipariş anahtar listesi geçersiz")
                             existing_order_ids=set((keys or {}).keys())
+                        except DeviceError:
+                            # Some installations may reject shallow reads.
+                            # Fall back once to the original per-order lookup.
+                            use_shallow_lookup=False
+                    if use_shallow_lookup:
                         if order_id in existing_order_ids:
                             continue
                     elif self._get("orders/" + order_id) is not None:
