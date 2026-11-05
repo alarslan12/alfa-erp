@@ -436,7 +436,29 @@ class AlfaMain(QMainWindow):
             QMessageBox.warning(self,'Yedekleme hatası',str(exc))
 
     def order_created(self):
-        self.open_order_status('havuz')
+        """Do not interrupt repeat order entry with automatic navigation."""
+        if not hasattr(self,'_order_saved_toast'):
+            toast=QLabel(self.centralWidget())
+            toast.setObjectName('OrderSavedToast')
+            toast.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            toast.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+            toast.setStyleSheet(
+                'QLabel#OrderSavedToast {background:#155740;color:#f4fff9;'
+                'border:1px solid #55d6a7;border-radius:10px;'
+                'font-size:14px;font-weight:800;padding:13px 21px;}')
+            self._order_saved_toast=toast
+            self._order_saved_timer=QTimer(self)
+            self._order_saved_timer.setSingleShot(True)
+            self._order_saved_timer.timeout.connect(toast.hide)
+        toast=self._order_saved_toast
+        toast.setText('✓  Siparişiniz oluşturuldu.')
+        toast.adjustSize()
+        host=self.centralWidget()
+        toast.move(max(12,host.width()-toast.width()-24),
+                   max(12,host.height()-toast.height()-24))
+        toast.show()
+        toast.raise_()
+        self._order_saved_timer.start(3500)
 
 def _install_error_diagnostics():
     """Persist sanitized callback failures; no customer rows or tokens logged."""
