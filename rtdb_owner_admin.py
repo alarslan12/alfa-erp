@@ -214,6 +214,85 @@ def _acquire_product(client,product_id,quantity,unit_cost):
     raise DeviceError("Stok başka bilgisayarda değişti; yeniden deneyin",409)
 
 
+
+def _void_acquisition(client,product_id,batch_id,reason):
+    """Undo a mistaken, fully unused purchase lot without deleting its audit."""
+    pid=str(product_id or "")
+    bid=str(batch_id or "")
+    reason=str(reason or "").strip()[:180]
+    if not pid or not bid or not reason:
+        raise DeviceError("Ürün, parti ve iptal gerekçesi gerekli",422)
+    for _ in range(8):
+        current,etag,_=client._request("GET","inventory/products/"+pid,etag=True)
+        if not isinstance(current,dict):
+            raise DeviceError("Envanter ürünü bulunamadı",404)
+        batches=stock_batches(current)
+        # Virtual legacy batches must not be rewritten as new acquisitions.
+        raw_batches=current.get("stock_batches")
+        lot=batches.get(bid)
+        if not isinstance(raw_batches,dict) or bid not in raw_batches or not isinstance(lot,dict):
+            raise DeviceError("Bu alım partisi geri alınabilir bir kayıt değil",409)
+        if lot.get("voided_at"):
+            return {"already_voided":True,"product_id":pid,"batch_id":bid}
+        amount=int(lot.get("quantity") or 0)
+        remaining=int(lot.get("remaining") or 0)
+        if lot.get("legacy") or amount<=0 or remaining!=amount:
+            raise DeviceError("Bu partiden satış yapılmış veya stok kullanılmış; önce ilgili işlemleri düzeltin",409)
+        # A completed or reversed sale is part of the audit chain. Refuse
+        # automatic withdrawal of an acquisition referenced by any sale.
+        history=current.get("sales_history") or {}
+        if any(isinstance(sale,dict) and str(sale.get("batch_id"))==bid
+               for sale in history.values()):
+            raise DeviceError("Partiye bağlı satış geçmişi var; otomatik alım iptali güvenli değil",409)
+        if batch_stock_quantity(current)!=int(current.get("quantity") or 0):
+            raise DeviceError("Parti toplamı ile mevcut stok uyuşmuyor",409)
+        updated=copy.deepcopy(current)
+        modified=stock_batches(updated)
+        now=datetime.now(timezone.utc).isoformat()
+        modified[bid].update(remaining=0,voided_at=now,
+                             voided_by=client.uid,void_reason=reason)
+        updated.update(stock_batches=modified,
+                       quantity=int(current.get("quantity") or 0)-amount,
+                       updated_at=now,
+                       version=int(current.get("version") or 0)+1)
+        try:
+            client._request("PUT","inventory/products/"+pid,updated,match=etag)
+            try:client._bump("inventory")
+            except DeviceError:pass
+            return {"product_id":pid,"batch_id":bid,
+                    "voided_quantity":amount}
+        except DeviceError as exc:
+            if exc.status!=409:raise
+    raise DeviceError("Stok başka bir cihazda değiştirildi; yeniden deneyin",409)
+
+
+def _remove_from_inventory(client,product_id):
+    """Hide a zero-stock item from inventory; retain the master and history."""
+    pid=str(product_id or "")
+    if not pid:raise DeviceError("Ürün kimliği gerekli",422)
+    for _ in range(8):
+        current,etag,_=client._request("GET","inventory/products/"+pid,etag=True)
+        if not isinstance(current,dict):
+            raise DeviceError("Ürün bulunamadı",404)
+        if current.get("in_inventory") is False:
+            return {"already_removed":True,"product_id":pid}
+        if int(current.get("quantity") or 0)!=0 or batch_stock_quantity(current)!=0:
+            raise DeviceError("Envanterden çıkarmak için mevcut stok 0 olmalı. Yanlış alım partisini önce geri alın.",409)
+        updated=copy.deepcopy(current)
+        now=datetime.now(timezone.utc).isoformat()
+        updated.update(in_inventory=False,inventory_removed_at=now,
+                       inventory_removed_by=client.uid,
+                       updated_at=now,version=int(current.get("version") or 0)+1)
+        try:
+            client._request("PUT","inventory/products/"+pid,updated,match=etag)
+            try:client._bump("inventory")
+            except DeviceError:pass
+            return {"removed":True,"product_id":pid}
+        except DeviceError as exc:
+            if exc.status!=409:raise
+    raise DeviceError("Envanter ürünü başka cihazda değiştirildi; yeniden deneyin",409)
+
+
 def _payment(client,days,paid,fingerprints):
     rows=client._get("accounting") or {}
     existing={str(v.get("accounting_day")):v for v in rows.values()}
@@ -284,6 +363,11 @@ def admin_request(cloud,action,timeout=None,**kwargs):
     if action=="admin_inventory_cancel_sale":
         return _cancel_sale(client,kwargs.get("product_id"),
                             kwargs.get("sale_id"),kwargs.get("reason"))
+    if action=="admin_inventory_void_acquisition":
+        return _void_acquisition(client,kwargs.get("product_id"),
+                                 kwargs.get("batch_id"),kwargs.get("reason"))
+    if action=="admin_inventory_remove":
+        return _remove_from_inventory(client,kwargs.get("product_id"))
     if action=="admin_inventory_acquire":
         return _acquire_product(client,kwargs.get("product_id"),
                                 kwargs.get("quantity"),kwargs.get("unit_cost"))
