@@ -658,6 +658,31 @@ def theme_styles(name):
             background:#eee6da; color:#a19789; border:1px solid #d2c4b0;
         }
                 QFrame#OrderRightPanel {border-color:#c8b89f;}
+        /* v1.1: book overview popup must not inherit the dark-mode white
+           labels and dark card backgrounds when app theme is light. */
+        QDialog#BookPoolDialog {background:#f6f1e8;color:#243a51;}
+        QFrame#BookPoolToolbar {background:#fffaf3;border:1px solid #d7c7af;}
+        QFrame#PoolBookRow {background:#fffaf3;border:1px solid #cdbba3;}
+        QFrame#PoolBookRow:hover {background:#f5ecde;border:1px solid #b99567;}
+        QFrame#PoolBookRow[poolRecent="true"] {background:#e5f0f5;border:2px solid #6aa6c9;}
+        QLabel#PoolBookName {color:#243a51;}
+        QLabel#PoolBookInfo {color:#53677b;}
+        QLabel#PoolQuantityPill {color:#704e1c;background:#f4e4c5;border:1px solid #d0ae74;}
+        QFrame#PoolVariantSB {background:#eee7f5;border:1px solid #b8abd1;}
+        QFrame#PoolVariantRNK {background:#f8e9dd;border:1px solid #d0af94;}
+        QLabel#PoolVariantTitle {color:#2b4058;}
+        QLabel#PoolVariantCount {color:#334961;}
+        QLabel#PoolMiniLabel {color:#4e647b;}
+        QLabel#PoolMiniValue {color:#23394f;background:#f9f6ef;border:1px solid #bfad95;}
+        QFrame#PoolOrderLinks {background:#f2e9dc;border:1px solid #d0bea4;}
+        QLabel#PoolLinksTitle {color:#35546e;}
+        QPushButton#PoolOrderLink {color:#264660;background:#dce9f0;border:1px solid #aac4d6;}
+        QPushButton#PoolOrderLink:hover {color:#16394f;background:#c4dce9;border-color:#7da7c5;}
+        QLabel#PoolActiveScope {color:#28644d;background:#d9e9dd;border:1px solid #90bea4;}
+        QLabel#BookPoolTitle,QLabel#OrderMetrics {color:#243a51;}
+        QLabel#Muted {color:#526b80;}
+        QPushButton#StaffThemeSwitch:checked {background:#c3dbe9;color:#1d475f;border:1px solid #78a5c4;}
+        QPushButton#StaffThemeSwitch {background:#e2d9ca;color:#2b4560;border:1px solid #b9a48a;}
         '''
     # Koyu tema tamamen temel QSS üzerinden uygulanır; eski açık tema
     # bloğunun bu yoldan kazara yüklenmesini önlüyoruz.
