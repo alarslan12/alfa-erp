@@ -7,6 +7,7 @@ from PySide6.QtGui import QPixmap,QIcon,QPainter,QColor,QFont,QAction
 from alfa_cihaz import DATA
 from alfa_rtdb import Workstation
 from bildirim_sesleri import configured_sound,play_order_sound
+from alfa_hatalar import install_reporter,record_error,connect_device
 from bulut_canli import RtdbWatch
 STATE=DATA/'alfa_bildirim_durumu.json'
 class Reader(QThread):
@@ -37,7 +38,9 @@ def icon():
     p.drawText(pix.rect(),Qt.AlignmentFlag.AlignCenter,'A');p.end();return QIcon(pix)
 class Service:
     def __init__(self,app):
-        self.client=Workstation();self.tray=QSystemTrayIcon(icon(),app)
+        self.client=Workstation()
+        connect_device(lambda:self.client)
+        self.tray=QSystemTrayIcon(icon(),app)
         self.tray.setToolTip('ALFA ERP · Sipariş bildirimleri')
         menu=QMenu();quit_item=QAction('Bildiriciyi kapat',menu);quit_item.triggered.connect(app.quit)
         menu.addAction(quit_item);self.tray.setContextMenu(menu);self.tray.show()
@@ -125,6 +128,10 @@ class Service:
         self.popup=Popup(caption);self.popup.show()
 def main():
     DATA.mkdir(parents=True,exist_ok=True)
+    install_reporter("6.6.0","staff",data_dir=DATA)
+    def _error_hook(error_type,error,tb):
+        record_error(error_type,error,tb,source="tray")
+    sys.excepthook=_error_hook
     lock=QLockFile(str(DATA/'alfa_bildirim.lock'));lock.setStaleLockTime(30000)
     if not lock.tryLock(100):return 0
     app=QApplication(sys.argv);app.setQuitOnLastWindowClosed(False)
