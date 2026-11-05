@@ -201,36 +201,64 @@ param(
     [Parameter(Mandatory=$true)][int]$ParentPid,
     [Parameter(Mandatory=$true)][string]$Setup,
     [Parameter(Mandatory=$true)][string]$Sha256,
-    [Parameter(Mandatory=$true)][string]$TargetExe
+    [Parameter(Mandatory=$true)][string]$TargetExe,
+    [Parameter(Mandatory=$true)][string]$StatusFile
 )
 $ErrorActionPreference = 'Stop'
+$ErrorFile = Join-Path $PSScriptRoot 'last_update_error.txt'
+function Write-UpdateStatus([string]$message) {
+    [IO.File]::WriteAllText($StatusFile, $message, [Text.Encoding]::UTF8)
+}
 try {
-    # It is unsafe to replace an executable while the ERP is still running.
-    try {
-        Wait-Process -Id $ParentPid -Timeout 180 -ErrorAction Stop
-    } catch {
-        $process = Get-Process -Id $ParentPid -ErrorAction SilentlyContinue
-        if ($process) { throw 'ERP did not exit; update cancelled' }
+    Write-UpdateStatus 'ERP uygulamasinin kapanmasi bekleniyor'
+    # Exit of the real QMainWindow is required; an open modal update dialog
+    # used to leave the ERP process running while this helper waited.
+    if (Get-Process -Id $ParentPid -ErrorAction SilentlyContinue) {
+        try {
+            Wait-Process -Id $ParentPid -Timeout 45 -ErrorAction Stop
+        } catch {
+            if (Get-Process -Id $ParentPid -ErrorAction SilentlyContinue) {
+                throw 'ALFA ERP kapanamadi; kurulum baslatilmadi.'
+            }
+        }
     }
-    if (-not (Test-Path -LiteralPath $Setup -PathType Leaf)) { throw 'Installer missing' }
+    Write-UpdateStatus 'Kurulum dosyasi yeniden dogrulaniyor'
+    if (-not (Test-Path -LiteralPath $Setup -PathType Leaf)) {
+        throw 'Indirilen kurulum dosyasi artik bulunamiyor.'
+    }
     $actual = (Get-FileHash -LiteralPath $Setup -Algorithm SHA256).Hash.ToLowerInvariant()
-    if ($actual -ne $Sha256.ToLowerInvariant()) { throw 'SHA256 verification failed' }
-    # Unified setup MUST run interactively. In particular, the owner
-    # password page must never be bypassed by a silent upgrade.
+    if ($actual -ne $Sha256.ToLowerInvariant()) {
+        throw 'SHA-256 uyusmuyor; kurulum iptal edildi.'
+    }
+    # One installer contains both editions. The existing edition is
+    # preselected; the owner still enters the normal setup password.
     $editionArg = if ([IO.Path]::GetFileName($TargetExe) -ieq 'AlfaERPYonetici.exe') {
         '/ALFAOWNER'
-    } else { '/ALFASTAFF' }
-    $p=Start-Process -FilePath $Setup -ArgumentList @(
-        $editionArg,'/NORESTART','/CLOSEAPPLICATIONS'
-    ) -PassThru -Wait
-    if ($p.ExitCode -ne 0) { throw "Installer exited with $($p.ExitCode)" }
-    if (Test-Path -LiteralPath $TargetExe -PathType Leaf) {
-        Start-Process -FilePath $TargetExe
+    } else {
+        '/ALFASTAFF'
+    }
+    Write-UpdateStatus 'Windows kurulum sihirbazi aciliyor'
+    $p = Start-Process -FilePath $Setup -ArgumentList @(
+        $editionArg, '/NORESTART', '/CLOSEAPPLICATIONS'
+    ) -PassThru -Wait -ErrorAction Stop
+    if ($p.ExitCode -ne 0) {
+        throw "Kurulum tamamlanmadi (cikis kodu $($p.ExitCode))."
+    }
+    if (-not (Test-Path -LiteralPath $TargetExe -PathType Leaf)) {
+        throw 'Kurulum bitti ama uygulamanin EXE dosyasi bulunamadi.'
+    }
+    Write-UpdateStatus 'ALFA ERP yeniden baslatiliyor'
+    Start-Process -FilePath $TargetExe -WorkingDirectory (Split-Path -Parent $TargetExe) -ErrorAction Stop
+    Write-UpdateStatus 'Tamamlandi'
+    if (Test-Path -LiteralPath $ErrorFile) {
+        Remove-Item -LiteralPath $ErrorFile -Force -ErrorAction SilentlyContinue
     }
 } catch {
-    # Local-only diagnostic; never send process paths to the cloud.
-    $errorText='Update failed: '+$_.Exception.GetType().Name
-    [IO.File]::WriteAllText((Join-Path $PSScriptRoot 'last_update_error.txt'),$errorText)
+    # Detailed enough for local troubleshooting; never uploaded to Firebase.
+    $message = [string]$_.Exception.Message
+    if ($message.Length -gt 350) { $message = $message.Substring(0,350) }
+    [IO.File]::WriteAllText($ErrorFile, $message, [Text.Encoding]::UTF8)
+    Write-UpdateStatus ('HATA: ' + $message)
     exit 1
 }
 '''
@@ -260,13 +288,22 @@ def launch_update(verified,storage,app_executable,pending=0):
     script_dir.mkdir(parents=True,exist_ok=True)
     script=script_dir/"alfa_safe_installer.ps1"
     script.write_text(HELPER_PS,encoding="utf-8")
+    status_path=script_dir/"last_update_status.txt"
+    status_path.write_text("Güncelleme yardımcısı başlatılıyor",encoding="utf-8")
+    # A previous failed attempt must not masquerade as the new attempt.
+    (script_dir/"last_update_error.txt").unlink(missing_ok=True)
+    # CREATE_NO_WINDOW hides PowerShell only; Inno Setup's interactive
+    # edition/password wizard remains visible in the logged-in desktop.
     flags=(getattr(subprocess,"CREATE_NEW_PROCESS_GROUP",0) |
-           getattr(subprocess,"DETACHED_PROCESS",0))
-    subprocess.Popen(
+           getattr(subprocess,"CREATE_NO_WINDOW",0))
+    helper=subprocess.Popen(
         ["powershell.exe","-NoProfile","-NonInteractive",
          "-ExecutionPolicy","Bypass","-File",str(script),
          "-ParentPid",str(os.getpid()),"-Setup",str(setup),
-         "-Sha256",expected,"-TargetExe",str(exe)],
+         "-Sha256",expected,"-TargetExe",str(exe),
+         "-StatusFile",str(status_path)],
         stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,close_fds=True,creationflags=flags)
+    if helper.pid is None:
+        raise UpdateError("Windows güncelleme yardımcısı başlatılamadı")
     return True
