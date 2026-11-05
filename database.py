@@ -1131,6 +1131,29 @@ class ERPDatabase:
 
         except Exception as e:
             print(f"Excel katalog okuma hatasi: {e!a}")
+    @staticmethod
+    def _kargo_kodu_esleme_anahtari(value):
+        """Normalize a shipping code without fuzzy matching other addresses."""
+        value=str(value or '').strip()
+        if not value:
+            return None
+        compact=''.join(value.split())
+        if compact.isdecimal():
+            return ('numeric',compact)
+        return ('text',' '.join(value.casefold().split()))
+
+    def ayni_kargo_kodlu_siparisler(self,code):
+        """Existing orders with the same code; no new Firebase request."""
+        key=self._kargo_kodu_esleme_anahtari(code)
+        if key is None:
+            return []
+        matches=[
+            row for row in self.siparisler
+            if isinstance(row,dict) and not row.get('deleted_at')
+            and self._kargo_kodu_esleme_anahtari(row.get('kod'))==key
+        ]
+        return sorted(matches,key=lambda row:str(row.get('tarih') or ''),reverse=True)
+
     def yeni_siparis_olustur(self, alanlar, kitaplar):
         """Katalog sepetini havuza ekler; eski JSON şemasını aynen kullanır."""
         if not str(alanlar.get("kod", "")).strip():
