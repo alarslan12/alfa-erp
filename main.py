@@ -14,13 +14,13 @@ from ekran_analitik import AnalitikView
 from ekran_envanter import EnvanterView
 from urun_katalogu import GeneralProductCatalog
 from ekran_ayarlar import SettingsPage
-from alfa_cihaz import Workstation
+from alfa_rtdb import Workstation
 from bulut_canli import Sync
 from ayar_yonetimi import UserSettings, theme_styles
 from widgets import text,button,panel,Covers
 
 ROOT=Path(__file__).resolve().parent
-VERSION='6.2.2'
+VERSION='6.3.0'
 OWNER_EDITION=(ROOT/'YONETICI_SURUMU.flag').exists()
 
 
@@ -186,10 +186,9 @@ class AlfaMain(QMainWindow):
         for page in (self.catalog_host,self.orders,self.analytics,self.inventory,self.settings_page):self.stack.addWidget(page)
         self.device=Workstation()
         if OWNER_EDITION:
-            from yonetici_giris import admin_request
-            # The backend checks the per-device OWNER role for every admin_* action.
-            # No interactive Supabase login or stored owner password at startup.
-            self.db.owner_admin_request=lambda action,**kw:admin_request(None,action,**kw)
+            from rtdb_owner_admin import admin_request
+            # Owner role verified with RTDB Security Rules on every write.
+            self.db.owner_admin_request=lambda action,**kw:admin_request(self.device,action,**kw)
             self.analytics.cloud_admin_request=self.db.owner_admin_request
         if not OWNER_EDITION:
             # Çalışan bilgisayarına işlem günlüğünün yerel kopyasını yazma.
@@ -307,72 +306,24 @@ class AlfaMain(QMainWindow):
         if index==1:self.general_catalog.refresh()
 
     def try_auto_enrollment(self):
-        from auto_eslestir import ROOT as ticket_root
-        ticket=ticket_root/'kurulum_bilgisi.json'
-        if not ticket.is_file():
-            self._auto_enroll_retry.stop()
-            return
-        if self.device.paired:
-            try:
-                data=json.loads(ticket.read_text(encoding='utf-8'))
-                replace_existing=data.get('replace_existing') is True
-            except (OSError,ValueError,TypeError):
-                replace_existing=False
-            if not replace_existing:
-                self._auto_enroll_retry.stop()
-                try:ticket.unlink()
-                except OSError:pass
-                return
-        if self._auto_enroll_worker and self._auto_enroll_worker.isRunning():
-            return
-        self.cloud_badge.setText('◌ Cihaz yetkisi kuruluyor…')
-        worker=AutoEnrollment(self)
-        self._auto_enroll_worker=worker
-        result={'ok':False,'error':''}
-        worker.succeeded.connect(lambda:result.__setitem__('ok',True))
-        worker.failed.connect(lambda message:result.__setitem__('error',message))
-        def finished():
-            self._auto_enroll_worker=None
-            if result['ok']:
-                from alfa_cihaz import get_token
-                self.device.token=get_token()
-                if self.device.paired:
-                    self._auto_enroll_retry.stop()
-                    self.cloud_connect.setText('Cihaz yetkisi' if OWNER_EDITION else 'Yeniden eşleştir')
-                    self.live.activate()
-                    return
-            self.cloud_badge.setText('◌ Bağlantı yeniden denenecek')
-            self.cloud_badge.setToolTip(
-                'Özel kurulum bileti korunuyor. Bir sonraki denemede bağlantı '
-                'otomatik olarak yeniden kurulacak.\n'+result['error'])
-            if not self._auto_enroll_retry.isActive():
-                self._auto_enroll_retry.start()
-        worker.finished.connect(finished)
-        worker.finished.connect(worker.deleteLater)
-        worker.start()
+        """Old Supabase setup tickets are intentionally ignored in Firebase mode."""
+        self._auto_enroll_retry.stop()
 
     def connect_cloud(self):
-        """Open normally; authorize the computer only when the user asks."""
-        if OWNER_EDITION:
-            from yonetici_giris import AdminLogin
-            dialog=AdminLogin(self)
-            dialog.setWindowTitle('ALFA ERP · Bir defalık yönetici cihaz aktivasyonu')
-        else:
-            from cihaz_eslestir import PairDialog
-            dialog=PairDialog(self)
+        """One-time anonymous Firebase identity plus owner device approval."""
+        from firebase_pair_ui import PairDialog
+        dialog=PairDialog(client=self.device,owner=OWNER_EDITION,parent=self)
         if dialog.exec()!=dialog.DialogCode.Accepted:
             return
-        from alfa_cihaz import get_token
-        token=get_token()
-        if not token:
-            QMessageBox.warning(self,'Bulut bağlantısı',
-                'Cihaz anahtarı kaydedilemedi. Siparişler buluta gönderilmeyecek.')
+        self.device.reload()
+        if not self.device.paired:
+            QMessageBox.warning(self,'Firebase bağlantısı',
+                'Cihaz oturumu kaydedilemedi. Veriler yerelde korunuyor.')
             return
-        self.device.token=token
         self._auto_enroll_retry.stop()
         self.live.activate()
-        self.cloud_connect.setText('Cihaz yetkisi' if OWNER_EDITION else 'Yeniden eşleştir')
-        self.cloud_badge.setToolTip('İlk bulut eşitlemesi başlatıldı.')
+        self.cloud_connect.setText('Cihaz yetkisi')
+        self.cloud_badge.setToolTip('Firebase Realtime Database eşitlemesi başlatıldı.')
 
     def navigate(self,index):
         if index==2 and not self._analytics_unlocked:
