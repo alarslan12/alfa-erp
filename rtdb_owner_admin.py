@@ -133,15 +133,21 @@ def admin_request(cloud,action,timeout=None,**kwargs):
         client._request("PUT","members/"+uid,{**old,"active":False})
         return {"revoked":True}
     if action=="admin_audit":
-        archive=client._get("archive/erp_device_activity") or {}
-        audit=client._get("audit") or {}
-        activities=list(archive.values())
+        # Archive from Supabase migration is intentionally NOT readable by
+        # staff/owner RTDB rules. Fetching it used to return HTTP 401, falsely
+        # shown as "Firebase oturumu gecersiz".
+        # Only user-requested refresh accesses this data; no background loop.
         orders=client._get("orders") or {}
+        activities=[]
         for row in orders.values():
+            if not isinstance(row,dict):continue
             for event in (row.get("event_log") or {}).values():
                 if isinstance(event,dict):activities.append(event)
+        # Old imported audit records can be large; read only once on demand.
+        # Production reset removes legacy audit while preserving book catalog.
+        audit=client._get("audit") or {}
         return {"device_activity":activities,
-                "audit_events":list(audit.values())}
+                "audit_events":list(audit.values()) if isinstance(audit,dict) else []}
     if action=="admin_inventory_upsert":
         return _upsert_product(client,kwargs.get("product"))
     if action=="admin_inventory_image":

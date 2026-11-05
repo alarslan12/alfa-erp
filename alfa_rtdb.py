@@ -48,7 +48,17 @@ def _http_json(url, method="GET", body=None, headers=None, timeout=20):
     except urllib.error.HTTPError as error:
         # Avoid printing response bodies which might contain sensitive records.
         if error.code == 401:
-            raise DeviceError("Firebase oturumu geçersiz.", 401) from None
+            # RTDB also returns 401 for Security Rules "Permission denied".
+            # An inaccessible legacy path is not proof of an expired login.
+            try:
+                message = json.loads(error.read(1024)).get("error", "")
+            except (ValueError, OSError, TypeError, AttributeError):
+                message = ""
+            if "permission denied" in str(message).lower():
+                raise DeviceError(
+                    "Firebase erişim izni reddedildi; veritabanı kuralları veya cihaz rolünü kontrol et.",
+                    403) from None
+            raise DeviceError("Firebase oturumu geçersiz; cihaz bağlantısını kontrol et.", 401) from None
         if error.code == 403:
             raise DeviceError("Bu cihaz henüz yönetici tarafından yetkilendirilmedi.", 403) from None
         if error.code == 412:
@@ -475,13 +485,17 @@ class Workstation:
                 version=row["version"]
                 history=row.setdefault("event_log",{})
                 for event in changed:
-                    op_id=str(event["op_id"])
-                    processed[op_id]=version
-                    history[op_id]={
-                        "id":op_id,"action":"progress","device_id":self.uid,
-                        "device_name":socket.gethostname()[:120],
-                        "order_ids":[order_id],"created_at":now,
-                        "details":{"events":[copy.deepcopy(event)]}}
+                    processed[str(event["op_id"])]=version
+                # Store ONE audit entry for the whole user action, not one
+                # duplicate event_log object per selected book. The op_id map
+                # still provides exact per-book idempotency on network retries.
+                batch_id=str(changed[0]["op_id"])
+                history[batch_id]={
+                    "id":batch_id,"action":"progress_bulk",
+                    "device_id":self.uid,
+                    "device_name":socket.gethostname()[:120],
+                    "order_ids":[order_id],"created_at":now,
+                    "details":{"events":[copy.deepcopy(event) for event in changed]}}
                 return row,[{"op_id":str(event["op_id"]),
                              "order_id":order_id,
                              "version":int(processed[str(event["op_id"])])}

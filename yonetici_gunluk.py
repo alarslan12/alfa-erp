@@ -1,153 +1,148 @@
-"""Readable cloud audit timeline: one log, icon categories, Major / Minor."""
+"""ALFA ERP cloud audit: one category per business action, expandable book details.
+
+Legacy individual book events are grouped in the viewer; future Firebase
+bulk progress writes store only a single compact batch entry per order.
+This widget never initiates network requests.
+"""
 from datetime import datetime
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QFrame, QScrollArea, QSizePolicy
+    QWidget,QVBoxLayout,QHBoxLayout,QLabel,QPushButton,
+    QFrame,QScrollArea
 )
 
 
+def _datetime(value):
+    try:
+        return datetime.fromisoformat(str(value).replace('Z','+00:00'))
+    except (ValueError,TypeError,OverflowError):
+        return None
+
+
 def _timestamp(value):
-    try:
-        return datetime.fromisoformat(str(value).replace('Z', '+00:00')).astimezone().strftime('%d.%m.%Y  %H:%M:%S')
-    except (ValueError, TypeError, OverflowError):
-        return str(value or '—')[:19]
+    d=_datetime(value)
+    return d.astimezone().strftime('%d.%m.%Y  %H:%M:%S') if d else str(value or '—')[:19]
 
 
-def _time_sort(value):
-    try:
-        return datetime.fromisoformat(str(value).replace('Z', '+00:00')).timestamp()
-    except (ValueError, TypeError, OverflowError):
-        return 0.0
+def _sort_time(value):
+    d=_datetime(value)
+    return d.timestamp() if d else 0.0
 
 
-def _order_name(identifier, lookup):
-    number = lookup.get(str(identifier))
-    return '#' + str(number) if number else 'Sipariş ' + str(identifier or '')[:8]
+def _order_name(value,lookup):
+    number=lookup.get(str(value))
+    return '#'+str(number) if number else 'Sipariş '+str(value or '')[:8]
 
 
-def make_audit_entries(payload, orders):
-    """One unified view of business events; low-level trigger noise is hidden."""
-    lookup = {str(o.get('bulut_id')): o.get('bulut_siparis_no') or o.get('id')
-              for o in orders if isinstance(o, dict) and o.get('bulut_id')}
-    entries = []
-    activities = payload.get('device_activity') or []
-    # The source may include duplicate database audit records for each full order
-    # commit. Device summaries take precedence when both are present.
-    related = []
-    for row in activities:
-        action = str(row.get('action') or '')
-        stamp = row.get('created_at') or ''
-        device = str(row.get('device_name') or 'Bilinmeyen bilgisayar')
-        ids = row.get('order_ids') or []
-        names = ', '.join(_order_name(x, lookup) for x in ids[:4]) or 'Genel işlem'
-        details = row.get('details') or {}
-        if not isinstance(details, dict):
-            details = {}
-        body = details.get('events') or []
-        if action == 'progress':
-            description = []
-            for event in body[:5]:
-                code = str(event.get('book_code') or '')
-                printing = str(event.get('print_type') or '')
-                dr = int(event.get('delta_ready') or 0)
-                dk = int(event.get('delta_boxed') or 0)
-                changes = []
-                if dr:
-                    changes.append('Hazırlama +' + str(dr) if dr > 0 else 'Hazırlama ' + str(dr))
-                if dk:
-                    changes.append('Kolileme +' + str(dk) if dk > 0 else 'Kolileme ' + str(dk))
-                description.append('#' + code + ' ' + printing + ': ' + ', '.join(changes))
-            detail = ' · '.join(description) if description else 'Kitap hazırlama / kolileme durumu güncellendi.'
-            level, icon, title = 'minor', '✓', 'Kitap hazırlama / kolileme'
-        elif action == 'transition':
-            transitions = []
-            labels = {'havuz':'Havuz','aktif':'Aktif','tamamlandi':'Tamamlandı'}
-            for event in body[:5]:
-                a = labels.get(str(event.get('from_status') or ''), '—')
-                b = labels.get(str(event.get('to_status') or ''), '—')
-                transitions.append(a + ' → ' + b)
-            detail = ' · '.join(transitions) if transitions else 'Sipariş durumu güncellendi.'
-            level, icon, title = 'major', '➜', 'Sipariş durumu değişti'
-        elif action == 'inventory_sale':
-            level, icon, title, detail = 'major', '◆', 'Envanter satışı', 'Ürün satışı kaydedildi.'
-        elif action == 'commit':
-            level, icon, title, detail = 'major', '+', 'Sipariş kaydedildi', 'Sipariş oluşturuldu veya düzenlendi.'
+def _progress_line(event):
+    code=str(event.get('book_code') or '')
+    kind=str(event.get('print_type') or '')
+    dr=int(event.get('delta_ready') or 0)
+    dk=int(event.get('delta_boxed') or 0)
+    changes=[]
+    if dr:changes.append(('Hazırlandı ' if dr>0 else 'Hazırlama geri alındı ')+str(abs(dr)))
+    if dk:changes.append(('Kolilendi ' if dk>0 else 'Kolileme geri alındı ')+str(abs(dk)))
+    return '#'+code+' '+kind+' · '+(', '.join(changes) if changes else 'Durum güncellendi')
+
+
+def make_audit_entries(payload,orders):
+    """Group per-book progress into a single expandable business action."""
+    lookup={str(o.get('bulut_id')):o.get('bulut_siparis_no') or o.get('id')
+            for o in orders if isinstance(o,dict) and o.get('bulut_id')}
+    entries=[]
+    groups={}
+    activities=payload.get('device_activity') or []
+    for raw in activities:
+        if not isinstance(raw,dict):continue
+        action=str(raw.get('action') or '')
+        stamp=str(raw.get('created_at') or '')
+        source=str(raw.get('device_name') or 'Bilinmeyen bilgisayar')
+        ids=raw.get('order_ids') or []
+        key_order=str(ids[0]) if ids else ''
+        names=', '.join(_order_name(x,lookup) for x in ids[:3]) or 'Genel işlem'
+        details=raw.get('details') or {}
+        events=details.get('events') if isinstance(details,dict) else []
+        events=events if isinstance(events,list) else []
+        if action in ('progress','progress_bulk'):
+            # Group older single-book events into one display-only block when
+            # they share the same order, device and short update window.
+            bucket=int(_sort_time(stamp)//12)
+            key=(key_order,source,bucket,'progress')
+            if key not in groups:
+                entry={'stamp':stamp,'icon':'✓',
+                       'title':'Kitapların durumu değiştirildi',
+                       'detail':'Hazırlama ve kolileme işlemleri',
+                       'orders':names,'source':source,'lines':[]}
+                groups[key]=entry
+                entries.append(entry)
+            group=groups[key]
+            if _sort_time(stamp)>_sort_time(group['stamp']):
+                group['stamp']=stamp
+            group['lines'].extend(_progress_line(e) for e in events if isinstance(e,dict))
+            continue
+        if action=='transition':
+            labels={'havuz':'Havuz','aktif':'Aktif','tamamlandi':'Tamamlandı'}
+            lines=[labels.get(str(e.get('from_status') or ''),'—')+' → '+
+                   labels.get(str(e.get('to_status') or ''),'—')
+                   for e in events if isinstance(e,dict)]
+            title='Sipariş durumu değiştirildi'
+            icon='➜'
+        elif action=='commit':
+            title='Sipariş kaydedildi';icon='＋';lines=['Sipariş oluşturuldu veya düzenlendi']
+        elif action=='inventory_sale':
+            title='Envanter satışı yapıldı';icon='◆';lines=['Ürün satışı kaydedildi']
         else:
-            level, icon, title, detail = 'minor', '•', 'İşlem kaydedildi', action or '—'
-        entries.append({'stamp':stamp, 'level':level, 'icon':icon,
-                        'title':title, 'detail':detail, 'orders':names,
-                        'source':device, 'origin':'device'})
-        related.append((_time_sort(stamp), action))
-    for row in payload.get('audit_events') or []:
-        entity = str(row.get('entity_name') or '')
-        action = str(row.get('action') or '')
-        changes = set(row.get('changed_fields') or [])
-        stamp = row.get('created_at') or ''
-        when = _time_sort(stamp)
-        # Ignore noisy row-level updates generated by an order replacement.
-        # The original immutable audit data remains in Supabase.
-        if entity == 'order_items' and action in ('INSERT', 'DELETE'):
+            title='Diğer işlem';icon='•';lines=[action or 'İşlem kaydı']
+        entries.append({'stamp':stamp,'icon':icon,'title':title,
+                        'detail':'İşlem ayrıntıları','orders':names,
+                        'source':source,'lines':lines})
+
+    # Preserve meaningful historical business audit after migration without
+    # flooding the screen with SQL trigger rows for each book.
+    for raw in payload.get('audit_events') or []:
+        if not isinstance(raw,dict):continue
+        entity=str(raw.get('entity_name') or '')
+        action=str(raw.get('action') or '')
+        if entity not in ('orders','accounting_days'):continue
+        stamp=str(raw.get('created_at') or '')
+        # Prefer Firebase event log when it describes this recent action.
+        if any(abs(_sort_time(stamp)-_sort_time(row['stamp']))<8
+               for row in entries):
             continue
-        if entity == 'order_items' and not changes.intersection({'prepared_count','boxed_count','quantity'}):
-            continue
-        if entity == 'orders' and action == 'UPDATE' and not changes:
-            continue
-        if entity == 'order_items' and any(kind == 'progress' and abs(when - t) < 8
-                                           for t, kind in related):
-            continue
-        if entity == 'orders' and any(kind in ('transition','commit') and abs(when - t) < 8
-                                      for t, kind in related):
-            continue
-        label = _order_name(row.get('entity_id'), lookup) if entity == 'orders' else 'Bulut kaydı'
-        if entity == 'orders':
-            level = 'major'
-            icon = '+' if action == 'INSERT' else '×' if action == 'DELETE' else '➜'
-            title = ('Yeni sipariş oluşturuldu' if action == 'INSERT' else
-                     'Sipariş silindi' if action == 'DELETE' else
-                     'Sipariş durumu değişti' if 'status' in changes else
-                     'Sipariş bilgisi güncellendi')
-            detail = ' · '.join(x for x in (
-                'Durum' if 'status' in changes else '',
-                'Ciro' if 'gross_amount' in changes else '',
-                'Kargo' if 'shipping_fee' in changes else ''
-            ) if x) or 'Sipariş verileri kaydedildi.'
-        elif entity == 'order_items':
-            level, icon, title = 'minor', '✓', 'Kitap ilerlemesi'
-            detail = ('Hazırlandı / Kolilendi' if changes.intersection(
-                {'prepared_count','boxed_count'}) else 'Kitap adedi değişti')
-        elif entity == 'accounting_days':
-            level, icon, title, detail = 'major', '₺', 'Muhasebe kaydı', 'Ödeme durumu değişti.'
+        changes=raw.get('changed_fields') or []
+        if entity=='orders':
+            title=('Sipariş oluşturuldu' if action=='INSERT' else
+                   'Sipariş silindi' if action=='DELETE' else
+                   'Sipariş bilgileri değiştirildi')
+            detail=', '.join(str(x) for x in changes) or 'Sipariş güncellendi'
+            names=_order_name(raw.get('entity_id'),lookup)
         else:
-            continue
-        entries.append({'stamp':stamp,'level':level,'icon':icon,'title':title,
-                        'detail':detail,'orders':label,
-                        'source':'Bulut işlem kaydı','origin':'database'})
-    entries.sort(key=lambda e:_time_sort(e['stamp']),reverse=True)
-    return entries[:220]
+            title='Muhasebe durumu değiştirildi';detail='Ödeme bilgisi güncellendi'
+            names='Muhasebe'
+        entries.append({'stamp':stamp,'icon':'•','title':title,
+                        'detail':'Geçmiş bulut işlemi','orders':names,
+                        'source':'Bulut işlem kaydı','lines':[detail]})
+
+    for row in entries:
+        count=len(row['lines'])
+        if row['title']=='Kitapların durumu değiştirildi':
+            row['detail']=str(count)+' kitap hareketi · ayrıntılar açılabilir'
+    entries.sort(key=lambda row:_sort_time(row['stamp']),reverse=True)
+    return entries[:240]
 
 
 class AuditFeed(QWidget):
-    """Theme-aware card timeline with Major / Minor filters and visual labels."""
-    def __init__(self, parent=None):
+    """Compact cards. Expand detail only when requested, without extra reads."""
+    def __init__(self,parent=None):
         super().__init__(parent)
-        root=QVBoxLayout(self);root.setContentsMargins(0,2,0,0);root.setSpacing(12)
+        root=QVBoxLayout(self);root.setContentsMargins(0,2,0,0);root.setSpacing(10)
         head=QHBoxLayout()
         title=QLabel('İŞLEM GÜNLÜĞÜ');title.setObjectName('OwnerHeading')
         head.addWidget(title);head.addStretch()
         self.counter=QLabel('Henüz yüklenmedi');self.counter.setObjectName('OwnerMuted')
-        head.addWidget(self.counter)
-        root.addLayout(head)
-        hint=QLabel('Major: sipariş, durum ve muhasebe • Minor: kitap hazırlama ve kolileme')
+        head.addWidget(self.counter);root.addLayout(head)
+        hint=QLabel('Tek bir işlem başlığına tıklayarak kitap bazındaki ayrıntıları görebilirsin.')
         hint.setObjectName('OwnerMuted');hint.setWordWrap(True);root.addWidget(hint)
-        filters=QHBoxLayout();filters.setSpacing(8)
-        self.filters={}
-        for key,label in (('all','Tüm işlemler'),('major','✦ Major'),('minor','✓ Minor')):
-            b=QPushButton(label);b.setObjectName('OwnerFilter')
-            b.setCheckable(True)
-            b.clicked.connect(lambda checked=False,k=key:self.set_filter(k))
-            self.filters[key]=b;filters.addWidget(b)
-        filters.addStretch();root.addLayout(filters)
         self.scroll=QScrollArea();self.scroll.setObjectName('OwnerAuditScroll')
         self.scroll.setFrameShape(QFrame.Shape.NoFrame)
         self.scroll.setWidgetResizable(True)
@@ -155,52 +150,54 @@ class AuditFeed(QWidget):
         self.cards=QVBoxLayout(host);self.cards.setSpacing(8)
         self.cards.setContentsMargins(2,2,8,12)
         self.scroll.setWidget(host);root.addWidget(self.scroll,1)
-        self.entries=[];self.current='all';self.set_filter('all')
-
-    def set_entries(self, payload, orders):
-        self.entries=make_audit_entries(payload, orders)
+        self.entries=[]
         self.render()
 
-    def set_filter(self, level):
-        self.current=level
-        for key,b in self.filters.items():b.setChecked(key==level)
+    def set_entries(self,payload,orders):
+        self.entries=make_audit_entries(payload,orders)
         self.render()
 
     def render(self):
         while self.cards.count():
             item=self.cards.takeAt(0)
             if item.widget():item.widget().deleteLater()
-        visible=[x for x in self.entries if self.current=='all'
-                 or x['level']==self.current][:120]
-        major=sum(x['level']=='major' for x in self.entries)
-        minor=sum(x['level']=='minor' for x in self.entries)
-        self.counter.setText(f'{major} Major  ·  {minor} Minor')
-        if not visible:
-            note=QLabel('Bu filtrede gösterilecek işlem bulunmuyor.')
-            note.setObjectName('OwnerMuted');note.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            note.setMinimumHeight(100);self.cards.addWidget(note)
-        for row in visible:
+        self.counter.setText(str(len(self.entries))+' işlem grubu')
+        if not self.entries:
+            note=QLabel('Gösterilecek işlem bulunmuyor.')
+            note.setObjectName('OwnerMuted')
+            note.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            note.setMinimumHeight(100)
+            self.cards.addWidget(note)
+        for row in self.entries[:150]:
             card=QFrame();card.setObjectName('OwnerAuditCard')
-            card.setProperty('level',row['level'])
-            body=QHBoxLayout(card);body.setContentsMargins(15,13,15,13);body.setSpacing(13)
+            body=QHBoxLayout(card);body.setContentsMargins(15,13,15,13)
+            body.setSpacing(12)
             icon=QLabel(row['icon']);icon.setObjectName('OwnerAuditIcon')
-            icon.setProperty('level',row['level'])
-            icon.setAlignment(Qt.AlignmentFlag.AlignCenter);icon.setFixedSize(38,38)
-            body.addWidget(icon)
-            detail=QVBoxLayout();detail.setSpacing(4)
-            top=QHBoxLayout()
+            icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            icon.setFixedSize(38,38);body.addWidget(icon)
+            info=QVBoxLayout();info.setSpacing(6)
             title=QLabel(row['title']);title.setObjectName('OwnerAuditTitle')
-            title.setWordWrap(True);top.addWidget(title,1)
-            badge=QLabel('MAJOR' if row['level']=='major' else 'MINOR')
-            badge.setObjectName('OwnerLevel');badge.setProperty('level',row['level'])
-            top.addWidget(badge)
-            detail.addLayout(top)
+            title.setWordWrap(True);info.addWidget(title)
             subtitle=QLabel(row['orders']+'  •  '+row['detail'])
             subtitle.setObjectName('OwnerBody');subtitle.setWordWrap(True)
-            detail.addWidget(subtitle)
+            info.addWidget(subtitle)
             foot=QLabel(_timestamp(row['stamp'])+'   ·   '+row['source'])
-            foot.setObjectName('OwnerMuted')
-            detail.addWidget(foot)
-            body.addLayout(detail,1)
+            foot.setObjectName('OwnerMuted');info.addWidget(foot)
+            lines=row.get('lines') or []
+            if lines:
+                expand=QPushButton('▸  Ayrıntıları göster ('+str(len(lines))+')')
+                expand.setObjectName('OwnerAuditExpand')
+                expand.setCheckable(True)
+                detail=QLabel('\n'.join('•  '+str(line) for line in lines))
+                detail.setObjectName('OwnerBody');detail.setWordWrap(True)
+                detail.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+                detail.setVisible(False)
+                expand.toggled.connect(detail.setVisible)
+                expand.toggled.connect(
+                    lambda checked,b=expand,n=len(lines):
+                    b.setText(('▾  Ayrıntıları gizle' if checked else
+                               '▸  Ayrıntıları göster ('+str(n)+')')))
+                info.addWidget(expand);info.addWidget(detail)
+            body.addLayout(info,1)
             self.cards.addWidget(card)
         self.cards.addStretch()

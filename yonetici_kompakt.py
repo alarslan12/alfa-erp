@@ -1,7 +1,7 @@
 """Single owner settings page inside the normal ERP. No second admin dashboard."""
 from pathlib import Path
 ROOT=Path(__file__).resolve().parent
-import tempfile,uuid
+import tempfile,uuid,time,webbrowser
 from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QLabel,QLineEdit,
     QPushButton,QFileDialog,QMessageBox,QTableWidget,QTableWidgetItem,QAbstractItemView,
     QFrame,QHeaderView,QDialog,QTextEdit)
@@ -27,17 +27,29 @@ class OwnerSettingsPage(SettingsPage):
         self.setObjectName('OwnerSettings')
         self.cloud=cloud
         self.jobs=set()
-        # The standard settings only had two tabs; keep those, add three owner tools.
+        self._audit_last_loaded=0.0
+        # Settings remain one built-in owner page; no separate admin app.
         nav=self.layout().itemAt(1).layout()
         for title,page in [('Excel kataloğu',self.catalog_page()),
                            ('Bilgisayarlar',self.devices_page()),
-                           ('İşlem günlüğü',self.audit_page())]:
+                           ('İşlem günlüğü',self.audit_page()),
+                           ('Sistem sağlığı',self.health_page())]:
             idx=self.stack.count()
             b=button(title,'SettingsNav');b.setCheckable(True)
             b.clicked.connect(lambda _=False,i=idx:self.show_tab(i))
             nav.insertWidget(len(self.nav),b)
             self.nav.append(b);self.stack.addWidget(page)
         self.show_tab(0)
+
+    def _admin(self,action,**kwargs):
+        # Reuse main application's locked Workstation session. Creating
+        # a fresh Workstation for every admin click caused redundant token
+        # refreshes and confusing owner errors.
+        main=self.window()
+        client=getattr(main,'device',None)
+        if client is None:
+            raise RuntimeError('Firebase yönetici bağlantısı bulunamadı.')
+        return admin_request(client,action,**kwargs)
 
     def _job(self,fn,on_success,on_error=None):
         work=RequestJob(fn,self);self.jobs.add(work)
@@ -90,7 +102,7 @@ class OwnerSettingsPage(SettingsPage):
             f'{len(self.catalog_rows)} kitap bulutta güncellensin mi?',
             QMessageBox.StandardButton.Yes|QMessageBox.StandardButton.No)!=QMessageBox.StandardButton.Yes:return
         self.upload_btn.setEnabled(False);self.catalog_note.setText('Buluta yükleniyor…')
-        self._job(lambda:admin_request(None,'admin_catalog',books=self.catalog_rows),
+        self._job(lambda:self._admin('admin_catalog',books=self.catalog_rows),
              lambda r:(self.catalog_note.setText(f"Katalog güncellendi · {r.get('count')} kitap"),
                        self.upload_btn.setEnabled(True)),
              lambda err:(self.catalog_note.setText(err),self.upload_btn.setEnabled(True)))
@@ -154,7 +166,7 @@ class OwnerSettingsPage(SettingsPage):
                     'Aktif' if r.get('active') else 'İptal',str(r.get('last_seen_at') or '—')[:19]]):
                     self.device_table.setItem(i,j,QTableWidgetItem(str(val)))
                 self.device_table.item(i,0).setData(Qt.ItemDataRole.UserRole,r['id'])
-        self._job(lambda:admin_request(None,'admin_devices'),display)
+        self._job(lambda:self._admin('admin_devices'),display)
 
     def revoke(self):
         row=self.device_table.currentRow()
@@ -162,7 +174,7 @@ class OwnerSettingsPage(SettingsPage):
         if QMessageBox.question(self,'Cihaz erişimi','Seçili bilgisayar devre dışı bırakılsın mı?',
             QMessageBox.StandardButton.Yes|QMessageBox.StandardButton.No)!=QMessageBox.StandardButton.Yes:return
         id=self.device_table.item(row,0).data(Qt.ItemDataRole.UserRole)
-        self._job(lambda:admin_request(None,'admin_revoke',id=id),
+        self._job(lambda:self._admin('admin_revoke',id=id),
                   lambda _r:self.refresh_devices())
 
     def audit_page(self):
@@ -173,7 +185,7 @@ class OwnerSettingsPage(SettingsPage):
         review.setObjectName('OwnerDanger');review.clicked.connect(self.review_cloud_conflicts)
         actions.addWidget(review)
         refresh=QPushButton('↻ İşlem günlüğünü yenile')
-        refresh.setObjectName('OwnerPrimary');refresh.clicked.connect(self.refresh_audit)
+        refresh.setObjectName('OwnerPrimary');refresh.clicked.connect(lambda:self.refresh_audit(force=True))
         actions.addWidget(refresh);layout.addLayout(actions)
         self.audit_feed=AuditFeed(page);layout.addWidget(self.audit_feed,1)
         return page
@@ -226,9 +238,97 @@ class OwnerSettingsPage(SettingsPage):
         column.addLayout(buttons)
         dialog.exec()
 
-    def refresh_audit(self):
-        self._job(lambda:admin_request(None,'admin_audit'),
-                  lambda payload:self.audit_feed.set_entries(payload,self.db.siparisler))
+    def refresh_audit(self,force=False):
+        # Do not repeatedly download every order's audit history when a user
+        # switches between Settings tabs. Manual refresh always bypasses TTL.
+        if not force and time.monotonic()-self._audit_last_loaded < 120:
+            return
+        if getattr(self,'_audit_loading',False):
+            return
+        self._audit_loading=True
+        def success(payload):
+            self._audit_loading=False
+            self._audit_last_loaded=time.monotonic()
+            self.audit_feed.set_entries(payload,self.db.siparisler)
+        def failed(message):
+            self._audit_loading=False
+            self._audit_last_loaded=0.0
+            QMessageBox.warning(self,'İşlem günlüğü',message)
+        self._job(lambda:self._admin('admin_audit'),success,failed)
+
+    def health_page(self):
+        """Lightweight on-demand diagnostics. No Firebase polling added."""
+        page=QWidget();page.setObjectName('OwnerToolPage')
+        root=QVBoxLayout(page);root.setContentsMargins(16,16,16,16);root.setSpacing(12)
+        heading=QLabel('SİSTEM SAĞLIĞI VE KOTA TAKİBİ')
+        heading.setObjectName('OwnerHeading');root.addWidget(heading)
+        explanation=QLabel(
+            'Bu ekranda uygulamanın mevcut eşitleme durumu gösterilir. '
+            'Firebase saklama/indirme ve GitHub kota tüketiminin GERÇEK '
+            'değerleri yalnızca ilgili resmî konsoldan okunur. '
+            'Ek ağ trafiği oluşturan otomatik kota taraması yapılmaz.')
+        explanation.setObjectName('OwnerMuted')
+        explanation.setWordWrap(True);root.addWidget(explanation)
+        self.health_label=QLabel('')
+        self.health_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.health_label.setWordWrap(True)
+        self.health_label.setObjectName('OwnerBody')
+        root.addWidget(self.health_label)
+        limits=QLabel(
+            'Firebase Spark ücretsiz sınırlar: Realtime Database '
+            '1 GB veri saklama, 10 GB/ay indirme, 100 eşzamanlı bağlantı. '
+            'Hosting 10 GB saklama, 360 MB/gün aktarım. '
+            'Bu sınırlar TÜKETİMİ değil, plan limitlerini gösterir.')
+        limits.setObjectName('OwnerMuted');limits.setWordWrap(True)
+        root.addWidget(limits)
+        row=QHBoxLayout()
+        refresh=QPushButton('↻ Yerel durumu yenile')
+        refresh.setObjectName('OwnerPrimary')
+        refresh.clicked.connect(self.refresh_health)
+        row.addWidget(refresh);row.addStretch(1)
+        root.addLayout(row)
+        destinations=(
+            ('Firebase · Veritabanı kullanımı',
+             'https://console.firebase.google.com/project/alfa-erp-8700c/database'),
+            ('Firebase · Hosting kullanımı',
+             'https://console.firebase.google.com/project/alfa-erp-8700c/hosting'),
+            ('Firebase · Proje faturası ve kullanım',
+             'https://console.firebase.google.com/project/alfa-erp-8700c/usage'),
+            ('GitHub · Derlemeler',
+             'https://github.com/alarslan12/alfa-erp/actions'),
+            ('GitHub · Sürüm dosyaları',
+             'https://github.com/alarslan12/alfa-erp/releases'),
+        )
+        for label,url in destinations:
+            link=QPushButton('↗  '+label)
+            link.setObjectName('OwnerPrimary')
+            link.clicked.connect(lambda _checked=False,u=url:webbrowser.open(u))
+            root.addWidget(link)
+        root.addStretch()
+        return page
+
+    def refresh_health(self):
+        db=self.db
+        live=getattr(self.window(),'live',None)
+        connected=bool(live and getattr(live,'_last_status',None)
+                       and live._last_status[0])
+        status='Bağlı' if connected else 'Bağlantı bekleniyor'
+        pending=db.pending_count
+        conflicts=len(db.unreviewed_cloud_conflicts)
+        pulse=getattr(live,'last_pulse',None) or {}
+        revisions=('Sipariş: '+str(pulse.get('orders_revision','—'))+
+                   ' / Katalog: '+str(pulse.get('catalog_revision','—'))+
+                   ' / Envanter: '+str(pulse.get('inventory_revision','—')))
+        lines=[
+            'Firebase bağlantısı: '+status,
+            'Yerel katalog: '+str(len(db.katalog))+' kitap',
+            'Yerelde görünen sipariş: '+str(len(db.siparisler)),
+            'Gönderilmeyi bekleyen işlem: '+str(pending),
+            'İncelenmemiş işlem çakışması: '+str(conflicts),
+            'Veritabanı revizyonları: '+revisions,
+            'Gerçek Firebase kota tüketimi: resmî Usage konsolunda',
+        ]
+        self.health_label.setText('\n'.join(lines))
 
     def _apply_owner_theme(self):
         # Three palettes keep the same hierarchy and contrast in every theme.
@@ -277,7 +377,7 @@ class OwnerSettingsPage(SettingsPage):
         }
         QLabel#OwnerLevel[level="major"] {color:%(major)s;}
         QLabel#OwnerLevel[level="minor"] {color:%(minor)s;}
-        QPushButton#OwnerFilter, QPushButton#OwnerPrimary, QPushButton#OwnerDanger {
+        QPushButton#OwnerFilter, QPushButton#OwnerPrimary, QPushButton#OwnerDanger, QPushButton#OwnerAuditExpand {
             background:%(button)s;color:%(text)s;border:1px solid %(border)s;
             border-radius:9px;min-height:34px;padding:5px 13px;font-weight:700;
         }
@@ -310,3 +410,4 @@ class OwnerSettingsPage(SettingsPage):
         self._apply_owner_theme()
         if index==3:self.refresh_devices()
         if index==4:self.refresh_audit()
+        if index==5:self.refresh_health()
