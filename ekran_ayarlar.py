@@ -11,6 +11,7 @@ from tema import QSS
 from pdf_kitap import PdfKutuphane
 from pdf_kapak import refresh_pdf_covers
 from bildirim_sesleri import SOUND_CHOICES, play_order_sound
+from guncelleme_arayuzu import (UpdateDialog,CheckWorker,should_check_today,mark_checked)
 from widgets import (
     button, text, refresh_cover_placeholders, refresh_all_cover_labels
 )
@@ -50,6 +51,7 @@ class SettingsPage(QWidget):
         self.config=config
         self.pdf=PdfKutuphane(Path(db.siparis_dosyasi).parent)
         self._cover_worker=None
+        self._update_check_worker=None
         root=QVBoxLayout(self)
         root.addWidget(text('ÇALIŞMA AYARLARI','SettingsTitle'))
         self.nav=[]
@@ -105,6 +107,19 @@ class SettingsPage(QWidget):
         sound_row.addWidget(preview)
         sound_col.addLayout(sound_row)
         col.addWidget(sound_card)
+        update_card=QFrame();update_card.setObjectName('SettingsCard')
+        update_layout=QVBoxLayout(update_card)
+        update_layout.addWidget(text('Güncelleme Merkezi','SettingsHeading'))
+        self.update_notice=QLabel(
+            'Kararlı güncellemeler GitHub Releases üzerinden kontrol edilir. '
+            'İndirme ve yükleme için onayın gerekir.')
+        self.update_notice.setObjectName('SettingsHint')
+        self.update_notice.setWordWrap(True)
+        update_layout.addWidget(self.update_notice)
+        open_update=button('↻ Güncelleme Merkezi’ni aç','Accent')
+        open_update.clicked.connect(self.open_update_center)
+        update_layout.addWidget(open_update)
+        col.addWidget(update_card)
         col.addStretch()
         self.stack.addWidget(page)
 
@@ -145,8 +160,11 @@ class SettingsPage(QWidget):
         app=QApplication.instance()
         if app:
             app.aboutToQuit.connect(self._stop_cover_worker)
+            app.aboutToQuit.connect(self._stop_update_worker)
         if self.pdf.folder:
             QTimer.singleShot(2400,self.generate_pdf_covers)
+        # One background release check at most once per 24h. No periodic timer.
+        QTimer.singleShot(11000,self.check_updates_on_startup)
 
     def show_tab(self,index):
         self.current_tab=index
@@ -232,6 +250,57 @@ class SettingsPage(QWidget):
     def _cover_finished(self,worker):
         if self._cover_worker is worker:
             self._cover_worker=None
+
+    def _update_identity(self):
+        app=QApplication.instance()
+        version=app.applicationVersion() or "6.6.0"
+        edition=str(app.property("alfa_edition") or "staff")
+        return version,edition
+
+    def open_update_center(self):
+        version,edition=self._update_identity()
+        dialog=UpdateDialog(version,edition,self.config.data_dir,self)
+        dialog.exec()
+
+    def check_updates_on_startup(self):
+        version,edition=self._update_identity()
+        if self._update_check_worker is not None:
+            return
+        if not should_check_today(self.config.data_dir,edition):
+            return
+        try:mark_checked(self.config.data_dir,edition)
+        except (OSError,ValueError):
+            return
+        job=CheckWorker(version,edition,self)
+        self._update_check_worker=job
+        outcome={"value":None}
+        job.done.connect(lambda result:outcome.update(value=result))
+        def finished():
+            job.wait()
+            self._update_check_worker=None
+            result=outcome["value"]
+            if result and result.get("available"):
+                newer=str(result.get("version") or "?")
+                self.update_notice.setText(
+                    f"Yeni kararlı sürüm: V{newer} · Güncelleme Merkezi'nden indir.")
+                parent=self.window()
+                if hasattr(parent,"statusBar"):
+                    parent.statusBar().showMessage(
+                        f"ALFA ERP V{newer} güncellemesi mevcut · Ayarlar → Güncelleme Merkezi",
+                        16000)
+        job.finished.connect(finished)
+        job.finished.connect(job.deleteLater)
+        job.start()
+
+    def _stop_update_worker(self):
+        job=self._update_check_worker
+        if job is not None:
+            try:
+                if job.isRunning():
+                    job.requestInterruption()
+                    job.wait()
+            except RuntimeError:
+                pass
 
     def _stop_cover_worker(self):
         worker=self._cover_worker
