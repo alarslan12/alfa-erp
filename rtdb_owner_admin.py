@@ -104,7 +104,8 @@ def _payment(client,days,paid,fingerprints):
              "paid_at":now if paid else None, "updated_at":now}
         client._request("PUT","accounting/"+str(row["id"]),row)
         result.append(row)
-    # Return authoritative full list for the existing Analytics page.
+    # Accounting is included in the order revision snapshot protocol.
+    client._bump("orders")
     return {"accounting_days":list((client._get("accounting") or {}).values())}
 
 
@@ -134,7 +135,12 @@ def admin_request(cloud,action,timeout=None,**kwargs):
     if action=="admin_audit":
         archive=client._get("archive/erp_device_activity") or {}
         audit=client._get("audit") or {}
-        return {"device_activity":list(archive.values()),
+        activities=list(archive.values())
+        orders=client._get("orders") or {}
+        for row in orders.values():
+            for event in (row.get("event_log") or {}).values():
+                if isinstance(event,dict):activities.append(event)
+        return {"device_activity":activities,
                 "audit_events":list(audit.values())}
     if action=="admin_inventory_upsert":
         return _upsert_product(client,kwargs.get("product"))

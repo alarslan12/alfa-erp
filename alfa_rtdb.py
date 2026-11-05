@@ -401,6 +401,10 @@ class Workstation:
                          "placed_at":str(local.get("tarih") or now),
                          "created_at":now,"updated_at":now,
                          "version":1,
+                         "event_log":{request_id:{
+                            "id":request_id,"action":"commit","device_id":self.uid,
+                            "device_name":socket.gethostname()[:120],"order_ids":[order_id],
+                            "created_at":now,"details":{}}},
                          "items":self._make_items(order_id,local.get("kitaplar") or [])}
                 return entry, {"local_id":local_id, "uuid":order_id,
                                "version":1, "order_number":number}
@@ -454,6 +458,11 @@ class Workstation:
                 row["version"]=int(row.get("version") or 1)+1
                 row["updated_at"]=datetime.now(timezone.utc).isoformat()
                 processed[op_id]=row["version"]
+                history=row.setdefault("event_log",{})
+                history[op_id]={"id":op_id,"action":"transition" if kind=="status" else "progress",
+                    "device_id":self.uid,"device_name":socket.gethostname()[:120],
+                    "order_ids":[order_id],"created_at":row["updated_at"],
+                    "details":{"events":[copy.deepcopy(event)]}}
                 return row, {"op_id":op_id,"order_id":order_id,"version":row["version"]}
             results.append(self._atomic_order(order_id, mutate))
         return results
@@ -561,6 +570,10 @@ class Workstation:
                             "gross_amount":float(entry.get("gross_amount") or 0),
                             "placed_at":now,"created_at":now,"updated_at":now,
                             "version":1,
+                            "event_log":{request_id:{
+                                "id":request_id,"action":"commit","device_id":self.uid,
+                                "device_name":socket.gethostname()[:120],"order_ids":[order_id],
+                                "created_at":now,"details":{"source":"mobile"}}},
                             "items":self._make_items(order_id, items)}
                         return order,None
                     self._atomic_order(order_id, create, allow_create=True)
