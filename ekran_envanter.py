@@ -17,7 +17,8 @@ from PySide6.QtWidgets import (
     QLayout, QLabel, QLineEdit, QComboBox, QPushButton, QScrollArea,
     QTextEdit, QSpinBox, QDoubleSpinBox, QMessageBox, QFileDialog,
     QSizePolicy, QFormLayout, QStackedWidget, QProgressBar, QCompleter,
-    QTableWidget, QTableWidgetItem, QHeaderView, QAbstractItemView, QInputDialog
+    QTableWidget, QTableWidgetItem, QHeaderView, QAbstractItemView, QInputDialog,
+    QToolButton, QAbstractSpinBox
 )
 from inventory_batches import sorted_batches, batch_stock_value
 
@@ -429,8 +430,11 @@ class EnvanterView(QWidget):
         subtitle.setWordWrap(True);layout.addWidget(subtitle)
         layout.addWidget(QLabel('ALIŞ TARİHİ / MALİYETİ / KALAN PARTİLER'))
         lots=sorted_batches(product,include_empty=True)
-        table=QTableWidget(len(lots),5)
-        table.setHorizontalHeaderLabels(['Alış tarihi ve saati','İlk adet','Kalan','Alış / adet','Kalan maliyet'])
+        table=QTableWidget(len(lots),6)
+        table.setHorizontalHeaderLabels(['Alış tarihi ve saati','İlk adet','Kalan',
+                                         'Alış / adet','Kalan maliyet','Durum'])
+        table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         table.verticalHeader().hide()
         table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
@@ -440,9 +444,15 @@ class EnvanterView(QWidget):
                     str(int(lot.get('quantity') or 0)),
                     str(int(lot.get('remaining') or 0)),
                     f"{float(lot.get('unit_cost') or 0):,.2f} TL",
-                    f"{int(lot.get('remaining') or 0)*float(lot.get('unit_cost') or 0):,.2f} TL"]
+                    f"{int(lot.get('remaining') or 0)*float(lot.get('unit_cost') or 0):,.2f} TL",
+                    "İptal edildi" if lot.get('voided_at') else
+                    "Kullanılmadı" if int(lot.get('remaining') or 0)==int(lot.get('quantity') or 0)
+                    else "Kısmen/tamamen kullanıldı"]
             for j,value in enumerate(values):
-                table.setItem(i,j,QTableWidgetItem(value))
+                item=QTableWidgetItem(value)
+                if j==0:
+                    item.setData(Qt.ItemDataRole.UserRole,str(lot.get('id') or ''))
+                table.setItem(i,j,item)
         layout.addWidget(table,1)
         info=QTextEdit();info.setReadOnly(True);info.setMaximumHeight(110)
         attrs=product.get('attributes') or {}
@@ -452,8 +462,67 @@ class EnvanterView(QWidget):
                 f'{key}: {value}' for key,value in attrs.items())
         info.setPlainText(details or 'Ürün açıklaması yok.')
         layout.addWidget(info)
+        actions=QHBoxLayout()
+        void=QPushButton('↶ Seçili yanlış alımı geri al')
+        void.setToolTip('Yalnız hiç kullanılmamış ve satışa bağlanmamış gerçek alım partileri geri alınabilir.')
+        void.setVisible(self.owner)
+        void.setEnabled(False)
+        def selected_lot():
+            index=table.currentRow()
+            return lots[index] if 0<=index<len(lots) else None
+        def selection_changed():
+            lot=selected_lot()
+            history=(product.get('sales_history') or {}).values()
+            used=any(isinstance(x,dict) and
+                     str(x.get('batch_id'))==str((lot or {}).get('id')) for x in history)
+            void.setEnabled(bool(self.owner and lot and not used and
+                not lot.get('legacy') and not lot.get('voided_at') and
+                int(lot.get('quantity') or 0)>0 and
+                int(lot.get('remaining') or 0)==int(lot.get('quantity') or 0)))
+        table.itemSelectionChanged.connect(selection_changed)
+        def reverse_selected():
+            lot=selected_lot()
+            if not lot:return
+            bid=str(lot.get('id') or '')
+            pid=str(product.get('id') or '')
+            reason,ok=QInputDialog.getText(dialog,'Yanlış alım partisi',
+                f"{int(lot.get('quantity') or 0)} adetlik kullanılmamış alış geri alınacak.\n"
+                "Stoktan çıkarılır, tarih/maliyet kaydı silinmez.\nGerekçe:")
+            if not ok or not reason.strip():return
+            if QMessageBox.question(dialog,'Alımı geri al',
+                'Bu alım partisi stoktan düşülecek, işlemin kaydı korunacak. Onaylıyor musun?',
+                QMessageBox.StandardButton.Yes|QMessageBox.StandardButton.No
+                )!=QMessageBox.StandardButton.Yes:return
+            dialog.accept()
+            self._run_job('inventory_void_acquisition',
+                lambda:self._admin_request()('admin_inventory_void_acquisition',
+                    product_id=pid,batch_id=bid,reason=reason.strip()),
+                lambda _:(self.sync_note.setText('Yanlış alım geri alındı · stok eşitleniyor'),
+                           self._parent_sync()))
+        void.clicked.connect(reverse_selected)
+        actions.addWidget(void)
+        remove=QPushButton('Envanterden çıkar')
+        remove.setToolTip('Stok sıfırsa ürünü envanterden gizler. Genel katalog ve geçmiş korunur.')
+        remove.setVisible(self.owner)
+        remove.setEnabled(int(product.get('quantity') or 0)==0 and self.owner)
+        def remove_inventory():
+            pid=str(product.get('id') or '')
+            if QMessageBox.question(dialog,'Envanterden çıkar',
+                'Stok sıfır. Ürün envanter ekranından kaldırılacak; '
+                'Genel Ürünler kartı, alım ve satış geçmişi korunacak. Devam edilsin mi?',
+                QMessageBox.StandardButton.Yes|QMessageBox.StandardButton.No
+                )!=QMessageBox.StandardButton.Yes:return
+            dialog.accept()
+            self._run_job('inventory_remove',
+                lambda:self._admin_request()('admin_inventory_remove',product_id=pid),
+                lambda _:(self.sync_note.setText('Ürün envanterden çıkarıldı'),
+                           self._parent_sync()))
+        remove.clicked.connect(remove_inventory)
+        actions.addWidget(remove)
+        actions.addStretch()
         dismiss=QPushButton('Kapat');dismiss.clicked.connect(dialog.accept)
-        layout.addWidget(dismiss)
+        actions.addWidget(dismiss)
+        layout.addLayout(actions)
         dialog.exec()
 
     def add_from_catalog(self):
