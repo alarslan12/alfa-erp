@@ -92,6 +92,8 @@ begin
 end;
 
 procedure InitializeWizard();
+var
+  I: Integer;
 begin
   EditionPage := CreateInputOptionPage(wpWelcome,
     'Kurulum türü', 'Bu bilgisayara hangi ALFA ERP sürümü kurulacak?',
@@ -100,6 +102,11 @@ begin
   EditionPage.Add('Personel (sipariş, katalog, bildirimler)');
   EditionPage.Add('Yönetici (yönetim, cihazlar, hata merkezi)');
   EditionPage.SelectedValueIndex := 0;
+  // An in-app update selects the current edition by default; the owner
+  // must still enter the password to proceed.
+  for I := 1 to ParamCount() do
+    if CompareText(ParamStr(I), '/ALFAOWNER') = 0 then
+      EditionPage.SelectedValueIndex := 1;
 
   OwnerPasswordPage := CreateInputQueryPage(EditionPage.ID,
     'Yönetici doğrulaması', 'Yönetici kurulum parolası gerekli',
@@ -115,6 +122,8 @@ end;
 function NextButtonClick(CurPageID: Integer): Boolean;
 begin
   Result := True;
+  if CurPageID = EditionPage.ID then
+    WizardForm.DirEdit.Text := EditionDirectory('');
   if (CurPageID = OwnerPasswordPage.ID) and IsOwner() then
   begin
     Result := OwnerPasswordValid();
