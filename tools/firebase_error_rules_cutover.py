@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Backup and optionally deploy ONLY additive RTDB error-report rules.
+"""Backup and optionally deploy RTDB error-report rules plus safe order guard.
 
 Never writes business data. Validates current live rules against the checked-in
-baseline after removing the two NEW error rule branches. If another operator
+baseline after removing the two new error branches and accepting only the\nexact previous order-write rule. If another operator
 changed existing rules, STOP instead of overwriting their changes.
 
 Cloud Shell:
@@ -25,6 +25,9 @@ from urllib.request import Request,urlopen
 PROJECT="alfa-erp-8700c"
 RULES_URL="https://alfa-erp-8700c-default-rtdb.europe-west1.firebasedatabase.app/.settings/rules.json"
 NEW_BRANCHES=("error_reports","error_acks")
+# Old live rules allowed an entire order node to be deleted. The only
+# supported order-rule change is appending this hard-delete guard.
+HARD_DELETE_GUARD=" && newData.exists()"
 
 
 def _oauth():
@@ -48,9 +51,29 @@ def _rules_call(method,token,data=None):
         with urlopen(req,timeout=35) as response:
             return json.loads(response.read())
     except HTTPError as error:
-        raise RuntimeError(
-            "Firebase Rules API erişimi reddedildi (HTTP "+
-            str(error.code)+"). Yetkileri kontrol edin.") from None
+        # Firebase returns parse/validation diagnostics in the response body.
+        # The previous generic "permission" message hid HTTP 400 syntax
+        # errors. Never echo the URL or OAuth token.
+        try:
+            payload=json.loads(error.read(8192).decode("utf-8","replace"))
+            details=payload.get("error","") if isinstance(payload,dict) else ""
+            if isinstance(details,dict):
+                details=details.get("message","")
+            details=str(details).strip()
+        except (ValueError,TypeError,UnicodeError,OSError):
+            details=""
+        # Limit diagnostic characters. Rule compilation errors contain only
+        # line/column and parser text; do not print unexpected response bodies.
+        if details and len(details)<=1200 and all(
+                c.isprintable() or c in "\n\r\t" for c in details):
+            import re
+            details=re.sub(r"(?i)(access_token|id_token|authorization)\s*[:=]\s*[^\s,]+",
+                           r"\1=[REDACTED]",details)
+            details=re.sub(r"ya29\.[A-Za-z0-9_.-]+","[REDACTED]",details)
+            info=": "+details[:900]
+        else:
+            info=" (detaylı hata metni mevcut değil)"
+        raise RuntimeError("Firebase Rules HTTP "+str(error.code)+info) from None
     except (URLError,OSError,TimeoutError):
         raise RuntimeError("Firebase Rules API bağlantısı başarısız.") from None
 
@@ -60,6 +83,20 @@ def _without_extras(payload):
     workspace=clean["rules"]["alfa"]["$workspace"]
     for node in NEW_BRANCHES:workspace.pop(node,None)
     return clean
+
+
+def _baseline_matches(current,desired):
+    """Accept only exact old/new order-write rule plus the two error nodes."""
+    clean=_without_extras(current)
+    expected=_without_extras(desired)
+    live_order=clean["rules"]["alfa"]["$workspace"]["orders"]["$id"]
+    source_order=expected["rules"]["alfa"]["$workspace"]["orders"]["$id"]
+    source_write=source_order[".write"]
+    if not source_write.endswith(HARD_DELETE_GUARD):
+        raise RuntimeError("Kaynak sipariş silme koruması eksik")
+    if live_order[".write"] == source_write[:-len(HARD_DELETE_GUARD)]:
+        live_order[".write"] = source_write
+    return clean==expected
 
 
 def _backup(payload):
@@ -91,7 +128,7 @@ def main():
         raise RuntimeError("Hata raporu kuralları kaynak kodda eksik")
     token=_oauth()
     current=_rules_call("GET",token)
-    if _without_extras(current)!=_without_extras(desired):
+    if not _baseline_matches(current,desired):
         raise RuntimeError(
             "CANLI kurallar ile depodaki önceki güvenlik kuralları farklı. "
             "Üzerine yazılmadı; önce farkları elle incele.")
@@ -109,7 +146,8 @@ def main():
         return 0
     if not sys.stdin.isatty():
         raise RuntimeError("Güvenlik kuralları için terminal onayı gerekli")
-    print("Yalnız error_reports ve error_acks kuralları eklenecek.")
+    print("Hata raporu kuralları eklenecek; sipariş kökünde")
+    print("doğrudan silme engellenecek (uygulamanın soft delete işlemi korunur).")
     print("Kitaplar, siparişler, stoklar, kullanıcılar SİLİNMEYECEK.")
     approve=input("Devam için ALFA-HATA-KURALLARINI-AC yaz: ").strip()
     if approve!="ALFA-HATA-KURALLARINI-AC":
@@ -123,7 +161,7 @@ def main():
     verified=_rules_call("GET",token)
     if verified!=desired:
         raise RuntimeError("Yayın sonrası Rules doğrulanamadı; yedeği kontrol et")
-    print("FIREBASE ERROR RULES VERIFIED — Yalnız rapor erişimi açıldı.")
+    print("FIREBASE RULES VERIFIED — Hata Merkezi izinleri ve sipariş silme koruması.")
     return 0
 
 

@@ -35,7 +35,7 @@
         "orders": {
           ".read": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true",
           "$id": {
-            ".write": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true && (root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'owner' || root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'staff')",
+            ".write": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true && (root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'owner' || root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'staff') && newData.exists()",
             ".validate": "newData.hasChildren(['id','status','version','order_number']) && newData.child('id').val() === $id && (newData.child('status').val() === 'havuz' || newData.child('status').val() === 'aktif' || newData.child('status').val() === 'tamamlandi') && newData.child('version').isNumber() && newData.child('version').val() >= 1 && (!data.exists() || newData.child('version').val() === data.child('version').val()+1) && (!data.exists() || newData.child('order_number').val() === data.child('order_number').val())"
           }
         },
@@ -119,10 +119,10 @@
           ".read": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'owner' && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true",
           "$id": {
             ".write": "auth !== null && ( (newData.exists() && !data.exists() && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true && (root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'staff' || root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'owner') && newData.child('device_id').val() === auth.uid) || (!newData.exists() && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'owner' && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true) )",
-            ".validate": "newData.hasChildren(['id','device_id','device_name','edition','version','created_at','type','source','fingerprint','frames']) && $id.matches(/^[0-9]{8}T[0-9]{6}Z_[0-9a-f-]{36}$/) && newData.child('id').val() === $id && newData.child('device_id').isString() && newData.child('device_id').val() === auth.uid && newData.child('device_name').isString() && newData.child('device_name').val().length <= 80 && newData.child('version').isString() && newData.child('version').val().length <= 20 && newData.child('type').isString() && newData.child('type').val().length <= 76 && newData.child('fingerprint').isString() && newData.child('fingerprint').val().length === 20 && newData.child('created_at').isString() && (newData.child('edition').val() === 'owner' || newData.child('edition').val() === 'staff') && newData.child('source').isString() && newData.child('source').val().length <= 30 && newData.numChildren() <= 10 && newData.child('frames').numChildren() <= 12 && newData.child('created_at').val().length <= 40",
+            ".validate": "newData.hasChildren(['id','device_id','device_name','edition','version','created_at','type','source','fingerprint']) && $id.matches(/^[0-9]{8}T[0-9]{6}Z_[0-9a-f-]{36}$/) && newData.child('id').val() === $id && newData.child('device_id').isString() && newData.child('device_id').val() === auth.uid && newData.child('device_name').isString() && newData.child('device_name').val().length <= 80 && newData.child('version').isString() && newData.child('version').val().length <= 20 && newData.child('type').isString() && newData.child('type').val().length <= 76 && newData.child('fingerprint').isString() && newData.child('fingerprint').val().length === 20 && newData.child('created_at').isString() && (newData.child('edition').val() === 'owner' || newData.child('edition').val() === 'staff') && newData.child('source').isString() && newData.child('source').val().length <= 30 && newData.child('created_at').val().length <= 40",
             "frames": {
               "$index": {
-                ".validate": "newData.hasChildren(['file','function','line']) && newData.child('file').isString() && newData.child('file').val().length <= 80 && newData.child('function').isString() && newData.child('function').val().length <= 80 && newData.child('line').isNumber() && newData.child('line').val() >= 0 && newData.child('line').val() <= 999999",
+                ".validate": "$index.matches(/^(0|[1-9]|10|11)$/) && newData.hasChildren(['file','function','line']) && newData.child('file').isString() && newData.child('file').val().length <= 80 && newData.child('function').isString() && newData.child('function').val().length <= 80 && newData.child('line').isNumber() && newData.child('line').val() >= 0 && newData.child('line').val() <= 999999",
                 "$other": {
                   ".validate": false
                 },
@@ -136,6 +136,36 @@
                   ".validate": true
                 }
               }
+            },
+            "id": {
+              ".validate": true
+            },
+            "device_id": {
+              ".validate": true
+            },
+            "device_name": {
+              ".validate": true
+            },
+            "edition": {
+              ".validate": true
+            },
+            "version": {
+              ".validate": true
+            },
+            "created_at": {
+              ".validate": true
+            },
+            "type": {
+              ".validate": true
+            },
+            "source": {
+              ".validate": true
+            },
+            "fingerprint": {
+              ".validate": true
+            },
+            "$other": {
+              ".validate": false
             }
           }
         },

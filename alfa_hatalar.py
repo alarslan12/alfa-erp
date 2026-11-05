@@ -104,7 +104,11 @@ class ErrorReporter:
         target=self.directory/("error_"+event["id"]+".json")
         _atomic_json(target,event)
         self.start()
-        self.queue.put(str(target))
+        # A real error event wakes the oldest pending report. Successful
+        # uploads drain the queue one-by-one; no timer or network polling.
+        pending=next(iter(sorted(self.directory.glob("error_*.json"))),None)
+        if pending is not None:
+            self.queue.put(str(pending))
         return True
 
     def report(self,error_type,error,tb,source="application"):
@@ -160,7 +164,10 @@ class ErrorReporter:
         """Triggered at application startup/device pairing, never periodically."""
         self.start()
         try:
-            for item in sorted(self.directory.glob("error_*.json"))[:MAX_PENDING]:
+            # Probe once on startup/pairing. If offline, do not issue another
+            # network request for every saved report in the same outage.
+            item=next(iter(sorted(self.directory.glob("error_*.json"))),None)
+            if item is not None:
                 self.queue.put(str(item))
         except OSError:
             pass
@@ -179,6 +186,11 @@ class ErrorReporter:
                 data["device_id"]=str(client.uid)
                 client.send_error_report(data,timeout=SEND_TIMEOUT_SECONDS)
                 path.unlink(missing_ok=True)
+                # After an acknowledged upload, continue with the next saved
+                # report. A failure leaves the rest on disk until a real event.
+                pending=next(iter(sorted(self.directory.glob("error_*.json"))),None)
+                if pending is not None:
+                    self.queue.put(str(pending))
             except Exception:
                 # A rejected rule or offline device never drops the report.
                 # No timed retry: next error/start/pairing triggers a new try.
