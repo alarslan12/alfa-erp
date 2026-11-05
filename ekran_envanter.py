@@ -353,121 +353,137 @@ class EnvanterView(QWidget):
             live.force_pull=True
             QTimer.singleShot(250,live.pull)
 
-    def _run_job(self,action,fn,success):
+    def _run_job(self,action,fn,success,on_error=None):
+        # Hold the QThread through finished(), not merely its first signal.
+        # Worker callables must capture plain values; never modal Qt controls.
         job=InventoryJob(action,fn,self)
         self.jobs.add(job)
-        def done(value):
-            self.jobs.discard(job)
-            success(value)
+        def done(result):
+            success(result)
         def failed(message):
-            self.jobs.discard(job)
+            if on_error:on_error(message)
             QMessageBox.warning(self,'Envanter',message)
+        def cleanup():
+            self.jobs.discard(job)
         job.success.connect(done);job.error.connect(failed)
-        job.finished.connect(job.deleteLater);job.start()
+        job.finished.connect(cleanup)
+        job.finished.connect(job.deleteLater)
+        job.start()
 
     def show_details(self,product):
+        """All purchase lots, including exhausted ones, visible in one product."""
         dialog=QDialog(self)
-        dialog.setWindowTitle('Ürün detayları · '+str(product.get('title') or 'Ürün'))
-        dialog.resize(490,535)
+        dialog.setWindowTitle('Ürün ve alım partileri · '+str(product.get('title') or 'Ürün'))
+        dialog.resize(740,610)
         layout=QVBoxLayout(dialog)
-        name=QLabel(str(product.get('title') or 'Ürün'))
-        name.setObjectName('PageTitle');name.setWordWrap(True);layout.addWidget(name)
-        info=QLabel(f"Kod: {product.get('sku','')}  •  Kategori: {product.get('category','Genel')}  •  "
-                    f"{int(product.get('quantity') or 0)} adet")
-        info.setWordWrap(True);layout.addWidget(info)
-        image=QLabel('📦')
-        image.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        image.setFixedHeight(180)
-        image.setObjectName('InventoryPicture')
-        layout.addWidget(image)
-        if product.get('image_url'):self._picture(image,str(product['image_url']))
-        layout.addWidget(QLabel(f"Satış fiyatı: {float(product.get('sale_price') or 0):,.2f} TL"))
-        tags=QLabel('Etiketler: '+(', '.join(product.get('tags') or []) or '—'))
-        tags.setWordWrap(True);layout.addWidget(tags)
-        scroll=QTextEdit();scroll.setReadOnly(True)
+        heading=QLabel(str(product.get('title') or 'Ürün'))
+        heading.setObjectName('PageTitle');heading.setWordWrap(True)
+        layout.addWidget(heading)
+        subtitle=QLabel(
+            f"Kod: {product.get('sku','')} · {product.get('category','Genel')}  |  "
+            f"Stok: {int(product.get('quantity') or 0)} adet  |  "
+            f"Alış sermayesi: {batch_stock_value(product):,.2f} TL")
+        subtitle.setWordWrap(True);layout.addWidget(subtitle)
+        layout.addWidget(QLabel('ALIŞ TARİHİ / MALİYETİ / KALAN PARTİLER'))
+        lots=sorted_batches(product,include_empty=True)
+        table=QTableWidget(len(lots),5)
+        table.setHorizontalHeaderLabels(['Alış tarihi ve saati','İlk adet','Kalan','Alış / adet','Kalan maliyet'])
+        table.verticalHeader().hide()
+        table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        for i,lot in enumerate(lots):
+            values=[_date_label(lot.get('received_at')),
+                    str(int(lot.get('quantity') or 0)),
+                    str(int(lot.get('remaining') or 0)),
+                    f"{float(lot.get('unit_cost') or 0):,.2f} TL",
+                    f"{int(lot.get('remaining') or 0)*float(lot.get('unit_cost') or 0):,.2f} TL"]
+            for j,value in enumerate(values):
+                table.setItem(i,j,QTableWidgetItem(value))
+        layout.addWidget(table,1)
+        info=QTextEdit();info.setReadOnly(True);info.setMaximumHeight(110)
         attrs=product.get('attributes') or {}
-        content=str(product.get('description') or '')
-        if attrs:content+='\n\nÖZELLİKLER\n'+'\n'.join(f'{key}: {value}' for key,value in attrs.items())
-        scroll.setPlainText(content or 'Açıklama eklenmemiş.');layout.addWidget(scroll,1)
-        close=QPushButton('Kapat');close.clicked.connect(dialog.accept)
-        layout.addWidget(close)
+        details=str(product.get('description') or '')
+        if attrs:
+            details+='\n\nÖZELLİKLER\n'+'\n'.join(
+                f'{key}: {value}' for key,value in attrs.items())
+        info.setPlainText(details or 'Ürün açıklaması yok.')
+        layout.addWidget(info)
+        dismiss=QPushButton('Kapat');dismiss.clicked.connect(dialog.accept)
+        layout.addWidget(dismiss)
         dialog.exec()
 
     def add_from_catalog(self):
-        """Select a master product, then set total stock and prices separately."""
-        if not self.owner:
-            return
+        """Add an immutable-cost stock acquisition, not overwrite total stock."""
+        if not self.owner:return
         request=self._admin_request()
-        if request is None:
-            QMessageBox.warning(self,'Envanter','Yönetici oturumu bulunamadı.')
-            return
+        if not callable(request):
+            QMessageBox.warning(self,'Envanter','Yönetici bağlantısı bulunamadı.');return
         products=sorted((p for p in self.db.inventory_products if p.get('active',True)),
                         key=lambda p:str(p.get('title') or '').casefold())
         if not products:
             QMessageBox.information(self,'Envanter',
-                'Genel ürün kataloğu boş. Önce Envanter → Genel Ürünler sekmesinde ürün oluştur.')
+                'Önce Envanter → Genel Ürünler sekmesinde ürün kartı oluştur.')
             return
-        dialog=QDialog(self)
-        dialog.setWindowTitle('Genel katalogdan envantere ürün ekle')
-        dialog.resize(570,310)
+        dialog=QDialog(self);dialog.setWindowTitle('Yeni stok alımı · Fiyat partisi')
+        dialog.resize(610,325)
         layout=QVBoxLayout(dialog)
-        hint=QLabel('Ürün seç, toplam stok adedini ve fiyatını belirle. '
-            'Mevcut ürünü seçersen yeni değerlerle güncellenir.')
-        hint.setWordWrap(True);layout.addWidget(hint)
+        intro=QLabel('Her alış ayrı tarih, saat ve birim maliyetle saklanır. '
+            'Önceki stok partilerinin maliyeti ve kalan adedi değişmez.')
+        intro.setWordWrap(True);layout.addWidget(intro)
         form=QFormLayout()
-        product_select=QComboBox()
-        product_select.setEditable(True)
-        for p in products:
-            label=f"{p.get('sku','')} · {p.get('title','')}"
-            if p.get('in_inventory',True):
-                label+='   (envanterde)'
-            product_select.addItem(label,str(p.get('id')))
-        product_select.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
-        completer=product_select.completer()
+        choice=QComboBox();choice.setEditable(True)
+        for item in products:
+            choice.addItem(f"{item.get('sku','')} · {item.get('title','')}",str(item.get('id')))
+        choice.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+        completer=choice.completer()
         if completer is not None:
             completer.setCompletionMode(QCompleter.CompletionMode.PopupCompletion)
             completer.setFilterMode(Qt.MatchFlag.MatchContains)
             completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
-        total=QSpinBox();total.setRange(0,10000000)
-        price=QDoubleSpinBox();price.setRange(0,999999999)
-        price.setDecimals(2);price.setSuffix(' TL')
-        cost=QDoubleSpinBox();cost.setRange(0,999999999)
-        cost.setDecimals(2);cost.setSuffix(' TL')
-        def update_fields(index):
-            if index<0 or index>=len(products):return
-            p=products[index]
-            total.setValue(int(p.get('quantity') or 0))
-            price.setValue(float(p.get('sale_price') or 0))
-            cost.setValue(float(p.get('cost_price') or 0))
-        product_select.currentIndexChanged.connect(update_fields)
-        form.addRow('Genel katalog ürünü',product_select)
-        form.addRow('Yeni toplam stok',total)
-        form.addRow('Satış fiyatı',price)
-        form.addRow('Birim maliyet',cost)
-        layout.addLayout(form)
-        buttons=QHBoxLayout();buttons.addStretch()
+        quantity=QSpinBox();quantity.setRange(1,100000)
+        quantity.setValue(1)
+        unit_cost=QDoubleSpinBox();unit_cost.setRange(0,999999999)
+        unit_cost.setDecimals(2);unit_cost.setSuffix(' TL')
+        summary=QLabel('');summary.setWordWrap(True)
+        def selected(index):
+            if 0<=index<len(products):
+                current=products[index]
+                summary.setText(
+                    f"Şu anda {int(current.get('quantity') or 0)} adet mevcut. "
+                    f"{len(sorted_batches(current))} farklı açık alış partisi var.")
+                unit_cost.setValue(float(current.get('cost_price') or 0))
+        choice.currentIndexChanged.connect(selected)
+        form.addRow('Genel katalog ürünü',choice)
+        form.addRow('Yeni alınan adet',quantity)
+        form.addRow('Bu alışın birim maliyeti',unit_cost)
+        form.addRow('Alım tarihi',QLabel('Kaydettiğiniz anın tarih ve saati'))
+        layout.addLayout(form);layout.addWidget(summary)
+        actions=QHBoxLayout();actions.addStretch()
         cancel=QPushButton('Vazgeç');cancel.clicked.connect(dialog.reject)
-        save=QPushButton('Envantere kaydet');save.setObjectName('Accent')
+        save=QPushButton('Alım partisini kaydet');save.setObjectName('Accent')
         save.clicked.connect(dialog.accept)
-        buttons.addWidget(cancel);buttons.addWidget(save);layout.addLayout(buttons)
-        update_fields(0)
+        actions.addWidget(cancel);actions.addWidget(save);layout.addLayout(actions)
+        selected(0)
         if dialog.exec()!=QDialog.DialogCode.Accepted:return
-        index=product_select.currentIndex()
-        if (index<0 or index>=len(products) or
-            product_select.currentText().strip()!=product_select.itemText(index).strip()):
-            QMessageBox.warning(self,'Envanter',
-                'Yanlış ürüne stok kaydetmemek için açılır listeden bir ürün seçmelisiniz.')
+        index=choice.currentIndex()
+        if (not 0<=index<len(products) or
+            choice.currentText().strip()!=choice.itemText(index).strip()):
+            QMessageBox.warning(self,'Envanter','Lütfen listeden geçerli bir ürün seç.')
             return
-        product=products[index]
-        payload={**product,'id':product['id'],'quantity':total.value(),
-                 'sale_price':price.value(),'cost_price':cost.value(),
-                 'in_inventory':True}
-        self.sync_note.setText('Ürün envantere kaydediliyor…')
-        def success(_):
-            self.sync_note.setText('Envanter güncellendi · diğer bilgisayarlarla eşitleniyor')
+        # This is the QSpinBox-deleted fix: capture everything before dialog
+        # controls can be garbage-collected when this function returns.
+        product_id=str(products[index]['id'])
+        amount=int(quantity.value())
+        purchase_price=float(unit_cost.value())
+        self.sync_note.setText('Yeni alış partisi Firebase’e kaydediliyor…')
+        def success(_result):
+            self.sync_note.setText('Alım kaydedildi · ortak stok yenileniyor')
             self._parent_sync()
-        self._run_job('inventory_catalog_assign',
-            lambda:request('admin_inventory_upsert',product=payload),success)
+        self._run_job('inventory_acquire',
+            lambda:request('admin_inventory_acquire',product_id=product_id,
+                           quantity=amount,unit_cost=purchase_price),
+            success)
 
     def edit_product(self,product):
         if not self.owner:
@@ -494,26 +510,81 @@ class EnvanterView(QWidget):
         self._run_job('save',task,success)
 
     def sale(self,product):
-        if int(product.get('quantity') or 0)<=0:return
-        dialog=QDialog(self);dialog.setWindowTitle('Satış kaydı')
-        lay=QVBoxLayout(dialog)
-        lay.addWidget(QLabel(str(product['title'])))
-        qty=QSpinBox();qty.setRange(1,int(product.get('quantity') or 1))
-        amount=QDoubleSpinBox();amount.setRange(0,999999999)
-        amount.setDecimals(2);amount.setValue(float(product.get('sale_price') or 0));amount.setSuffix(' TL')
-        form=QFormLayout();form.addRow('Satılan adet',qty);form.addRow('Birim satış fiyatı',amount);lay.addLayout(form)
-        actions=QHBoxLayout();cancel=QPushButton('Vazgeç');cancel.clicked.connect(dialog.reject)
-        submit=QPushButton('Satışı kaydet');submit.setObjectName('Accent');submit.clicked.connect(dialog.accept)
-        actions.addWidget(cancel);actions.addWidget(submit);lay.addLayout(actions)
+        """Sale UI chooses purchase lot first, then requests selling price."""
+        pid=str(product.get('id') or '')
+        if pid in self._busy_sales:return
+        lots=sorted_batches(product,newest_first=False)
+        if not lots:
+            QMessageBox.information(self,'Envanter','Satılabilir stok partisi bulunmuyor.')
+            return
+        dialog=QDialog(self)
+        dialog.setWindowTitle('Satış · Alım partisini ve satış fiyatını seç')
+        dialog.resize(650,330)
+        layout=QVBoxLayout(dialog)
+        heading=QLabel(str(product.get('title') or 'Ürün'))
+        heading.setObjectName('PageTitle');layout.addWidget(heading)
+        note=QLabel('Hangi alıştan satıldığını seç; satış fiyatını satışı '
+                    'kaydederken gir. Alış maliyeti değişmeden saklanır.')
+        note.setWordWrap(True);layout.addWidget(note)
+        picker=QComboBox()
+        for batch in lots:
+            picker.addItem(
+                f"{_date_label(batch.get('received_at'))} · "
+                f"{int(batch.get('remaining') or 0)} adet · "
+                f"Alış {float(batch.get('unit_cost') or 0):,.2f} TL",
+                str(batch.get('id')))
+        quantity=QSpinBox()
+        quantity.setRange(1,max(1,int(lots[0].get('remaining') or 1)))
+        selling=QDoubleSpinBox();selling.setRange(0,999999999)
+        selling.setDecimals(2);selling.setSuffix(' TL')
+        selling.setValue(float(product.get('sale_price') or 0))
+        estimate=QLabel('')
+        estimate.setObjectName('InventoryLotList')
+        def preview(*_):
+            idx=picker.currentIndex()
+            if idx<0:return
+            batch=lots[idx]
+            quantity.setMaximum(max(1,int(batch.get('remaining') or 0)))
+            unit_cost=float(batch.get('unit_cost') or 0)
+            gain=int(quantity.value())*(float(selling.value())-unit_cost)
+            estimate.setText(
+                f"Alış: {unit_cost:,.2f} TL/adet · "
+                f"Bu satışın tahmini brüt farkı: {gain:,.2f} TL")
+        picker.currentIndexChanged.connect(preview)
+        quantity.valueChanged.connect(preview)
+        selling.valueChanged.connect(preview)
+        form=QFormLayout()
+        form.addRow('Hangi stok partisinden?',picker)
+        form.addRow('Satılan adet',quantity)
+        form.addRow('Birim satış fiyatı',selling)
+        layout.addLayout(form);layout.addWidget(estimate)
+        actions=QHBoxLayout();actions.addStretch()
+        cancel=QPushButton('Vazgeç');cancel.clicked.connect(dialog.reject)
+        submit=QPushButton('Satışı kaydet');submit.setObjectName('Accent')
+        submit.clicked.connect(dialog.accept)
+        actions.addWidget(cancel);actions.addWidget(submit);layout.addLayout(actions)
+        preview()
         if dialog.exec()!=QDialog.DialogCode.Accepted:return
         device=getattr(self.window(),'device',None)
         if device is None or not device.paired:
-            QMessageBox.warning(self,'Bulut','Cihaz buluta eşleştirilmemiş.');return
-        self.sync_note.setText('Satış buluta işleniyor…')
+            QMessageBox.warning(self,'Bulut','Bu cihaz buluta bağlı değil.')
+            return
+        # Capture primitive values BEFORE the modal QSpinBox is destroyed.
+        lot_id=str(picker.currentData())
+        sold=int(quantity.value())
+        unit_price=float(selling.value())
+        self._busy_sales.add(pid)
+        self.sync_note.setText('Satış Firebase’e kaydediliyor…')
         def success(_):
+            self._busy_sales.discard(pid)
             self.sync_note.setText('Satış kaydedildi · eşitleniyor')
             self._parent_sync()
-        self._run_job('sale',lambda:device.inventory_sale(product['id'],qty.value(),amount.value()),success)
+        def failed(_):
+            self._busy_sales.discard(pid)
+            self.sync_note.setText('Satış kaydedilemedi · yeniden kontrol et')
+        self._run_job('sale',
+            lambda:device.inventory_sale(pid,sold,unit_price,lot_id),
+            success,failed)
 
     def _picture(self,label,url):
         if url in self.image_cache:
