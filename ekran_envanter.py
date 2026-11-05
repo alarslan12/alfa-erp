@@ -861,7 +861,9 @@ class EnvanterView(QWidget):
         self.render()
         # Archived products remain in stock and historical reports; only the
         # active sales catalogue hides them.
-        self.update_analytics([p for p in rows if p.get('in_inventory',True)],sales)
+        # Removed/archived stock cards must not erase old sales from reports.
+        # Capital remains derived from each lot's remaining quantity.
+        self.update_analytics(rows,sales)
 
     def update_analytics(self,products,sales):
         """Inventory-only reporting from synced ledger; no additional reads."""
