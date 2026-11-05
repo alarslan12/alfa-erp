@@ -1,5 +1,5 @@
 #define MyAppName "ALFA ERP"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.1.0"
 
 [Setup]
 ; Keep the old edition-specific AppIds and install paths so upgrades preserve
@@ -8,11 +8,11 @@ AppId={code:EditionAppId}
 UsePreviousLanguage=no
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
-AppVerName=ALFA ERP v1.0
+AppVerName=ALFA ERP v1.1
 DefaultDirName={code:EditionDirectory}
 DefaultGroupName=ALFA ERP
 OutputDir=output
-OutputBaseFilename=ALFA_ERP_Setup_V1_0_0
+OutputBaseFilename=ALFA_ERP_Setup_V1_1_0
 Compression=lzma2
 SolidCompression=yes
 PrivilegesRequired=lowest
