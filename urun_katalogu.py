@@ -98,7 +98,9 @@ class GeneralProductCatalog(QWidget):
                 str(p.get('category') or 'Genel'),
                 f"{int(p.get('quantity') or 0):,} adet",
                 ('Arşivde' if not p.get('active',True) else
-                 'Stokta' if p.get('in_inventory',True) else 'Henüz eklenmedi')
+                 'Stokta' if p.get('in_inventory',True) else
+                 'Envanterden çıkarıldı' if p.get('inventory_removed_at') else
+                 'Henüz eklenmedi')
             ]
             for col,val in enumerate(values):
                 item=QTableWidgetItem(val)
