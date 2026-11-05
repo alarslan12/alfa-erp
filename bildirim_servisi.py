@@ -151,7 +151,7 @@ class Service:
         self.popup=Popup(caption);self.popup.show()
 def main():
     DATA.mkdir(parents=True,exist_ok=True)
-    install_reporter("1.1.0","staff",data_dir=DATA)
+    install_reporter("1.1.1","staff",data_dir=DATA)
     def _error_hook(error_type,error,tb):
         record_error(error_type,error,tb,source="tray")
     sys.excepthook=_error_hook
