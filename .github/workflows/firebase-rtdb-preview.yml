@@ -40,6 +40,11 @@ jobs:
       - name: Build staff Setup EXE and notification service
         shell: pwsh
         run: .\ALFA_BUILD_WINDOWS.ps1 -Edition personel
+      - name: Verify bundled Qt PDF dependency is importable
+        shell: pwsh
+        run: |
+          & .\.buildvenv\Scripts\python.exe -c "from PySide6.QtPdf import QPdfDocument; print('QtPdf import OK')"
+          if ($LASTEXITCODE -ne 0) { throw 'Missing official PySide6-Pdf module' }
       - name: Verify files and collect checksums
         shell: pwsh
         run: |
