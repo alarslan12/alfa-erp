@@ -77,6 +77,10 @@
           "$id": {
             ".write": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true && !data.exists()"
           }
+        },
+        "analytics_pin": {
+          ".read": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true",
+          ".write": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'owner'"
         }
       }
     },

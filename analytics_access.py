@@ -1,14 +1,15 @@
 """Server-verified Analytics PIN. No plaintext PIN or verifier in Windows setup.
 
 Staff may verify the owner-defined PIN, but cannot create or modify it.
-Wrong attempts are limited per enrolled device by Supabase Edge Function.
+Firebase Realtime Database PIN is a UI gate; not a server-enforced secret verifier.
+Do not treat it as a separate authorization boundary. Device roles remain enforced by RTDB Rules.
 """
 from PySide6.QtCore import Qt,QThread,Signal
 from PySide6.QtWidgets import (
     QDialog,QVBoxLayout,QHBoxLayout,QLabel,QLineEdit,QPushButton
 )
-from alfa_cihaz import api,get_token
-
+import hashlib,hmac,os
+from alfa_rtdb import Workstation,DeviceError
 
 class PINWorker(QThread):
     succeeded=Signal()
@@ -18,10 +19,31 @@ class PINWorker(QThread):
         self.mode,self.pin,self.token=mode,pin,token
     def run(self):
         try:
-            action='admin_analytics_pin_set' if self.mode=='set' else 'analytics_verify'
-            result=api(action,token=self.token,pin=self.pin,timeout=16)
-            if action=='analytics_verify' and not result.get('verified'):
-                raise RuntimeError('Analitik PIN doğrulanamadı')
+            client=Workstation()
+            if not client.paired:
+                raise DeviceError("Firebase cihazı yetkilendirilmemiş")
+            if self.mode=="set":
+                member=client._get("members/"+client.uid)
+                if not member or member.get("role")!="owner" or member.get("active") is not True:
+                    raise DeviceError("PIN yalnızca yönetici tarafından ayarlanabilir")
+                salt=os.urandom(16)
+                digest=hashlib.scrypt(self.pin.encode("utf-8"),
+                     salt=salt,n=16384,r=8,p=1,dklen=32)
+                client._request("PUT","analytics_pin",
+                    {"scheme":"scrypt-ui-gate","salt":salt.hex(),"digest":digest.hex()})
+            else:
+                setting=client._get("analytics_pin")
+                if not setting or setting.get("scheme")!="scrypt-ui-gate":
+                    raise DeviceError("Analitik PIN henüz yönetici tarafından tanımlanmadı")
+                try:
+                    salt=bytes.fromhex(setting["salt"])
+                    expected=bytes.fromhex(setting["digest"])
+                    test=hashlib.scrypt(self.pin.encode("utf-8"),
+                           salt=salt,n=16384,r=8,p=1,dklen=32)
+                except (ValueError,KeyError):
+                    raise DeviceError("Analitik PIN kaydı geçersiz") from None
+                if not hmac.compare_digest(expected,test):
+                    raise DeviceError("Analitik PIN yanlış")
             self.succeeded.emit()
         except Exception as exc:
             self.failed.emit(str(exc)[:230])
@@ -92,7 +114,7 @@ class AnalyticsGate(QDialog):
     def submit(self):
         if self._worker and self._worker.isRunning():
             return
-        token=get_token()
+        token=Workstation().token
         if not token:
             self.note.setText(
                 'Bulut cihazı eşleştirilmemiş. Önce üst çubuktan Buluta bağla seçin.')
