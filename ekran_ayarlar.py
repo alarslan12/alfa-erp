@@ -278,6 +278,13 @@ class SettingsPage(QWidget):
         QApplication.instance().setProperty('alfa_theme',key)
         QApplication.instance().setStyleSheet(QSS+theme_styles(key))
         refresh_cover_placeholders()
+        # These views maintain scoped palette QSS in addition to the app QSS.
+        # Reapply on the same click so switching to light mode is immediate.
+        main=self.window()
+        for attr in ('inventory','general_catalog'):
+            view=getattr(main,attr,None)
+            if view is not None and hasattr(view,'apply_theme'):
+                view.apply_theme()
         self.show_tab(0)
 
     def save_sound(self,*_):
