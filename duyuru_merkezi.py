@@ -12,6 +12,24 @@ from PySide6.QtWidgets import (
 from alfa_hatalar import report_manual_error
 from guncelleme_arayuzu import UpdateDialog
 
+V111_NOTES = """# ALFA ERP v1.1.1 · Güncelleme Merkezi düzeltmesi
+
+- Güncelleme başlatıldığında modal pencere kapatılır ve gerçek ERP
+  ana penceresi güvenli biçimde sonlandırılır.
+- Duyurular ekranından güncelleme yapılırken de bekleyen bulut sipariş
+  kuyruğu ve devam eden eşitleme işlemleri kontrol edilir.
+- Windows kurulum yardımcısı kurulum sihirbazını açık şekilde başlatır;
+  başarılı kurulumdan sonra ilgili Personel/Yönetici EXE'sini yeniden açar.
+- Kurulum başarısız olursa neden yerel güncelleme kaydına yazılır ve
+  bir sonraki Güncelleme Merkezi açılışında gösterilir.
+- Şifre korumalı Yönetici kurulumu ve SHA-256 doğrulaması korunur.
+
+**Önemli:** v1.0/v1.1 güncelleyicisi bu hatayı içerdiğinden, v1.1.1'e
+ilk geçişte resmî GitHub Setup.exe'yi elle çalıştırmak daha güvenlidir.
+Yerel siparişler, stoklar ve cihaz yetkisi silinmez.
+"""
+
+
 V110_NOTES = """# ALFA ERP v1.1.0 · İlk resmî güncelleme
 
 **Envanter ve katalog**
@@ -89,13 +107,15 @@ class AnnouncementsDialog(QDialog):
         root.addWidget(notice)
         self.notes=QTextEdit(self)
         self.notes.setReadOnly(True)
+        bundled=(V111_NOTES+'\n\n'+V110_NOTES
+                 if str(version)=='1.1.1' else V110_NOTES)
         if release and release.get('available') and release.get('notes'):
             self.notes.setPlainText(
                 'YAYIMLANAN YENİ SÜRÜM NOTLARI\n\n'+
                 str(release.get('notes') or '')[:3200]+
-                '\n\n────────────────────\n\n'+V110_NOTES)
+                '\n\n────────────────────\n\n'+bundled)
         else:
-            self.notes.setMarkdown(V110_NOTES)
+            self.notes.setMarkdown(bundled)
         root.addWidget(self.notes,1)
         row=QHBoxLayout()
         updates=QPushButton("↻ Güncelleme Merkezi")
