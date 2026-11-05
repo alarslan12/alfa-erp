@@ -4,7 +4,9 @@ from pathlib import Path
 from PySide6.QtCore import QTimer,QThread,Signal,Qt,QLockFile
 from PySide6.QtWidgets import QApplication,QSystemTrayIcon,QMenu,QDialog,QVBoxLayout,QLabel,QPushButton
 from PySide6.QtGui import QPixmap,QIcon,QPainter,QColor,QFont,QAction
-from alfa_cihaz import DATA,Workstation
+from alfa_cihaz import DATA
+from alfa_rtdb import Workstation
+from bulut_canli import RtdbWatch
 STATE=DATA/'alfa_bildirim_durumu.json'
 class Reader(QThread):
     done=Signal(dict);error=Signal(str)
@@ -50,9 +52,26 @@ class Service:
         self._normal_poll_ms=45000+(id(self)%10000)
         # Notifications need new order numbers, not full books/inventory snapshots.
         self.timer=QTimer();self.timer.setInterval(self._normal_poll_ms);self.timer.timeout.connect(self.poll)
+        self._watchers=[]
         self.timer.start();QTimer.singleShot(500,self.poll)
+        if self.client.paired:self._start_watchers()
+
+    def _start_watchers(self):
+        if self._watchers or not self.client.paired:return
+        for location in ("meta/revisions","checkout"):
+            watcher=RtdbWatch(self.client,location)
+            watcher.changed.connect(lambda:QTimer.singleShot(100,self.poll))
+            watcher.start()
+            self._watchers.append(watcher)
+        app=QApplication.instance()
+        if app:app.aboutToQuit.connect(self._stop_watchers)
+
+    def _stop_watchers(self):
+        for watcher in self._watchers:watcher.stop()
+
     def poll(self):
         if not self.client.paired:self.client=Workstation()
+        if self.client.paired:self._start_watchers()
         if not self.client.paired or self.worker:return
         work=Reader(self.client,self.last_revision,self.last_order_number);self.worker=work
         def success(result):
