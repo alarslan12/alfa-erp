@@ -19,6 +19,7 @@ from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import QApplication, QMenu, QStyle, QSystemTrayIcon
 
 from alfa_print_monitor import PrintMonitor
+from alfa_print_runtime import PrintAgentLease
 
 
 def main():
@@ -30,12 +31,17 @@ def main():
     folder=Path(args.data_dir or (
         Path(os.environ.get("LOCALAPPDATA") or Path.home())/"AlfaERP"
     )).expanduser()
+    instance_lock=PrintAgentLease(folder)
+    if not instance_lock.acquired:
+        # A previous login agent already owns this Windows session.
+        return 0
 
     app=QApplication(["AlfaPrintAgent"])
     app.setApplicationName("ALFA ERP Yazdırma İzleme")
     app.setQuitOnLastWindowClosed(False)
     if not QSystemTrayIcon.isSystemTrayAvailable():
         # No hidden, uncontrollable monitor if desktop tray is unavailable.
+        instance_lock.close()
         return 2
 
     icon_file=Path(getattr(sys,"_MEIPASS",Path(__file__).parent)) / (
@@ -82,7 +88,10 @@ def main():
             os._exit(0)
 
     app.aboutToQuit.connect(cleanup)
-    return app.exec()
+    try:
+        return app.exec()
+    finally:
+        instance_lock.close()
 
 
 if __name__=="__main__":
