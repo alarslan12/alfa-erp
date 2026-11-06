@@ -16,6 +16,7 @@ import sqlite3
 import time
 
 from PySide6.QtCore import QThread, Signal
+from alfa_print_events import WinPrintChangeFeed, RECONCILE_MS, FALLBACK_MS
 
 ACTIVE = {"bekliyor", "aktarılıyor", "yazdırılıyor", "duraklatıldı",
           "çevrimdışı", "kağıt_yok", "müdahale", "bloklandı", "hata"}
@@ -360,7 +361,7 @@ class PrintMonitor(QThread):
     def __init__(self,data_dir,parent=None):
         super().__init__(parent)
         self.data_dir=Path(data_dir)
-        self.delay_ms=3000
+        self.delay_ms=RECONCILE_MS  # full reconciliation; native events wake early
         self.size_warning_mb=250
         self._job_progress={}  # key -> (page count, spool size, monotonic time)
         self._stale_warned=set()
@@ -401,16 +402,27 @@ class PrintMonitor(QThread):
 
     def run(self):
         journal=None
+        feed=None
         try:
             if os.name!="nt":
                 self.failed.emit("Windows spooler yalnız Windows cihazlarında çalışır.")
                 return
             probe=WinSpoolProbe()
             journal=PrintJournal(self.data_dir)
+            try:
+                feed=WinPrintChangeFeed(probe)
+            except (OSError,AttributeError) as exc:
+                # Unsupported spoolers may lack notifications. Periodic
+                # read-only reconciliation remains functional.
+                self.failed.emit(
+                    "Yazıcı olay bildirimleri yok; aralıklı izleme etkin: "+
+                    str(exc)[:150])
             first=True
             while not self.isInterruptionRequested():
                 try:
                     printers=probe.snapshot()
+                    if feed is not None:
+                        feed.sync([item["name"] for item in printers])
                     alarms=journal.change(printers,self.size_warning_mb)
                     stale_alerts=self._check_progress(printers)
                     rows=journal.recent(160)
@@ -433,11 +445,21 @@ class PrintMonitor(QThread):
                     first=False
                 except (OSError,sqlite3.Error,PrintAccessError) as exc:
                     self.failed.emit(str(exc)[:230])
-                # QThread sleep is interruptible in short increments.
-                for _ in range(max(1,self.delay_ms//250)):
-                    if self.isInterruptionRequested():
-                        break
-                    self.msleep(250)
+                if self.isInterruptionRequested():
+                    break
+                if feed is not None:
+                    # Poll fallback protects against missed signals from
+                    # offline/shared/driver-specific Windows print queues.
+                    budget=(FALLBACK_MS if feed.has_fallback
+                            else RECONCILE_MS)
+                    feed.wait(self.isInterruptionRequested,budget)
+                else:
+                    for _ in range(FALLBACK_MS//250):
+                        if self.isInterruptionRequested():
+                            break
+                        self.msleep(250)
         finally:
+            if feed is not None:
+                feed.close()
             if journal is not None:
                 journal.close()
