@@ -313,6 +313,24 @@ class PrintPlanRepository:
                     "Devam planı yalnız kuyruktan kaybolmuş ve sonucu "
                     "belirsiz işler için oluşturulur. Önce aktif baskının "
                     "yazıcıda tamamen durduğunu kontrol et.")
+            if int(source["copies"])!=1:
+                raise PrintPlanError(
+                    "Birden çok kopyada son sağlam PDF sayfası her kopya için "
+                    "farklı olabilir. Otomatik aralık oluşturulmaz; ayrı "
+                    "kopyaların fiziksel sayfalarını kontrol ederek planla.")
+            original=source.get("pdf_path")
+            if original:
+                current=Path(original)
+                if not current.is_file():
+                    raise PrintPlanError(
+                        "Orijinal PDF bulunamadı; aynı kaynak doğrulanmadan "
+                        "devam sayfası güvenli değil.")
+                stat=current.stat()
+                if (int(stat.st_size)!=int(source["pdf_bytes"]) or
+                        int(stat.st_mtime_ns)!=int(source["pdf_mtime_ns"])):
+                    raise PrintPlanError(
+                        "Kaynak PDF değişmiş. Eski PDF ile karşılaştırmadan "
+                        "kesilen yerden baskıya devam edilmemeli.")
             if self.db.execute(
                 "SELECT 1 FROM print_tasks WHERE parent_task_id=?",
                 (task_id,)).fetchone():
