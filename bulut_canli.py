@@ -167,7 +167,14 @@ class Sync(QObject):
             return None, True
         known = dict(self.last_pulse)
         # Revision checks are light; full reconciliation is periodic only.
-        if self.force_pull or now-self._last_orders_verified >= 300:
+        # SSE watches the revision marker, but the order write can succeed
+        # even if its separate revision bump fails (offline/rules/contention).
+        # Therefore verify an authoritative order snapshot independently.
+        # Keep a bounded interval for Firebase Spark usage; the visible
+        # refresh button lets an operator request an immediate check.
+        interval = 120 if (self.db.pending_count or
+                           now < self._recent_until) else 180
+        if self.force_pull or now-self._last_orders_verified >= interval:
             known['orders_revision'] = -1
         return known, False
 
