@@ -557,7 +557,19 @@ class PrintMonitor(QThread):
                     # offline/shared/driver-specific Windows print queues.
                     budget=(FALLBACK_MS if feed.has_fallback
                             else RECONCILE_MS)
-                    feed.wait(self.isInterruptionRequested,budget)
+                    try:
+                        awakened=feed.wait(self.isInterruptionRequested,budget)
+                    except (OSError,RuntimeError,ctypes.ArgumentError) as exc:
+                        self.failed.emit(
+                            "Windows olay bildirimi kesildi; aralıklı izleme sürecek: "+
+                            str(exc)[:160])
+                        feed.close()
+                        feed=None
+                    else:
+                        if awakened and not self.isInterruptionRequested():
+                            # Combine bursts of SET_JOB/WRITE_JOB notifications
+                            # before fetching potentially expensive remote data.
+                            self.msleep(450)
                 else:
                     for _ in range(FALLBACK_MS//250):
                         if self.isInterruptionRequested():
