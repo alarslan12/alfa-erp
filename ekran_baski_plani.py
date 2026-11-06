@@ -262,7 +262,8 @@ class PrintPlanPanel(QWidget):
             last_counter=(f"{reported} (fiziksel değil)" if
                           t.get("last_reported_at") else "Bilinmiyor")
             ipp=(f"#{t['ipp_job_id']}: "
-                 f"yüz={t.get('ipp_impressions') if t.get('ipp_impressions') is not None else '?'}"
+                 f"belge={t.get('ipp_document_pages') if t.get('ipp_document_pages') is not None else '?'}"
+                 f", yüz={t.get('ipp_impressions') if t.get('ipp_impressions') is not None else '?'}"
                  f", kağıt={t.get('ipp_sheets') if t.get('ipp_sheets') is not None else '?'}"
                  if t.get("ipp_job_id") is not None else "Bağlanmadı")
             values=[
@@ -284,8 +285,9 @@ class PrintPlanPanel(QWidget):
                         "çıkan PDF sayfası olmayabilir; kâğıdı kontrol edin.")
                 if j==7:
                     item.setToolTip(
-                        "IPP cihazı raporu: baskı yüzü/impression ve kağıt "
-                        "sayıları. PDF'nin son sağlam basılan sayfası değildir.")
+                        "IPP cihazı raporu: işlenen belge sayfası, baskı yüzü "
+                        "ve kağıt ayrı sayaçlardır. Hiçbiri tek başına "
+                        "PDF'nin son sağlam basılan fiziksel sayfası değildir.")
                 self.table.setItem(i,j,item)
         self.table.blockSignals(False)
         if restore_row>=0:
@@ -538,7 +540,8 @@ class PrintPlanPanel(QWidget):
         observed=(f"{reported} sayfa" if task.get("last_reported_at")
                   else "Bilinmiyor")
         ipp_data=(
-            f"\nIPP cihaz raporu: yüz={task.get('ipp_impressions')}, "
+            f"\nIPP cihaz raporu: belge={task.get('ipp_document_pages')}, "
+            f"yüz={task.get('ipp_impressions')}, "
             f"kağıt={task.get('ipp_sheets')} · "
             f"{task.get('ipp_state') or 'durum bilinmiyor'}"
             if task.get("ipp_seen_at") else
@@ -645,6 +648,9 @@ class PrintPlanPanel(QWidget):
             "Windows sayaç zamanı: "+str(task.get("last_reported_at") or "—"),
             "Cihaz IPP iş numarası (Windows ID değil): "+
                 str(task.get("ipp_job_id") or "Eşleştirilmedi"),
+            "IPP işlenen belge sayfası: "+
+                (str(task["ipp_document_pages"]) if
+                 task.get("ipp_document_pages") is not None else "Bilinmiyor"),
             "Cihaz IPP yüz sayacı: "+
                 (str(task["ipp_impressions"]) if
                  task.get("ipp_impressions") is not None else "Bilinmiyor"),
