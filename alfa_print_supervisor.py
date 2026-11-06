@@ -79,9 +79,14 @@ def main():
         return 1
     if "--self-check" in sys.argv:
         # Offline build smoke test, no agent or printer started.
-        candidate=(Path(sys.executable).parent.parent /
-                   "PrintAgent"/"AlfaPrintAgent.exe")
-        if not candidate.is_file():
+        root=Path(sys.executable).parent.parent
+        # PyInstaller build: dist/AlfaPrintAgent/...
+        # Installed suite: ALFACOPYCENTER/PrintAgent/...
+        candidates=[
+            root/"PrintAgent"/"AlfaPrintAgent.exe",
+            root/"AlfaPrintAgent"/"AlfaPrintAgent.exe",
+        ]
+        if not any(path.is_file() for path in candidates):
             return 2
         return 0
     import argparse
