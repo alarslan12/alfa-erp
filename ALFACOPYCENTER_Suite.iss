@@ -52,6 +52,7 @@ Source: "dist\AlfaERPYonetici\*"; DestDir: "{app}\Owner"; Flags: recursesubdirs 
 Source: "dist\AlfaBannerStudio\*"; DestDir: "{app}\BannerStudio"; Flags: recursesubdirs createallsubdirs ignoreversion; Components: banner
 Source: "dist\AlfaPrintSurveillance\*"; DestDir: "{app}\PrintSurveillance"; Flags: recursesubdirs createallsubdirs ignoreversion; Components: print
 Source: "dist\AlfaPrintAgent\*"; DestDir: "{app}\PrintAgent"; Flags: recursesubdirs createallsubdirs ignoreversion; Components: print\agent
+Source: "dist\AlfaPrintSupervisor\*"; DestDir: "{app}\PrintSupervisor"; Flags: recursesubdirs createallsubdirs ignoreversion; Components: print\agent
 Source: "assets\icons\alfa_company.ico"; DestDir: "{app}\Brand"; Flags: ignoreversion
 Source: "assets\branding\company.png"; DestDir: "{app}\Brand"; DestName: "ALFACOPYCENTER.png"; Flags: ignoreversion
 
@@ -68,14 +69,14 @@ Name: "{userprograms}\ALFACOPYCENTER\Yazdırma Arka Plan İzleyicisi"; Filename:
 Name: "{userstartup}\ALFA ERP Sipariş Bildirimi"; Filename: "{app}\Notifications\AlfaBildirim.exe"; Components: staff
 
 [Registry]
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "ALFA_ERP_Print_Monitor"; ValueData: """{app}\PrintAgent\AlfaPrintAgent.exe"" --data-dir ""{localappdata}\AlfaERP"""; Flags: uninsdeletevalue; Components: print\agent; Tasks: printautostart
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "ALFA_ERP_Print_Monitor"; ValueData: """{app}\PrintSupervisor\AlfaPrintSupervisor.exe"" --data-dir ""{localappdata}\AlfaERP"""; Flags: uninsdeletevalue; Components: print\agent; Tasks: printautostart
 
 [Run]
 Filename: "{app}\Staff\AlfaERP.exe"; Description: "Personel ERP'yi aç"; Flags: nowait postinstall skipifsilent; Components: staff; Check: NotUpdate
 Filename: "{app}\Owner\AlfaERPYonetici.exe"; Description: "Yönetici ERP'yi aç"; Flags: nowait postinstall skipifsilent; Components: owner; Check: NotUpdate
 Filename: "{app}\BannerStudio\AlfaBannerStudio.exe"; Description: "Banner Studio'yu aç"; Flags: nowait postinstall skipifsilent unchecked; Components: banner; Check: NotUpdate
 Filename: "{app}\PrintSurveillance\AlfaPrintSurveillance.exe"; Description: "Yazdırma Kontrol Merkezi'ni aç"; Flags: nowait postinstall skipifsilent unchecked; Components: print; Check: NotUpdate
-Filename: "{app}\PrintAgent\AlfaPrintAgent.exe"; Parameters: "--data-dir ""{localappdata}\AlfaERP"""; Flags: nowait postinstall skipifsilent; Components: print\agent; Tasks: printautostart; Check: NotUpdate
+Filename: "{app}\PrintSupervisor\AlfaPrintSupervisor.exe"; Parameters: "--data-dir ""{localappdata}\AlfaERP"""; Flags: nowait postinstall skipifsilent; Components: print\agent; Tasks: printautostart; Check: NotUpdate
 Filename: "{app}\Notifications\AlfaBildirim.exe"; Flags: nowait postinstall skipifsilent; Components: staff; Check: NotUpdate
 
 [Code]
