@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 )
 
 from alfa_print_monitor import PrintJournal, PrintMonitor, ACTIVE, MIB
+from ekran_baski_plani import PrintPlanPanel
 
 
 STATUS_LABELS = {
@@ -242,6 +243,8 @@ class PrintSurveillanceView(QWidget):
         self.events.horizontalHeader().setSectionResizeMode(
             3,QHeaderView.ResizeMode.Stretch)
         self.tabs.addTab(self.events,"Olay günlüğü")
+        self.plan_panel=PrintPlanPanel(self.data_dir,self)
+        self.tabs.addTab(self.plan_panel,"Kitap / PDF baskı planı")
         outer.addWidget(self.tabs,1)
         self.set_theme()
         if os.name=="nt":
@@ -275,6 +278,8 @@ class PrintSurveillanceView(QWidget):
                 alternate-background-color:{bg};gridline-color:{edge};}}
             QHeaderView::section {{background:{button};color:{fg};}}
         """)
+        if getattr(self,"plan_panel",None) is not None:
+            self.plan_panel.set_theme()
         if self._last_snapshot:
             self._render_cards(self._last_snapshot["printers"])
 
@@ -350,6 +355,7 @@ class PrintSurveillanceView(QWidget):
     def _snapshot(self,result):
         self._last_snapshot=result
         printers=result["printers"]
+        self.plan_panel.set_snapshot(printers,result.get("tasks",[]))
         count=sum(len(p["jobs"]) for p in printers)
         blocked=sum(1 for p in printers if p["error"])
         self.status.setText(
