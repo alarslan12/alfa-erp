@@ -1,0 +1,96 @@
+name: Publish verified ALFACOPYCENTER Suite v2.0.1 (once)
+
+on:
+  push:
+    branches: [hotfix/v2.0.1-order-sync-conflicts]
+    paths:
+      - '.github/workflows/publish-alfacopycenter-suite-v201-once.yml'
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    name: Verify exact v2.0.1 Windows artifact, then publish patch
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      SOURCE_RUN: '42278081973'
+      VERIFIED_SHA: '97a7cd2281f72897bfce0ffbb7e498017f6b970e'
+      SETUP_NAME: 'ALFACOPYCENTER_Suite_Setup_V2_0_1.exe'
+    steps:
+      - name: Refuse overwrite of existing tag or release
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view v2.0.1 --repo "$REPO" >/dev/null 2>&1; then
+            echo 'v2.0.1 already released. Not overwriting.'
+            exit 1
+          fi
+          if gh api "repos/$REPO/git/ref/tags/v2.0.1" >/dev/null 2>&1; then
+            echo 'v2.0.1 tag already exists. Refusing overwrite.'
+            exit 1
+          fi
+      - name: Verify source build is exact and successful
+        shell: bash
+        run: |
+          set -euo pipefail
+          status="$(gh api "repos/$REPO/actions/runs/$SOURCE_RUN" --jq '.conclusion')"
+          branch="$(gh api "repos/$REPO/actions/runs/$SOURCE_RUN" --jq '.head_branch')"
+          sha="$(gh api "repos/$REPO/actions/runs/$SOURCE_RUN" --jq '.head_sha')"
+          test "$status" = success
+          test "$branch" = hotfix/v2.0.1-order-sync-conflicts
+          test "$sha" = "$VERIFIED_SHA"
+      - uses: actions/download-artifact@v4
+        with:
+          name: ALFACOPYCENTER_Suite_v2.0.1_Windows_Candidate
+          run-id: 42278081973
+          github-token: ${{ github.token }}
+          path: ./release
+      - name: Verify Setup SHA256 and release notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd release
+          test -s "$SETUP_NAME"
+          test -s SHA256SUMS.txt
+          sed -i 's/\r$//' SHA256SUMS.txt
+          test "$(wc -l < SHA256SUMS.txt)" -eq 1
+          test "$(awk '{print $2}' SHA256SUMS.txt)" = "$SETUP_NAME"
+          sha256sum -c SHA256SUMS.txt
+          test -s RELEASE_NOTES.txt
+      - name: Prepare user-facing Turkish release notes
+        shell: bash
+        run: |
+          cat > notes.md <<'NOTES'
+          # ALFACOPYCENTER Suite v2.0.1 — Sipariş senkronizasyonu ve hata bildirimi düzeltmesi
+
+          Bu sürüm v2.0.0 üzerinde küçük hata düzeltmesidir. **Yönetici ERP, Personel ERP, Banner Studio ve Yazdırma Kontrol Merkezi** aynı birleşik kurulumda korunur.
+
+          - **Personel ↔ Yönetici:** Siparişleri yalnız revizyon sayacından değil, Firebase `/orders` canlı değişikliklerinden de dinler; önceki 1–5 dakikalık gecikmeye neden olabilen kaçırılmış bildirimler azaltıldı.
+          - **Hızlı hazırlama ve kolileme:** Birden fazla cihazın aynı hedef adede ulaştığı işlemler mükerrer +1 yapılmadan ve işlem kimliğiyle güvenli biçimde onaylanır.
+          - **Yeni olay gelince:** Devam eden ağ okuması tamamlansa bile yeni sipariş değişikliği kaybolmaz; son hâl yeniden alınır.
+          - **Sağ üst uyarı:** Kalıcı `2 geçmiş çakışma` yazısı kaldırıldı. Yeni çakışma 8 saniye görünür, ardından `Bulut bağlı` / bağlantı durumu tekrar gösterilir. Eski kayıtlar İşlem Günlüğü'nde saklanır.
+          - **↻ Bulut yenileme:** Bekleyen işlemleri silmeden anında yeni Firebase sipariş kontrolü ister.
+          - Kod sözdizimi, çevrimdışı çok cihazlı senkronizasyon testleri, Windows kurulum bütünlüğü ve uygulama paket kontrolü başarıyla geçti. SHA-256 doğrulama dosyası pakette.
+
+          **Güncelleme:** Dört uygulamanın bulunduğu v2.0.0 kurulumuna bu Setup.exe'yi çalıştırarak yerinde güncelleme yapın; Yönetici bileşeni seçilirse önceki kurulum parolası gerekir. Eski siparişler, cihaz yetkileri, tasarım arşivleri, hata ve bekleyen işlem kuyrukları silinmez.
+
+          **Sınırlar:** Gerçek iki bilgisayarla uçtan uca üretim testi yapılmadı; bağlantı kesintilerinde kesin sıfır gecikme garanti değildir. Önceden çakışıp arşivlenmiş geçmiş işlemler kullanıcı onayı olmadan bulutta tekrar oynatılmaz. Setup.exe dijital kod imzası taşımadığı için Windows SmartScreen uyarısı gösterebilir.
+          NOTES
+      - name: Publish immutable v2.0.1 stable GitHub release
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release create v2.0.1 \
+            --repo "$REPO" \
+            --target "$VERIFIED_SHA" \
+            --title 'ALFACOPYCENTER Suite v2.0.1 · Sipariş Senkronizasyon Düzeltmesi' \
+            --notes-file notes.md \
+            "./release/$SETUP_NAME" \
+            ./release/SHA256SUMS.txt \
+            ./release/RELEASE_NOTES.txt
+          gh release view v2.0.1 --repo "$REPO" --json tagName,isDraft,isPrerelease,assets,url
