@@ -23,6 +23,7 @@ from alfa_print_monitor import PrintJournal, PrintMonitor, ACTIVE, MIB
 from ekran_baski_plani import PrintPlanPanel
 from alfa_print_runtime import PrintAgentStartup
 from alfa_print_ipp import IppSettings, IppTelemetryError, validate_uri
+from alfa_print_snmp import SnmpSettings, SnmpTelemetryError
 
 
 STATUS_LABELS = {
@@ -56,7 +57,8 @@ def _palette():
 
 
 class PrinterCard(QFrame):
-    def __init__(self, printer, label_job, device=None, parent=None):
+    def __init__(self, printer, label_job, device=None,
+                 vendor=None, snmp=None, parent=None):
         super().__init__(parent)
         self.setObjectName("PrintMonitorPrinterCard")
         self.setMinimumWidth(300)
@@ -86,6 +88,38 @@ class PrinterCard(QFrame):
         heading.addWidget(title,1)
         heading.addWidget(QLabel(str(len(printer["jobs"]))+" iş"))
         root.addLayout(heading)
+        if vendor:
+            brand=str(vendor.get("vendor") or "Bilinmiyor")
+            driver=str(vendor.get("driver") or "Windows sürücü adı bilinmiyor")
+            port=str(vendor.get("port") or "Bilinmiyor")
+            id_label=QLabel(
+                f"Windows sürücüsü: {brand} · {driver}\nBağlantı: {port}")
+            id_label.setObjectName("PrintJobSubtitle")
+            id_label.setWordWrap(True)
+            root.addWidget(id_label)
+        if snmp:
+            if snmp.get("error"):
+                details="SNMP: erişilemiyor · "+str(snmp["error"])[:90]
+            else:
+                details=(f"SNMP: {snmp.get('brand') or 'Bilinmiyor'} · "+
+                         str(snmp.get("model") or "")[:100])
+                count=snmp.get("life_count")
+                if isinstance(count,int):
+                    details+=f"\nCihaz ömür boyu sayaç: {count} (son PDF sayfası değil)"
+                alerts=snmp.get("alerts") or []
+                if alerts:
+                    details+="\nUyarılar: "+", ".join(alerts[:2])[:120]
+                supplies=snmp.get("supplies") or []
+                valid=[f"{x.get('name')}: %{x.get('percent')}" for x in supplies
+                       if x.get("percent") is not None]
+                if valid:
+                    details+="\nSarf: "+", ".join(valid[:3])[:140]
+            snmp_label=QLabel(details)
+            snmp_label.setObjectName("PrintJobSubtitle")
+            snmp_label.setWordWrap(True)
+            if snmp.get("error") or snmp.get("alerts"):
+                snmp_label.setStyleSheet(f"color:{red};font-weight:700")
+            root.addWidget(snmp_label)
         if device:
             if device.get("error"):
                 info="IPP cihaz yanıtı yok · "+str(device["error"])[:110]
@@ -183,6 +217,7 @@ class PrintSurveillanceView(QWidget):
         self._read_layout()
         self._agent_pref=PrintAgentStartup(self.data_dir)
         self._ipp_settings=IppSettings(self.data_dir)
+        self._snmp_settings=SnmpSettings(self.data_dir)
 
         outer=QVBoxLayout(self)
         outer.setContentsMargins(10,8,10,10);outer.setSpacing(9)
@@ -213,6 +248,12 @@ class PrintSurveillanceView(QWidget):
             "ve isteğe bağlı gerçek IPP iş sayacı")
         ipp_button.clicked.connect(self._configure_ipp)
         head.addWidget(ipp_button)
+        vendor_button=QPushButton("Epson/Canon · SNMP")
+        vendor_button.setToolTip(
+            "Windows'un kurulu üretici sürücülerini ve programlarını tanı, "
+            "güvendiğin yazıcının SNMPv2c durum okumasını ayrıca etkinleştir")
+        vendor_button.clicked.connect(self._configure_vendor)
+        head.addWidget(vendor_button)
         outer.addLayout(head)
 
         explain=QLabel(
@@ -373,6 +414,147 @@ class PrintSurveillanceView(QWidget):
              "Şu anda çalışan ajan varsa sistem tepsisinden ayrıca durdurun.")
         )
 
+    def _configure_vendor(self):
+        """Show installed vendor software and opt-in local SNMP support."""
+        data=self._last_snapshot or {}
+        printers=data.get("printers") or []
+        if not printers:
+            QMessageBox.information(
+                self,"Epson/Canon üretici tanıma",
+                "Önce Windows yazıcıları listeleyebilmeli.")
+            return
+        vendor_meta=data.get("vendor") or {}
+        vendor_software=data.get("vendor_software") or []
+        known=self._snmp_settings.names()
+        dlg=QDialog(self)
+        dlg.setWindowTitle("Epson / Canon · Windows yazılımları ve SNMP")
+        dlg.resize(610,460)
+        layout=QVBoxLayout(dlg)
+        explain=QLabel(
+            "ALFA ERP, Windows'taki üretici sürücüsü ve yüklü Epson/Canon "
+            "yazılımlarını tanır; ancak üretici uygulamalarına müdahale etmez. "
+            "Cihazın kendisi SNMP destekliyorsa IP'sini ayrıca tanımlayabilirsin.")
+        explain.setWordWrap(True)
+        layout.addWidget(explain)
+        form=QFormLayout()
+        picker=QComboBox()
+        for item in sorted(printers,key=lambda p:p["name"]):
+            picker.addItem(item["name"],item["name"])
+        driver=QLabel("")
+        driver.setWordWrap(True)
+        ip=QLineEdit()
+        ip.setPlaceholderText("192.168.1.100")
+        ip.setToolTip("Tarama tüm ağda değil; yalnız seçilen yazıcı IP'sinde yapılır")
+        community=QLineEdit()
+        community.setEchoMode(QLineEdit.EchoMode.Password)
+        community.setPlaceholderText(
+            "Yazıcıdaki SNMPv2c salt okunur community (gizli)")
+        community.setToolTip(
+            "Windows DPAPI ile şifrelenir; SNMPv2c LAN'da şifrelenmez. "
+            "Güvenmediğin ağda kullanma.")
+        software=QLabel("")
+        software.setWordWrap(True)
+        def refresh():
+            name=str(picker.currentData() or "")
+            meta=vendor_meta.get(name) or {}
+            brand=str(meta.get("vendor") or "Bilinmiyor")
+            driver.setText(
+                f"Üretici: {brand} ({meta.get('vendor_basis') or 'belirsiz'})\n"
+                f"Windows sürücüsü: {meta.get('driver') or 'Bilinmiyor'}\n"
+                f"Port: {meta.get('port') or 'Bilinmiyor'}")
+            current=str(known.get(name) or "")
+            if current:
+                ip.setText(current)
+            else:
+                # IP_* printer ports are only hints, never auto-probed.
+                port=str(meta.get("port") or "")
+                candidate=port[3:] if port.upper().startswith("IP_") else ""
+                ip.setText(candidate if candidate.count(".")==3 else "")
+            community.clear()
+            matches=[x for x in vendor_software
+                     if x.get("vendor")==brand][:12]
+            if matches:
+                descriptions=[
+                    str(x.get("name") or "")+
+                    (f" · v{x['version']}" if x.get("version") else "")
+                    for x in matches]
+                text_value="Windows'ta bulunan yazılımlar:\n"+"\n".join(
+                    "• "+x for x in descriptions)
+            else:
+                text_value=(
+                    "Bu üretici için Windows kayıtlarında yardımcı program "
+                    "bulunamadı. Sürücü mevcut olsa bile Status Monitor "
+                    "ayrı kurulmuş olabilir.")
+            software.setText(text_value+
+                "\n\nBu programların verilerine doğrudan erişim/API "
+                "desteği henüz doğrulanmadı.")
+        picker.currentIndexChanged.connect(refresh)
+        form.addRow("Windows yazıcısı",picker)
+        form.addRow("Sürücü / port",driver)
+        form.addRow("Hedef yerel IP",ip)
+        form.addRow("SNMP community",community)
+        layout.addLayout(form)
+        layout.addWidget(software)
+        caution=QLabel(
+            "Güvenlik: SNMPv2c ağda şifresizdir. Canon/Epson modellerinde "
+            "SNMPv3 bulunabilir; v3 henüz entegre değil. "
+            "Bu özellik yalnız GET/GETBULK okur, yazıcı ayarlarına "
+            "ve OEM yazılımlarına dokunmaz. "
+            "Ömür boyu cihaz sayacı son basılan kitap sayfası değildir.")
+        caution.setWordWrap(True)
+        layout.addWidget(caution)
+        actions=QHBoxLayout()
+        remove=QPushButton("SNMP bağlantısını kaldır")
+        def remove_link():
+            name=str(picker.currentData() or "")
+            try:
+                self._snmp_settings.remove(name)
+                known.pop(name,None)
+                community.clear()
+            except (OSError,SnmpTelemetryError) as exc:
+                QMessageBox.warning(dlg,"SNMP",str(exc)[:180])
+                return
+            QMessageBox.information(
+                dlg,"SNMP","Bu yazıcının SNMP izleme tercihi kaldırıldı.")
+        remove.clicked.connect(remove_link)
+        actions.addWidget(remove)
+        actions.addStretch()
+        save=QPushButton("SNMP izlemeyi etkinleştir")
+        def save_link():
+            name=str(picker.currentData() or "")
+            answer=QMessageBox.question(
+                dlg,"SNMPv2c güvenlik uyarısı",
+                "SNMPv2c community yerel ağda ŞİFRESİZ iletilir. "
+                "Bu yazıcının yalnız sana ait/güvendiğin özel ağda "
+                "olduğunu ve salt okunur SNMP erişimini onaylıyor musun?",
+                QMessageBox.StandardButton.Yes|
+                QMessageBox.StandardButton.No)
+            if answer!=QMessageBox.StandardButton.Yes:return
+            try:
+                self._snmp_settings.set(
+                    name,ip.text().strip(),community.text())
+                known[name]=ip.text().strip()
+                community.clear()
+            except (OSError,SnmpTelemetryError) as exc:
+                QMessageBox.warning(dlg,"SNMP",str(exc)[:220])
+                return
+            dlg.accept()
+            QMessageBox.information(
+                self,"SNMP etkin",
+                "Yalnız seçili IP için Printer-MIB durum ve sarf "
+                "malzemesi takibi etkinleştirildi. Community "
+                "Windows kullanıcı hesabında DPAPI ile şifrelendi. "
+                "Epson/Canon Status Monitor yazılımından veri çekildiği "
+                "anlamına gelmez.")
+        save.clicked.connect(save_link)
+        actions.addWidget(save)
+        close=QPushButton("Kapat")
+        close.clicked.connect(dlg.reject)
+        actions.addWidget(close)
+        layout.addLayout(actions)
+        refresh()
+        dlg.exec()
+
     def _configure_ipp(self):
         """Local and manual per-printer IPP endpoint; monitoring opt-in."""
         printers=(self._last_snapshot or {}).get("printers",[])
@@ -501,7 +683,9 @@ class PrintSurveillanceView(QWidget):
         payload=json.dumps({
             "printers":printers,
             "recent":result.get("recent",[]),
-            "events":result.get("events",[])
+            "events":result.get("events",[]),
+            "vendor":result.get("vendor",{}),
+            "snmp":result.get("snmp",{})
         },ensure_ascii=False,sort_keys=True)
         if payload!=self._last_signature:
             self._last_signature=payload
@@ -529,7 +713,11 @@ class PrintSurveillanceView(QWidget):
             self.board.setMinimumWidth(0)
         for i,printer in enumerate(printers):
             device=(self._last_snapshot or {}).get("ipp",{}).get(printer["name"])
-            card=PrinterCard(printer,self._label_job,device,self.board)
+            meta=(self._last_snapshot or {}).get("vendor",{}).get(printer["name"])
+            snmp=(self._last_snapshot or {}).get("snmp",{}).get(printer["name"])
+            card=PrinterCard(
+                printer,self._label_job,device=device,
+                vendor=meta,snmp=snmp,parent=self.board)
             self.board_layout.addWidget(card,i//cols,i%cols,
                                         Qt.AlignmentFlag.AlignTop)
         self.board_layout.setRowStretch((len(printers)+cols-1)//cols,1)
