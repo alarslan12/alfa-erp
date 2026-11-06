@@ -198,6 +198,51 @@ Bu dalda eklenen yeni kaynak dosyaları:
   kaldırma senaryoları henüz doğrulanmadı. Bu yüzden kararlı
   **v2.0.0 paketi üretmek için erken**.
 
+## Baskı kesintisi — son sayfa ve devam ekranı (6 Kasım eklemesi)
+
+**İstek:** PDF baskısı yarıda kalırsa hangi kitabın hangi sayfada
+kaldığını görmek ve güvenli şekilde bir sonraki sayfadan devam etmek.
+
+### Uygulanmış taslak
+- `alfa_print_plan.py`: gerçek Windows işiyle eşleştirilmiş
+  `JOB_INFO_2.PagesPrinted` sayacının **en yüksek gözlenmiş değerini**
+  ve gözlem zamanını yerel SQLite veritabanında saklar. 0 veya hiç veri
+  yoksa bunu bilmediğini açıkça belirtir; kopya/duplex/N-up hesabı
+  üzerinden sessizce fiziksel sayfa tahmin etmez.
+- Kuyruktan kaybolan bir baskı `verify` durumuna geçirilir; açılış
+  sonrasında da kitap adı ve Windows son sayacıyla **Baskı Kesintisi**
+  bildirimi gösterilir.
+- `ekran_baski_plani.py`: **Son Windows sayacı** sütunu,
+  ayrıntıda son gözlem zamanı, **Kesilen Baskıya Devam** düğmesi.
+  Operatör önce yazıcının hâlâ basmadığını ve kuyruk/cihaz
+  arabelleğinin boş olduğunu kontrol eder; sonra gerçek kâğıtlardan
+  **son tam ve sağlam PDF sayfasını** girer.
+- Örneğin 300 sayfalık PDF'de fiziksel olarak en son **142. sayfa**
+  sağlam basıldıysa yeni baskı planının başlangıcı **143** olur.
+  **Bu 142 bilgisi yalnız operatör veya ileride güvenilir cihaz
+  telemetrisiyle doğrulanabilir; Windows sayacı 142 yazdı diye
+  tek başına doğrulanmış kabul edilmez.**
+- Yeni plan `parent_task_id` ile eski kayda bağlanır; eski kesinti,
+  kontrol notu ve son sayacı kalır. Aynı kesintiden iki devam planı
+  açılması benzersiz veritabanı indeksinden engellenir. **PDF otomatik
+  yazdırılmaz**; kullanıcı yeni sayfa aralığını baskıya gönderir ve
+  yeni Windows işiyle yeniden eşleştirir.
+- Kaynağı değişmiş veya silinmiş PDF'de otomatik devam sayfası planı
+  engellenir. Birden fazla kopyada her kopyanın durduğu sayfa farklı
+  olabileceği için tek aralık önerilmez; kopyalar ayrı incelenir.
+- Bu özellik **uygulama açıkken kaydedilen veya isteğe bağlı ajan
+  tarafından gözlemlenen** sayaçları saklayabilir. Sistem kapalıyken
+  gerçekleşen fiziksel sayfalar telemetri olmadan geri üretilemez.
+
+**Donanım bağımlı sonraki adım:** Yazıcının IPP/SNMP/üretici SDK'sı
+güvenilir *job identity + gerçek sayfa çıktısı* sağlarsa otomatik
+"son fiziksel sayfa" göstergesi açılacak; sağlanmayan modellerde
+"bilinmiyor" ve operatör teyidi korunacak.
+
+**Microsoft kaynak:** https://learn.microsoft.com/en-us/windows/win32/printdocs/job-info-2
+(`PagesPrinted` sıfır dönebilir; `COMPLETE` işin yazıcıya
+gönderildiğini gösterebilir, fiziksel çıktıyı garanti etmez.)
+
 ## Kabul ölçütleri (yayından önce)
 
 1. 2-3 gerçek Windows yazıcısıyla eşzamanlı boş/siyah-beyaz/renkli,
