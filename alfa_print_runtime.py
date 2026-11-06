@@ -66,7 +66,7 @@ class PrintAgentStartup:
 
     def __init__(self, data_dir):
         self.data_dir=Path(data_dir)
-        self.executable=Path(sys.executable).parent/"AlfaPrintAgent.exe"
+        self.executable=(Path(sys.executable).parent/"PrintAgent"/"AlfaPrintAgent.exe")
 
     @property
     def available(self):
