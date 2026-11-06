@@ -24,7 +24,7 @@ from guncelleme_arayuzu import CheckWorker,should_check_today,mark_checked
 from duyuru_merkezi import AnnouncementsDialog,ManualReportDialog
 
 ROOT=Path(__file__).resolve().parent
-VERSION='2.0.0'
+VERSION='2.0.1'
 OWNER_EDITION=(ROOT/'YONETICI_SURUMU.flag').exists()
 
 
@@ -111,6 +111,14 @@ class AlfaMain(QMainWindow):
         self.cloud_badge=text('◌ Bağlanıyor…','Tiny')
         self.cloud_badge.setToolTip('Siparişler yalnızca eşleştirilmiş cihazlarda buluta aktarılır.')
         right_row.addWidget(self.cloud_badge)
+        self.cloud_refresh=QPushButton('↻',header)
+        self.cloud_refresh.setObjectName('CloudRefresh')
+        self.cloud_refresh.setToolTip(
+            'Firebase siparişlerini yeniden kontrol et · bekleyen işlemler silinmez')
+        self.cloud_refresh.setAccessibleName('Bulut siparişlerini şimdi yenile')
+        self.cloud_refresh.setFixedWidth(34)
+        self.cloud_refresh.clicked.connect(self._force_orders_refresh)
+        right_row.addWidget(self.cloud_refresh)
         self.cloud_connect=QPushButton('Buluta bağla',header)
         self.cloud_connect.setObjectName('CloudConnect')
         self.cloud_connect.setToolTip(
@@ -497,6 +505,19 @@ class AlfaMain(QMainWindow):
             if self.bookpool and self.bookpool.isVisible():self.bookpool.refresh()
         if self.stack.currentWidget() is self.analytics:self.analytics.refresh()
 
+    def _force_orders_refresh(self):
+        """Force an authoritative read; never clear durable pending operations."""
+        if not self.device.paired:
+            QMessageBox.information(
+                self,'Bulut eşitlemesi',
+                'Bu cihaz önce Cihaz Yetkisi ekranından kaydedilmeli.')
+            return
+        self.live.force_pull=True
+        self.live._pull_retry_after=0
+        self.statusBar().showMessage(
+            'Firebase siparişlerinin güncel durumu kontrol ediliyor…',10000)
+        self.live.pull()
+
     def _cloud_status(self,online,message):
         # Pending crash reports retry ONLY on an actual connectivity transition,
         # not from a polling timer or on every ordinary sync status string.
@@ -512,12 +533,16 @@ class AlfaMain(QMainWindow):
         if conflicts:
             count=len(conflicts)
             reason=str(conflicts[-1].get('reason') or 'Bilinmeyen işlem çakışması')
-            self.cloud_badge.setText(f'⚠ {count} geçmiş çakışma' if online
-                else f'◌ Eşitleme hatası · {count} eski kayıt')
+            pending=self.db.pending_count
+            marker=('● Bulut bağlı' if online else '◌ Eşitleme beklemede')
+            self.cloud_badge.setText(
+                marker+(f' · {pending} sırada' if pending else '')+
+                f' · ⚠ {count} geçmiş')
             self.cloud_badge.setToolTip(
                 ('Bulut bağlı.\n' if online else 'Güncel eşitleme hatası: '+message[:190]+'\n')
-                +'Bunlar daha önce reddedilmiş ve arşivlenmiş işlemlerdir; '
-                'şu anda bekleyen kuyruk sayısı değildir.\n'
+                +'Geçmiş çakışmalar daha önce reddedilip arşivlenmiş '
+                'işlemlerdir; yeni bekleyen işler değildir. '
+                +'Şu an bekleyen işlem: '+str(pending)+'\n'
                 'Ayarlar → İşlem günlüğü → Eski bulut hatalarını incele.\n'
                 +reason[:220])
             previous=getattr(self,'_last_conflict_notice',None)
