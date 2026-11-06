@@ -417,6 +417,14 @@ class Handler(SimpleHTTPRequestHandler):
 
 
 def main():
+    if '--self-check' in sys.argv:
+        # Offline packaging check. No browser or HTTP listener is created.
+        assert (WEB/'index.html').is_file(), 'Missing bundled HTML'
+        assert (WEB/'app.js').is_file(), 'Missing bundled JavaScript'
+        assert CATALOG, 'Bundled or persisted book catalog is missing'
+        assert DATA.is_dir(), 'Persistent user-data folder is unavailable'
+        print('ALFA Banner Studio self-check OK; catalog:',len(CATALOG))
+        return
     DATA.mkdir(parents=True,exist_ok=True)
     server=ThreadingHTTPServer(('127.0.0.1',0),Handler)
     url=f'http://127.0.0.1:{server.server_port}'
