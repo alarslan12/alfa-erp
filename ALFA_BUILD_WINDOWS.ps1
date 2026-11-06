@@ -43,7 +43,7 @@ if($Edition -eq 'personel') {
  # Optional, login-started user-mode print agent. Registration is only
  # performed through the user-visible ERP switch, never by the installer.
  Run $Virtual @('-m','PyInstaller','--noconfirm','--clean','--onedir','--windowed',
-  '--name','AlfaPrintAgent','--icon=assets\icons\alfa_personel.ico',
+  '--name','AlfaPrintAgent','--icon=assets\icons\alfa_print.ico',
   '--add-data','assets;assets','alfa_print_agent.py')
  $iss='alfa_personel.iss'
 } elseif($Edition -eq 'yonetici') {

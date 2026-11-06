@@ -1,0 +1,96 @@
+name: Publish verified ALFACOPYCENTER Suite v2.0.0 (once)
+
+on:
+  push:
+    branches: [release/v200-suite-candidate]
+    paths:
+      - '.github/workflows/publish-alfacopycenter-suite-v200-once.yml'
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    name: Verify and publish ALFACOPYCENTER v2.0.0 stable Windows setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      SOURCE_RUN: '42271479908'
+      VERIFIED_SHA: 'e7e2ea7b4bd89b17f9c55c441d958d5a97ff87d7'
+      SETUP_NAME: 'ALFACOPYCENTER_Suite_Setup_V2_0_0.exe'
+    steps:
+      - name: Refuse overwrite of existing release/tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view v2.0.0 --repo "$REPO" >/dev/null 2>&1; then
+            echo 'Version v2.0.0 is already published; refusing to modify.'
+            exit 1
+          fi
+          if gh api "repos/$REPO/git/ref/tags/v2.0.0" >/dev/null 2>&1; then
+            echo 'Git tag v2.0.0 exists; refusing to repoint.'
+            exit 1
+          fi
+      - name: Require successful, exact, approved Windows CI source
+        shell: bash
+        run: |
+          set -euo pipefail
+          status="$(gh api "repos/$REPO/actions/runs/$SOURCE_RUN" --jq '.conclusion')"
+          branch="$(gh api "repos/$REPO/actions/runs/$SOURCE_RUN" --jq '.head_branch')"
+          sha="$(gh api "repos/$REPO/actions/runs/$SOURCE_RUN" --jq '.head_sha')"
+          test "$status" = success
+          test "$branch" = release/v200-suite-candidate
+          test "$sha" = "$VERIFIED_SHA"
+      - uses: actions/download-artifact@v4
+        with:
+          name: ALFACOPYCENTER_Suite_v2.0.0_Windows_Candidate
+          run-id: 42271479908
+          github-token: ${{ github.token }}
+          path: ./release
+      - name: Verify installer and SHA-256 manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd release
+          test -s "$SETUP_NAME"
+          test -s SHA256SUMS.txt
+          sed -i 's/\r$//' SHA256SUMS.txt
+          test "$(wc -l < SHA256SUMS.txt)" -eq 1
+          test "$(awk '{print $2}' SHA256SUMS.txt)" = "$SETUP_NAME"
+          sha256sum -c SHA256SUMS.txt
+          test -s RELEASE_NOTES.txt
+      - name: Write durable release notes with measured limitations
+        shell: bash
+        run: |
+          cat > notes.md <<'NOTES'
+          # ALFACOPYCENTER Suite v2.0.0 — İlk dört uygulamalı Windows sürümü
+
+          **Tek Setup.exe içinde dört ayrı uygulama:** ALFA ERP Personel, ALFA ERP Yönetici, ALFA Banner Studio Pro v3.3 ve ALFA Yazdırma Kontrol Merkezi (Print Surveillance) v2.0.
+
+          - Dört ayrı marka ikonu, masaüstü ve başlat menüsü kısayolları. Yönetici ERP kurulum parolası korunur; Firebase yetkilendirmesi ayrıca gereklidir.
+          - Banner Studio: yerel tasarım hafızası, kitap Excel kataloğu, kapak ZIP içe aktarma, 1–30 kitap yerleşimi ve HD JPG/PNG afişler.
+          - Yazdırma: tüm erişilebilir Windows yazıcı kuyrukları, değişim bildirimleri, SQLite geçmişi, kitap/PDF baskı planları, kesintide son Windows sayaç kaydı ve **operatörün fiziksel doğruladığı** sayfadan yeni devam planı.
+          - Epson/Canon sürücü/yazılım tanıma; isteğe bağlı yerel ağ IPP ve SNMPv2c Printer-MIB cihaz okumaları.
+          - Kullanıcının seçtiği Windows oturum açılış ajanı ve gözetici. Tek instance, yeniden başlatma, sağlıklı periyodik kontrol. Hizmet/driver yönetimi veya ayrıcalık yükseltme YOK.
+          - Windows CI ile kurulum, 6 EXE, 4 yazıcı güvenlik kontratı ve 3 program self-check başarıyla doğrulandı. SHA256SUMS dahil.
+
+          **Önemli sınırlar / ilk geçiş:** Gerçek Epson/Canon donanımlarında tüm sürücüler ve bağlantı kesintileri için uçtan uca test henüz yapılmadı; fiziksel son PDF sayfası Windows sayaçlarından kesin bulunamaz. PC kapalıyken veya Windows kullanıcı oturumu açılmamışken izleme mümkün değildir. Otomatik yeniden baskı, spool dosyası silme, Windows Print Spooler servisi yeniden başlatma YOK. İlk v1→v2 yükseltmede bu Setup.exe'yi elle açın; eski ve yeni uygulamalar yan yana kalabilir, yerel veri ve tasarım arşivleri korunur.
+
+          **Sürümün EXE'si dijital kod imzasıyla imzalı değildir; Windows SmartScreen yazılımın kaynağını doğrulamanızı isteyebilir.** Sadece bu resmî Release bağlantısından ve SHA-256 ile doğrulayarak indirin.
+          NOTES
+      - name: Publish immutable permanent stable GitHub Release
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release create v2.0.0 \
+            --repo "$REPO" \
+            --target "$VERIFIED_SHA" \
+            --title 'ALFACOPYCENTER Suite v2.0.0 · 4 Uygulama' \
+            --notes-file notes.md \
+            "./release/$SETUP_NAME" \
+            ./release/SHA256SUMS.txt \
+            ./release/RELEASE_NOTES.txt
+          gh release view v2.0.0 --repo "$REPO" --json tagName,isDraft,isPrerelease,assets,url

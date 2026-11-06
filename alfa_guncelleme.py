@@ -30,7 +30,7 @@ UPDATE_HOSTS={
     "objects.githubusercontent.com","github-releases.githubusercontent.com",
 }
 VERSION_PATTERN=re.compile(r"^v?([0-9]+)\.([0-9]+)\.([0-9]+)$")
-MAX_SETUP_SIZE=230*1024*1024
+MAX_SETUP_SIZE=600*1024*1024
 MAX_CHECKSUM_SIZE=32768
 
 
@@ -105,7 +105,9 @@ def check_for_update(current,edition):
     # Both editions are distributed in ONE setup; the user selects the
     # edition in the installer and owner installs require the setup password.
     version="_".join(str(x) for x in available)
-    name=f"ALFA_ERP_Setup_V{version}.exe"
+    # Version 2+ is a four-app branded Suite; v1 uses the old installer.
+    name=(f"ALFACOPYCENTER_Suite_Setup_V{version}.exe"
+          if available[0]>=2 else f"ALFA_ERP_Setup_V{version}.exe")
     assets=data.get("assets") or []
     installer=_asset(assets,name,tag)
     checksum=_asset(assets,"SHA256SUMS.txt",tag)
@@ -243,6 +245,18 @@ try {
     ) -PassThru -Wait -ErrorAction Stop
     if ($p.ExitCode -ne 0) {
         throw "Kurulum tamamlanmadi (cikis kodu $($p.ExitCode))."
+    }
+    # A v1->v2 upgrade installs to the new suite directory without
+    # deleting the old data/EXE. Start the newly installed edition,
+    # NEVER silently start the obsolete v1 binary.
+    $suiteRoot = Join-Path $env:LOCALAPPDATA 'Programs\ALFACOPYCENTER'
+    $suiteExe = if ($editionArg -eq '/ALFAOWNER') {
+        Join-Path $suiteRoot 'Owner\AlfaERPYonetici.exe'
+    } else {
+        Join-Path $suiteRoot 'Staff\AlfaERP.exe'
+    }
+    if (Test-Path -LiteralPath $suiteExe -PathType Leaf) {
+        $TargetExe = $suiteExe
     }
     if (-not (Test-Path -LiteralPath $TargetExe -PathType Leaf)) {
         throw 'Kurulum bitti ama uygulamanin EXE dosyasi bulunamadi.'

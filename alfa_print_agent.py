@@ -14,7 +14,7 @@ import os
 from pathlib import Path
 import sys
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import QApplication, QMenu, QStyle, QSystemTrayIcon
 
@@ -39,21 +39,22 @@ def main():
     app=QApplication(["AlfaPrintAgent"])
     app.setApplicationName("ALFA ERP Yazdırma İzleme")
     app.setQuitOnLastWindowClosed(False)
-    if not QSystemTrayIcon.isSystemTrayAvailable():
-        # No hidden, uncontrollable monitor if desktop tray is unavailable.
-        instance_lock.close()
-        return 2
+    # Some kiosk/remote Windows sessions don't expose the notification area.
+    # Collection MUST still continue; the standalone Print Surveillance app
+    # can inspect the same SQLite journal and change the startup preference.
+    has_tray=QSystemTrayIcon.isSystemTrayAvailable()
 
     icon_file=Path(getattr(sys,"_MEIPASS",Path(__file__).parent)) / (
-        "assets/icons/alfa_personel.ico"
+        "assets/icons/alfa_print.ico"
     )
     icon=QIcon(str(icon_file)) if icon_file.exists() else QIcon()
     if icon.isNull():
         icon=app.style().standardIcon(
             QStyle.StandardPixmap.SP_ComputerIcon)
 
-    tray=QSystemTrayIcon(icon)
-    tray.setToolTip("ALFA ERP · Yazdırma izleme etkin")
+    tray=QSystemTrayIcon(icon) if has_tray else None
+    if tray is not None:
+        tray.setToolTip("ALFACOPYCENTER · Yazdırma izleme etkin")
     menu=QMenu()
     title=QAction("ALFA ERP Yazdırma Kontrol Merkezi",menu)
     title.setEnabled(False)
@@ -62,24 +63,52 @@ def main():
     stop=QAction("Bu oturumda izlemeyi durdur",menu)
     stop.triggered.connect(app.quit)
     menu.addAction(stop)
-    tray.setContextMenu(menu)
-    tray.show()
+    if tray is not None:
+        tray.setContextMenu(menu)
+        tray.show()
 
-    worker=PrintMonitor(folder)
-    worker.warning.connect(lambda message:tray.showMessage(
-        "ALFA ERP · Yazdırma",str(message)[:240],
-        QSystemTrayIcon.MessageIcon.Warning,8000))
-    worker.failed.connect(lambda message:tray.setToolTip(
-        "ALFA ERP · Yazıcı izleme: "+str(message)[:120]))
-    worker.start()
+    current={"worker":None,"last_data":None,"failed":""}
+    def begin_worker():
+        worker=PrintMonitor(folder)
+        if tray is not None:
+            worker.warning.connect(lambda message:tray.showMessage(
+                "ALFACOPYCENTER · Yazdırma",str(message)[:240],
+                QSystemTrayIcon.MessageIcon.Warning,8000))
+            worker.failed.connect(lambda message:tray.setToolTip(
+                "ALFACOPYCENTER · Yazıcı izleme: "+str(message)[:100]))
+        worker.failed.connect(lambda message:
+            current.__setitem__("failed",str(message)[:180]))
+        worker.updated.connect(lambda payload:
+            current.__setitem__("last_data",payload.get("captured_at")))
+        current["worker"]=worker
+        worker.start()
+
+    begin_worker()
+    watchdog=QTimer()
+    watchdog.setInterval(18000)
+    def check_worker():
+        worker=current["worker"]
+        if worker is None or worker.isRunning():
+            return
+        # Restart only a FINISHED Qt worker. Stuck Windows printer RPCs
+        # must not be forcibly terminated from the GUI thread.
+        worker.deleteLater()
+        begin_worker()
+    watchdog.timeout.connect(check_worker)
+    watchdog.start()
 
     def cleanup():
+        watchdog.stop()
+        worker=current["worker"]
+        if worker is None:
+            if tray is not None:tray.hide()
+            return
         worker.requestInterruption()
         # Unreachable remote spooler RPC can block this worker. Waiting
         # indefinitely would prevent Windows logout. The OS will tear
         # down this user process; SQLite's WAL preserves committed rows.
         ended=worker.wait(3500)
-        tray.hide()
+        if tray is not None:tray.hide()
         if not ended:
             # A stalled remote printer RPC cannot be safely interrupted.
             # End only this optional helper process; committed SQLite

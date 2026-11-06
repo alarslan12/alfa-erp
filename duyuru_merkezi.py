@@ -12,6 +12,30 @@ from PySide6.QtWidgets import (
 from alfa_hatalar import report_manual_error
 from guncelleme_arayuzu import UpdateDialog
 
+V200_NOTES = """# ALFACOPYCENTER v2.0.0 · Dört Uygulama Paketi
+
+- Tek Windows kurulumu: Yönetici ERP, Personel ERP,
+  Banner Studio Pro v3.3 ve Yazdırma Kontrol Merkezi v2.0.
+- Her uygulamanın ayrı ALFACOPYCENTER logosu ve masaüstü kısayolu.
+- Banner Studio: yerel tasarım arşivi, Excel/ZIP kitap kapağı içe aktarma,
+  tek/set fiyatı, 1–30 kapak şablonu ve HD dışa aktarma.
+- Yazdırma Kontrol Merkezi: Windows WinSpool kuyruk takibi,
+  yerel SQLite geçmişi, kitap/PDF baskı planı, duraksama uyarıları,
+  son Windows sayacı ve manuel teyit edilmiş PDF devam sayfası.
+- Yerel IPP ve Epson/Canon SNMP/Windows sürücü tanıma modülleri;
+  cihazdan alınan sayaç fiziksel son PDF sayfası olarak sunulmaz.
+- İsteğe bağlı oturum açılışında arka plan izleme ajanı.
+  Sadece mevcut Windows kullanıcısının yazıcı izinleriyle çalışır.
+  Windows hizmeti, spooler silme veya yönetici ayrıcalığı istemez.
+- Yönetici kurulumu parola ve Firebase owner rolü gerektirir;
+  sipariş/veri/arşiv kayıtları silinmez.
+
+**Sınırlar:** PC kapalıyken, Windows oturumu kapalıyken veya yazıcı
+durum verisi sunmuyorken eksiksiz fiziksel baskı izleme garanti
+edilemez. Bu sürüm otomatik yeniden yazdırma yapmaz.
+"""
+
+
 V111_NOTES = """# ALFA ERP v1.1.1 · Güncelleme Merkezi düzeltmesi
 
 - Güncelleme başlatıldığında modal pencere kapatılır ve gerçek ERP
@@ -107,7 +131,9 @@ class AnnouncementsDialog(QDialog):
         root.addWidget(notice)
         self.notes=QTextEdit(self)
         self.notes.setReadOnly(True)
-        bundled=(V111_NOTES+'\n\n'+V110_NOTES
+        bundled=(V200_NOTES+'\n\n'+V111_NOTES+'\n\n'+V110_NOTES
+                 if str(version).startswith('2.')
+                 else V111_NOTES+'\n\n'+V110_NOTES
                  if str(version)=='1.1.1' else V110_NOTES)
         if release and release.get('available') and release.get('notes'):
             self.notes.setPlainText(
