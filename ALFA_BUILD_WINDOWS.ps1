@@ -40,6 +40,11 @@ if($Edition -eq 'personel') {
   '--add-data','assets;assets','--hidden-import=PySide6.QtPdf','main.py')
  Run $Virtual @('-m','PyInstaller','--noconfirm','--clean','--onedir','--windowed',
   '--name','AlfaBildirim','--icon=assets\icons\alfa_personel.ico','bildirim_servisi.py')
+ # Optional, login-started user-mode print agent. Registration is only
+ # performed through the user-visible ERP switch, never by the installer.
+ Run $Virtual @('-m','PyInstaller','--noconfirm','--clean','--onedir','--windowed',
+  '--name','AlfaPrintAgent','--icon=assets\icons\alfa_personel.ico',
+  '--add-data','assets;assets','alfa_print_agent.py')
  $iss='alfa_personel.iss'
 } elseif($Edition -eq 'yonetici') {
  Run $Virtual @('-m','PyInstaller','--noconfirm','--clean','--onedir','--windowed',
@@ -48,7 +53,7 @@ if($Edition -eq 'personel') {
   '--add-data','assets;assets','--hidden-import=PySide6.QtPdf','--hidden-import=yonetici_kompakt','main.py')
  $iss='alfa_yonetici.iss'
 } else {
- foreach($required in @('dist\AlfaERP\AlfaERP.exe','dist\AlfaERPYonetici\AlfaERPYonetici.exe','dist\AlfaBildirim\AlfaBildirim.exe')) {
+ foreach($required in @('dist\AlfaERP\AlfaERP.exe','dist\AlfaERPYonetici\AlfaERPYonetici.exe','dist\AlfaBildirim\AlfaBildirim.exe','dist\AlfaPrintAgent\AlfaPrintAgent.exe')) {
   if(-not (Test-Path $required)){ throw "Ortak kurulum icin eksik uygulama: $required" }
  }
  $iss='alfa_tek_kurulum.iss'
