@@ -26,10 +26,10 @@ sürücüyü, spool dizinini veya baskı işini gizlice değiştirmeyecek.
   renk/siyah-beyaz tercihine erişir. Kullanıcının görme yetkisi
   olmayan işlere ayrıcalık yükseltme uygulanmaz.
 - `PrintMonitor`: Win32 çağrıları PySide6 GUI dışında QThread'de
-  gerçekleştirir, yaklaşık 3 saniyede bir yerel durum örneği alır.
-  Ağ bağlantısı veya sürücü cevapsızlığı GUI'yi doğrudan kilitlemez;
-  ancak çok uzun bloklanan Win32 RPC çağrıları için ayrı işlem
-  yalıtımı sonraki fazda gereklidir.
+  gerçekleştirir. `alfa_print_events.py` ile yerel spooler değişiminde
+  uyanır, uzak yazıcıların bildirim kaybına karşı 10–20 saniyelik
+  uzlaştırma yapar. Tek tek ağ sürücülerinin uzun bloklanan Win32 RPC
+  çağrıları için **ayrı işlem yalıtımı henüz tamamlanmadı**.
 - `PrintJournal`: `%LOCALAPPDATA%/AlfaERP/print_monitor/print_history.sqlite3`
   altında **SQLite WAL** geçmişi. Yeni iş, durum değişimi, Windows sayfa
   sayacı değişimi, spool boyutu büyümesi ve kuyruğun kaybolması kaydedilir.
@@ -85,31 +85,38 @@ sürücüyü, spool dizinini veya baskı işini gizlice değiştirmeyecek.
 - Uyarı seslerinin ayrı yönlendirme/tekrar filtreleri ve kötü durum
   iş akışlarının Windows gerçek cihaz üzerinde doğrulanması gerekir.
 
-### B. Olay tabanlı gerçek zaman ve arka plan ajanı [planlandı]
-- `FindFirstPrinterChangeNotification` /
-  `FindNextPrinterChangeNotification` ile olay tetiklemeli güncelleme,
-  aralık kontrollü yeniden uzlaştırma. Uzak yazıcıların güvenilirlik
-  sınırlarında fallback.
-- İsteğe bağlı, oturum açınca başlayan kullanıcı yetkili
-  `AlfaPrintAgent.exe`; yönetici yetkisi/servis kurma zorlaması yok.
-  Bir Windows hesap/cihazında tek izleyici; ALFA ERP kapalıyken bile
-  o hesaba ait yazdırma geçmişini sürdürebilme.
+### B. Olay tabanlı gerçek zaman ve arka plan ajanı [ilk kod hazır; Windows testi yok]
+- `alfa_print_events.py` ile `FindFirstPrinterChangeNotification`,
+  `FindNextPrinterChangeNotification` ve sınırlı `WaitForMultipleObjects`.
+  Bildirim alınamayan, erişilemeyen veya 32'den fazla yazıcı olduğunda
+  seyrek tam kuyruk uzlaştırması; olay fırtınasında 450ms birleştirme.
+- `alfa_print_agent.py` + `alfa_print_runtime.py`: ayrı
+  `AlfaPrintAgent.exe`, sistem tepsisi ve **kullanıcının işaretlediği**
+  HKCU Run başlangıcı. Uygulama ve ajan aynı veri dizini için
+  `Local\\ALFA_ERP_PRINT_...` mutex'ini kullanır. Tek toplayıcı
+  WinSpool'dan okurken öbürü SQLite snapshot'ını izler; ERP kapanınca
+  ajan devralabilir. Görevden çıkma tepsi menüsündedir.
+  **Windows hizmeti değil**, kullanıcı oturumuyla çalışır.
 - Windows PrintService/Operational olayları ve hizmet yeniden başlama
   tespitleri; ancak Windows event ID tek başına kağıt çıktısını kanıtlamaz.
 - Remote spooler RPC bloklamasına karşı ayrı işlem izolasyonu,
   kaynak/kuyruk/SQLite sınırları, veri bozulmasında kurtarma.
 
-### C. ALFA üretim işi / PDF kimlik köprüsü [planlandı]
-- ALFA içinden yazdırılan her kitap için değişmez `print_task_id`,
-  sipariş ve kitap kodu (yerel metadata), kaynak PDF fingerprint,
-  hedef yazıcı, SB/RNK, kopya sayısı, sayfa aralığı, duplex/N-up
-  bilgileri, Windows `JobId` eşlemesi.
+### C. ALFA üretim işi / PDF kimlik köprüsü [yerel plan + manuel link hazır, otomatik köprü planlandı]
+- `alfa_print_plan.py`: `print_task_id`, kitap/kitap kodu, kullanıcı
+  seçimiyle yerel PDF yolu/boyutu/zamanı, yazıcı, SB/RNK, kopya,
+  PDF sayfa aralığı, sıra ve durum **SQLite'ta saklanır**. PDF içeriği
+  hiçbir yere gönderilmez. İçerik SHA-256 fingerprint'i, gerçek
+  çift taraf/N-up parametreleri ve sipariş otomatik kimlik köprüsü
+  **henüz yoktur**.
 - Doğrudan PDF spooling yapılmadan önce kullanıcı onayı / doğru
   kurulum/driver parametreleri. Başka uygulamalardan gelen baskılar
   yine izlenir, ama kimlik bilgisi **tahmini** etiketlenir.
-- Her yazıcı için ayrı *planlanan sıradaki işler* listesi:
-  henüz spooler'a yollanmamış kitaplar dahil. Yeniden başlamada
-  "planlandı / spoolda / kayboldu / fiziki teyit bekliyor" ayrımı.
+- `ekran_baski_plani.py`: yazıcı başına yerel bekleyen sıra, yukarı/
+  aşağı sırala, PDF seç, Windows kuyruğundaki işi **operatör onayıyla**
+  eşleştir, kuyruktan kaybolursa `verify` ve gerekçe alarak
+  **fiziksel baskı teyidi**. Otomatik yeniden gönderim veya yazıcıya
+  baskı komutu **yok**; sonraki işler ve geçmiş yeniden açılışta kalır.
 
 ### D. Fiziksel yazıcı telemetrisi [donanım bazında planlandı]
 - Destekleyen modeller için yerel ağda **IPP / SNMP /
@@ -161,6 +168,35 @@ sonraki geliştirme fazında eklenebilir.
 - Çok cihazlı ortak baskı görünümü ileride **onaylı,
   yetkilendirilmiş ve veri minimizasyonlu** bir senkronizasyon
   özelliği olarak ayrı planlanmalıdır; varsayılan yereldir.
+
+## 6 Kasım geliştirme ilerlemesi (henüz yayın yok)
+
+Bu dalda eklenen yeni kaynak dosyaları:
+- `alfa_print_events.py`: olay tabanlı WinSpool bekleme.
+- `alfa_print_runtime.py`: tek toplayıcı mutex'i, HKCU başlangıç izni.
+- `alfa_print_agent.py`: kullanıcıya görünür sistem tepsili
+  arka plan ajanı; yükleyiciye eklenir ama **otomatik açılmaz**.
+- `alfa_print_plan.py`: yerel üretim planı ve olay kayıtları.
+- `ekran_baski_plani.py`: plan oluşturma, sıralama, elle eşleştirme,
+  fiziki teyit / iptal butonları.
+- `alfa_print_monitor.py`: temiz/temiz olmayan izleme oturumu,
+  devamlı bellek, tek toplayıcı / yerel snapshot paylaşımı.
+- `ALFA_BUILD_WINDOWS.ps1`, `alfa_tek_kurulum.iss`,
+  `ekran_yazdirma.py`: v2 derleme dosyası ve pano entegrasyonu;
+  **derleme çalıştırılmadı**.
+
+**Önemli doğruluk sınırları:**
+- Kaynak PDF'nin gerçek son basılan sayfasını Windows spool sayaçlarından
+  garanti etmek mümkün değildir. Yazıcı üreticisine özgü IPP/SNMP
+  telemetrisi ve doğrulanabilir eşleştirme hâlâ planlıdır.
+- Ajan **yalnız Windows kullanıcısının oturumu açıkken** izler;
+  elektrik kesintisinde kapalı bilgisayardan olay toplayamaz.
+- Güvenlik için Run kaydı yalnız kullanıcı eylemiyle eklenir;
+  spooler yönetim servisi, sürücü ve iş kuyruğu değiştirilmez.
+- Uzak yazıcılarda takılan Win32 RPC'yi QThread'den tamamen
+  izole eden yardımcı *alt süreç* ve Windows üzerinde kurulum /
+  kaldırma senaryoları henüz doğrulanmadı. Bu yüzden kararlı
+  **v2.0.0 paketi üretmek için erken**.
 
 ## Kabul ölçütleri (yayından önce)
 
