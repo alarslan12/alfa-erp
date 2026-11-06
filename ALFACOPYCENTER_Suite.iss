@@ -32,7 +32,7 @@ SetupLogging=yes
 ArchitecturesAllowed=x64compatible
 
 [Types]
-Name: "full"; Description: "Personel + Afiş Stüdyosu + Yazdırma"; Flags: iscustom
+Name: "full"; Description: "Personel + Afiş Stüdyosu + Yazdırma"
 Name: "custom"; Description: "Uygulamaları kendim seçeceğim"; Flags: iscustom
 
 [Components]
