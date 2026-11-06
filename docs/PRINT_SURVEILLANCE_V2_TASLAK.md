@@ -243,6 +243,74 @@ güvenilir *job identity + gerçek sayfa çıktısı* sağlarsa otomatik
 (`PagesPrinted` sıfır dönebilir; `COMPLETE` işin yazıcıya
 gönderildiğini gösterebilir, fiziksel çıktıyı garanti etmez.)
 
+## Epson / Canon üretici yazılımı ve SNMP tanıma (6 Kasım eklemesi)
+
+**Amaç:** Sadece Windows yazdırma kuyruğunu değil, üreticinin
+sürücüsü ve yardımcı programları ile doğrudan cihaz telemetrisini
+aynı ALFA ekranında, açıkça belirtilmiş kaynaklarıyla göstermek.
+
+### Eklenen kaynak modülleri
+- `alfa_print_vendor.py` — Windows `GetPrinterW` ile her kurulu/
+  erişilebilir yazıcı için **Windows sürücü adı, üretici ipucu,
+  port ve yazıcı durumu** okunur. Windows kullanıcı ve bilgisayar
+  kaldırma/yükleme kayıtlarından yalnızca **Epson/Canon yazılımlarının
+  adı/sürümü** listelenir. Epson Status Monitor 3 veya Canon Printer
+  Status Window kayıtları görülürse ekranda tanıtılır.
+  Yüklü program bulunmaması yazıcıda yardımcı yazılım olmadığı
+  anlamına gelmeyebilir. **Üreticinin kapalı EXE/DLL süreçlerine
+  kod enjekte edilmez, bunlar taklit edilmez, API erişimi varsayılmaz.**
+- `alfa_print_snmp.py` — RFC 3805 standart Printer-MIB için yalnız
+  `SNMP GET`/`GETBULK` istekleri; `sysObjectID` ile varsa Epson
+  enterprise `1248`, Canon enterprise `1602` marka kontrolü;
+  printer name, uyarı açıklamaları, mürekkep/toner/atık kutusu
+  sarf seviyeleri, cihaz ömür boyu sayaç bilgisi.
+  OID ve sonuçlar modele bağlı olarak **eksik** olabilir; gelen
+  negatif/unknown kapasite seviyeleri yüzdeye çevrilmez.
+- **SNMP erişimi kullanıcının onayıyla açılır**. Program Windows'ta
+  yüklü bir yazıcı için kullanıcı tarafından belirlenen **sayısal,
+  yerel IP adresine** sorgu yapar. Tüm alt ağı taramaz, uzaktaki
+  internet adreslerine, buluta ya da gizli ağ keşfine çıkmaz.
+- SNMPv2c community Windows hesabının DPAPI'siyle yerelde
+  **şifreli saklanır**. Ancak SNMPv2c **ağ üzerinden şifrelenmez**;
+  yalnız güvendiğin yerel ağda kullanmalısın. SNMPv3 için
+  güvenli `authPriv` desteği **henüz yapılmadı**; özellikle
+  destekleyen Canon/Epson modellerinde v3 tercih edilmelidir.
+  Tekrarlı uyarı/cihaz okuma 30 saniyelik sınırlı taramaya alınır.
+- `ekran_yazdirma.py` — her yazıcı kartına Windows üretici
+  sürücüsü/portu, ayrı IPP durumu ve ayrı **SNMP durum/uyarı/
+  sarf/seçili ömür sayacı** eklenir. `Epson/Canon · SNMP`
+  paneli Windows'ta yüklü ilgili yazılımları gösterir; istenirse
+  yazıcı bazında SNMP aç/kapat uygulanır.
+- **Üretici uygulamasıyla entegrasyon sınırı:** Epson Status
+  Monitor 3 ve Canon Printer Status Window/Remote UI markaların
+  kendilerine ait araçlarıdır. Programların her modelde herkese
+  açık, desteklenen veri aktarım API'si yoktur. Bu aşamada
+  ALFA uygulamanın kurulu olduğunu **tanır**, cihaz bilgisini
+  **standart MIB/IPP** üzerinden kendi başına okur.
+  İleride modelin belgelenmiş SDK/OID seti varsa ayrıca
+  `EpsonAdapter`/`CanonAdapter` şeklinde eklenebilir.
+
+### Sayfa bilgisiyle ilişki
+- SNMP `prtMarkerLifeCount` cihazın **ömür boyu sayacı** olabilir;
+  kesin bir baskının sayfa numarasını vermez.
+- Sarf malzeme seviyesi / birikmiş baskı yüzü / cihaz uyarısı ile
+  Windows `PagesPrinted` ve PDF sayfa sayısı **ayrı alanlardır**.
+- Fiziksel son sağlam PDF sayfası, cihaz o işe ait açıkça
+  desteklenen sayfa kimliğini sağlamadıkça **operatör teyidi
+  gerektirir**. Otomatik yeniden yazdırma yok.
+
+### Kaynaklar
+- RFC 3805 Printer MIB v2:
+  https://www.rfc-editor.org/rfc/rfc3805.html
+- Epson Web Config SNMPv1/v2c ve SNMPv3:
+  https://files.support.epson.com/docid/cpd6/cpd63622/source/printers/source/administration/references/web_config_protocol_settings.html
+- Canon SNMP protokolü ve v3 tavsiyesi:
+  https://oip.manual.canon/USRMA-6516-zz-SSM-450-enGB/contents/devu-setup-nw-pref_fit-snmp_moni_control.html
+- Epson Status Monitor 3 işleyişi:
+  https://download4.epson.biz/sec_pubs/wf-2830_series/useg/en/GUID-3787A7A2-7BFB-4A42-857E-443A22A1EC54.htm
+- Canon Printer Status Window:
+  https://oip.manual.canon/USRMA-0256-zz-SS-enGB/contents/03060000.html
+
 ## Kabul ölçütleri (yayından önce)
 
 1. 2-3 gerçek Windows yazıcısıyla eşzamanlı boş/siyah-beyaz/renkli,
