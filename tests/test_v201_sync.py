@@ -34,7 +34,7 @@ class FakeWorkstation(Workstation):
     def __init__(self,row):
         self.row=copy.deepcopy(row)
         self.writes=0
-        self.uid="test-device"
+        self._identity={"uid":"test-device","refresh_token":"test"}
 
     def _atomic_order(self,order_id,mutate,allow_create=False):
         assert order_id=="test"
