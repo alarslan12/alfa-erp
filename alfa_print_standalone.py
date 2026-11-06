@@ -1,0 +1,122 @@
+"""ALFACOPYCENTER Print Surveillance v2.0.0 — standalone Windows dashboard.
+
+This is the user-facing print app. The separate AlfaPrintAgent.exe continues
+collecting at the Windows user's sign-in when enabled. No administrator
+elevation, spooler restart or job deletion is performed here.
+"""
+from __future__ import annotations
+
+import os
+from pathlib import Path
+import sys
+
+from PySide6.QtCore import QSettings, Qt
+from PySide6.QtGui import QIcon
+from PySide6.QtWidgets import (
+    QApplication, QMainWindow, QComboBox, QLabel, QHBoxLayout,
+    QVBoxLayout, QWidget
+)
+from ekran_yazdirma import PrintSurveillanceView
+
+
+APP_VERSION = "2.0.0"
+
+
+def data_directory() -> Path:
+    return Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "AlfaERP"
+
+
+def bundled_icon() -> QIcon:
+    bundle = Path(getattr(sys, "_MEIPASS", Path(__file__).parent))
+    for filename in ("assets/icons/alfa_print.ico",
+                     "assets/branding/print.png"):
+        path = bundle / filename
+        if path.is_file():
+            return QIcon(str(path))
+    return QIcon()
+
+
+class PrintWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("ALFACOPYCENTER · Yazdırma Kontrol Merkezi v" +
+                            APP_VERSION)
+        self.setMinimumSize(950, 640)
+        self.resize(1510, 930)
+        self.settings = QSettings("ALFACOPYCENTER", "PrintSurveillance")
+        app = QApplication.instance()
+        app.setProperty("alfa_theme",
+            str(self.settings.value("theme", "koyu")))
+        self.setWindowIcon(bundled_icon())
+
+        central = QWidget()
+        root = QVBoxLayout(central)
+        root.setContentsMargins(8, 8, 8, 8)
+        top = QHBoxLayout()
+        title = QLabel("ALFACOPYCENTER  /  PRINT SURVEILLANCE  " +
+                       APP_VERSION)
+        title.setStyleSheet("font-weight:900;font-size:15px;")
+        top.addWidget(title)
+        top.addStretch()
+        top.addWidget(QLabel("Tema"))
+        themes = QComboBox()
+        for label, key in (("Koyu", "koyu"), ("Açık", "acik"),
+                           ("Yüksek kontrast", "kontrast")):
+            themes.addItem(label, key)
+        chosen = max(0, themes.findData(
+            str(self.settings.value("theme", "koyu"))))
+        themes.setCurrentIndex(chosen)
+        themes.currentIndexChanged.connect(
+            lambda: self.change_theme(str(themes.currentData())))
+        top.addWidget(themes)
+        root.addLayout(top)
+        self.monitor = PrintSurveillanceView(data_directory(), self)
+        self.monitor.notify.connect(
+            lambda notice: self.statusBar().showMessage(
+                str(notice)[:250], 14000))
+        root.addWidget(self.monitor, 1)
+        self.setCentralWidget(central)
+        self.statusBar().showMessage(
+            "Yerel Windows kuyrukları izleniyor. Fiziksel çıktı teyidi "
+            "yazıcı telemetrisine ve operatör kontrolüne bağlıdır.")
+        self.setStyleSheet("QMainWindow {background: #102033; color: #f3f8fe;}"
+                           "QStatusBar {color: #d1e5f1;}")
+        self.change_theme(str(themes.currentData()))
+
+    def change_theme(self, theme):
+        theme = theme if theme in ("koyu", "acik", "kontrast") else "koyu"
+        QApplication.instance().setProperty("alfa_theme", theme)
+        self.settings.setValue("theme", theme)
+        self.monitor.set_theme()
+        colors = {
+            "koyu": ("#102033", "#edf6ff"),
+            "acik": ("#f5efe6", "#233b4d"),
+            "kontrast": ("#05090f", "#ffffff"),
+        }
+        bg, fg = colors[theme]
+        self.setStyleSheet(
+            f"QMainWindow {{background:{bg};color:{fg};}}"
+            f"QStatusBar {{color:{fg};background:{bg};}}"
+            f"QLabel {{color:{fg};}}"
+            f"QComboBox {{background:{bg};color:{fg};"
+            "padding:5px;border:1px solid #6485a0;}}")
+
+    def closeEvent(self, event):
+        self.monitor.stop()
+        super().closeEvent(event)
+
+
+def main() -> int:
+    if os.name != "nt":
+        print("ALFACOPYCENTER Print Surveillance requires Windows.")
+        return 1
+    app = QApplication(sys.argv)
+    app.setApplicationName("ALFACOPYCENTER Print Surveillance")
+    app.setOrganizationName("ALFACOPYCENTER")
+    window = PrintWindow()
+    window.show()
+    return app.exec()
+
+
+if __name__ == "__main__":
+    sys.exit(main())
