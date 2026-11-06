@@ -110,6 +110,23 @@ def main() -> int:
     if os.name != "nt":
         print("ALFACOPYCENTER Print Surveillance requires Windows.")
         return 1
+    if "--self-check" in sys.argv:
+        # A Windows runner can verify the PyInstaller exe's imports and
+        # SQLite schema without reading local printers or requiring elevation.
+        import tempfile
+        from alfa_print_plan import PrintPlanRepository
+        with tempfile.TemporaryDirectory(prefix="alfa_print_selfcheck_") as root:
+            repo=PrintPlanRepository(root)
+            try:
+                assert repo.list()==[]
+                task=repo.create(printer="Fake local printer",book="Self-check",
+                                 mode="SB",copies=1)
+                assert repo.list()[0]["task_id"]==task
+                repo.cancel_plan(task,"Self-check: no physical print")
+            finally:
+                repo.close()
+        print("Print Surveillance standalone self-check OK")
+        return 0
     app = QApplication(sys.argv)
     app.setApplicationName("ALFACOPYCENTER Print Surveillance")
     app.setOrganizationName("ALFACOPYCENTER")
