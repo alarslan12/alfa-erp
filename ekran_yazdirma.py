@@ -391,8 +391,13 @@ class PrintSurveillanceView(QWidget):
         self.status.setText(
             f"{len(printers)} yazıcı · {count} kuyruk işi · "
             f"{blocked} erişim sorunu · güncellendi {result['captured_at'][11:19]} UTC")
-        # Only redraw changed states, not every 3-second heartbeat.
-        payload=json.dumps(printers,ensure_ascii=False,sort_keys=True)
+        # Refresh historical labels/events too, not just live printer bits.
+        # This still avoids rebuilding cards for an unchanged heartbeat.
+        payload=json.dumps({
+            "printers":printers,
+            "recent":result.get("recent",[]),
+            "events":result.get("events",[])
+        },ensure_ascii=False,sort_keys=True)
         if payload!=self._last_signature:
             self._last_signature=payload
             self._render_cards(printers)
