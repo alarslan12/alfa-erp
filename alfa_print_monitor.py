@@ -10,6 +10,7 @@ import ctypes
 from ctypes import wintypes
 from datetime import datetime, timezone
 import hashlib
+import json
 import os
 from pathlib import Path
 import sqlite3
@@ -18,6 +19,7 @@ import time
 from PySide6.QtCore import QThread, Signal
 from alfa_print_events import WinPrintChangeFeed, RECONCILE_MS, FALLBACK_MS
 from alfa_print_plan import PrintPlanRepository
+from alfa_print_runtime import PrintCollectorLease
 
 ACTIVE = {"bekliyor", "aktarılıyor", "yazdırılıyor", "duraklatıldı",
           "çevrimdışı", "kağıt_yok", "müdahale", "bloklandı", "hata"}
@@ -260,6 +262,10 @@ class PrintJournal:
                 session_id INTEGER PRIMARY KEY AUTOINCREMENT,
                 pid INTEGER, started_at TEXT NOT NULL, closed_at TEXT
             );
+            CREATE TABLE IF NOT EXISTS collector_snapshot(
+                id INTEGER PRIMARY KEY CHECK(id=1),
+                payload TEXT NOT NULL, captured_at TEXT NOT NULL
+            );
         """)
         self.db.commit()
         previous=self.db.execute("""
@@ -338,6 +344,29 @@ class PrintJournal:
                                     "Kuyrukta yok; fiziksel bitiş doğrulanamadı")
         return alarms
 
+    def publish_snapshot(self,snapshot):
+        """Update one local snapshot only on state change or every minute."""
+        meaningful={key:value for key,value in snapshot.items()
+                    if key!="captured_at"}
+        digest=hashlib.sha256(json.dumps(
+            meaningful,ensure_ascii=False,sort_keys=True
+        ).encode("utf-8")).hexdigest()
+        now_mono=time.monotonic()
+        if (digest==getattr(self,"_snapshot_digest",None) and
+                now_mono-getattr(self,"_snapshot_written",0)<60):
+            return
+        payload=json.dumps(snapshot,ensure_ascii=False,separators=(",",":"))
+        with self.db:
+            self.db.execute("""
+                INSERT INTO collector_snapshot(id,payload,captured_at)
+                VALUES(1,?,?)
+                ON CONFLICT(id) DO UPDATE SET
+                    payload=excluded.payload,
+                    captured_at=excluded.captured_at
+            """,(payload,snapshot["captured_at"]))
+        self._snapshot_digest=digest
+        self._snapshot_written=now_mono
+
     def _event(self,key,now,printer,kind,detail):
         self.db.execute(
             "INSERT INTO events(job_key,at,printer,kind,detail) VALUES(?,?,?,?,?)",
@@ -376,6 +405,29 @@ class PrintJournal:
                 """,(_utc(),self.session_id))
         finally:
             self.db.close()
+
+
+def read_collector_snapshot(data_dir):
+    """Read-only data source for an ERP window when agent owns the mutex."""
+    path=Path(data_dir)/"print_monitor"/"print_history.sqlite3"
+    if not path.is_file():
+        return None
+    connection=sqlite3.connect(str(path),timeout=2)
+    try:
+        connection.execute("PRAGMA query_only=ON")
+        row=connection.execute("""
+            SELECT payload FROM collector_snapshot WHERE id=1
+        """).fetchone()
+        if not row:
+            return None
+        value=json.loads(row[0])
+        if not isinstance(value,dict) or "printers" not in value:
+            return None
+        return value
+    except (sqlite3.Error,ValueError,TypeError):
+        return None
+    finally:
+        connection.close()
 
 
 class PrintMonitor(QThread):
@@ -430,10 +482,29 @@ class PrintMonitor(QThread):
         journal=None
         planner=None
         feed=None
+        lease=None
         try:
             if os.name!="nt":
                 self.failed.emit("Windows spooler yalnız Windows cihazlarında çalışır.")
                 return
+            # The optional login agent or another ERP window may already
+            # collect this user's print history. It must be single-writer.
+            last_observed=None
+            while not self.isInterruptionRequested():
+                lease=PrintCollectorLease(self.data_dir)
+                if lease.acquired:
+                    break
+                data=read_collector_snapshot(self.data_dir)
+                if data is not None:
+                    identity=(data.get("captured_at"),
+                              len(data.get("events",())))
+                    if identity!=last_observed:
+                        last_observed=identity
+                        self.updated.emit(data)
+                for _ in range(6):
+                    if self.isInterruptionRequested():return
+                    self.msleep(500)
+            if self.isInterruptionRequested():return
             probe=WinSpoolProbe()
             journal=PrintJournal(self.data_dir)
             planner=PrintPlanRepository(self.data_dir)
@@ -463,12 +534,14 @@ class PrintMonitor(QThread):
                             if job["key"] in tagged:
                                 job["book_label"]=tagged[job["key"]].get("book_label") or ""
                                 job["mode_label"]=tagged[job["key"]].get("mode_label") or ""
-                    self.updated.emit({
+                    snapshot={
                         "printers":printers, "recent":rows,
                         "events":journal.events(25),
                         "tasks":planner.list(300),
                         "captured_at":_utc()
-                    })
+                    }
+                    journal.publish_snapshot(snapshot)
+                    self.updated.emit(snapshot)
                     if not first:
                         for printer,document,state in alarms[:3]:
                             self.warning.emit(printer+": "+document[:80]+" · "+state)
@@ -497,3 +570,5 @@ class PrintMonitor(QThread):
                 planner.close()
             if journal is not None:
                 journal.close()
+            if lease is not None:
+                lease.close()
