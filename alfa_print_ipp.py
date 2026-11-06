@@ -90,7 +90,7 @@ def _attr(tag,name,value,again=False):
 
 def _request_body(operation,uri,fields,job_id=None):
     # IPP 2.0 header, requested operations only, request-id=1.
-    if operation not in (0x0009,0x000B):
+    if operation not in (0x0009,0x000A,0x000B):
         raise IppTelemetryError("Yazdırma komutu yasak; yalnız okuma yapılabilir.")
     data=bytearray(struct.pack(">BBHI",2,0,operation,1))
     data.append(0x01)  # operation-attributes-tag
@@ -99,13 +99,16 @@ def _request_body(operation,uri,fields,job_id=None):
     data+=_attr(0x45,"printer-uri",uri)
     if job_id is not None:
         data+=_attr(0x21,"job-id",struct.pack(">I",int(job_id)))
+    if operation==0x000A:  # Get-Jobs, read-only and strictly bounded
+        data+=_attr(0x21,"limit",struct.pack(">I",20))
+        data+=_attr(0x44,"which-jobs","not-completed")
     for index,name in enumerate(fields):
         data+=_attr(0x44,"requested-attributes",name,again=index>0)
     data.append(0x03)  # end-of-attributes-tag (no document data)
     return bytes(data)
 
 
-def _parse_ipp(raw):
+def _parse_ipp(raw,grouped=False):
     if len(raw)<9 or len(raw)>MAX_IPP_BYTES:
         raise IppTelemetryError("IPP cevabı geçersiz veya çok büyük.")
     major,minor,code,request_id=struct.unpack_from(">BBHI",raw,0)
@@ -116,13 +119,22 @@ def _parse_ipp(raw):
     cursor=8
     result={}
     current_name=None
+    active_group=None
+    group_kind=None
+    output=[]
     count=0
     while cursor<len(raw):
         tag=raw[cursor]
         cursor+=1
         if tag==0x03:
-            return result
+            if grouped and group_kind is not None and active_group:
+                output.append((group_kind,active_group))
+            return output if grouped else result
         if tag<=0x0F:
+            if grouped and group_kind is not None and active_group:
+                output.append((group_kind,active_group))
+            group_kind=tag
+            active_group={} if grouped else None
             current_name=None
             continue
         if cursor+2>len(raw):
@@ -154,13 +166,14 @@ def _parse_ipp(raw):
             decoded=value.decode("utf-8","replace")[:250]
         else:
             continue
-        original=result.get(current_name)
+        dest=active_group if grouped and active_group is not None else result
+        original=dest.get(current_name)
         if original is None:
-            result[current_name]=decoded
+            dest[current_name]=decoded
         elif isinstance(original,list):
             if len(original)<25:original.append(decoded)
         else:
-            result[current_name]=[original,decoded]
+            dest[current_name]=[original,decoded]
     raise IppTelemetryError("IPP yanıtında bitiş etiketi yok.")
 
 
@@ -181,7 +194,7 @@ class IppReader:
     def __init__(self,timeout=3.0):
         self.timeout=max(1.0,min(5.0,float(timeout)))
 
-    def _read(self,uri,operation,fields,job_id=None):
+    def _read(self,uri,operation,fields,job_id=None,grouped=False):
         u,port=_endpoint(uri)
         body=_request_body(operation,uri,fields,job_id=job_id)
         host=str(u.hostname)
@@ -206,7 +219,7 @@ class IppReader:
             if "application/ipp" not in media_type:
                 raise IppTelemetryError("Yazıcı IPP cevabı vermedi.")
             raw=response.read(MAX_IPP_BYTES+1)
-            return _parse_ipp(raw)
+            return _parse_ipp(raw,grouped=grouped)
         except (OSError,ssl.SSLError,http.client.HTTPException) as exc:
             raise IppTelemetryError("Yerel IPP yazıcısına erişilemedi: "+str(exc)[:150]) from exc
         finally:
@@ -229,6 +242,33 @@ class IppReader:
             "accepting":_one(data,"printer-is-accepting-jobs"),
             "seen_at":_utc()
         }
+
+    def jobs(self,uri):
+        """List at most 20 unfinished device jobs (never spool commands).
+
+        IPP returns one job-attributes group per job. This list is shown
+        to the operator for explicit selection, not auto-matched by name.
+        """
+        groups=self._read(uri,0x000A,(
+            "job-id","job-name","job-state",
+            "job-impressions-completed","job-media-sheets-completed"
+        ),grouped=True)
+        output=[]
+        for kind,data in groups:
+            if kind!=0x02:continue
+            job_id=_one(data,"job-id")
+            state=_one(data,"job-state")
+            if not isinstance(job_id,int) or not 1<=job_id<2**31:
+                continue
+            output.append({
+                "ipp_job_id":job_id,
+                "name":str(_one(data,"job-name") or "Belge adı bilinmiyor")[:130],
+                "state":JOB_STATES.get(state,"bilinmiyor"),
+                "sheets":_one(data,"job-media-sheets-completed"),
+                "impressions":_one(data,"job-impressions-completed")
+            })
+            if len(output)>=20:break
+        return output
 
     def job(self,uri,ipp_job_id):
         try:job_id=int(ipp_job_id)
