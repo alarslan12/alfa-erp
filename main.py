@@ -512,11 +512,11 @@ class AlfaMain(QMainWindow):
                 self,'Bulut eşitlemesi',
                 'Bu cihaz önce Cihaz Yetkisi ekranından kaydedilmeli.')
             return
-        self.live.force_pull=True
         self.live._pull_retry_after=0
+        self.live.request_authoritative_refresh()
         self.statusBar().showMessage(
             'Firebase siparişlerinin güncel durumu kontrol ediliyor…',10000)
-        self.live.pull()
+        # Refresh is queued even if another Firebase request is already active.
 
     def _clear_temporary_sync_notice(self):
         """Return to live connectivity after an 8-second conflict notice."""
