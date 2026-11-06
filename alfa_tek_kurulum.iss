@@ -30,6 +30,9 @@ RestartApplications=no
 Source: "dist\AlfaERP\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion; Check: IsStaff
 Source: "dist\AlfaBildirim\*"; DestDir: "{app}\Bildirim"; Flags: recursesubdirs createallsubdirs ignoreversion; Check: IsStaff
 Source: "dist\AlfaERPYonetici\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion; Check: IsOwner
+; Always bundle the helper, but DO NOT autostart or install a Windows service.
+; The user's explicit opt-in in Print Surveillance writes HKCU Run.
+Source: "dist\AlfaPrintAgent\*"; DestDir: "{app}\PrintAgent"; Flags: recursesubdirs createallsubdirs ignoreversion
 
 [Icons]
 Name: "{userdesktop}\ALFA ERP Personel"; Filename: "{app}\AlfaERP.exe"; WorkingDir: "{app}"; Check: IsStaff
