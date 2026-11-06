@@ -521,6 +521,7 @@ class Workstation:
                     for item in items.values() if isinstance(item, dict)
                 }
                 changed = []
+                newly_confirmed = []
                 for event in group:
                     op_id = str(event["op_id"])
                     if op_id in processed:
@@ -544,18 +545,21 @@ class Workstation:
                             "Hazırlanan/kolilenen adet çakıştı; "
                             "bulut durumunu kontrol edin", 422)
                     if (ready, boxed) == (old_ready, old_boxed):
-                        # The requested target is already visible on Firebase;
-                        # do not write or count a book a second time.
+                        # The requested target is already reached. Persist the
+                        # op_id too: a later retry must NOT reapply it if a
+                        # different workstation subsequently decreases count.
+                        newly_confirmed.append(event)
                         continue
                     if str(row.get("status")) != "aktif":
                         raise DeviceError(
                             "Sipariş artık aktif değil; hazırlama/kolileme "
                             "değişikliği uygulanmadı", 409)
+                    newly_confirmed.append(event)
                     match["prepared_count"] = ready
                     match["boxed_count"] = boxed
                     match["version"] = int(match.get("version") or 1) + 1
                     changed.append(event)
-                if not changed:
+                if not newly_confirmed:
                     version = int(row.get("version") or 1)
                     return None, [
                         {"op_id": str(event["op_id"]), "order_id": order_id,
@@ -570,9 +574,10 @@ class Workstation:
                 history = row.setdefault("event_log", {})
                 for event in group:
                     processed.setdefault(str(event["op_id"]), version)
-                batch_id = str(changed[0]["op_id"])
+                batch_id = str(newly_confirmed[0]["op_id"])
                 history[batch_id] = {
-                    "id": batch_id, "action": "progress_bulk",
+                    "id": batch_id,
+                    "action": "progress_bulk" if changed else "progress_confirmed",
                     "device_id": self.uid,
                     "device_name": socket.gethostname()[:120],
                     "order_ids": [order_id], "created_at": now,
