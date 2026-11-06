@@ -15,12 +15,14 @@ from PySide6.QtWidgets import (
     QApplication, QWidget, QFrame, QVBoxLayout, QHBoxLayout, QGridLayout,
     QLabel, QPushButton, QComboBox, QScrollArea, QTabWidget, QTableWidget,
     QTableWidgetItem, QHeaderView, QDialog, QListWidget, QAbstractItemView,
-    QInputDialog, QMessageBox, QSpinBox, QSystemTrayIcon, QCheckBox
+    QInputDialog, QMessageBox, QSpinBox, QSystemTrayIcon, QCheckBox,
+    QLineEdit, QFormLayout
 )
 
 from alfa_print_monitor import PrintJournal, PrintMonitor, ACTIVE, MIB
 from ekran_baski_plani import PrintPlanPanel
 from alfa_print_runtime import PrintAgentStartup
+from alfa_print_ipp import IppSettings, IppTelemetryError, validate_uri
 
 
 STATUS_LABELS = {
@@ -54,7 +56,7 @@ def _palette():
 
 
 class PrinterCard(QFrame):
-    def __init__(self, printer, label_job, parent=None):
+    def __init__(self, printer, label_job, device=None, parent=None):
         super().__init__(parent)
         self.setObjectName("PrintMonitorPrinterCard")
         self.setMinimumWidth(300)
@@ -84,6 +86,23 @@ class PrinterCard(QFrame):
         heading.addWidget(title,1)
         heading.addWidget(QLabel(str(len(printer["jobs"]))+" iş"))
         root.addLayout(heading)
+        if device:
+            if device.get("error"):
+                info="IPP cihaz yanıtı yok · "+str(device["error"])[:110]
+            else:
+                reason=", ".join(device.get("reasons",[])[:2])
+                info="IPP cihaz: "+str(device.get("state","bilinmiyor"))
+                if reason and reason!="none":
+                    info+=" · "+reason[:100]
+                page_count=device.get("pages_completed")
+                if isinstance(page_count,int):
+                    info+=f" · cihaz toplam sayacı: {page_count} (bu kitap değil)"
+            device_label=QLabel(info)
+            device_label.setObjectName("PrintJobSubtitle")
+            device_label.setWordWrap(True)
+            if device.get("state_code")==5 or device.get("error"):
+                device_label.setStyleSheet(f"color:{red};font-weight:700")
+            root.addWidget(device_label)
         if printer["error"]:
             problem=QLabel("Kuyruğa erişilemiyor: "+printer["error"])
             problem.setObjectName("PrintJobWarning")
@@ -163,6 +182,7 @@ class PrintSurveillanceView(QWidget):
         self._tray=None
         self._read_layout()
         self._agent_pref=PrintAgentStartup(self.data_dir)
+        self._ipp_settings=IppSettings(self.data_dir)
 
         outer=QVBoxLayout(self)
         outer.setContentsMargins(10,8,10,10);outer.setSpacing(9)
@@ -187,6 +207,12 @@ class PrintSurveillanceView(QWidget):
         order=QPushButton("Yazıcıları yerleştir")
         order.clicked.connect(self._configure_order)
         head.addWidget(order)
+        ipp_button=QPushButton("IPP cihaz bağlantıları")
+        ipp_button.setToolTip(
+            "Destekleyen yerel ağ yazıcılarından salt okunur cihaz durumu "
+            "ve isteğe bağlı gerçek IPP iş sayacı")
+        ipp_button.clicked.connect(self._configure_ipp)
+        head.addWidget(ipp_button)
         outer.addLayout(head)
 
         explain=QLabel(
@@ -347,6 +373,85 @@ class PrintSurveillanceView(QWidget):
              "Şu anda çalışan ajan varsa sistem tepsisinden ayrıca durdurun.")
         )
 
+    def _configure_ipp(self):
+        """Local and manual per-printer IPP endpoint; monitoring opt-in."""
+        printers=(self._last_snapshot or {}).get("printers",[])
+        if not printers:
+            QMessageBox.information(
+                self,"IPP yazıcıları",
+                "Önce Windows'un yüklü yazıcıları listelemesi gerekiyor.")
+            return
+        settings=self._ipp_settings.read()
+        dlg=QDialog(self)
+        dlg.setWindowTitle("IPP · Doğrudan yazıcı durumu")
+        dlg.resize(550,315)
+        layout=QVBoxLayout(dlg)
+        explanation=QLabel(
+            "Bu bağlantı Windows kuyruğundan BAĞIMSIZDIR. Yalnızca seçtiğin "
+            "yerel IP'deki yazıcıya durum sorgusu gönderir; PDF yollamaz "
+            "ve yazdırma işlerini değiştirmez. IPP için yerel IP gerekir. "
+            "IPPS ise geçerli güvenilir sertifika ister.\n"
+            "Cihazın verdiği sayfa/sayfa yüzü sayaçları kesin PDF sayfası değildir.")
+        explanation.setWordWrap(True)
+        layout.addWidget(explanation)
+        form=QFormLayout()
+        choose=QComboBox()
+        for printer in sorted(printers,key=lambda item:item["name"]):
+            choose.addItem(printer["name"],printer["name"])
+        uri_input=QLineEdit()
+        uri_input.setPlaceholderText("ipp://192.168.1.20/ipp/print")
+        uri_input.setToolTip("Giriş boş bırakılırsa bu yazıcı için IPP izleme kapatılır.")
+        def fill():
+            key=str(choose.currentData() or "")
+            uri_input.setText(settings.get(key,""))
+        choose.currentIndexChanged.connect(fill)
+        fill()
+        form.addRow("Windows yazıcı adı",choose)
+        form.addRow("Cihazın IPP adresi",uri_input)
+        layout.addLayout(form)
+        hint=QLabel(
+            "Not: Yazıcıya giden IPP iletişimi ipp:// için şifrelenmez; "
+            "bu nedenle yalnız güvendiğin yerel ağa izin verilir. "
+            "Bağlantı 20 saniyelik aralıklarla arka planda denenir.")
+        hint.setWordWrap(True)
+        layout.addWidget(hint)
+        actions=QHBoxLayout()
+        disable=QPushButton("Bu yazıcı için kapat")
+        def remove():
+            key=str(choose.currentData() or "")
+            settings.pop(key,None)
+            try:self._ipp_settings.save(settings)
+            except (OSError,IppTelemetryError) as exc:
+                QMessageBox.warning(dlg,"IPP",str(exc)[:160]);return
+            uri_input.clear()
+            QMessageBox.information(
+                dlg,"IPP","Bu yazıcının IPP okuması kapatıldı.")
+        disable.clicked.connect(remove)
+        actions.addWidget(disable)
+        actions.addStretch()
+        save=QPushButton("İzlemeyi etkinleştir")
+        def enable():
+            key=str(choose.currentData() or "")
+            try:
+                settings[key]=validate_uri(uri_input.text())
+                self._ipp_settings.save(settings)
+            except (OSError,IppTelemetryError) as exc:
+                QMessageBox.warning(dlg,"IPP",str(exc)[:220])
+                return
+            dlg.accept()
+            QMessageBox.information(
+                self,"IPP bağlantısı kaydedildi",
+                "Bağlantı yerel dosyada saklandı. Bir sonraki arka plan "
+                "okumasında yazıcı kartında IPP durumu görünecek. "
+                "Windows iş kimlikleri IPP iş kimliği sanılmayacak.")
+        save.clicked.connect(enable)
+        actions.addWidget(save)
+        cancel=QPushButton("Kapat")
+        cancel.clicked.connect(dlg.reject)
+        actions.addWidget(cancel)
+        layout.addLayout(actions)
+        dlg.exec()
+
     def _configure_order(self):
         printers=self._last_snapshot["printers"] if self._last_snapshot else []
         names={p["name"] for p in printers}
@@ -423,7 +528,8 @@ class PrintSurveillanceView(QWidget):
         else:
             self.board.setMinimumWidth(0)
         for i,printer in enumerate(printers):
-            card=PrinterCard(printer,self._label_job,self.board)
+            device=(self._last_snapshot or {}).get("ipp",{}).get(printer["name"])
+            card=PrinterCard(printer,self._label_job,device,self.board)
             self.board_layout.addWidget(card,i//cols,i%cols,
                                         Qt.AlignmentFlag.AlignTop)
         self.board_layout.setRowStretch((len(printers)+cols-1)//cols,1)
