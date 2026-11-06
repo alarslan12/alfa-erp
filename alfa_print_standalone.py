@@ -14,9 +14,10 @@ from PySide6.QtCore import QSettings, Qt
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QComboBox, QLabel, QHBoxLayout,
-    QVBoxLayout, QWidget
+    QVBoxLayout, QWidget, QPushButton, QMessageBox
 )
 from ekran_yazdirma import PrintSurveillanceView
+from alfa_print_diagnostics import diagnostic_report
 
 
 APP_VERSION = "2.0.0"
@@ -58,6 +59,12 @@ class PrintWindow(QMainWindow):
         title.setStyleSheet("font-weight:900;font-size:15px;")
         top.addWidget(title)
         top.addStretch()
+        diagnostic=QPushButton("Sistem Kontrolü")
+        diagnostic.setToolTip(
+            "Windows Print Spooler, ajan, başlangıç ve SQLite geçmişini "
+            "okur; izinleri veya yazdırma kuyruğunu değiştirmez.")
+        diagnostic.clicked.connect(self.show_diagnostics)
+        top.addWidget(diagnostic)
         top.addWidget(QLabel("Tema"))
         themes = QComboBox()
         for label, key in (("Koyu", "koyu"), ("Açık", "acik"),
@@ -100,6 +107,17 @@ class PrintWindow(QMainWindow):
             f"QLabel {{color:{fg};}}"
             f"QComboBox {{background:{bg};color:{fg};"
             "padding:5px;border:1px solid #6485a0;}}")
+
+    def show_diagnostics(self):
+        try:
+            lines=diagnostic_report(data_directory())
+            QMessageBox.information(
+                self, "ALFACOPYCENTER · Yazdırma Sistem Kontrolü",
+                "\\n".join(lines))
+        except (OSError,ValueError) as exc:
+            QMessageBox.warning(
+                self,"Sistem Kontrolü",
+                "Tanılama sırasında hata: "+str(exc)[:260])
 
     def closeEvent(self, event):
         self.monitor.stop()
