@@ -199,10 +199,16 @@ class PrintPlanPanel(QWidget):
         self.cancel_button.setEnabled(planned)
         self.verify_button.setEnabled(bool(
             task and task["state"] in ("queued","verify")))
-        self.resume_button.setEnabled(bool(
+        can_resume=bool(
             task and task["state"]=="verify" and
+            int(task["copies"])==1 and
             not any(t.get("parent_task_id")==task["task_id"]
-                    for t in self._tasks)))
+                    for t in self._tasks))
+        self.resume_button.setEnabled(can_resume)
+        self.resume_button.setToolTip(
+            "Yalnız tek kopyalık, kuyruktan kaybolmuş işlerde. "
+            "Windows'un sayacı fiziksel sayfa teyidi değildir. "
+            "Çoklu kopyalar ayrı ayrı kontrol edilip planlanmalıdır.")
         self.detail_button.setEnabled(bool(task))
 
     def render(self):
