@@ -1,5 +1,5 @@
 """ALFA ERP Desktop - Qt/PySide6 yerel Windows masaüstü uygulaması."""
-import sys, traceback, os, json
+import sys, traceback, os, json, time
 from pathlib import Path
 from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBoxLayout,QStackedWidget,
  QLabel,QFrame,QGridLayout,QPushButton,QMessageBox,QInputDialog,QLineEdit,QSystemTrayIcon)
@@ -518,7 +518,16 @@ class AlfaMain(QMainWindow):
             'Firebase siparişlerinin güncel durumu kontrol ediliyor…',10000)
         self.live.pull()
 
+    def _clear_temporary_sync_notice(self):
+        """Return to live connectivity after an 8-second conflict notice."""
+        if time.monotonic() < getattr(self,'_conflict_flash_until',0.0):
+            return
+        online,message=getattr(
+            self,'_latest_cloud_status',(False,'Eşitleme beklemede'))
+        self._cloud_status(online,message)
+
     def _cloud_status(self,online,message):
+        self._latest_cloud_status=(bool(online),str(message))
         # Pending crash reports retry ONLY on an actual connectivity transition,
         # not from a polling timer or on every ordinary sync status string.
         previous=getattr(self,"_error_was_online",False)
@@ -529,31 +538,44 @@ class AlfaMain(QMainWindow):
                             ' v'+VERSION+' · '+
                             ('Bulut bağlı' if online else 'Bağlantı bekleniyor'))
         self.setToolTip(message)
+        # Historical rejected writes remain in the incident journal, not
+        # permanently on the connectivity indicator. Flash only when a NEW
+        # conflict has just been archived, and clear it automatically.
         conflicts=self.db.unreviewed_cloud_conflicts
-        if conflicts:
-            count=len(conflicts)
-            reason=str(conflicts[-1].get('reason') or 'Bilinmeyen işlem çakışması')
-            pending=self.db.pending_count
-            marker=('● Bulut bağlı' if online else '◌ Eşitleme beklemede')
+        count=len(conflicts)
+        previous_count=getattr(self,'_last_conflict_notice',None)
+        self._last_conflict_notice=count
+        if previous_count is not None and count>previous_count:
+            self._conflict_flash_until=time.monotonic()+8
+            reason=str(conflicts[-1].get('reason') or 'Bulut işlem çakışması')
+            self.statusBar().showMessage(
+                '⚠ Bulut işlemi kontrol edilmeli: '+reason[:160],8000)
+            QTimer.singleShot(8200,self._clear_temporary_sync_notice)
+
+        pending=self.db.pending_count
+        flash=(count>0 and
+               time.monotonic()<getattr(self,'_conflict_flash_until',0.0))
+        if flash:
             self.cloud_badge.setText(
-                marker+(f' · {pending} sırada' if pending else '')+
-                f' · ⚠ {count} geçmiş')
-            self.cloud_badge.setToolTip(
-                ('Bulut bağlı.\n' if online else 'Güncel eşitleme hatası: '+message[:190]+'\n')
-                +'Geçmiş çakışmalar daha önce reddedilip arşivlenmiş '
-                'işlemlerdir; yeni bekleyen işler değildir. '
-                +'Şu an bekleyen işlem: '+str(pending)+'\n'
-                'Ayarlar → İşlem günlüğü → Eski bulut hatalarını incele.\n'
-                +reason[:220])
-            previous=getattr(self,'_last_conflict_notice',None)
-            self._last_conflict_notice=count
-            if previous is not None and count>previous:
-                self.statusBar().showMessage('Bulut işlemi reddedildi: '+reason[:170],20000)
-            return
-        marker='● ' if online else '◌ '
-        self.cloud_badge.setText(marker + ('Bulut bağlı' if online and not self.db.pending_count
-            else f'{self.db.pending_count} işlem sırada' if online else 'Çevrimdışı · kuyrukta'))
-        self.cloud_badge.setToolTip(message)
+                f'⚠ Yeni çakışma · {pending} sırada' if pending
+                else '⚠ İşlem çakışması')
+        elif online:
+            self.cloud_badge.setText(
+                f'● Bulut bağlı · {pending} işlem sırada'
+                if pending else '● Bulut bağlı')
+        else:
+            self.cloud_badge.setText(
+                f'◌ Çevrimdışı · {pending} işlem sırada'
+                if pending else '◌ Bağlantı bekleniyor')
+        tips=[str(message)[:190],
+              'Durum: '+('Bulut bağlı' if online else 'Eşitleme beklemede'),
+              'Bekleyen yerel işlem: '+str(pending)]
+        if count:
+            tips.extend([
+                'İnceleme geçmişi: '+str(count)+' eski çakışma.',
+                'Bu sayı mevcut internet bağlantısının durumu değildir.',
+                'İşlem günlüğünde kayıtlar korunur; otomatik silinmez.'])
+        self.cloud_badge.setToolTip('\n'.join(tips))
 
     def open_order_status(self,status):
         if status not in ('havuz','aktif','tamamlandi'):
