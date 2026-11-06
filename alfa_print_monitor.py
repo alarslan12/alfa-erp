@@ -19,6 +19,7 @@ import time
 from PySide6.QtCore import QThread, Signal
 from alfa_print_events import WinPrintChangeFeed, RECONCILE_MS, FALLBACK_MS
 from alfa_print_plan import PrintPlanRepository
+from alfa_print_ipp import IppSettings, IppReader, IppTelemetryError
 from alfa_print_runtime import PrintCollectorLease
 
 ACTIVE = {"bekliyor", "aktarılıyor", "yazdırılıyor", "duraklatıldı",
@@ -512,6 +513,14 @@ class PrintMonitor(QThread):
             probe=WinSpoolProbe()
             journal=PrintJournal(self.data_dir)
             planner=PrintPlanRepository(self.data_dir)
+            # IPP is OPT-IN and has its own bounded rate limiter.
+            # Never infer a device IPP job-id from Windows JobId.
+            ipp_settings=IppSettings(self.data_dir)
+            ipp_reader=IppReader(timeout=2.0)
+            ipp_devices={}
+            ipp_warnings=[]
+            ipp_last_probe=0.0
+            ipp_cursor=0
             try:
                 feed=WinPrintChangeFeed(probe)
             except (OSError,AttributeError) as exc:
@@ -531,6 +540,55 @@ class PrintMonitor(QThread):
                     # of successful printing or permission to resend.
                     interruptions=planner.reconcile()
                     stale_alerts=self._check_progress(printers)
+                    if time.monotonic()-ipp_last_probe>=20:
+                        ipp_last_probe=time.monotonic()
+                        config=ipp_settings.read()
+                        ipp_devices={key:value for key,value in ipp_devices.items()
+                                     if key in config}
+                        names=list(sorted(config))
+                        if names:
+                            batch=min(3,len(names))
+                            selected=[names[(ipp_cursor+i)%len(names)]
+                                      for i in range(batch)]
+                            ipp_cursor=(ipp_cursor+batch)%len(names)
+                            current_tasks=planner.list(350)
+                            for printer_name in selected:
+                                uri=config[printer_name]
+                                previous=ipp_devices.get(printer_name) or {}
+                                try:
+                                    info=ipp_reader.printer(uri)
+                                    info["error"]=""
+                                    ipp_devices[printer_name]=info
+                                    if (info["state_code"]==5 and
+                                            previous.get("state_code")!=5):
+                                        ipp_warnings.append(
+                                            printer_name+": IPP cihaz durdu · "+
+                                            ", ".join(info["reasons"][:2])[:100])
+                                except (IppTelemetryError,OSError) as exc:
+                                    # A network outage never rewrites or
+                                    # completes old print tasks.
+                                    ipp_devices[printer_name]={
+                                        "source":"IPP doğrudan cihaz",
+                                        "error":str(exc)[:180],
+                                        "state":"ulaşılamıyor",
+                                        "seen_at":previous.get("seen_at") or "",
+                                    }
+                                    continue
+                                # Reading an IPP job is allowed ONLY after
+                                # the operator links its actual device id.
+                                linked=[t for t in current_tasks
+                                        if t["printer"]==printer_name
+                                        and t.get("ipp_job_id") is not None
+                                        and t["state"] in ("queued","verify")]
+                                for task in linked[:2]:
+                                    try:
+                                        data=ipp_reader.job(uri,task["ipp_job_id"])
+                                        planner.record_ipp_report(
+                                            task["task_id"],task["ipp_job_id"],data)
+                                    except (IppTelemetryError,OSError):
+                                        # Some printers immediately erase
+                                        # completed jobs; keep last reading.
+                                        continue
                     rows=journal.recent(160)
                     tagged={j["key"]:j for j in rows}
                     for p in printers:
@@ -542,12 +600,16 @@ class PrintMonitor(QThread):
                         "printers":printers, "recent":rows,
                         "events":journal.events(25),
                         "tasks":planner.list(300),
+                        "ipp":ipp_devices,
                         "captured_at":_utc()
                     }
                     journal.publish_snapshot(snapshot)
                     self.updated.emit(snapshot)
                     # Interrupted book tasks are important even on startup:
                     # the PC may have rebooted while a PDF was printing.
+                    for notice in ipp_warnings[:3]:
+                        self.warning.emit("IPP cihaz uyarısı · "+notice)
+                    ipp_warnings.clear()
                     for item in interruptions[:3]:
                         self.warning.emit(
                             "BASKI KESINTİSİ · "+str(item["book"])[:75]+
