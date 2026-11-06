@@ -496,10 +496,10 @@ class PrintMonitor(QThread):
                     break
                 data=read_collector_snapshot(self.data_dir)
                 if data is not None:
-                    identity=(data.get("captured_at"),
-                              len(data.get("events",())))
-                    if identity!=last_observed:
-                        last_observed=identity
+                    # A spool status can change more than once per second.
+                    # Compare actual snapshot data, not only timestamps.
+                    if data!=last_observed:
+                        last_observed=data
                         self.updated.emit(data)
                 for _ in range(6):
                     if self.isInterruptionRequested():return
