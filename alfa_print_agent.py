@@ -72,8 +72,14 @@ def main():
         # Unreachable remote spooler RPC can block this worker. Waiting
         # indefinitely would prevent Windows logout. The OS will tear
         # down this user process; SQLite's WAL preserves committed rows.
-        worker.wait(3500)
+        ended=worker.wait(3500)
         tray.hide()
+        if not ended:
+            # A stalled remote printer RPC cannot be safely interrupted.
+            # End only this optional helper process; committed SQLite
+            # transactions survive via WAL and the Windows spooler is not
+            # touched. Avoid destroying a still-running QThread in Qt.
+            os._exit(0)
 
     app.aboutToQuit.connect(cleanup)
     return app.exec()
