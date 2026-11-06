@@ -12,6 +12,27 @@ from PySide6.QtWidgets import (
 from alfa_hatalar import report_manual_error
 from guncelleme_arayuzu import UpdateDialog
 
+V201_NOTES = """# ALFACOPYCENTER v2.0.1 · Sipariş eşitleme düzeltmesi
+
+- Personel ve Yönetici uygulamaları doğrudan **Firebase sipariş değişikliklerini**
+  dinler; ayrı revizyon sayacı güncellenmese de sipariş yenilenir.
+- Çok hızlı Hazırlandı / Kolilendi tıklamaları tekleştirilir, eşzamanlı
+  cihazların zaten işlediği miktarlar tekrar eklenmez.
+- İşlem yapılan siparişin hedef sayısına önceden ulaşılmışsa bulut işlemi
+  güvenle doğrulanır ve aynı olay bir daha tekrar uygulanmaz.
+- İnternet isteği devam ederken gelen yeni sipariş bildirimi kaybolmaz;
+  ilk istek tamamlanınca yeni bulut kontrolü kuyruğa alınır.
+- Sağ üstte geçmiş çakışma mesajı artık kalıcı değildir. **Yeni hata**
+  kısa süre (8 saniye) görünür; sonra gerçek Bulut bağlı / çevrimdışı
+  durumu gösterilir. Raporlar İşlem Günlüğü ve Hata Merkezi'nde saklanır.
+- Yanına **↻** anlık bulut siparişlerini kontrol düğmesi eklendi.
+  Bekleyen işlem kuyruğuna veya eski sipariş arşivine müdahale etmez.
+
+**Veri güvenliği:** Mevcut siparişler, kuyruklar, eski hata kayıtları,
+personel/yönetici yetkileri ve tasarım arşivi silinmez.
+"""
+
+
 V200_NOTES = """# ALFACOPYCENTER v2.0.0 · Dört Uygulama Paketi
 
 - Tek Windows kurulumu: Yönetici ERP, Personel ERP,
@@ -131,9 +152,11 @@ class AnnouncementsDialog(QDialog):
         root.addWidget(notice)
         self.notes=QTextEdit(self)
         self.notes.setReadOnly(True)
-        bundled=(V200_NOTES+'\n\n'+V111_NOTES+'\n\n'+V110_NOTES
-                 if str(version).startswith('2.')
-                 else V111_NOTES+'\n\n'+V110_NOTES
+        bundled=(V201_NOTES+'\n\n'+V200_NOTES+'\n\n'+V111_NOTES+'\n\n'+V110_NOTES
+                 if str(version)=='2.0.1' else
+                 V200_NOTES+'\n\n'+V111_NOTES+'\n\n'+V110_NOTES
+                 if str(version).startswith('2.') else
+                 V111_NOTES+'\n\n'+V110_NOTES
                  if str(version)=='1.1.1' else V110_NOTES)
         if release and release.get('available') and release.get('notes'):
             self.notes.setPlainText(
