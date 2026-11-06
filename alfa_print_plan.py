@@ -72,6 +72,7 @@ class PrintPlanRepository:
                 ipp_job_id INTEGER,
                 ipp_impressions INTEGER,
                 ipp_sheets INTEGER,
+                ipp_document_pages INTEGER,
                 ipp_state TEXT,
                 ipp_job_name TEXT,
                 ipp_seen_at TEXT
@@ -101,6 +102,7 @@ class PrintPlanRepository:
             "ipp_job_id":"INTEGER",
             "ipp_impressions":"INTEGER",
             "ipp_sheets":"INTEGER",
+            "ipp_document_pages":"INTEGER",
             "ipp_state":"TEXT",
             "ipp_job_name":"TEXT",
             "ipp_seen_at":"TEXT"
@@ -301,7 +303,8 @@ class PrintPlanRepository:
                 return False
             values={}
             for attr,field in (("impressions","ipp_impressions"),
-                               ("sheets","ipp_sheets")):
+                               ("sheets","ipp_sheets"),
+                               ("document_pages","ipp_document_pages")):
                 raw=report.get(attr)
                 if isinstance(raw,int) and 0<=raw<2**31:
                     # Some devices reset counters; retain the maximum as
@@ -316,18 +319,22 @@ class PrintPlanRepository:
                 return False
             self.db.execute("""
                 UPDATE print_tasks SET ipp_impressions=COALESCE(?,ipp_impressions),
-                    ipp_sheets=COALESCE(?,ipp_sheets),ipp_state=?,
-                    ipp_job_name=?,ipp_seen_at=?,updated_at=?
+                    ipp_sheets=COALESCE(?,ipp_sheets),
+                    ipp_document_pages=COALESCE(?,ipp_document_pages),
+                    ipp_state=?,ipp_job_name=?,ipp_seen_at=?,updated_at=?
                 WHERE task_id=? AND ipp_job_id=?
             """,(values.get("ipp_impressions"),values.get("ipp_sheets"),
-                 state,name,str(report.get("seen_at") or _now()),
+                 values.get("ipp_document_pages"),state,name,
+                 str(report.get("seen_at") or _now()),
                  _now(),task_id,int(ipp_job_id)))
             self._record(task_id,"ipp_progress",
                 "Cihaz bildirimi: "+state+
                 "; impressions="+str(values.get("ipp_impressions",
                                                task.get("ipp_impressions")))+
                 "; sheets="+str(values.get("ipp_sheets",task.get("ipp_sheets")))+
-                " (PDF sayfası değil)")
+                "; document pages="+str(values.get("ipp_document_pages",
+                                                   task.get("ipp_document_pages")))+
+                " (fiziksel son sayfa değil)")
         return True
 
     def reconcile(self):
