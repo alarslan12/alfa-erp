@@ -68,6 +68,13 @@ class PrintAgentLease(PrintCollectorLease):
         super().__init__(data_dir,prefix="ALFA_ERP_AGENT_")
 
 
+class PrintSupervisorLease(PrintCollectorLease):
+    """Only one user-level print supervisor per Windows logon session."""
+
+    def __init__(self,data_dir):
+        super().__init__(data_dir,prefix="ALFA_PRINT_SUPERVISOR_")
+
+
 class PrintAgentStartup:
     """HKCU only; no admin elevation, service or machine-wide Run keys."""
 
@@ -76,20 +83,28 @@ class PrintAgentStartup:
         # v1: app/PrintAgent/..., unified suite: app/Owner|Staff|PrintSurveillance
         # and app/PrintAgent/.... Never look in system or untrusted PATH.
         here=Path(sys.executable).resolve().parent
-        candidates=[
+        supervisor=[
+            here/"PrintSupervisor"/"AlfaPrintSupervisor.exe",
+            here.parent/"PrintSupervisor"/"AlfaPrintSupervisor.exe",
+        ]
+        agent=[
             here/"PrintAgent"/"AlfaPrintAgent.exe",
             here.parent/"PrintAgent"/"AlfaPrintAgent.exe",
         ]
-        self.executable=next((path for path in candidates if path.is_file()),
-                             candidates[0])
+        # v2 suite prefers a watchdog with bounded restart/backoff.
+        # Older installations can still launch AlfaPrintAgent directly.
+        self.agent_executable=next((p for p in agent if p.is_file()),agent[0])
+        self.executable=next((p for p in supervisor if p.is_file()),
+                             self.agent_executable)
 
     @property
     def available(self):
         return os.name=="nt" and self.executable.is_file()
 
     def _command(self):
-        return subprocess.list2cmdline(
-            [str(self.executable), "--data-dir", str(self.data_dir)])
+        # Keep quotes consistent with Inno Setup's HKCU Run value.
+        return ('"' + str(self.executable) +
+                '" --data-dir "' + str(self.data_dir) + '"')
 
     def enabled(self):
         if not self.available:
