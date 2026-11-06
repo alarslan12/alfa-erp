@@ -61,6 +61,7 @@ class WinPrintChangeFeed:
         self.wait_many.restype = wintypes.DWORD
         self._watched = {}  # printer -> (printer HANDLE, change HANDLE)
         self._unavailable = set()
+        self._retry_at = {}
         self._invalid = ctypes.c_void_p(-1).value
         self._total_printers = 0
 
@@ -77,6 +78,7 @@ class WinPrintChangeFeed:
         for name in list(self._watched):
             self._drop(name)
         self._unavailable.clear()
+        self._retry_at.clear()
 
     def sync(self, printer_names):
         """Update subscriptions after a normal full queue snapshot.
@@ -92,19 +94,30 @@ class WinPrintChangeFeed:
             if name not in current:
                 self._drop(name)
         self._unavailable.intersection_update(current)
-        # Don't thrash on the same inaccessible print server every cycle.
+        for old_name in list(self._retry_at):
+            if old_name not in current:
+                self._retry_at.pop(old_name,None)
+        # Retry inaccessible remote servers at most every 90 seconds,
+        # not on every reconciliation and not never.
         for name in names[:MAX_NOTIFY_PRINTERS]:
-            if name in self._watched or name in self._unavailable:
+            if name in self._watched:
                 continue
+            if name in self._unavailable:
+                if time.monotonic() < self._retry_at.get(name,0):
+                    continue
+                self._unavailable.discard(name)
             ph = wintypes.HANDLE()
             if not self.api.OpenPrinterW(name, ctypes.byref(ph), None):
                 self._unavailable.add(name)
+                self._retry_at[name]=time.monotonic()+90
                 continue
             nh = self.first(ph, PRINTER_CHANGES, 0, None)
             if not nh or int(nh) == self._invalid:
                 self.api.ClosePrinter(ph)
                 self._unavailable.add(name)
+                self._retry_at[name]=time.monotonic()+90
                 continue
+            self._retry_at.pop(name,None)
             self._watched[name] = (ph, nh)
 
     @property
@@ -142,11 +155,14 @@ class WinPrintChangeFeed:
                 if not ok:
                     self._drop(name)
                     self._unavailable.add(name)
+                    self._retry_at[name]=time.monotonic()+90
                 return True
             if result == _WAIT_FAILED:
                 # Avoid an invalid-handle busy loop; fallback snapshot can
                 # still track the queue even when subscriptions fail.
                 self.close()
                 self._unavailable.update(names)
+                for name in names:
+                    self._retry_at[name]=time.monotonic()+90
                 return False
         return False
