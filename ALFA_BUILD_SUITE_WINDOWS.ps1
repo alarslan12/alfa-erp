@@ -20,6 +20,15 @@ $python = Join-Path $PSScriptRoot '.buildvenv\Scripts\python.exe'
 if (-not (Test-Path $python)) { throw 'Missing Python build environment' }
 Run $python @('tools\build_icons.py')
 
+# Tiny user-session watchdog. It requires no Qt UI and never runs
+# with higher privileges than the account installing the suite.
+Run $python @(
+  '-m','PyInstaller','--noconfirm','--clean','--onedir','--windowed',
+  '--name','AlfaPrintSupervisor',
+  '--icon=assets\icons\alfa_print.ico',
+  'alfa_print_supervisor.py'
+)
+
 # Bundle the self-contained browser editor. It serves ONLY 127.0.0.1.
 # Each user keeps previous covers, prices and layout history in LOCALAPPDATA.
 Run $python @(
@@ -50,6 +59,7 @@ foreach ($needed in @(
   'dist\AlfaBannerStudio\AlfaBannerStudio.exe',
   'dist\AlfaPrintSurveillance\AlfaPrintSurveillance.exe',
   'dist\AlfaPrintAgent\AlfaPrintAgent.exe',
+  'dist\AlfaPrintSupervisor\AlfaPrintSupervisor.exe',
   'assets\icons\alfa_company.ico'
 )) {
   if (-not (Test-Path $needed)) {
