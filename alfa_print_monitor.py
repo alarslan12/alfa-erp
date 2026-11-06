@@ -412,7 +412,11 @@ def read_collector_snapshot(data_dir):
     path=Path(data_dir)/"print_monitor"/"print_history.sqlite3"
     if not path.is_file():
         return None
-    connection=sqlite3.connect(str(path),timeout=2)
+    try:
+        connection=sqlite3.connect(str(path),timeout=2)
+    except sqlite3.Error:
+        # Another process may be creating the first WAL database.
+        return None
     try:
         connection.execute("PRAGMA query_only=ON")
         row=connection.execute("""
