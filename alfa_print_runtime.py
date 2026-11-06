@@ -24,7 +24,7 @@ STARTUP_NAME = "ALFA_ERP_Print_Monitor"
 
 
 class PrintCollectorLease:
-    def __init__(self, data_dir):
+    def __init__(self, data_dir, prefix="ALFA_ERP_PRINT_"):
         self.acquired=False
         self.handle=None
         if os.name != "nt":
@@ -32,7 +32,7 @@ class PrintCollectorLease:
         digest=hashlib.sha256(
             str(Path(data_dir).resolve()).casefold().encode("utf-8")
         ).hexdigest()[:24]
-        name="Local\\ALFA_ERP_PRINT_"+digest
+        name="Local\\"+str(prefix)+digest
         self.kernel=ctypes.WinDLL("kernel32",use_last_error=True)
         self.kernel.CreateMutexW.argtypes=[
             ctypes.c_void_p,wintypes.BOOL,wintypes.LPCWSTR]
@@ -59,6 +59,13 @@ class PrintCollectorLease:
             self.kernel.CloseHandle(self.handle)
             self.handle=None
             self.acquired=False
+
+
+class PrintAgentLease(PrintCollectorLease):
+    """Only one tray-agent process per user data folder and Windows session."""
+
+    def __init__(self,data_dir):
+        super().__init__(data_dir,prefix="ALFA_ERP_AGENT_")
 
 
 class PrintAgentStartup:
