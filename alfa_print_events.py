@@ -62,6 +62,7 @@ class WinPrintChangeFeed:
         self._watched = {}  # printer -> (printer HANDLE, change HANDLE)
         self._unavailable = set()
         self._invalid = ctypes.c_void_p(-1).value
+        self._total_printers = 0
 
     def _drop(self, name):
         item = self._watched.pop(name, None)
@@ -85,6 +86,7 @@ class WinPrintChangeFeed:
         newly added printers.
         """
         names = list(dict.fromkeys(str(name) for name in printer_names if name))
+        self._total_printers = len(names)
         current = set(names)
         for name in tuple(self._watched):
             if name not in current:
@@ -108,7 +110,7 @@ class WinPrintChangeFeed:
     @property
     def has_fallback(self):
         """At least one printer lacks event notifications."""
-        return bool(self._unavailable)
+        return bool(self._unavailable) or self._total_printers > len(self._watched)
 
     def wait(self, interrupt, timeout_ms=RECONCILE_MS):
         """Return True for a change event, False for timeout or failure.
