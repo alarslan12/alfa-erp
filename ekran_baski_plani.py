@@ -9,7 +9,7 @@ import os
 from pathlib import Path
 import sqlite3
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt,QThread,Signal
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QFormLayout,
     QDialog, QDialogButtonBox, QLabel, QPushButton, QComboBox,
@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
 from alfa_print_plan import (
     PrintPlanRepository, PrintPlanError, STATE_NAMES
 )
+from alfa_print_ipp import IppSettings, IppReader, IppTelemetryError
 
 
 def _style(widget):
@@ -46,6 +47,20 @@ def _style(widget):
     """)
 
 
+class _IppJobsWorker(QThread):
+    """Network discovery must never block the Qt print dashboard."""
+    result=Signal(object)
+
+    def __init__(self,uri,parent=None):
+        super().__init__(parent)
+        self.uri=str(uri)
+
+    def run(self):
+        try:self.result.emit({"jobs":IppReader(timeout=3).jobs(self.uri)})
+        except (IppTelemetryError,OSError) as exc:
+            self.result.emit({"error":str(exc)[:220]})
+
+
 class PrintPlanPanel(QWidget):
     """A production plan, NOT the live Windows spool queue."""
 
@@ -54,6 +69,8 @@ class PrintPlanPanel(QWidget):
         self.setObjectName("PrintPlanPanel")
         self.data_dir=Path(data_dir)
         self.repo=PrintPlanRepository(self.data_dir)
+        self.ipp_settings=IppSettings(self.data_dir)
+        self._ipp_worker=None
         self._printers=[]
         self._live_jobs=[]
         self._tasks=[]
@@ -95,13 +112,19 @@ class PrintPlanPanel(QWidget):
         self.link_button=QPushButton("Windows işiyle eşleştir")
         self.link_button.clicked.connect(self.link_job)
         toolbar.addWidget(self.link_button)
+        self.ipp_button=QPushButton("IPP cihaz işini eşleştir")
+        self.ipp_button.setToolTip(
+            "Windows JobId yerine IPP cihazının KENDİ iş numarasını seç; "
+            "yüz/kağıt sayacı ayrı kaydedilir, PDF sayfası olarak kabul edilmez.")
+        self.ipp_button.clicked.connect(self.link_ipp_job)
+        toolbar.addWidget(self.ipp_button)
         root.addLayout(toolbar)
 
-        self.table=QTableWidget(0,8)
+        self.table=QTableWidget(0,9)
         self.table.setHorizontalHeaderLabels([
             "Sıra","Yazıcı","Kitap / PDF","Baskı türü",
             "Kopya · PDF sayfa aralığı","Durum",
-            "Son Windows sayacı","Windows kuyruk ID"
+            "Windows sayacı","IPP cihaz raporu","Windows kuyruk ID"
         ])
         self.table.setSelectionBehavior(
             QAbstractItemView.SelectionBehavior.SelectRows)
@@ -196,6 +219,11 @@ class PrintPlanPanel(QWidget):
         self.up_button.setEnabled(planned)
         self.down_button.setEnabled(planned)
         self.link_button.setEnabled(planned)
+        self.ipp_button.setEnabled(bool(
+            task and task["state"] in ("queued","verify")
+            and task.get("ipp_job_id") is None
+            and task["printer"] in self.ipp_settings.read()
+            and (self._ipp_worker is None or not self._ipp_worker.isRunning())))
         self.cancel_button.setEnabled(planned)
         self.verify_button.setEnabled(bool(
             task and task["state"] in ("queued","verify")))
@@ -233,11 +261,15 @@ class PrintPlanPanel(QWidget):
             reported=int(t.get("last_reported_pages") or 0)
             last_counter=(f"{reported} (fiziksel değil)" if
                           t.get("last_reported_at") else "Bilinmiyor")
+            ipp=(f"#{t['ipp_job_id']}: "
+                 f"yüz={t.get('ipp_impressions') if t.get('ipp_impressions') is not None else '?'}"
+                 f", kağıt={t.get('ipp_sheets') if t.get('ipp_sheets') is not None else '?'}"
+                 if t.get("ipp_job_id") is not None else "Bağlanmadı")
             values=[
                 str(t["sort_index"]),t["printer"],name,mode,
                 f"{t['copies']} kopya · {pages}",
                 STATE_NAMES.get(t["state"],t["state"]),
-                last_counter,job
+                last_counter,ipp,job
             ]
             for j,val in enumerate(values):
                 item=QTableWidgetItem(str(val))
@@ -250,6 +282,10 @@ class PrintPlanPanel(QWidget):
                     item.setToolTip(
                         "Windows PagesPrinted sayacı. Son fiziksel "
                         "çıkan PDF sayfası olmayabilir; kâğıdı kontrol edin.")
+                if j==7:
+                    item.setToolTip(
+                        "IPP cihazı raporu: baskı yüzü/impression ve kağıt "
+                        "sayıları. PDF'nin son sağlam basılan sayfası değildir.")
                 self.table.setItem(i,j,item)
         self.table.blockSignals(False)
         if restore_row>=0:
@@ -395,6 +431,82 @@ class PrintPlanPanel(QWidget):
         except (PrintPlanError,sqlite3.Error) as exc:
             QMessageBox.warning(self,"Windows eşleştirme",str(exc)[:250])
 
+    def link_ipp_job(self):
+        task=self._selected()
+        if not task or task["state"] not in ("queued","verify"):return
+        if task.get("ipp_job_id") is not None:
+            QMessageBox.information(self,"IPP iş numarası",
+                "Bu baskı zaten IPP cihaz işiyle eşleştirilmiş.")
+            return
+        uri=self.ipp_settings.read().get(task["printer"])
+        if not uri:
+            QMessageBox.information(
+                self,"IPP bağlantısı",
+                "Önce Yazdırma → IPP cihaz bağlantıları bölümünde "
+                "bu Windows yazıcısının yerel IPP adresini tanımla.")
+            return
+        if self._ipp_worker is not None and self._ipp_worker.isRunning():
+            return
+        current_task_id=task["task_id"]
+        self.ipp_button.setEnabled(False)
+        self.ipp_button.setText("IPP işleri okunuyor…")
+        worker=_IppJobsWorker(uri,self)
+        self._ipp_worker=worker
+        worker.result.connect(
+            lambda payload:self._ipp_candidates(current_task_id,payload))
+        def finished():
+            self.ipp_button.setText("IPP cihaz işini eşleştir")
+            if self._ipp_worker is worker:
+                self._ipp_worker=None
+            worker.deleteLater()
+            self._selection_changed()
+        worker.finished.connect(finished)
+        worker.start()
+
+    def _ipp_candidates(self,task_id,payload):
+        if payload.get("error"):
+            QMessageBox.warning(self,"IPP cihaz işleri",
+                                str(payload["error"])[:220])
+            return
+        choices=payload.get("jobs") or []
+        if not choices:
+            QMessageBox.information(
+                self,"IPP cihaz işleri",
+                "Yazıcı şu an tamamlanmamış IPP işi bildirmiyor. "
+                "Windows işi tek başına cihazın IPP iş numarası değildir.")
+            return
+        labels=[
+            f"IPP #{item['ipp_job_id']} · {item['state']} · "
+            f"{item['name']} · yüz={item.get('impressions')} "
+            f"kağıt={item.get('sheets')}"
+            for item in choices
+        ]
+        choice,ok=QInputDialog.getItem(
+            self,"Cihazdaki gerçek IPP işi",
+            "Windows işiyle AYNI KİTAP olduğundan emin olduğun "
+            "cihaz işini seç:",labels,0,False)
+        if not ok or choice not in labels:return
+        candidate=choices[labels.index(choice)]
+        task=next((t for t in self._tasks if t["task_id"]==task_id),None)
+        if task is None:return
+        confirm=QMessageBox.question(
+            self,"IPP kimlik eşleştirme",
+            f"ALFA kitap: {task['book']}\n"
+            f"Windows JobId ayrı: {str(task['linked_job_key'] or '')[:18]}\n"
+            f"Cihaz IPP JobId: {candidate['ipp_job_id']}\n"
+            f"Cihaz iş adı: {candidate['name']}\n\n"
+            "Bu işlerin aynı baskıya ait olduğunu SEN doğruladın mı? "
+            "Cihazın sayacı gerçek PDF sayfası değildir.",
+            QMessageBox.StandardButton.Yes|
+            QMessageBox.StandardButton.No)
+        if confirm!=QMessageBox.StandardButton.Yes:return
+        try:
+            self.repo.link_ipp_job(task_id,candidate["ipp_job_id"])
+            self._selected_id=task_id
+            self.reload()
+        except (PrintPlanError,sqlite3.Error) as exc:
+            QMessageBox.warning(self,"IPP bağlantısı",str(exc)[:230])
+
     def verify_task(self):
         task=self._selected()
         if not task:return
@@ -425,6 +537,12 @@ class PrintPlanPanel(QWidget):
         reported=int(task.get("last_reported_pages") or 0)
         observed=(f"{reported} sayfa" if task.get("last_reported_at")
                   else "Bilinmiyor")
+        ipp_data=(
+            f"\nIPP cihaz raporu: yüz={task.get('ipp_impressions')}, "
+            f"kağıt={task.get('ipp_sheets')} · "
+            f"{task.get('ipp_state') or 'durum bilinmiyor'}"
+            if task.get("ipp_seen_at") else
+            "\nIPP cihaz sayaç raporu: Bilinmiyor")
         estimated=""
         if task.get("last_reported_at") and reported>0 and int(task["copies"])==1:
             # Illustrative mapping ONLY, and explicitly not treated as
@@ -437,7 +555,7 @@ class PrintPlanPanel(QWidget):
         details=(
             f"Kitap: {task['book']}\nYazıcı: {task['printer']}\n"
             f"Baskı türü: {task['mode']} · Kopya: {task['copies']}\n"
-            f"Windows'un en son sayacı: {observed}.{estimated}\n\n"
+            f"Windows'un en son sayacı: {observed}.{estimated}{ipp_data}\n\n"
             "Windows sayacı gerçek kâğıt çıktısını kanıtlamaz.\n"
             "Yazıcının arabelleğinde hâlâ devam eden iş olmadığını kontrol et.\n"
             "Çıkan kâğıtları inceleyip SON TAM VE SAĞLAM PDF SAYFASINI "
@@ -525,6 +643,16 @@ class PrintPlanPanel(QWidget):
                 (str(task.get("last_reported_pages") or 0)+" sayfa (fiziksel teyit DEĞİL)"
                  if task.get("last_reported_at") else "Bilinmiyor"),
             "Windows sayaç zamanı: "+str(task.get("last_reported_at") or "—"),
+            "Cihaz IPP iş numarası (Windows ID değil): "+
+                str(task.get("ipp_job_id") or "Eşleştirilmedi"),
+            "Cihaz IPP yüz sayacı: "+
+                (str(task["ipp_impressions"]) if
+                 task.get("ipp_impressions") is not None else "Bilinmiyor"),
+            "Cihaz IPP kağıt sayacı: "+
+                (str(task["ipp_sheets"]) if
+                 task.get("ipp_sheets") is not None else "Bilinmiyor"),
+            "IPP cihaz iş durumu: "+str(task.get("ipp_state") or "—"),
+            "IPP son okuma: "+str(task.get("ipp_seen_at") or "—"),
             "Kontrol edilmiş son PDF sayfası: "+
                 (str(task["confirmed_last_page"]) if
                  task.get("confirmed_last_page") is not None else "Henüz yok"),
