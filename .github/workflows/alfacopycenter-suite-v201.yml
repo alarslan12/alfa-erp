@@ -1,0 +1,108 @@
+name: ALFACOPYCENTER Suite v2.0.1 — Windows sync hotfix verification
+
+on:
+  push:
+    branches: [hotfix/v2.0.1-order-sync-conflicts]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-and-package:
+    name: Four Windows apps, user-mode print agent, supervisor and installer
+    runs-on: windows-2022
+    timeout-minutes: 95
+    env:
+      PYTHONUTF8: '1'
+      PYTHONIOENCODING: utf-8
+    steps:
+      - uses: actions/checkout@v5
+      - name: Python 3.13 x64
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+          architecture: x64
+
+      - name: Compile all suite Python sources (syntax)
+        shell: pwsh
+        run: |
+          python -m compileall -q main.py alfa_print_monitor.py alfa_print_events.py alfa_print_ipp.py alfa_print_snmp.py alfa_print_vendor.py alfa_print_plan.py alfa_print_runtime.py alfa_print_agent.py alfa_print_supervisor.py alfa_print_diagnostics.py alfa_print_standalone.py ekran_yazdirma.py ekran_baski_plani.py banner_studio bulut_canli.py alfa_rtdb.py tests/test_v201_sync.py tools/test_print_contract.py
+          if ($LASTEXITCODE -ne 0) { throw 'ALFACOPYCENTER Python syntax failure' }
+
+      - name: Install Inno Setup 6 build tool
+        shell: pwsh
+        run: |
+          $iscc = Join-Path ([Environment]::GetFolderPath('ProgramFilesX86')) 'Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path $iscc)) { choco install innosetup --yes --no-progress }
+          if (-not (Test-Path $iscc)) { throw 'Inno Setup 6 compiler not found' }
+
+      - name: Build all four apps, background agent and supervisor
+        shell: pwsh
+        run: .\ALFA_BUILD_SUITE_WINDOWS.ps1
+
+      - name: Run offline print-safety contract checks (NO real printer)
+        shell: pwsh
+        run: |
+          & .\.buildvenv\Scripts\python.exe -m unittest discover -s tools -p test_print_contract.py -v
+          if ($LASTEXITCODE -ne 0) { throw 'Offline print safety contract FAILED' }
+
+      - name: Run offline v2.0.1 multi-device sync regression tests
+        shell: pwsh
+        run: |
+          & .\.buildvenv\Scripts\python.exe -m unittest discover -s tests -p test_v201_sync.py -v
+          if ($LASTEXITCODE -ne 0) { throw 'Multi-device order sync regression failed' }
+
+      - name: Smoke test standalone packaged apps without a network server
+        shell: pwsh
+        run: |
+          $programs = @(
+            @('.\dist\AlfaBannerStudio\AlfaBannerStudio.exe', '--self-check'),
+            @('.\dist\AlfaPrintSurveillance\AlfaPrintSurveillance.exe', '--self-check'),
+            @('.\dist\AlfaPrintSupervisor\AlfaPrintSupervisor.exe', '--self-check')
+          )
+          foreach ($program in $programs) {
+            $process = Start-Process -FilePath $program[0] -ArgumentList $program[1] -Wait -PassThru
+            if ($process.ExitCode -ne 0) {
+              throw "Packaged app self-check failed: $($program[0]), exit=$($process.ExitCode)"
+            }
+          }
+
+      - name: Check installer and generate SHA256SUMS
+        shell: pwsh
+        run: |
+          $setup = Get-Item .\output\ALFACOPYCENTER_Suite_Setup_V2_0_1.exe -ErrorAction Stop
+          if ($setup.Length -lt 1000000) { throw 'Installer unexpectedly small' }
+          if ($setup.Length -gt 600MB) { throw 'Installer exceeds safe updater download size' }
+          $hash = (Get-FileHash $setup.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $($setup.Name)" | Set-Content -Encoding ascii .\output\SHA256SUMS.txt
+          Copy-Item docs\ALFACOPYCENTER_SUITE_V201_RELEASE.md .\output\RELEASE_NOTES.txt
+          Write-Host "Installer size: $($setup.Length) bytes"
+          Write-Host "SHA256: $hash"
+
+      - name: Upload unreleased candidate for user acceptance
+        uses: actions/upload-artifact@v4
+        with:
+          name: ALFACOPYCENTER_Suite_v2.0.1_Windows_Candidate
+          path: |
+            output/ALFACOPYCENTER_Suite_Setup_V2_0_1.exe
+            output/SHA256SUMS.txt
+            output/RELEASE_NOTES.txt
+          if-no-files-found: error
+          retention-days: 21
+          compression-level: 0
+
+      - name: Explain test coverage and release gate
+        shell: pwsh
+        run: |
+          @'
+          # ALFACOPYCENTER v2.0.1 Windows candidate built
+          Four standalone launchers and user-mode print agent/supervisor.
+          Automated syntax, offline print-contract tests, bundled-app self-checks
+          and unified Inno Setup build completed. Installer SHA256 is included.
+
+          **NOT a published GitHub Release yet.**
+          Hardware-dependent Windows printer/IPP/SNMP/Canon/Epson behaviors
+          require a real operator printer test. No automatic print jobs,
+          Windows service changes or Firebase writes were performed.
+          '@ | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
