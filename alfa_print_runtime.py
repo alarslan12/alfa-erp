@@ -73,7 +73,15 @@ class PrintAgentStartup:
 
     def __init__(self, data_dir):
         self.data_dir=Path(data_dir)
-        self.executable=(Path(sys.executable).parent/"PrintAgent"/"AlfaPrintAgent.exe")
+        # v1: app/PrintAgent/..., unified suite: app/Owner|Staff|PrintSurveillance
+        # and app/PrintAgent/.... Never look in system or untrusted PATH.
+        here=Path(sys.executable).resolve().parent
+        candidates=[
+            here/"PrintAgent"/"AlfaPrintAgent.exe",
+            here.parent/"PrintAgent"/"AlfaPrintAgent.exe",
+        ]
+        self.executable=next((path for path in candidates if path.is_file()),
+                             candidates[0])
 
     @property
     def available(self):
