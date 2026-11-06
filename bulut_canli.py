@@ -143,13 +143,16 @@ class Sync(QObject):
         self._status(False,'Firebase bağlı · ilk eşitleme başlıyor')
         QTimer.singleShot(100,self.pull)
 
-    def _realtime_event(self):
+    def request_authoritative_refresh(self):
+        """Queue an order re-read, even when a network pull is in progress."""
         self._event_serial += 1
-        self.force_pull=True
-        # Collapse rapid per-book notifications into one authoritative read.
-        # A notification arriving DURING a pull is handled again at finish.
+        self.force_pull = True
+        # Collapse per-book notifications from rapid clicks or multiple devices.
         self._recent_until = time.monotonic()+16
         self._event_pull_timer.start()
+
+    def _realtime_event(self):
+        self.request_authoritative_refresh()
 
     def _stop_realtime_watchers(self):
         self._event_pull_timer.stop()
@@ -216,11 +219,14 @@ class Sync(QObject):
                     if changes:
                         self._recent_until = time.monotonic()+18
                         self.changed.emit(changes)
-                    # Never lose a Firebase change delivered during a slow
-                    # network pull; the just-returned snapshot may predate it.
-                    self.force_pull=(self._event_serial!=started_serial)
-                    if self.force_pull:
-                        self._event_pull_timer.start()
+                # Keep an event that arrived during an in-flight pull.
+                # The response may predate it, even when it includes orders.
+                changed_while_fetching=(self._event_serial!=started_serial)
+                if changed_while_fetching:
+                    self.force_pull=True
+                    self._event_pull_timer.start()
+                elif snapshot is not None:
+                    self.force_pull=False
                 self.last_pulse=payload['pulse']
                 self._consecutive_pull_failures=0
                 self._pull_retry_after=0
@@ -275,12 +281,10 @@ class Sync(QObject):
                 # The next delta sync will fetch it without cold-reading books.
                 # An order changed on the server. Re-read it regardless of
                 # what revision the last concurrent pull might have observed.
-                self.force_pull=True
-                self._recent_until = time.monotonic()+18
+                self.request_authoritative_refresh()
                 self._retune_poll()
                 self._status(True, f'Bulut bağlı · {self.db.pending_count} işlem sırada'
                     if self.db.pending_count else 'Bulut bağlı')
-                QTimer.singleShot(100,self.pull)
             except Exception as exc:
                 self.retry_after=time.monotonic()+5
                 self._status(False,'Bulut onayı işlenemedi: '+str(exc)[:120])
