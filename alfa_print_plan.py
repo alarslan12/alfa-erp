@@ -244,11 +244,11 @@ class PrintPlanRepository:
         pages. It is evidence only; never mark the last physical PDF
         page as confirmed from this value.
         """
-        changed=0
+        interruptions=[]
         with self.db:
             rows=self.db.execute("""
-                SELECT t.task_id,t.linked_job_key,t.last_reported_pages,
-                       t.last_job_total,
+                SELECT t.task_id,t.book,t.linked_job_key,t.last_reported_pages,
+                       t.last_reported_at,t.last_job_total,
                        j.key AS observed_key,j.pages,j.total,
                        j.last_seen,j.disappeared
                 FROM print_tasks t
@@ -266,7 +266,8 @@ class PrintPlanRepository:
                 highest=max(int(row["last_reported_pages"] or 0),pages)
                 stored_total=max(int(row["last_job_total"] or 0),total)
                 if (highest!=int(row["last_reported_pages"] or 0)
-                    or stored_total!=int(row["last_job_total"] or 0)):
+                    or stored_total!=int(row["last_job_total"] or 0)
+                    or not row["last_reported_at"]):
                     self.db.execute("""
                         UPDATE print_tasks SET last_reported_pages=?,
                             last_job_total=?,last_reported_at=?,updated_at=?
@@ -284,11 +285,15 @@ class PrintPlanRepository:
                     WHERE task_id=? AND state='queued'
                 """,(_now(),row["task_id"]))
                 if updated.rowcount:
-                    changed+=1
+                    interruptions.append({
+                        "task_id":row["task_id"],
+                        "book":row["book"],
+                        "windows_counter":highest
+                    })
                     self._record(row["task_id"],"verify",
                         "Windows işi kuyruktan çıktı. Son sayaç: "+
                         str(highest)+"; son fiziksel PDF sayfası bilinmiyor")
-        return changed
+        return interruptions
 
     def create_resume(self, task_id, last_confirmed_pdf_page, note):
         """Create ONE safe new continuation plan after manual paper inspection.
