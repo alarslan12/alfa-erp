@@ -529,7 +529,7 @@ class PrintMonitor(QThread):
                     alarms=journal.change(printers,self.size_warning_mb)
                     # A queue entry vanishing is a review state, not proof
                     # of successful printing or permission to resend.
-                    planner.reconcile()
+                    interruptions=planner.reconcile()
                     stale_alerts=self._check_progress(printers)
                     rows=journal.recent(160)
                     tagged={j["key"]:j for j in rows}
@@ -546,6 +546,14 @@ class PrintMonitor(QThread):
                     }
                     journal.publish_snapshot(snapshot)
                     self.updated.emit(snapshot)
+                    # Interrupted book tasks are important even on startup:
+                    # the PC may have rebooted while a PDF was printing.
+                    for item in interruptions[:3]:
+                        self.warning.emit(
+                            "BASKI KESINTİSİ · "+str(item["book"])[:75]+
+                            " · Windows'un son sayacı: "+
+                            str(item["windows_counter"])+
+                            " · fiziksel PDF sayfasını doğrula / baskı planından devam et")
                     if not first:
                         for printer,document,state in alarms[:3]:
                             self.warning.emit(printer+": "+document[:80]+" · "+state)
