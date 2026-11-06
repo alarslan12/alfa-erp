@@ -28,6 +28,7 @@ REQUESTED_JOB = (
     "job-id", "job-name", "job-state", "job-state-reasons",
     "job-impressions", "job-impressions-completed",
     "job-media-sheets", "job-media-sheets-completed",
+    "job-pages-completed",
     "job-state-message"
 )
 PRINTER_STATES = {3:"hazır", 4:"işleniyor", 5:"durdu"}
@@ -251,7 +252,8 @@ class IppReader:
         """
         groups=self._read(uri,0x000A,(
             "job-id","job-name","job-state",
-            "job-impressions-completed","job-media-sheets-completed"
+            "job-impressions-completed","job-media-sheets-completed",
+            "job-pages-completed"
         ),grouped=True)
         output=[]
         for kind,data in groups:
@@ -265,7 +267,8 @@ class IppReader:
                 "name":str(_one(data,"job-name") or "Belge adı bilinmiyor")[:130],
                 "state":JOB_STATES.get(state,"bilinmiyor"),
                 "sheets":_one(data,"job-media-sheets-completed"),
-                "impressions":_one(data,"job-impressions-completed")
+                "impressions":_one(data,"job-impressions-completed"),
+                "document_pages":_one(data,"job-pages-completed")
             })
             if len(output)>=20:break
         return output
@@ -291,6 +294,7 @@ class IppReader:
             "name":str(_one(data,"job-name") or "")[:130],
             "impressions":_one(data,"job-impressions-completed"),
             "sheets":_one(data,"job-media-sheets-completed"),
+            "document_pages":_one(data,"job-pages-completed"),
             "message":str(_one(data,"job-state-message") or "")[:160],
             "seen_at":_utc()
         }
