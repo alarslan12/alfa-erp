@@ -100,11 +100,16 @@ class Sync(QObject):
         self.isolate_batch=False
         self._realtime_watchers=[]
         self._last_status = None
+        self._event_serial = 0
+        self._event_pull_timer = QTimer(self)
+        self._event_pull_timer.setSingleShot(True)
+        self._event_pull_timer.setInterval(450)
+        self._event_pull_timer.timeout.connect(self.pull)
         self.timer = QTimer(self)
         self._recent_until = time.monotonic() + 16
         # Free-tier safety: reduce repetitive polling on multiple machines.
-        self._active_poll_ms = 30000 + (id(self) % 5000)
-        self._idle_poll_ms = 90000 + (id(self) % 15000)
+        self._active_poll_ms = 12000 + (id(self) % 3000)
+        self._idle_poll_ms = 30000 + (id(self) % 5000)
         self.timer.setInterval(self._active_poll_ms)
         self.timer.timeout.connect(self.pull)
         self.sender = QTimer(self)
@@ -125,7 +130,10 @@ class Sync(QObject):
         if not self.timer.isActive():self.timer.start()
         if not self.sender.isActive():self.sender.start()
         if not self._realtime_watchers and hasattr(self.client,"watch"):
-            for location in ("meta/revisions","checkout"):
+            # Watch the actual order data as well as its revision counter.
+            # An order PUT may commit even when a subsequent revision bump
+            # fails; watching only meta/revisions silently delays that update.
+            for location in ("meta/revisions","checkout","orders"):
                 watcher=RtdbWatch(self.client,location,self)
                 watcher.changed.connect(self._realtime_event)
                 watcher.start()
@@ -136,10 +144,15 @@ class Sync(QObject):
         QTimer.singleShot(100,self.pull)
 
     def _realtime_event(self):
+        self._event_serial += 1
         self.force_pull=True
-        QTimer.singleShot(90,self.pull)
+        # Collapse rapid per-book notifications into one authoritative read.
+        # A notification arriving DURING a pull is handled again at finish.
+        self._recent_until = time.monotonic()+16
+        self._event_pull_timer.start()
 
     def _stop_realtime_watchers(self):
+        self._event_pull_timer.stop()
         for watcher in self._realtime_watchers:
             watcher.stop()
 
@@ -190,6 +203,7 @@ class Sync(QObject):
         known,initial=self._revision_request()
         worker=Pull(self.client,known,initial,parent=self)
         self.pull_task=worker
+        started_serial=self._event_serial
 
         def finish(payload):
             self.pull_task=None
@@ -202,7 +216,11 @@ class Sync(QObject):
                     if changes:
                         self._recent_until = time.monotonic()+18
                         self.changed.emit(changes)
-                    self.force_pull=False
+                    # Never lose a Firebase change delivered during a slow
+                    # network pull; the just-returned snapshot may predate it.
+                    self.force_pull=(self._event_serial!=started_serial)
+                    if self.force_pull:
+                        self._event_pull_timer.start()
                 self.last_pulse=payload['pulse']
                 self._consecutive_pull_failures=0
                 self._pull_retry_after=0
