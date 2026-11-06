@@ -15,11 +15,12 @@ import uuid
 
 
 MODES = ("SB", "RENK")
-TASK_STATES = ("planned", "queued", "verify", "verified", "cancelled")
+TASK_STATES = ("planned", "queued", "verify", "resumed", "verified", "cancelled")
 STATE_NAMES = {
     "planned": "Baskı planında",
     "queued": "Windows kuyruğuyla eşleşti",
     "verify": "Kuyruk kayboldu · fiziksel teyit gerekli",
+    "resumed": "Kesilen baskıdan yeni devam planı oluşturuldu",
     "verified": "Operatör fiziksel baskıyı teyit etti",
     "cancelled": "Plan iptal edildi · geçmiş korundu",
 }
@@ -62,7 +63,12 @@ class PrintPlanRepository:
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL,
                 verified_at TEXT,
-                note TEXT
+                note TEXT,
+                parent_task_id TEXT,
+                confirmed_last_page INTEGER,
+                last_reported_pages INTEGER NOT NULL DEFAULT 0,
+                last_reported_at TEXT,
+                last_job_total INTEGER NOT NULL DEFAULT 0
             );
             CREATE INDEX IF NOT EXISTS ix_print_tasks_queue
                 ON print_tasks(printer, state, sort_index);
@@ -76,6 +82,27 @@ class PrintPlanRepository:
             CREATE INDEX IF NOT EXISTS ix_print_task_events_task
                 ON print_task_events(task_id, id);
         """)
+        # Existing v2 draft databases may have been created before the
+        # interruption/resume feature. Migrate in place; never drop history.
+        names={row["name"] for row in self.db.execute(
+            "PRAGMA table_info(print_tasks)").fetchall()}
+        migration={
+            "parent_task_id":"TEXT",
+            "confirmed_last_page":"INTEGER",
+            "last_reported_pages":"INTEGER NOT NULL DEFAULT 0",
+            "last_reported_at":"TEXT",
+            "last_job_total":"INTEGER NOT NULL DEFAULT 0"
+        }
+        with self.db:
+            for column,definition in migration.items():
+                if column not in names:
+                    self.db.execute(
+                        f"ALTER TABLE print_tasks ADD COLUMN {column} {definition}")
+            self.db.execute("""
+                CREATE UNIQUE INDEX IF NOT EXISTS ix_print_resume_once
+                ON print_tasks(parent_task_id)
+                WHERE parent_task_id IS NOT NULL
+            """)
         self.db.commit()
 
     def _record(self, task_id, kind, detail=""):
@@ -92,7 +119,8 @@ class PrintPlanRepository:
                   WHEN 'planned' THEN 0
                   WHEN 'queued' THEN 1
                   WHEN 'verify' THEN 2
-                  WHEN 'verified' THEN 3 ELSE 4 END,
+                  WHEN 'resumed' THEN 3
+                  WHEN 'verified' THEN 4 ELSE 5 END,
                 sort_index ASC, created_at DESC
             LIMIT ?
         """, (max(1, min(int(limit), 1000)),)).fetchall()
@@ -210,29 +238,124 @@ class PrintPlanRepository:
         return True
 
     def reconcile(self):
-        """After journal.change(), identify missing jobs without auto-reprinting.
+        """Persist the last Windows page COUNTER for every linked job.
 
-        Only a successful Windows queue snapshot marks a job disappeared
-        in jobs.disappeared. Unreachable printers remain uncertain.
+        The counter may lag, jump, reset or mean sheets rather than PDF
+        pages. It is evidence only; never mark the last physical PDF
+        page as confirmed from this value.
         """
-        changed = 0
+        changed=0
         with self.db:
-            rows = self.db.execute("""
-                SELECT t.task_id, t.linked_job_key, j.disappeared
+            rows=self.db.execute("""
+                SELECT t.task_id,t.linked_job_key,t.last_reported_pages,
+                       t.last_job_total,
+                       j.key AS observed_key,j.pages,j.total,
+                       j.last_seen,j.disappeared
                 FROM print_tasks t
                 LEFT JOIN jobs j ON j.key=t.linked_job_key
                 WHERE t.state='queued'
             """).fetchall()
             for row in rows:
+                if row["observed_key"] is None:
+                    # No trusted observation; never assume printed.
+                    continue
+                pages=max(0,int(row["pages"] or 0))
+                total=max(0,int(row["total"] or 0))
+                # A driver can reset PagesPrinted: retain highest observed
+                # as a clue, but it still is NOT guaranteed printed pages.
+                highest=max(int(row["last_reported_pages"] or 0),pages)
+                stored_total=max(int(row["last_job_total"] or 0),total)
+                if (highest!=int(row["last_reported_pages"] or 0)
+                    or stored_total!=int(row["last_job_total"] or 0)):
+                    self.db.execute("""
+                        UPDATE print_tasks SET last_reported_pages=?,
+                            last_job_total=?,last_reported_at=?,updated_at=?
+                        WHERE task_id=? AND state='queued'
+                    """,(highest,stored_total,row["last_seen"],_now(),
+                          row["task_id"]))
+                    if highest!=int(row["last_reported_pages"] or 0):
+                        self._record(row["task_id"],"windows_pages",
+                            "Windows son gözlenen sayfa sayacı: "+str(highest)+
+                            " (fiziksel çıktı değil)")
                 if row["disappeared"] is None:
                     continue
-                changed += self.db.execute("""
+                updated=self.db.execute("""
                     UPDATE print_tasks SET state='verify',updated_at=?
                     WHERE task_id=? AND state='queued'
-                """, (_now(), row["task_id"])).rowcount
-                self._record(row["task_id"], "verify",
-                             "Windows işi kuyruktan çıktı; fiziksel baskı belirsiz")
+                """,(_now(),row["task_id"]))
+                if updated.rowcount:
+                    changed+=1
+                    self._record(row["task_id"],"verify",
+                        "Windows işi kuyruktan çıktı. Son sayaç: "+
+                        str(highest)+"; son fiziksel PDF sayfası bilinmiyor")
         return changed
+
+    def create_resume(self, task_id, last_confirmed_pdf_page, note):
+        """Create ONE safe new continuation plan after manual paper inspection.
+
+        The original queued job must already have disappeared. This method
+        never prints a PDF or issues a Windows spooler command.
+        """
+        note=str(note or "").strip()[:200]
+        if not note:
+            raise PrintPlanError(
+                "Kâğıt çıktısını inceleyip son sağlam PDF sayfasını not etmelisin.")
+        confirmed=int(last_confirmed_pdf_page)
+        with self.db:
+            source=self._task(task_id)
+            if source["state"]!="verify":
+                raise PrintPlanError(
+                    "Devam planı yalnız kuyruktan kaybolmuş ve sonucu "
+                    "belirsiz işler için oluşturulur. Önce aktif baskının "
+                    "yazıcıda tamamen durduğunu kontrol et.")
+            if self.db.execute(
+                "SELECT 1 FROM print_tasks WHERE parent_task_id=?",
+                (task_id,)).fetchone():
+                raise PrintPlanError(
+                    "Bu kesintiden zaten bir devam planı oluşturulmuş.")
+            lower=int(source["page_start"])-1
+            upper=int(source["page_end"] or 0)
+            if confirmed<lower or (upper and confirmed>upper):
+                raise PrintPlanError(
+                    "Son sağlam PDF sayfası planlanan sayfa aralığı dışında.")
+            if upper and confirmed==upper:
+                raise PrintPlanError(
+                    "Bütün planlanan sayfalar çıktıysa baskıyı fiziksel "
+                    "olarak teyit et; yeni devam planı gerekmiyor.")
+            new_start=confirmed+1
+            new_id=str(uuid.uuid4())
+            now=_now()
+            order=int(self.db.execute(
+                "SELECT COALESCE(MAX(sort_index),0)+1000 FROM print_tasks"
+            ).fetchone()[0])
+            # All information is copied as metadata, not PDF contents.
+            self.db.execute("""
+                INSERT INTO print_tasks(
+                    task_id,printer,book,book_code,pdf_path,pdf_bytes,
+                    pdf_mtime_ns,mode,copies,page_start,page_end,
+                    sort_index,state,created_at,updated_at,parent_task_id,
+                    confirmed_last_page,note
+                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            """,(new_id,source["printer"],source["book"],source["book_code"],
+                 source["pdf_path"],source["pdf_bytes"],
+                 source["pdf_mtime_ns"],source["mode"],source["copies"],
+                 new_start,source["page_end"],order,"planned",now,now,
+                 task_id,confirmed,note))
+            updated=self.db.execute("""
+                UPDATE print_tasks SET state='resumed',
+                    confirmed_last_page=?,note=?,updated_at=?
+                WHERE task_id=? AND state='verify'
+            """,(confirmed,note,now,task_id))
+            if updated.rowcount!=1:
+                raise PrintPlanError("Kesilen baskı başka cihazda değiştirildi.")
+            self._record(task_id,"resume_verified",
+                "Son sağlam PDF sayfası: "+str(confirmed)+
+                "; operatör teyidi: "+note)
+            self._record(new_id,"resume_created",
+                "Önceki iş: "+task_id+"; PDF başlangıç sayfası: "+str(new_start)+
+                "; otomatik yazdırma YOK")
+        return {"task_id":new_id,"resume_from":new_start}
+
 
     def verify(self, task_id, note):
         task = self._task(task_id)
