@@ -97,10 +97,11 @@ class PrintPlanPanel(QWidget):
         toolbar.addWidget(self.link_button)
         root.addLayout(toolbar)
 
-        self.table=QTableWidget(0,7)
+        self.table=QTableWidget(0,8)
         self.table.setHorizontalHeaderLabels([
             "Sıra","Yazıcı","Kitap / PDF","Baskı türü",
-            "Kopya · PDF sayfa aralığı","Durum","Windows kuyruk ID"
+            "Kopya · PDF sayfa aralığı","Durum",
+            "Son Windows sayacı","Windows kuyruk ID"
         ])
         self.table.setSelectionBehavior(
             QAbstractItemView.SelectionBehavior.SelectRows)
@@ -122,6 +123,12 @@ class PrintPlanPanel(QWidget):
         self.detail_button=QPushButton("İş geçmişi")
         self.detail_button.clicked.connect(self.inspect_task)
         footer.addWidget(self.detail_button)
+        self.resume_button=QPushButton("↻ Kesilen baskıya devam")
+        self.resume_button.setToolTip(
+            "Windows'un son sayacını gösterir; kontrol ettiğin son sağlam "
+            "PDF sayfasından yeni baskı planı oluşturur, otomatik basmaz.")
+        self.resume_button.clicked.connect(self.resume_task)
+        footer.addWidget(self.resume_button)
         self.verify_button=QPushButton("✓ Fiziksel baskıyı teyit et")
         self.verify_button.clicked.connect(self.verify_task)
         footer.addWidget(self.verify_button)
@@ -192,6 +199,10 @@ class PrintPlanPanel(QWidget):
         self.cancel_button.setEnabled(planned)
         self.verify_button.setEnabled(bool(
             task and task["state"] in ("queued","verify")))
+        self.resume_button.setEnabled(bool(
+            task and task["state"]=="verify" and
+            not any(t.get("parent_task_id")==task["task_id"]
+                    for t in self._tasks)))
         self.detail_button.setEnabled(bool(task))
 
     def render(self):
@@ -213,10 +224,14 @@ class PrintPlanPanel(QWidget):
             name=t["book"]+(f"\n{t['book_code']}" if t["book_code"] else "")
             job=(str(t["linked_job_key"])[:12]+"…"
                  if t.get("linked_job_key") else "Henüz eşleşmedi")
+            reported=int(t.get("last_reported_pages") or 0)
+            last_counter=(f"{reported} (fiziksel değil)" if
+                          t.get("last_reported_at") else "Bilinmiyor")
             values=[
                 str(t["sort_index"]),t["printer"],name,mode,
                 f"{t['copies']} kopya · {pages}",
-                STATE_NAMES.get(t["state"],t["state"]),job
+                STATE_NAMES.get(t["state"],t["state"]),
+                last_counter,job
             ]
             for j,val in enumerate(values):
                 item=QTableWidgetItem(str(val))
@@ -225,6 +240,10 @@ class PrintPlanPanel(QWidget):
                 if j==2:
                     item.setToolTip(str(t.get("pdf_path") or
                                         "Yerel PDF yolu eklenmedi"))
+                if j==6:
+                    item.setToolTip(
+                        "Windows PagesPrinted sayacı. Son fiziksel "
+                        "çıkan PDF sayfası olmayabilir; kâğıdı kontrol edin.")
                 self.table.setItem(i,j,item)
         self.table.blockSignals(False)
         if restore_row>=0:
@@ -394,6 +413,77 @@ class PrintPlanPanel(QWidget):
         except (PrintPlanError,sqlite3.Error) as exc:
             QMessageBox.warning(self,"Baskı teyidi",str(exc)[:220])
 
+    def resume_task(self):
+        task=self._selected()
+        if not task or task["state"]!="verify":return
+        reported=int(task.get("last_reported_pages") or 0)
+        observed=(f"{reported} sayfa" if task.get("last_reported_at")
+                  else "Bilinmiyor")
+        estimated=""
+        if task.get("last_reported_at") and reported>0 and int(task["copies"])==1:
+            # Illustrative mapping ONLY, and explicitly not treated as
+            # physical truth for duplex, N-up or other driver settings.
+            possible=int(task["page_start"])+reported-1
+            end=int(task["page_end"] or 0)
+            if not end or possible<=end:
+                estimated=(f"\nYalnız bire-bir sıralı baskı varsayımıyla "
+                           f"olası PDF sayfası: {possible} (KESİN DEĞİL).")
+        details=(
+            f"Kitap: {task['book']}\nYazıcı: {task['printer']}\n"
+            f"Baskı türü: {task['mode']} · Kopya: {task['copies']}\n"
+            f"Windows'un en son sayacı: {observed}.{estimated}\n\n"
+            "Windows sayacı gerçek kâğıt çıktısını kanıtlamaz.\n"
+            "Yazıcının arabelleğinde hâlâ devam eden iş olmadığını kontrol et.\n"
+            "Çıkan kâğıtları inceleyip SON TAM VE SAĞLAM PDF SAYFASINI "
+            "kendin teyit et. O sayfadan sonraki sayfa için ayrı bir "
+            "baskı planı oluşacak; otomatik yazdırma YAPILMAYACAK."
+        )
+        choice=QMessageBox.question(
+            self,"Kesilen baskıya devam · Son sayfa kontrolü",
+            details,
+            QMessageBox.StandardButton.Yes|
+            QMessageBox.StandardButton.No)
+        if choice!=QMessageBox.StandardButton.Yes:return
+        first=int(task["page_start"])
+        upper=int(task["page_end"] or 0)
+        maximum=upper if upper else 100000
+        confirmed,ok=QInputDialog.getInt(
+            self,"Son sağlam basılan PDF sayfası",
+            f"Son tamamlanmış PDF sayfası ({first-1}=hiç çıkmadı):",
+            first-1,first-1,maximum,1)
+        if not ok:return
+        next_page=confirmed+1
+        confirm=QMessageBox.question(
+            self,"Devam sayfasını onayla",
+            f"Son sağlam PDF sayfası: {confirmed}\n"
+            f"YENİ BASKI BAŞLANGICI: PDF SAYFA {next_page}\n"
+            f"Mevcut yazıcı: {task['printer']}\n"
+            f"Kopya: {task['copies']}\n\n"
+            "Kâğıtları ve PDF sayfa numaralarını doğruladın mı? "
+            "Çift baskı olmaması için yazıcının eski işi "
+            "sürdürmediğinden emin ol.",
+            QMessageBox.StandardButton.Yes|
+            QMessageBox.StandardButton.No)
+        if confirm!=QMessageBox.StandardButton.Yes:return
+        note,ok=QInputDialog.getText(
+            self,"Baskıya devam · Kontrol notu",
+            "Hangi sayfaları kontrol ettin? Kesilme nedeni/tespit:")
+        if not ok or not note.strip():return
+        try:
+            created=self.repo.create_resume(task["task_id"],confirmed,note)
+            self._selected_id=created["task_id"]
+            self.reload()
+            QMessageBox.information(
+                self,"Yeni devam planı kaydedildi",
+                f"{task['book']}\n"
+                f"Başlangıç PDF sayfası: {created['resume_from']}\n"
+                f"Yazıcı: {task['printer']}\n\n"
+                "Bu bir plan kaydıdır; PDF otomatik gönderilmedi. "
+                "Kaynak PDF'yi belirtilen sayfadan yazdırıp "
+                "Windows kuyruğundaki yeni iş ile eşleştir.")
+        except (PrintPlanError,sqlite3.Error,ValueError) as exc:
+            QMessageBox.warning(self,"Devam planı oluşturulamadı",str(exc)[:260])
+
     def cancel_task(self):
         task=self._selected()
         if not task:return
@@ -425,6 +515,14 @@ class PrintPlanPanel(QWidget):
             f"Mod: {task['mode']} · Kopya: {task['copies']}",
             "Durum: "+STATE_NAMES.get(task["state"],task["state"]),
             "Windows iş anahtarı: "+str(task["linked_job_key"] or "Henüz yok"),
+            "Son Windows sayacı: "+
+                (str(task.get("last_reported_pages") or 0)+" sayfa (fiziksel teyit DEĞİL)"
+                 if task.get("last_reported_at") else "Bilinmiyor"),
+            "Windows sayaç zamanı: "+str(task.get("last_reported_at") or "—"),
+            "Kontrol edilmiş son PDF sayfası: "+
+                (str(task["confirmed_last_page"]) if
+                 task.get("confirmed_last_page") is not None else "Henüz yok"),
+            "Devam edilen iş: "+str(task.get("parent_task_id") or "—"),
             "Son not: "+str(task["note"] or "—"),
             "\nOlaylar:",
         ]
