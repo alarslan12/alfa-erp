@@ -15,11 +15,12 @@ from PySide6.QtWidgets import (
     QApplication, QWidget, QFrame, QVBoxLayout, QHBoxLayout, QGridLayout,
     QLabel, QPushButton, QComboBox, QScrollArea, QTabWidget, QTableWidget,
     QTableWidgetItem, QHeaderView, QDialog, QListWidget, QAbstractItemView,
-    QInputDialog, QMessageBox, QSpinBox, QSystemTrayIcon
+    QInputDialog, QMessageBox, QSpinBox, QSystemTrayIcon, QCheckBox
 )
 
 from alfa_print_monitor import PrintJournal, PrintMonitor, ACTIVE, MIB
 from ekran_baski_plani import PrintPlanPanel
+from alfa_print_runtime import PrintAgentStartup
 
 
 STATUS_LABELS = {
@@ -161,6 +162,7 @@ class PrintSurveillanceView(QWidget):
         self._worker=None
         self._tray=None
         self._read_layout()
+        self._agent_pref=PrintAgentStartup(self.data_dir)
 
         outer=QVBoxLayout(self)
         outer.setContentsMargins(10,8,10,10);outer.setSpacing(9)
@@ -205,6 +207,14 @@ class PrintSurveillanceView(QWidget):
         self.threshold.setValue(self.size_warning_mb)
         self.threshold.valueChanged.connect(self._threshold_changed)
         options.addWidget(self.threshold)
+        self.agent_toggle=QCheckBox("Windows açılışında arka planda izle")
+        self.agent_toggle.setToolTip(
+            "İsteğe bağlı kullanıcı oturumu ajanı. Windows hizmeti kurmaz; "
+            "PDF veya yazdırma işlerini buluta göndermez.")
+        self.agent_toggle.setEnabled(self._agent_pref.available)
+        self.agent_toggle.setChecked(self._agent_pref.enabled())
+        self.agent_toggle.toggled.connect(self._agent_changed)
+        options.addWidget(self.agent_toggle)
         outer.addLayout(options)
 
         self.tabs=QTabWidget()
@@ -316,6 +326,26 @@ class PrintSurveillanceView(QWidget):
         if self._worker:
             self._worker.size_warning_mb=self.size_warning_mb
         self._save_layout()
+
+    def _agent_changed(self,enabled):
+        try:
+            self._agent_pref.set_enabled(enabled)
+        except (OSError,ValueError) as exc:
+            self.agent_toggle.blockSignals(True)
+            self.agent_toggle.setChecked(self._agent_pref.enabled())
+            self.agent_toggle.blockSignals(False)
+            QMessageBox.warning(self,"Windows izleme ajanı",
+                                "Başlangıç ayarı değiştirilemedi: "+str(exc)[:220])
+            return
+        QMessageBox.information(
+            self,"Windows izleme ajanı",
+            ("Yazdırma izleme ajanı kullanıcı oturumuna eklendi ve başlatıldı. "
+             "ALFA ERP kapansa da Windows oturumu boyunca takip eder. "
+             "Görev çubuğundan durdurabilirsiniz."
+             if enabled else
+             "Oturum açılışındaki otomatik başlatma kapatıldı. "
+             "Şu anda çalışan ajan varsa sistem tepsisinden ayrıca durdurun.")
+        )
 
     def _configure_order(self):
         printers=self._last_snapshot["printers"] if self._last_snapshot else []
