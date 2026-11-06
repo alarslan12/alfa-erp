@@ -17,6 +17,7 @@ import time
 
 from PySide6.QtCore import QThread, Signal
 from alfa_print_events import WinPrintChangeFeed, RECONCILE_MS, FALLBACK_MS
+from alfa_print_plan import PrintPlanRepository
 
 ACTIVE = {"bekliyor", "aktarılıyor", "yazdırılıyor", "duraklatıldı",
           "çevrimdışı", "kağıt_yok", "müdahale", "bloklandı", "hata"}
@@ -255,8 +256,26 @@ class PrintJournal:
             CREATE TABLE IF NOT EXISTS labels(
                 job_key TEXT PRIMARY KEY, book TEXT, mode TEXT
             );
+            CREATE TABLE IF NOT EXISTS monitor_sessions(
+                session_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                pid INTEGER, started_at TEXT NOT NULL, closed_at TEXT
+            );
         """)
         self.db.commit()
+        previous=self.db.execute("""
+            SELECT session_id, closed_at FROM monitor_sessions
+            ORDER BY session_id DESC LIMIT 1
+        """).fetchone()
+        if previous and previous["closed_at"] is None:
+            with self.db:
+                self._event("",_utc(),"","oturum_kurtarma",
+                            "Önceki izleme oturumu düzgün kapanmamış veya hâlâ açık; "
+                            "eski baskılar fiziksel olarak tamamlandı sayılmadı")
+        with self.db:
+            cur=self.db.execute("""
+                INSERT INTO monitor_sessions(pid,started_at) VALUES(?,?)
+            """,(os.getpid(),_utc()))
+            self.session_id=cur.lastrowid
 
     def change(self, printers, size_warning_mb=250):
         """Apply only changes: don't write to SSD on every unchanged poll."""
@@ -349,7 +368,14 @@ class PrintJournal:
             """,(str(key),book,mode))
 
     def close(self):
-        self.db.close()
+        try:
+            with self.db:
+                self.db.execute("""
+                    UPDATE monitor_sessions SET closed_at=?
+                    WHERE session_id=? AND closed_at IS NULL
+                """,(_utc(),self.session_id))
+        finally:
+            self.db.close()
 
 
 class PrintMonitor(QThread):
@@ -402,6 +428,7 @@ class PrintMonitor(QThread):
 
     def run(self):
         journal=None
+        planner=None
         feed=None
         try:
             if os.name!="nt":
@@ -409,6 +436,7 @@ class PrintMonitor(QThread):
                 return
             probe=WinSpoolProbe()
             journal=PrintJournal(self.data_dir)
+            planner=PrintPlanRepository(self.data_dir)
             try:
                 feed=WinPrintChangeFeed(probe)
             except (OSError,AttributeError) as exc:
@@ -424,6 +452,9 @@ class PrintMonitor(QThread):
                     if feed is not None:
                         feed.sync([item["name"] for item in printers])
                     alarms=journal.change(printers,self.size_warning_mb)
+                    # A queue entry vanishing is a review state, not proof
+                    # of successful printing or permission to resend.
+                    planner.reconcile()
                     stale_alerts=self._check_progress(printers)
                     rows=journal.recent(160)
                     tagged={j["key"]:j for j in rows}
@@ -435,6 +466,7 @@ class PrintMonitor(QThread):
                     self.updated.emit({
                         "printers":printers, "recent":rows,
                         "events":journal.events(25),
+                        "tasks":planner.list(300),
                         "captured_at":_utc()
                     })
                     if not first:
@@ -461,5 +493,7 @@ class PrintMonitor(QThread):
         finally:
             if feed is not None:
                 feed.close()
+            if planner is not None:
+                planner.close()
             if journal is not None:
                 journal.close()
