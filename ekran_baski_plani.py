@@ -183,6 +183,8 @@ class PrintPlanPanel(QWidget):
 
     def _selection_changed(self):
         task=self._selected()
+        if task is not None:
+            self._selected_id=task["task_id"]
         planned=bool(task and task["state"]=="planned")
         self.up_button.setEnabled(planned)
         self.down_button.setEnabled(planned)
@@ -347,7 +349,7 @@ class PrintPlanPanel(QWidget):
         choice,ok=QInputDialog.getItem(
             self,"Gerçek Windows kuyruğu işi",
             "Planlanan kitabı bu Windows işiyle eşleştirin:",lines,0,False)
-        if not ok:return
+        if not ok or choice not in lines:return
         index=lines.index(choice)
         job=choices[index]
         confirm=QMessageBox.question(
