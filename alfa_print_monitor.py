@@ -20,6 +20,8 @@ from PySide6.QtCore import QThread, Signal
 from alfa_print_events import WinPrintChangeFeed, RECONCILE_MS, FALLBACK_MS
 from alfa_print_plan import PrintPlanRepository
 from alfa_print_ipp import IppSettings, IppReader, IppTelemetryError
+from alfa_print_snmp import SnmpSettings, SnmpReader, SnmpTelemetryError
+from alfa_print_vendor import WinPrinterVendorInventory, installed_vendor_tools
 from alfa_print_runtime import PrintCollectorLease
 
 ACTIVE = {"bekliyor", "aktarılıyor", "yazdırılıyor", "duraklatıldı",
@@ -521,6 +523,20 @@ class PrintMonitor(QThread):
             ipp_warnings=[]
             ipp_last_probe=0.0
             ipp_cursor=0
+            # Optional SNMPv2c is read-only and explicitly configured per
+            # Windows printer; encrypted community never enters snapshots.
+            snmp_settings=SnmpSettings(self.data_dir)
+            snmp_reader=SnmpReader(timeout=1.0)
+            snmp_devices={}
+            snmp_cursor=0
+            snmp_last=0.0
+            snmp_warnings=[]
+            # Windows driver and installed Epson/Canon utilities are read
+            # only every five minutes, not on each queue event.
+            vendor_reader=WinPrinterVendorInventory(probe.api)
+            vendor_devices={}
+            vendor_tools=[]
+            vendor_last=0.0
             try:
                 feed=WinPrintChangeFeed(probe)
             except (OSError,AttributeError) as exc:
@@ -533,6 +549,11 @@ class PrintMonitor(QThread):
             while not self.isInterruptionRequested():
                 try:
                     printers=probe.snapshot()
+                    if time.monotonic()-vendor_last>=300:
+                        vendor_last=time.monotonic()
+                        vendor_devices=vendor_reader.snapshot(
+                            [p["name"] for p in printers])
+                        vendor_tools=installed_vendor_tools()
                     if feed is not None:
                         feed.sync([item["name"] for item in printers])
                     alarms=journal.change(printers,self.size_warning_mb)
@@ -589,6 +610,37 @@ class PrintMonitor(QThread):
                                         # Some printers immediately erase
                                         # completed jobs; keep last reading.
                                         continue
+                    # Only explicit, private-IP SNMP devices are queried.
+                    # At most one device per 30s cycle; timeout is bounded.
+                    if time.monotonic()-snmp_last>=30:
+                        snmp_last=time.monotonic()
+                        devices=snmp_settings.read()
+                        snmp_devices={
+                            name:data for name,data in snmp_devices.items()
+                            if name in devices}
+                        names=sorted(devices)
+                        if names:
+                            name=names[snmp_cursor%len(names)]
+                            snmp_cursor+=1
+                            item=devices[name]
+                            prior=snmp_devices.get(name) or {}
+                            try:
+                                info=snmp_reader.snapshot(
+                                    item["ip"],item["community"])
+                                info["error"]=""
+                                snmp_devices[name]=info
+                                if (prior.get("alerts") is not None
+                                    and info.get("alerts")!=prior.get("alerts")
+                                    and info.get("alerts")):
+                                    snmp_warnings.append(
+                                        name+": "+", ".join(info["alerts"][:2])[:120])
+                            except (SnmpTelemetryError,OSError) as exc:
+                                snmp_devices[name]={
+                                    "source":"SNMPv2c · Printer-MIB (yalnız okuma)",
+                                    "error":str(exc)[:180],
+                                    "status":"erişilemiyor",
+                                    "seen_at":prior.get("seen_at") or ""
+                                }
                     rows=journal.recent(160)
                     tagged={j["key"]:j for j in rows}
                     for p in printers:
@@ -601,6 +653,9 @@ class PrintMonitor(QThread):
                         "events":journal.events(25),
                         "tasks":planner.list(300),
                         "ipp":ipp_devices,
+                        "snmp":snmp_devices,
+                        "vendor":vendor_devices,
+                        "vendor_software":vendor_tools,
                         "captured_at":_utc()
                     }
                     journal.publish_snapshot(snapshot)
@@ -610,6 +665,9 @@ class PrintMonitor(QThread):
                     for notice in ipp_warnings[:3]:
                         self.warning.emit("IPP cihaz uyarısı · "+notice)
                     ipp_warnings.clear()
+                    for notice in snmp_warnings[:3]:
+                        self.warning.emit("SNMP yazıcı uyarısı · "+notice)
+                    snmp_warnings.clear()
                     for item in interruptions[:3]:
                         self.warning.emit(
                             "BASKI KESINTİSİ · "+str(item["book"])[:75]+
