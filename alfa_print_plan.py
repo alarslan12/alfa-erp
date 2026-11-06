@@ -68,7 +68,13 @@ class PrintPlanRepository:
                 confirmed_last_page INTEGER,
                 last_reported_pages INTEGER NOT NULL DEFAULT 0,
                 last_reported_at TEXT,
-                last_job_total INTEGER NOT NULL DEFAULT 0
+                last_job_total INTEGER NOT NULL DEFAULT 0,
+                ipp_job_id INTEGER,
+                ipp_impressions INTEGER,
+                ipp_sheets INTEGER,
+                ipp_state TEXT,
+                ipp_job_name TEXT,
+                ipp_seen_at TEXT
             );
             CREATE INDEX IF NOT EXISTS ix_print_tasks_queue
                 ON print_tasks(printer, state, sort_index);
@@ -91,7 +97,13 @@ class PrintPlanRepository:
             "confirmed_last_page":"INTEGER",
             "last_reported_pages":"INTEGER NOT NULL DEFAULT 0",
             "last_reported_at":"TEXT",
-            "last_job_total":"INTEGER NOT NULL DEFAULT 0"
+            "last_job_total":"INTEGER NOT NULL DEFAULT 0",
+            "ipp_job_id":"INTEGER",
+            "ipp_impressions":"INTEGER",
+            "ipp_sheets":"INTEGER",
+            "ipp_state":"TEXT",
+            "ipp_job_name":"TEXT",
+            "ipp_seen_at":"TEXT"
         }
         with self.db:
             for column,definition in migration.items():
@@ -235,6 +247,87 @@ class PrintPlanRepository:
                 INSERT OR IGNORE INTO labels(job_key,book,mode)
                 VALUES(?,?,?)
             """, (job_key, task["book"], task["mode"]))
+        return True
+
+    def link_ipp_job(self,task_id,ipp_job_id):
+        """Operator links a REAL device IPP id (never Windows JobId).
+
+        No inference from a job name or Windows id is permitted.
+        """
+        try:job_id=int(ipp_job_id)
+        except (TypeError,ValueError) as exc:
+            raise PrintPlanError("IPP iş numarası sayısal olmalı.") from exc
+        if not 1<=job_id<2**31:
+            raise PrintPlanError("IPP iş numarası geçersiz.")
+        with self.db:
+            task=self._task(task_id)
+            if task["state"] not in ("queued","verify"):
+                raise PrintPlanError(
+                    "Önce baskı planını gerçek Windows kuyruğu işiyle eşleştir.")
+            existing=self.db.execute("""
+                SELECT task_id FROM print_tasks
+                WHERE printer=? AND ipp_job_id=? AND task_id!=?
+                AND state IN ('queued','verify')
+            """,(task["printer"],job_id,task_id)).fetchone()
+            if existing:
+                raise PrintPlanError(
+                    "Bu IPP iş numarası aynı yazıcıda başka aktif baskıya bağlı.")
+            if task["ipp_job_id"] is not None:
+                if int(task["ipp_job_id"])==job_id:return False
+                raise PrintPlanError(
+                    "İşin IPP numarası zaten kaydedilmiş; geçmişi "
+                    "yanlış eşleşmeden korumak için değiştirilemez.")
+            update=self.db.execute("""
+                UPDATE print_tasks SET ipp_job_id=?,updated_at=?
+                WHERE task_id=? AND ipp_job_id IS NULL
+            """,(job_id,_now(),task_id))
+            if update.rowcount!=1:
+                raise PrintPlanError("IPP bağlantısı başka işlemde değişti.")
+            self._record(task_id,"ipp_link",
+                         "Operatör IPP cihaz iş numarasını doğruladı: "+
+                         str(job_id)+" (Windows JobId değil)")
+        return True
+
+    def record_ipp_report(self,task_id,ipp_job_id,report):
+        """Persist read-only device readings; never infer a PDF page.
+
+        IPP job-impressions-completed is an impression count, while
+        job-media-sheets-completed counts media sheets where supported.
+        Neither maps reliably to the last intact physical PDF page.
+        """
+        with self.db:
+            task=self._task(task_id)
+            if task["ipp_job_id"] is None or int(task["ipp_job_id"])!=int(ipp_job_id):
+                return False
+            values={}
+            for attr,field in (("impressions","ipp_impressions"),
+                               ("sheets","ipp_sheets")):
+                raw=report.get(attr)
+                if isinstance(raw,int) and 0<=raw<2**31:
+                    # Some devices reset counters; retain the maximum as
+                    # historical observation, not proof of physical pages.
+                    previous=task.get(field)
+                    values[field]=max(int(previous or 0),raw)
+            state=str(report.get("state") or "")[:80]
+            name=str(report.get("name") or "")[:120]
+            if (all(task.get(k)==v for k,v in values.items()) and
+                    task.get("ipp_state")==state and
+                    task.get("ipp_job_name")==name):
+                return False
+            self.db.execute("""
+                UPDATE print_tasks SET ipp_impressions=COALESCE(?,ipp_impressions),
+                    ipp_sheets=COALESCE(?,ipp_sheets),ipp_state=?,
+                    ipp_job_name=?,ipp_seen_at=?,updated_at=?
+                WHERE task_id=? AND ipp_job_id=?
+            """,(values.get("ipp_impressions"),values.get("ipp_sheets"),
+                 state,name,str(report.get("seen_at") or _now()),
+                 _now(),task_id,int(ipp_job_id)))
+            self._record(task_id,"ipp_progress",
+                "Cihaz bildirimi: "+state+
+                "; impressions="+str(values.get("ipp_impressions",
+                                               task.get("ipp_impressions")))+
+                "; sheets="+str(values.get("ipp_sheets",task.get("ipp_sheets")))+
+                " (PDF sayfası değil)")
         return True
 
     def reconcile(self):
