@@ -572,7 +572,15 @@ class ERPDatabase:
                 if converted is None:
                     changed.append(current['id']);self.siparisler.remove(current)
                 elif current is not None:
-                    sid=current['id'];current.clear();current.update(converted);current['id']=sid;changed.append(sid)
+                    sid=current['id']
+                    # Preserve local in-flight recipient/shipment details while older
+                    # cloud snapshots lack these fields; newer cloud values win.
+                    for key in ('alici_adi','telefon','adres','il','ilce','alici_il_id','alici_ilce_id',
+                                'brut_tutar','kargonomi_shipment_id','kargonomi_desi',
+                                'kargonomi_firma_id','kargonomi_onaylandi','kargonomi_barkod_yolu'):
+                        if key not in converted and key in current:
+                            converted[key]=current[key]
+                    current.clear();current.update(converted);current['id']=sid;changed.append(sid)
                 else:
                     intended=int(converted.get('bulut_siparis_no') or 0)
                     sid=intended if intended>=1 and intended not in ids else latest+1
