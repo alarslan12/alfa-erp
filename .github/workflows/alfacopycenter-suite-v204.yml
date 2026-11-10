@@ -5,7 +5,7 @@ on:
     branches:
       - fix/banner-archive-export-20261110
     paths:
-      - '.github/workflows/alfacopycenter-suite-v205.yml'
+      - '.github/workflows/alfacopycenter-suite-v204.yml'
       - 'ALFA_BUILD_WINDOWS.ps1'
       - 'ALFA_BUILD_SUITE_WINDOWS.ps1'
       - 'ALFACOPYCENTER_Suite.iss'
