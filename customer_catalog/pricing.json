@@ -1,0 +1,7 @@
+{
+  "_description": "Amounts in TRY. Populate only with verified current selling prices; never invent amounts. Every unit book code requires a price for an exact total.",
+  "currency": "TRY",
+  "units": {},
+  "segments": {},
+  "sets": []
+}
