@@ -1185,7 +1185,15 @@ class ERPDatabase:
                 "platform": str(alanlar.get("platform", "Manuel"))[:100],
                 "kod": str(alanlar["kod"]).strip()[:500], "ciro": ciro,
                 "siparis_turu": str(alanlar.get("siparis_turu", ""))[:100],
-                "durum": "havuz", "kitaplar": temiz}
+                "durum": "havuz", "kitaplar": temiz,
+                "brut_tutar": float(alanlar.get("brut_tutar",ciro) or 0),
+                "alici_adi": str(alanlar.get("alici_adi",""))[:255],
+                "telefon": str(alanlar.get("telefon",""))[:20],
+                "adres": str(alanlar.get("adres",""))[:512],
+                "il": str(alanlar.get("il",""))[:120],
+                "ilce": str(alanlar.get("ilce",""))[:120],
+                "alici_il_id": str(alanlar.get("alici_il_id",""))[:20],
+                "alici_ilce_id": str(alanlar.get("alici_ilce_id",""))[:20]}
         self.siparisler.append(yeni)
         try:
             self.siparisleri_kaydet()
