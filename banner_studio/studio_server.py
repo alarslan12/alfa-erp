@@ -15,18 +15,25 @@ import re
 import shutil
 import zipfile
 import tempfile
+import threading
 import secrets
 import socket
 import sys
 import time
 from urllib.parse import urlsplit, parse_qs, unquote
 import webbrowser
+from alfa_guncelleme import check_for_update,download_update,launch_update,UpdateError
 
 from PIL import Image
 from banner_engine import (Renderer, Settings, read_excel, cover_files,
                            get_cover, PALETTES, LAYOUTS, STYLES, square_preview)
 import studio_library as library
 
+SUITE_VERSION='2.0.5'
+UPDATE_NONCE=secrets.token_urlsafe(32)
+UPDATE_LOCK=threading.RLock()
+UPDATE_STATE={'release':None,'verified':None,'busy':False}
+SUITE_STORAGE=Path(os.environ.get('LOCALAPPDATA') or Path.home())/'ALFA_Banner_Studio_Pro'
 BASE=Path(__file__).resolve().parent
 # User data survives replacing/upgrading the extracted application folder.
 DATA=library.ROOT.parent/'Calisma'
@@ -172,6 +179,15 @@ class Handler(SimpleHTTPRequestHandler):
                 return self._response({'error':'Arşiv kapağı bulunamadı'},404)
             return self._binary(path.read_bytes(),
                 'image/png' if path.suffix=='.png' else 'image/webp' if path.suffix=='.webp' else 'image/jpeg')
+        if req.path=='/api/update/check':
+            try:
+                release=check_for_update(SUITE_VERSION,'banner')
+                with UPDATE_LOCK:
+                    UPDATE_STATE['release']=release
+                    UPDATE_STATE['verified']=None
+                return self._response({'release':release,'current':SUITE_VERSION})
+            except (UpdateError,OSError,ValueError) as exc:
+                return self._response({'error':str(exc)[:280]},503)
         if req.path=='/api/library/list':
             return self._response({'items':library.list_designs(limit=5000),'folder':str(library.ROOT)})
         if req.path=='/api/library/png':
@@ -209,7 +225,9 @@ class Handler(SimpleHTTPRequestHandler):
             return self._response({'catalog':CATALOG,'settings':config,'books':selected,
                    'palettes':PALETTES,'styles':STYLES,'layouts':LAYOUTS,
                    'covers':len(COVER_IDX[0]),'cover_status':_cover_status(),
-                   'version':'3.5 - arşiv kartları, konum seçerek PNG dışa aktarma ve sabit başlıklar',
+                   'version':'3.6 - ayarlar ve uygulama içi güvenli güncellemeler',
+                   'suite_version':SUITE_VERSION,
+                   'update_nonce':UPDATE_NONCE,
                    'library_total':len(library.list_designs())})
         if req.path=='/api/custom-cover':
             filename=_safe_filename((q.get('name') or [''])[0])
@@ -240,6 +258,46 @@ class Handler(SimpleHTTPRequestHandler):
         global CATALOG,COVER_IDX,CATALOG_FILE
         path=urlsplit(self.path).path
         try:
+            if path in ('/api/update/download','/api/update/install'):
+                # A local page can update itself; a website in another tab cannot.
+                origin=self.headers.get('Origin','')
+                expected=f'http://127.0.0.1:{self.server.server_port}'
+                if (origin and origin!=expected) or self.headers.get('Content-Type','').split(';')[0].strip()!='application/json':
+                    return self._response({'error':'Güvenilmeyen güncelleme isteği'},403)
+                body=json.loads(_read_body(self,4_096))
+                if body.get('nonce')!=UPDATE_NONCE:
+                    return self._response({'error':'Güncelleme oturumu doğrulanamadı'},403)
+                if path=='/api/update/download':
+                    with UPDATE_LOCK:
+                        if UPDATE_STATE['busy']:
+                            return self._response({'error':'Güncelleme işlemi zaten sürüyor'},409)
+                        release=UPDATE_STATE['release']
+                        if not isinstance(release,dict) or not release.get('available'):
+                            return self._response({'error':'Önce yeni sürümü kontrol et'},409)
+                        UPDATE_STATE['busy']=True
+                    try:
+                        verified=download_update(release,SUITE_STORAGE)
+                        with UPDATE_LOCK:UPDATE_STATE['verified']=verified
+                        return self._response({'success':True,'version':verified['version']})
+                    finally:
+                        with UPDATE_LOCK:UPDATE_STATE['busy']=False
+                with UPDATE_LOCK:
+                    if UPDATE_STATE['busy']:
+                        return self._response({'error':'Güncelleme işlemi sürüyor'},409)
+                    verified=UPDATE_STATE['verified']
+                    if not verified:
+                        return self._response({'error':'Kurulum henüz indirilip doğrulanmadı'},409)
+                    UPDATE_STATE['busy']=True
+                try:
+                    launch_update(verified,SUITE_STORAGE,sys.executable)
+                    self._response({'success':True,'message':'Kurulum hazırlanıyor; Banner Studio kapanacak.'})
+                    # A detached helper waits for this process to exit and
+                    # installs the suite after rechecking SHA-256.
+                    threading.Thread(target=self.server.shutdown,daemon=True).start()
+                    return
+                except Exception:
+                    with UPDATE_LOCK:UPDATE_STATE['busy']=False
+                    raise
             if path in ('/api/render','/api/export','/api/library/save'):
                 body=json.loads(_read_body(self,1_500_000))
                 cfg=_settings(body.get('settings') or {})
