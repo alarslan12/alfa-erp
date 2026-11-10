@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0e1c31"><meta name="description" content="alfacopycenter TUS, DUS, YDUS kitap kataloğu ve set seçimi">
+<title>alfacopycenter · Akademik Kitap Kataloğu</title>
+<style>
+:root{font-family:Inter,system-ui,"Segoe UI",sans-serif;color:#17253a;background:#f6f5f1;--navy:#12263f;--gold:#ba965a;--line:#dfe4e9;--sub:#67768a;--white:#fff}
+*{box-sizing:border-box}body{margin:0}button,input,select{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #ba965a;outline-offset:2px}
+button:disabled{opacity:.48;cursor:not-allowed}h1,h2,h3,p{margin-top:0}h1{font-size:clamp(2rem,4.5vw,3.4rem);line-height:1.08;letter-spacing:-.04em}h2{font-size:1.35rem;letter-spacing:-.02em}h3{font-size:1rem}
+.top{background:var(--navy);color:white}.top-inner{max-width:1400px;margin:auto;display:flex;align-items:center;justify-content:space-between;gap:20px;padding:18px 25px}.brand{display:flex;align-items:center;gap:12px;text-decoration:none;color:inherit}.mark{width:46px;height:46px;border:1.5px solid var(--gold);border-radius:50%;display:grid;place-items:center;font-family:Georgia,serif;font-size:21px;color:#ddc190}.brand strong{font-size:1.17rem;letter-spacing:-.03em}.brand small{display:block;font-size:11px;letter-spacing:.13em;color:#bfc9d8}.pill{border:1px solid #647288;border-radius:100px;padding:8px 12px;font-size:12px;color:#d9e3f2}
+.hero{background:linear-gradient(120deg,#12263f,#253c58);color:#fff;padding:48px 22px 66px}.hero-inner{max-width:1360px;margin:auto;display:flex;justify-content:space-between;align-items:center;gap:25px}.eyebrow{text-transform:uppercase;letter-spacing:.17em;font-size:11px;color:#dbbb81;font-weight:700}.hero p{color:#cbd6e4;max-width:600px;line-height:1.6}.hero-stat{border:1px solid #ffffff35;padding:20px 27px;border-radius:18px;color:#e6eaf1;white-space:nowrap}.hero-stat strong{display:block;font-size:28px;color:#e3c48d}
+.shell{max-width:1400px;margin:-32px auto 0;padding:0 22px 70px;position:relative}.panel{background:#fff;border:1px solid var(--line);box-shadow:0 8px 34px #14283a0b;border-radius:18px}.toolbar{padding:21px;display:grid;grid-template-columns:minmax(0,1fr) 230px;gap:15px}.toolbar input,.toolbar select,.field input{width:100%;border:1px solid #dce2e7;border-radius:11px;padding:14px;background:#fff;color:#17253a;min-height:48px}.toolbar input{font-size:16px}.helper{font-size:12px;color:var(--sub);margin:11px 3px 0;grid-column:1/-1}.helper kbd{background:#f1f3f6;padding:3px 6px;border-radius:6px;color:#4a586b}
+.quick{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0 18px}.chip{background:#fff;color:#253853;border:1px solid #d9e0e8;padding:10px 15px;border-radius:50px;font-weight:650;font-size:13px}.chip:hover,.chip.active{background:#172d47;color:#fff}
+.content{display:grid;grid-template-columns:minmax(0,1fr) 348px;align-items:start;gap:18px}.left-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:7px 4px 17px}.left-head small{color:var(--sub)}.actions{display:flex;gap:8px;flex-wrap:wrap}.button{border:0;border-radius:10px;padding:12px 14px;background:#1b334f;color:white;font-weight:700;min-height:42px}.button.light{background:#ecf0f4;color:#2b435f}.button.gold{background:#bd9858;color:#17253a}.button.outline{background:white;color:#203854;border:1px solid #d8e0e9}
+.books{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.book{overflow:hidden}.cover{aspect-ratio:3/4;background:linear-gradient(145deg,#eee5d5,#e8e1d8);display:flex;align-items:center;justify-content:center;position:relative;padding:10px}.cover img{width:100%;height:100%;object-fit:contain}.cover-placeholder{text-align:center;font-family:Georgia,serif;color:#697385;padding:20px}.cover-placeholder b{font-size:30px;display:block;color:#1c344f}.book-body{padding:15px}.book-code{color:#a17f47;font-size:11px;font-weight:800;letter-spacing:.1em}.book-title{min-height:44px;font-weight:700;margin:7px 0;font-size:14px;line-height:1.4}.book-group{font-size:12px;color:var(--sub);min-height:33px}.book-bottom{display:flex;justify-content:space-between;align-items:center;gap:7px;margin-top:12px}.book-price{font-weight:800}.book-price.missing{font-size:12px;color:#9b6a48}.add{min-width:82px}.cart{position:sticky;top:16px;padding:20px}.cart-head{display:flex;justify-content:space-between;align-items:center}.counter{background:#f0e7d7;color:#7e5c26;border-radius:100px;padding:5px 11px;font-size:12px;font-weight:700}.cart .empty{padding:28px 10px;color:var(--sub);text-align:center;font-size:14px}.cart-group{border-top:1px solid var(--line);padding:14px 0}.cart-group h3{margin:0 0 5px}.cart-group small{color:var(--sub)}.cart-item{display:flex;align-items:center;gap:7px;padding:9px 0;border-top:1px dashed #e5e9ee}.cart-item-name{flex:1;font-size:12px;min-width:0}.qty{min-width:28px;min-height:30px;border:1px solid #dbe2e8;background:white;border-radius:8px}.total-box{background:#f0f3f6;border-radius:13px;padding:16px;margin:14px 0}.total-box small{display:block;color:var(--sub)}.total-box strong{font-size:29px;letter-spacing:-.04em}.warn{font-size:12px;color:#a36435;line-height:1.5}.cart-actions{display:grid;gap:8px}
+.how{margin:26px 0 0;padding:25px}.how-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}.how h3{margin-bottom:6px}.how p{color:var(--sub);font-size:13px;line-height:1.65}.step{display:inline-grid;place-items:center;background:#f3e9d8;color:#947344;border-radius:10px;width:32px;height:32px;font-weight:800;margin-bottom:10px}
+.overlay{position:fixed;inset:0;background:#0c1b2bbb;display:grid;place-items:center;z-index:10;padding:18px}.gate{width:min(100%,520px);padding:28px}.gate h2{font-size:27px}.gate p{color:var(--sub);font-size:14px;line-height:1.6}.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:13px}.field label{display:block;font-size:12px;font-weight:700;margin-bottom:6px}.field{margin:0 0 13px}.span2{grid-column:1/-1}.consent{display:flex;align-items:flex-start;gap:10px;color:#5f6b7b;font-size:12px;line-height:1.5;margin:10px 0 18px}.consent input{margin-top:3px}.error{color:#ac3e39;font-size:13px}.hidden{display:none!important}.status{background:#fff8e8;border:1px solid #efd6a8;color:#81642a;border-radius:12px;padding:12px;margin-bottom:14px;font-size:13px}
+@media(max-width:1100px){.books{grid-template-columns:repeat(2,minmax(0,1fr))}.content{grid-template-columns:minmax(0,1fr) 320px}}
+@media(max-width:760px){.hero{padding:34px 17px 60px}.hero-stat{display:none}.top-inner{padding:13px 17px}.shell{padding:0 13px 90px}.content{grid-template-columns:1fr}.cart{position:static;order:-1}.toolbar{grid-template-columns:1fr;padding:15px}.helper{grid-column:auto}.left-head{flex-wrap:wrap}.how-grid{grid-template-columns:1fr;gap:5px}.cart{order:0}.books{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:420px){.books{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.book-body{padding:11px}.book-bottom{flex-direction:column;align-items:stretch}.book-title{font-size:13px}.cover-placeholder{padding:5px}.cover-placeholder b{font-size:24px}.formgrid{grid-template-columns:1fr}.span2{grid-column:auto}.gate{padding:19px}.pill{display:none}}
+</style>
+</head>
+<body>
+<header class="top"><div class="top-inner"><a class="brand" href="./"><div class="mark">AC</div><div><strong>alfacopycenter</strong><small>TUS · DUS · YDUS KİTAPLARI</small></div></a><span class="pill">Akademik kaynak kataloğu</span></div></header>
+<section class="hero"><div class="hero-inner"><div><div class="eyebrow">Kaynaklarını kendin seç</div><h1>Aradığın kaynaklar.<br>Tek bir katalogda.</h1><p>Klinik, temel ve tüm setleri keşfet. Kitaplarını tek tek veya topluca seç; fiyat toplamını inceleyip listenin tamamını paylaş.</p></div><div class="hero-stat"><strong id="hero-count">—</strong> kitap · tek katalog</div></div></section>
+<main class="shell" id="main">
+<section class="panel toolbar"><div><input id="search" type="search" placeholder="Kitap adı, kod, TTS Klinik, TTS Temel, TTS Set…" aria-label="Kitap ve set ara"></div><select id="group-select" aria-label="Alt grup filtresi"><option value="">Tüm alt gruplar</option></select><p class="helper">Hızlı kullanım: <kbd>tts klinik</kbd> · <kbd>tts temel</kbd> · <kbd>tts set</kbd> · <kbd>çts klinik</kbd> yaz ve <b>Eşleşenleri topluca seç</b> düğmesini kullan.</p></section>
+<div class="quick" id="quick"></div>
+<div class="status hidden" id="status" role="status"></div>
+<div class="content">
+<section><div class="left-head"><div><h2>Kitaplar <small id="count"></small></h2><small>Kapak, kitap kodu ve alt grup bilgileri</small></div><div class="actions"><button class="button light" id="select-all">Eşleşenleri topluca seç</button><button class="button outline" id="clear-filter">Filtreyi temizle</button></div></div><div id="books" class="books"></div><div style="text-align:center;margin:20px"><button class="button light hidden" id="more">Daha fazla kitap göster</button></div></section>
+<aside class="panel cart"><div class="cart-head"><h2>Seçtiğim kitaplar</h2><span class="counter" id="cart-count">0 kitap</span></div><div id="cart-lines" class="empty">Henüz kitap seçilmedi.</div><div class="total-box"><small>Genel toplam</small><strong id="total">— TL</strong><p id="price-notice" class="warn">Fiyat bilgileri yükleniyor…</p></div><div class="cart-actions"><button class="button gold" id="whatsapp">WhatsApp'ta paylaş</button><button class="button" id="telegram">Telegram'da paylaş</button><button class="button light" id="copy">Listeyi kopyala</button><button class="button outline" id="clear-cart">Sepeti temizle</button></div><p class="helper">Bu ekran siparişin kesinleştiği anlamına gelmez. Mesajı gönderdiğinizde satıcıyla görüşebilirsiniz.</p></aside>
+</div>
+<section class="panel how" id="how"><div class="eyebrow" style="color:#a7834b">Nasıl kullanılır?</div><h2>Üç adımda kitap listenizi oluşturun</h2><div class="how-grid"><div><span class="step">1</span><h3>Arayın veya grup seçin</h3><p>Üstteki arama alanına <b>TTS Klinik</b>, <b>TTS Temel</b> ya da <b>TTS Set</b> yazın. Kitap koduyla da arama yapabilirsiniz.</p></div><div><span class="step">2</span><h3>Tekli veya toplu ekleyin</h3><p>Kitap kartlarından tek tek ekleyin. İsterseniz filtreye uyan tüm kitapları bir tuşla seçin. Sepette kitaplar alt gruplarına göre düzenlenir.</p></div><div><span class="step">3</span><h3>Toplamı kontrol edin ve paylaşın</h3><p>Tekli, tam klinik/temel grup ve tam set fiyatları koşullar sağlandığında otomatik hesaplanır. Ad ve kod içeren listenizi WhatsApp veya Telegram'a gönderin.</p></div></div></section>
+</main>
+<div class="overlay" id="gate"><section class="panel gate"><div class="eyebrow" style="color:#ae8951">Hoş geldiniz</div><h2>Kataloğu keşfetmeden önce</h2><p>Size yardımcı olabilmemiz için temel iletişim bilgilerinizi girin. Bu bilgiler tek başına kimlik veya bot doğrulaması sağlamaz; doğrulanmış müşteri kaydı için ayrıca sunucu doğrulaması gerekir.</p><form id="customer-form"><div class="formgrid"><div class="field"><label for="first">Ad</label><input id="first" maxlength="70" autocomplete="given-name" required></div><div class="field"><label for="last">Soyad</label><input id="last" maxlength="70" autocomplete="family-name" required></div><div class="field span2"><label for="email">E-posta</label><input id="email" type="email" maxlength="180" autocomplete="email" required></div><div class="field span2"><label for="phone">Telefon</label><input id="phone" type="tel" inputmode="tel" placeholder="05xx xxx xx xx" autocomplete="tel" required></div></div><label class="consent"><input id="consent" type="checkbox" required> <span>Bilgilerimin talep listesi oluşturmak ve iletişim kurmak amacıyla kullanılmasını kabul ediyorum. Paylaşım yalnızca benim seçtiğim mesajlaşma uygulamasında gerçekleşir; bu önizleme bilgileri sunucuya kaydetmez.</span></label><div class="error" id="gate-error" role="alert"></div><button class="button gold" style="width:100%" type="submit">Kataloğa geç</button></form></section></div>
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const tr=value=>String(value||"").replace(/İ/g,"i").replace(/I/g,"i").replace(/ı/g,"i").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+const money=n=>Number(n).toLocaleString("tr-TR",{style:"currency",currency:"TRY",maximumFractionDigits:2});
+const escapeHTML=s=>String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const state={books:[],prices:{units:{},segments:{},sets:[]},cart:new Map(),customer:null,visible:[],limit:36,filter:"",group:""};
+function message(t){$("status").textContent=t;$("status").classList.remove("hidden");}
+function validPrice(v){return typeof v==="number"&&Number.isFinite(v)&&v>=0}
+function pricingBook(book){const p=state.prices.units[String(book.code)];return validPrice(p)?p:null}
+function segmentKey(book){return String(book.group_name||"Diğer").trim()}
+function bookGroup(s){return state.books.filter(b=>segmentKey(b)===s)}
+function familyOf(name){return tr(name).replace(/\b(klinik|temel|kitaplar|set|konu|soru)\b/g," ").replace(/\s+/g," ").trim()}
+function calculate(){
+  const lines=[...state.cart.values()].filter(x=>x.qty>0);
+  const byCode=new Map(lines.map(x=>[String(x.book.code),x]));
+  const remaining=new Map(lines.map(x=>[String(x.book.code),x.qty]));
+  const applied=[];let sum=0,complete=true;
+  const sets=[...(state.prices.sets||[])].sort((a,b)=>(b.codes||[]).length-(a.codes||[]).length);
+  for(const set of sets){
+    const codes=(set.codes||[]).map(String);
+    if(!codes.length||!validPrice(set.price)||!codes.every(c=>(remaining.get(c)||0)>0))continue;
+    codes.forEach(c=>remaining.set(c,remaining.get(c)-1));sum+=set.price;
+    applied.push({name:set.name||set.id||"Tam set",price:set.price,type:"set"});
+  }
+  for(const [group,price] of Object.entries(state.prices.segments||{})){
+    if(!validPrice(price))continue;
+    const codes=bookGroup(group).map(x=>String(x.code));
+    if(!codes.length||!codes.every(c=>(remaining.get(c)||0)>0))continue;
+    codes.forEach(c=>remaining.set(c,remaining.get(c)-1));sum+=price;
+    applied.push({name:group,price,type:"segment"});
+  }
+  for(const [code,qty] of remaining){
+    if(qty<=0)continue;
+    const line=byCode.get(code),price=pricingBook(line.book);
+    if(price===null){complete=false;continue;}
+    sum+=qty*price;
+  }
+  return {sum,complete,applied};
+}
+function filtered(){
+  const q=tr(state.filter),terms=q.split(" ").filter(Boolean);
+  return state.books.filter(book=>{
+    if(state.group&&segmentKey(book)!==state.group)return false;
+    const values=tr([book.name,book.code,book.group_name].join(" "));
+    if(q.endsWith(" set")||q==="set"){
+      const prefix=q.replace(/\bset$/,"").trim();
+      return !prefix||tr(book.group_name).includes(prefix);
+    }
+    return terms.every(t=>values.includes(t));
+  });
+}
+function add(code,delta){
+  const book=state.books.find(x=>String(x.code)===String(code));if(!book)return;
+  const key=String(code),prior=state.cart.get(key)?.qty||0,next=Math.max(0,Math.min(99,prior+delta));
+  if(!next)state.cart.delete(key);else state.cart.set(key,{book,qty:next});renderCart();renderBooks();
+}
+function renderBooks(){
+  state.visible=filtered();const out=$("books");out.replaceChildren();
+  $("count").textContent="("+state.visible.length+" / "+state.books.length+")";
+  $("hero-count").textContent=state.books.length;
+  for(const book of state.visible.slice(0,state.limit)){
+    const el=document.createElement("article");el.className="panel book";
+    const image=book.cover_url&&/^https:\/\//.test(book.cover_url)?'<img loading="lazy" alt="'+escapeHTML(book.name)+' kapağı" src="'+escapeHTML(book.cover_url)+'">': '<div class="cover-placeholder"><b>AC</b>AKADEMİK<br>KAYNAKLAR</div>';
+    const price=pricingBook(book);
+    el.innerHTML='<div class="cover">'+image+'</div><div class="book-body"><div class="book-code">KOD #'+escapeHTML(book.code)+'</div><div class="book-title">'+escapeHTML(book.name)+'</div><div class="book-group">'+escapeHTML(book.group_name)+'</div><div class="book-bottom"><span class="book-price'+(price===null?' missing':'')+'">'+(price===null?'Fiyat bekleniyor':money(price))+'</span><button class="button add" type="button">+ Ekle</button></div></div>';
+    el.querySelector("button").addEventListener("click",()=>add(book.code,1));out.append(el);
+  }
+  $("more").classList.toggle("hidden",state.visible.length<=state.limit);
+}
+function renderCart(){
+  const rows=[...state.cart.values()].filter(x=>x.qty>0),count=rows.reduce((s,r)=>s+r.qty,0),groups=new Map();
+  for(const r of rows){const g=segmentKey(r.book);if(!groups.has(g))groups.set(g,[]);groups.get(g).push(r);}
+  $("cart-count").textContent=count+" kitap";
+  const container=$("cart-lines");container.replaceChildren();container.className=rows.length?"":"empty";
+  for(const [group,items] of groups){const sect=document.createElement("section");sect.className="cart-group";
+    const head=document.createElement("h3");head.textContent=group;sect.append(head);
+    for(const item of items){const row=document.createElement("div");row.className="cart-item";
+      const title=document.createElement("span");title.className="cart-item-name";title.textContent="#"+item.book.code+" · "+item.book.name;
+      row.append(title);
+      for(const [delta,label] of [[-1,"−"],[0,String(item.qty)],[1,"+"]]){
+        if(!delta){const qty=document.createElement("strong");qty.textContent=label;row.append(qty);continue;}
+        const btn=document.createElement("button");btn.className="qty";btn.textContent=label;btn.setAttribute("aria-label",label+" "+item.book.name);btn.addEventListener("click",()=>add(item.book.code,delta));row.append(btn);
+      }sect.append(row);
+    }container.append(sect);
+  }
+  if(!rows.length)container.textContent="Henüz kitap seçilmedi.";
+  const p=calculate();$("total").textContent=!rows.length?"0,00 TL":p.complete?money(p.sum):"Fiyat bekleniyor";
+  $("price-notice").textContent=p.complete?(p.applied.length?"Uygulanan grup/set fiyatları: "+p.applied.map(x=>x.name).join(", "):"Tek kitap fiyatları üzerinden hesaplandı."):"Bazı kitap veya set fiyatları henüz tanımlı değil. Yanlış toplam göstermemek için tutar gizlendi.";
+}
+function shareText(){
+ const rows=[...state.cart.values()];if(!rows.length){message("Önce kitap seçin.");return null;}
+ const groups=new Map();for(const r of rows){const k=segmentKey(r.book);if(!groups.has(k))groups.set(k,[]);groups.get(k).push(r);}
+ const lines=["ALFACOPYCENTER · KİTAP TALEBİ","Ad Soyad: "+state.customer.first+" "+state.customer.last,"Telefon: "+state.customer.phone,"E-posta: "+state.customer.email,""];
+ for(const [name,items] of groups){lines.push(name);for(const item of items)lines.push("- #"+item.book.code+" · "+item.book.name+" × "+item.qty);lines.push("");}
+ const p=calculate();lines.push("Genel toplam: "+(p.complete?money(p.sum):"Fiyat teyidi gerekiyor"));
+ if(p.applied.length)lines.push("Set/grup fiyatı: "+p.applied.map(x=>x.name).join(", "));
+ lines.push("Bu mesaj fiyat ve müsaitlik teyidi amaçlıdır.");return lines.join("\n");
+}
+$("whatsapp").addEventListener("click",()=>{const t=shareText();if(t)window.open("https://api.whatsapp.com/send?text="+encodeURIComponent(t),"_blank","noopener,noreferrer");});
+$("telegram").addEventListener("click",()=>{const t=shareText();if(t)window.open("https://t.me/share/url?url="+encodeURIComponent(location.href)+"&text="+encodeURIComponent(t),"_blank","noopener,noreferrer");});
+$("copy").addEventListener("click",async()=>{const t=shareText();if(!t)return;try{await navigator.clipboard.writeText(t);message("Liste panoya kopyalandı.");}catch{message("Tarayıcı panoya erişimi engelledi; WhatsApp veya Telegram düğmesini kullanın.");}});
+$("clear-cart").addEventListener("click",()=>{state.cart.clear();renderCart();renderBooks();});
+$("clear-filter").addEventListener("click",()=>{$("search").value="";$("group-select").value="";state.filter=state.group="";state.limit=36;renderBooks();});
+$("select-all").addEventListener("click",()=>{
+ const books=filtered();if(!state.filter&&!state.group){message("Yanlışlıkla tüm kataloğu eklememek için önce grup veya arama seçin.");return;}
+ if(books.length>35&&!confirm(books.length+" kitabı sepete eklemek istiyor musunuz?"))return;
+ for(const b of books){const k=String(b.code);if(!state.cart.has(k))state.cart.set(k,{book:b,qty:1});}
+ renderCart();renderBooks();message(books.length+" eşleşen kitap gözden geçirildi, sepete eklendi.");
+});
+$("search").addEventListener("input",e=>{state.filter=e.target.value;state.limit=36;renderBooks();});
+$("group-select").addEventListener("change",e=>{state.group=e.target.value;state.limit=36;renderBooks();});
+$("more").addEventListener("click",()=>{state.limit+=36;renderBooks();});
+$("customer-form").addEventListener("submit",e=>{
+ e.preventDefault();
+ const phone=$("phone").value.replace(/[^\d]/g,"");
+ if(!(phone.length===10||phone.length===11||phone.length===12||phone.length===13)){
+   $("gate-error").textContent="Telefon numarasını kontrol edin.";return;
+ }
+ if(!$("consent").checked){$("gate-error").textContent="Devam etmek için onay gereklidir.";return;}
+ state.customer={first:$("first").value.trim(),last:$("last").value.trim(),email:$("email").value.trim(),phone:$("phone").value.trim()};
+ $("gate").classList.add("hidden");$("search").focus();
+});
+async function init(){
+ try{
+   const [catalog,prices]=await Promise.all([
+     fetch("./catalog.json",{cache:"no-store"}).then(r=>{if(!r.ok)throw Error("Katalog kaydı bulunamadı");return r.json()}),
+     fetch("./pricing.json",{cache:"no-store"}).then(r=>{if(!r.ok)throw Error("Fiyat kaydı bulunamadı");return r.json()})
+   ]);
+   const raw=Array.isArray(catalog)?catalog:(catalog.books||[]);
+   state.books=raw.map(b=>({code:String(b.code||b.kod||""),name:String(b.name||b.isim||""),group_name:String(b.group_name||b.grup||"Diğer"),cover_url:b.cover_url||""})).filter(b=>b.code&&b.name);
+   state.prices={units:prices.units||{},segments:prices.segments||{},sets:prices.sets||[]};
+   const groups=[...new Set(state.books.map(x=>x.group_name))].sort((a,b)=>a.localeCompare(b,"tr"));
+   for(const group of groups){$("group-select").add(new Option(group,group));}
+   const words=["TTS Klinik","TTS Temel","TTS Set","ÇTS Klinik","ÇTS Temel","DUSAK Konu"];
+   for(const word of words){const b=document.createElement("button");b.className="chip";b.textContent=word;b.onclick=()=>{$("search").value=word;$("group-select").value="";state.filter=word;state.group="";state.limit=36;renderBooks();};$("quick").append(b);}
+   renderBooks();renderCart();
+ }catch(e){message("Katalog verisi yüklenemedi: "+e.message+". Dağıtım sırasında catalog.json ve pricing.json dosyaları aynı klasörde olmalı.");}
+}
+init();
+</script>
+</body>
+</html>
