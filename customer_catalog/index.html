@@ -158,21 +158,43 @@ $("customer-form").addEventListener("submit",e=>{
  state.customer={first:$("first").value.trim(),last:$("last").value.trim(),email:$("email").value.trim(),phone:$("phone").value.trim()};
  $("gate").classList.add("hidden");$("search").focus();
 });
+async function loadJSON(url){
+ const target=new URL(url,location.href);
+ if(target.origin!==location.origin&&target.protocol!=="https:")throw Error("Uzak katalog HTTPS kullanmalı");
+ const r=await fetch(target.href,{cache:"no-store",credentials:"omit",headers:{"Accept":"application/json"}});
+ if(!r.ok)throw Error("Katalog/Fiyat servisi HTTP "+r.status);
+ return r.json();
+}
+let publishedConfig={};
+async function loadPublished(isRefresh=false){
+ const catalogURL=publishedConfig.catalog_url||"./catalog.json";
+ const pricingURL=publishedConfig.pricing_url||"./pricing.json";
+ const [catalog,prices]=await Promise.all([loadJSON(catalogURL),loadJSON(pricingURL)]);
+ if(!isRefresh){state.books=[];state.cart.clear();}
+ const raw=Array.isArray(catalog)?catalog:(catalog.books||[]);
+ const updated=raw.map(b=>({code:String(b.code||b.kod||""),name:String(b.name||b.isim||""),group_name:String(b.group_name||b.grup||"Diğer"),cover_url:b.cover_url||""})).filter(b=>b.code&&b.name);
+ const current=new Map(updated.map(x=>[x.code,x]));
+ for(const [key,line] of state.cart){
+   if(current.has(key))line.book=current.get(key);
+   else state.cart.delete(key);
+ }
+ state.books=updated;
+ state.prices={units:prices.units||{},segments:prices.segments||{},sets:prices.sets||[]};
+ const groups=[...new Set(state.books.map(x=>x.group_name))].sort((a,b)=>a.localeCompare(b,"tr"));
+ const select=$("group-select"),prior=select.value;
+ select.replaceChildren(new Option("Tüm alt gruplar",""),...groups.map(x=>new Option(x,x)));
+ if(groups.includes(prior))select.value=prior;else state.group="";
+ renderBooks();renderCart();
+}
 async function init(){
  try{
-   const [catalog,prices]=await Promise.all([
-     fetch("./catalog.json",{cache:"no-store"}).then(r=>{if(!r.ok)throw Error("Katalog kaydı bulunamadı");return r.json()}),
-     fetch("./pricing.json",{cache:"no-store"}).then(r=>{if(!r.ok)throw Error("Fiyat kaydı bulunamadı");return r.json()})
-   ]);
-   const raw=Array.isArray(catalog)?catalog:(catalog.books||[]);
-   state.books=raw.map(b=>({code:String(b.code||b.kod||""),name:String(b.name||b.isim||""),group_name:String(b.group_name||b.grup||"Diğer"),cover_url:b.cover_url||""})).filter(b=>b.code&&b.name);
-   state.prices={units:prices.units||{},segments:prices.segments||{},sets:prices.sets||[]};
-   const groups=[...new Set(state.books.map(x=>x.group_name))].sort((a,b)=>a.localeCompare(b,"tr"));
-   for(const group of groups){$("group-select").add(new Option(group,group));}
+   publishedConfig=await loadJSON("./config.json");
+   await loadPublished(false);
    const words=["TTS Klinik","TTS Temel","TTS Set","ÇTS Klinik","ÇTS Temel","DUSAK Konu"];
    for(const word of words){const b=document.createElement("button");b.className="chip";b.textContent=word;b.onclick=()=>{$("search").value=word;$("group-select").value="";state.filter=word;state.group="";state.limit=36;renderBooks();};$("quick").append(b);}
-   renderBooks();renderCart();
- }catch(e){message("Katalog verisi yüklenemedi: "+e.message+". Dağıtım sırasında catalog.json ve pricing.json dosyaları aynı klasörde olmalı.");}
+   setInterval(()=>{if(!document.hidden&&publishedConfig.catalog_url){loadPublished(true).catch(()=>{});}},60000);
+   window.addEventListener("focus",()=>{if(publishedConfig.catalog_url)loadPublished(true).catch(()=>{});});
+ }catch(e){message("Katalog verisi yüklenemedi: "+e.message+". catalog.json, pricing.json ve config.json aynı klasörde olmalı.");}
 }
 init();
 </script>
