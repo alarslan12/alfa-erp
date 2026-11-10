@@ -251,7 +251,7 @@ def cover_files(folder):
     code=canonical_book_code(m.group(1))
     by_code.setdefault(code,[]).append(str(p))
     tail=stem[m.end():].lstrip(' -._')
-    if tail:by_name.setdefault(normalize(tail),str(p))
+    # Numbered artwork belongs to its code only, never a different name match.
    else:
     by_name.setdefault(normalize(stem),str(p))
  return by_code,by_name
