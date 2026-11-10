@@ -262,8 +262,8 @@ def export_label(entry,index=None):
         settings=project.get('settings') or {}
         parts=[str(settings.get(k) or '').strip() for k in
                ('title_series','title_set','subtitle')]
-        if not settings.get('show_subtitle'):
-            parts[2]=''
+        if not settings.get('show_subtitle') or not parts[2]:
+            parts[2]=str(entry.get('books_count') or len(project.get('books') or []))+' Kitap'
         # Imported artwork does not have design settings.
         if not any(parts):
             parts=[entry.get('title') or 'Tasarim']
