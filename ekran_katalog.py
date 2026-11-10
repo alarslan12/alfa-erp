@@ -3,6 +3,7 @@ from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QFrame,QGridLayou
  QScrollArea,QLabel,QCheckBox,QDialog,QFormLayout,QDoubleSpinBox,QFileDialog,QMessageBox,QSizePolicy,QButtonGroup,QPushButton,QGraphicsOpacityEffect,QApplication)
 from PySide6.QtCore import Qt, Signal, QTimer, QEvent, QPropertyAnimation, QRect, QEasingCurve
 from utils import metin_eslesiyor_mu, otomatik_platform_bul,format_kargo_kodu
+from alici_bilgileri import net_revenue, request_buyer_details
 from datetime import datetime
 from PySide6.QtGui import QDoubleValidator
 from widgets import cover_label, text,button,panel,clear_layout,scrollable,error,confirm
@@ -229,9 +230,13 @@ class SiparisBilgiDialog(QDialog):
         code=format_kargo_kodu(self.shipping.text(),self.platform_value)
         if code and not _ask_before_duplicate_shipping_code(self,self.db,code):
             return
+        buyer=request_buyer_details(self)
+        if buyer is None:return
         try:
             self.db.yeni_siparis_olustur({'kod':code,'platform':self.platform_value,
-                'ciro':self.revenue.value(),'siparis_turu':self.order_type.currentText()},items)
+                'ciro':net_revenue(self.revenue.value(),self.platform_value),
+                'brut_tutar':self.revenue.value(),
+                'siparis_turu':self.order_type.currentText(),**buyer},items)
         except Exception as exc:return error(self,str(exc))
         self.accept()
 
@@ -452,10 +457,15 @@ class KatalogView(QWidget):
                 amount=int(variants.get(kind,0))
                 if amount>0:items.append({'kod':code,'tur':kind,'adet':amount,'hazir':0,'koli':0})
         info={'kod':format_kargo_kodu(self.shipping.text(),self.platform_value),
-              'platform':self.platform_value,'ciro':self.revenue.value(),
+              'platform':self.platform_value,
+              'ciro':net_revenue(self.revenue.value(),self.platform_value),
+              'brut_tutar':self.revenue.value(),
               'siparis_turu':'Telafi Sipariş' if self.special_btn.isChecked() else 'Normal Sipariş'}
         if info['kod'] and not _ask_before_duplicate_shipping_code(self,self.db,info['kod']):
             return
+        buyer=request_buyer_details(self)
+        if buyer is None:return
+        info.update(buyer)
         try:self.db.yeni_siparis_olustur(info,items)
         except Exception as exc:return error(self,str(exc))
         self.cart.clear();self.db.sepeti_yaz(self.cart)
