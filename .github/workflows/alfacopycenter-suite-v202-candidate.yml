@@ -1,0 +1,69 @@
+name: ALFACOPYCENTER Suite v2.0.2 Windows candidate (build only)
+
+on:
+  push:
+    branches:
+      - feature/banner-kargonomi-20261110
+    paths:
+      - '.github/workflows/alfacopycenter-suite-v202-candidate.yml'
+      - 'ALFA_BUILD_WINDOWS.ps1'
+      - 'ALFA_BUILD_SUITE_WINDOWS.ps1'
+      - 'ALFACOPYCENTER_Suite.iss'
+      - 'requirements.txt'
+      - 'main.py'
+      - 'kargonomi*.py'
+      - 'alici_bilgileri.py'
+      - 'ekran_katalog.py'
+      - 'ekran_siparis.py'
+      - 'editor_siparis.py'
+      - 'alfa_rtdb.py'
+      - 'database.py'
+      - 'mobil_siparis_donusum.py'
+      - 'banner_studio/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: suite-v202-candidate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package:
+    name: Compile Windows Suite without executing automated tests
+    runs-on: windows-2022
+    timeout-minutes: 95
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+          architecture: x64
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          $iscc = Join-Path ([Environment]::GetFolderPath('ProgramFilesX86')) 'Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path $iscc)) { choco install innosetup --yes --no-progress }
+          if (-not (Test-Path $iscc)) { throw 'Inno Setup compiler not found' }
+      - name: Build all ALFACOPYCENTER applications
+        shell: pwsh
+        run: .\ALFA_BUILD_SUITE_WINDOWS.ps1
+      - name: Verify generated setup exists and write SHA256
+        shell: pwsh
+        run: |
+          $setup = Get-Item .\output\ALFACOPYCENTER_Suite_Setup_V2_0_2.exe -ErrorAction Stop
+          if ($setup.Length -lt 1000000) { throw 'Unexpectedly small installer' }
+          $hash = (Get-FileHash $setup.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $($setup.Name)" | Set-Content -Encoding ascii .\output\SHA256SUMS.txt
+          Copy-Item .\docs\BANNER_KARGONOMI_DEV.md .\output\RELEASE_NOTES.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ALFACOPYCENTER_Suite_v2.0.2_Windows_Candidate
+          path: |
+            output/ALFACOPYCENTER_Suite_Setup_V2_0_2.exe
+            output/SHA256SUMS.txt
+            output/RELEASE_NOTES.txt
+          if-no-files-found: error
+          retention-days: 21
+          compression-level: 0
