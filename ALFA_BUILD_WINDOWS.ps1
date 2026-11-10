@@ -37,7 +37,7 @@ if($Edition -eq 'personel') {
  # tickets are embedded in executable assets.
  Run $Virtual @('-m','PyInstaller','--noconfirm','--clean','--onedir','--windowed',
   '--name','AlfaERP','--icon=assets\icons\alfa_personel.ico','--add-data','KİTAPS.xlsx;.','--add-data','katalog.json;.',
-  '--add-data','assets;assets','--collect-all','keyring','--hidden-import=PySide6.QtPdf','main.py')
+  '--add-data','assets;assets','--hidden-import=PySide6.QtPdf','main.py')
  Run $Virtual @('-m','PyInstaller','--noconfirm','--clean','--onedir','--windowed',
   '--name','AlfaBildirim','--icon=assets\icons\alfa_personel.ico','bildirim_servisi.py')
  # Optional, login-started user-mode print agent. Registration is only
@@ -50,7 +50,7 @@ if($Edition -eq 'personel') {
  Run $Virtual @('-m','PyInstaller','--noconfirm','--clean','--onedir','--windowed',
   '--name','AlfaERPYonetici','--icon=assets\icons\alfa_yonetici.ico','--add-data','YONETICI_SURUMU.flag;.',
   '--add-data','KİTAPS.xlsx;.','--add-data','katalog.json;.',
-  '--add-data','assets;assets','--collect-all','keyring','--hidden-import=PySide6.QtPdf','--hidden-import=yonetici_kompakt','main.py')
+  '--add-data','assets;assets','--hidden-import=PySide6.QtPdf','--hidden-import=yonetici_kompakt','main.py')
  $iss='alfa_yonetici.iss'
 } else {
  foreach($required in @('dist\AlfaERP\AlfaERP.exe','dist\AlfaERPYonetici\AlfaERPYonetici.exe','dist\AlfaBildirim\AlfaBildirim.exe','dist\AlfaPrintAgent\AlfaPrintAgent.exe')) {
