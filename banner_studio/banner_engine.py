@@ -144,35 +144,96 @@ class Settings:
  export_scale:int=2
 
 
+def canonical_book_code(value):
+ """One stable identity for Excel 71, 71.0, '071' and cover '71 - ...'."""
+ if value is None or isinstance(value,bool):
+  return ''
+ if isinstance(value,float) and (not math.isfinite(value)):
+  return ''
+ text=str(value).strip().replace('\\u00a0',' ')
+ if re.fullmatch(r'\\d+(?:[.,]0+)?',text):
+  return str(int(text.replace(',','.').split('.')[0]))
+ return text.upper()
+
+
 def read_excel(path):
- """Read the user's KİTAPS Excel: merged-ish group headings, dotted Turkish İ."""
+ """Strict, order-preserving Excel catalog import with explicit collision checks.
+
+ Header may be below introductory rows. Duplicate normalized book codes cause
+ rejection, never silent replacement. A non-book sheet may be safely ignored.
+ """
  from openpyxl import load_workbook
  book=load_workbook(path,read_only=True,data_only=True)
  try:
-  output=[]
+  output=[];seen={};problems=[];found_header=False
+  aliases={
+   'code':{'kitap kodu','kitap kod','kod','code','urun kodu','urun kod','stok kodu','sku'},
+   'name':{'kitap adi','kitap ad','kitap ismi','kitap isim','kitap adı','ad','isim','name','title','urun adi','urun ad'},
+   'group':{'kitap grubu','kitap grup','grup','group_name','kategori','alt grup','altgrup'},
+   'pages':{'sayfa sayisi','sayfa say','sayfa','sayfa adedi','pages'},
+   'color':{'renkli','supports_color','renkli opsiyon','renkli baski'}
+  }
+  def header_key(value):
+   text=str(value or '').replace('İ','i').replace('I','i').replace('ı','i').casefold()
+   text=unicodedata.normalize('NFKD',text)
+   text=''.join(c for c in text if not unicodedata.combining(c))
+   return re.sub(r'[^a-z0-9]+',' ',text).strip()
+  expected={k:{header_key(w) for w in names} for k,names in aliases.items()}
   for sheet in book.worksheets:
-   iterator=sheet.iter_rows(values_only=True)
-   header=next(iterator,None)
-   if not header:continue
-   lookup={normalize(h):i for i,h in enumerate(header) if h}
-   def index(*names):
-    return next((lookup[normalize(n)] for n in names if normalize(n) in lookup),None)
-   ci=index('kitap kodu','kod','code');ni=index('kitap adi','ad','name','title')
-   gi=index('kitap grubu','grup','group_name');pi=index('sayfa sayisi','sayfa');co=index('renkli','supports_color')
-   if ci is None or ni is None:continue
+   rows=sheet.iter_rows(values_only=True)
+   columns=None;header_number=0
+   # Decorative title rows or merged headers must not hide the real columns.
+   for number,row in enumerate(rows,1):
+    if number>40:break
+    mapping={}
+    for i,value in enumerate(row):
+     key=header_key(value)
+     for col,words in expected.items():
+      if key in words and col not in mapping:
+       mapping[col]=i
+    if 'code' in mapping and 'name' in mapping:
+     columns=mapping;header_number=number;found_header=True;break
+   if columns is None:continue
    group=''
-   for row in iterator:
-    def cell(i):return row[i] if i is not None and i<len(row) else None
-    if cell(gi) is not None and str(cell(gi)).strip():group=' '.join(str(cell(gi)).split())
-    code=str(cell(ci)).strip() if cell(ci) is not None else ''
-    name=str(cell(ni)).strip() if cell(ni) is not None else ''
-    if not code or not name:continue
-    raw_color=cell(co)
-    colored=bool(raw_color) if isinstance(raw_color,(int,bool)) else normalize(raw_color) in ('evet','yes','var','renkli','true','1')
-    output.append({'id':code,'code':code,'name':name,'group':group,'pages':cell(pi),'color':colored,'cover_override':'','badge_override':'','edition_override':''})
+   for row_number,row in enumerate(rows,header_number+1):
+    def cell(key):
+     i=columns.get(key)
+     return row[i] if i is not None and i<len(row) else None
+    raw_group=cell('group')
+    if raw_group is not None and str(raw_group).strip():
+     group=' '.join(str(raw_group).split())
+    raw_code=cell('code')
+    code=canonical_book_code(raw_code)
+    name=' '.join(str(cell('name') or '').split())
+    if not code and not name:continue
+    if not code:
+     # A group-heading / spacer row is not a book, but report other text.
+     if name:problems.append(f'{sheet.title} satır {row_number}: kitap kodu yok ({name[:70]})')
+     continue
+    if not name:
+     problems.append(f'{sheet.title} satır {row_number}: {code} kodunda kitap adı eksik')
+     continue
+    if len(code)>55 or len(name)>180:
+     problems.append(f'{sheet.title} satır {row_number}: kod veya başlık çok uzun')
+     continue
+    if code in seen:
+     first=seen[code]
+     raise ValueError(f'Tekrarlanan kitap kodu {code}: {first} ve {sheet.title} satır {row_number}. Excel düzeltilmeden katalog değiştirilmeyecek.')
+    seen[code]=f'{sheet.title} satır {row_number}'
+    raw_color=cell('color')
+    colored=bool(raw_color) if isinstance(raw_color,(int,bool)) else header_key(raw_color) in ('evet','yes','var','renkli','true','1')
+    output.append({'id':code,'code':code,'name':name,'group':group,'pages':cell('pages'),'color':colored,'cover_override':'','badge_override':'','edition_override':''})
+  if not found_header:
+   raise ValueError('Excel başlıkları bulunamadı. Kitap Kodu ve Kitap Adı sütunlarını kontrol et.')
+  if not output:
+   raise ValueError('Excel içinde geçerli kitap bulunamadı; eski katalog korundu.')
+  if problems:
+   # Never silently accept a partial catalog: the user must fix the source.
+   details='; '.join(problems[:5])
+   raise ValueError(f'Excelde {len(problems)} eksik veya hatalı kitap satırı var: {details}. Eski katalog korundu.')
   return output
- finally:book.close()
-
+ finally:
+  book.close()
 
 def cover_files(folder):
  """Index exact numeric prefixes before fuzzy names; no accidental 44→444."""
