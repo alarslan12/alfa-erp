@@ -6,6 +6,7 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
+import keyring
 
 from PySide6.QtCore import QThread, Signal
 from PySide6.QtWidgets import (
@@ -14,6 +15,36 @@ from PySide6.QtWidgets import (
 )
 
 BASE = "https://app.kargonomi.com.tr/api/v1"
+CREDENTIAL_SERVICE="ALFACOPYCENTER.Kargonomi"
+CREDENTIAL_USER="api-token"
+CONFIG_DIR=Path(os.environ.get("ALFA_ERP_DATA_DIR") or
+    Path(os.environ.get("LOCALAPPDATA",str(Path.home()))) / "AlfaERP")
+CONFIG_FILE=CONFIG_DIR / "kargonomi_settings.json"
+
+def saved_token():
+    env=os.getenv("KARGONOMI_API_TOKEN","").strip()
+    if env:return env
+    try:return keyring.get_password(CREDENTIAL_SERVICE,CREDENTIAL_USER) or ""
+    except Exception:return ""
+
+def save_token(value):
+    if not value.strip():raise ValueError("Boş API anahtarı kaydedilemez.")
+    keyring.set_password(CREDENTIAL_SERVICE,CREDENTIAL_USER,value.strip())
+
+def warehouse_id():
+    env=os.getenv("KARGONOMI_WAREHOUSE_ID","")
+    if env.isdecimal() and int(env)>0:return int(env)
+    try:
+        data=json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+        return int(data.get("warehouse_id") or 0)
+    except (OSError,ValueError,TypeError):return 0
+
+def save_warehouse_id(number):
+    number=int(number)
+    if number<=0:raise ValueError("Geçerli depo ID gerekli.")
+    CONFIG_DIR.mkdir(parents=True,exist_ok=True)
+    CONFIG_FILE.write_text(json.dumps({"warehouse_id":number}),encoding="utf-8")
+
 
 
 class KargonomiClient:
@@ -104,10 +135,13 @@ class KargonomiDialog(QDialog):
         root=QVBoxLayout(self)
         root.addWidget(QLabel("Kargonomi API · Onay verilmedikçe sipariş gönderilmez."))
         form=QFormLayout()
-        self.token=QLineEdit(os.getenv("KARGONOMI_API_TOKEN",""))
+        self.token=QLineEdit(saved_token())
         self.token.setEchoMode(QLineEdit.EchoMode.Password)
-        self.token.setPlaceholderText("Bearer API token · sadece bu oturumda tutulur")
+        self.token.setPlaceholderText("İlk kurulumda bir kez girin; Windows kasasında saklanır")
         form.addRow("API Token",self.token)
+        self.save_credentials=QPushButton("Bağlantı bilgilerini güvenle kaydet (bir kez)")
+        self.save_credentials.clicked.connect(self.store_credentials)
+        form.addRow("",self.save_credentials)
         self.order_select=QComboBox()
         self.order_select.addItem("Sipariş seçiniz (isteğe bağlı)",None)
         for order in database.siparisler:
@@ -131,6 +165,7 @@ class KargonomiDialog(QDialog):
             field.setPlaceholderText(placeholder)
             self.fields[key]=field
             form.addRow(label,field)
+        self.fields["warehouse_id"].setText(str(warehouse_id() or ""))
         self.fields["desi"].setText("1")
         self.fields["content"].setText("Kitap")
         root.addLayout(form)
@@ -157,6 +192,15 @@ class KargonomiDialog(QDialog):
         self.output.setPlaceholderText("Kargonomi sonuçları burada gösterilir. Kişisel bilgiler içerebilir.")
         root.addWidget(self.output)
 
+    def store_credentials(self):
+        try:
+            save_token(self.token.text())
+            wid=self.fields["warehouse_id"].text().strip()
+            if wid:save_warehouse_id(wid)
+            QMessageBox.information(self,"Kargonomi","API anahtarı Windows kimlik kasasına, depo ID yerel ayarlara kaydedildi.")
+        except Exception as exc:
+            QMessageBox.warning(self,"Kargonomi",f"Ayarlar kaydedilemedi: {exc}")
+
     def select_order(self):
         sid=self.order_select.currentData()
         order=next((o for o in self.db.siparisler if str(o.get("id"))==str(sid)),None)
@@ -170,7 +214,7 @@ class KargonomiDialog(QDialog):
                 self.fields[field].setText(str(order[key]))
 
     def client(self):
-        return KargonomiClient(self.token.text())
+        return KargonomiClient(self.token.text() or saved_token())
 
     def run_request(self, call, on_done=None):
         if self.worker is not None and self.worker.isRunning():
