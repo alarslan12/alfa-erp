@@ -234,9 +234,7 @@ class ERPDatabase:
                             'sequence':self._next_revision,'op_id':str(uuid.uuid4()),
                             'local_id':sid,'order_id':row['bulut_id'],
                             'from_status':a,'to_status':b,
-                            'shipping_fee':row.get('kargo_ucreti') if b=='tamamlandi' else None,
-                            'recipient':{k:row.get(k) for k in ('alici_adi','telefon','adres','il','ilce','alici_il_id','alici_ilce_id','brut_tutar') if row.get(k) is not None},
-                            'kargonomi':{k:row.get(k) for k in ('kargonomi_shipment_id','kargonomi_desi','kargonomi_firma_id','kargonomi_onaylandi') if row.get(k) is not None}})
+                            'shipping_fee':row.get('kargo_ucreti') if b=='tamamlandi' else None})
                     if status_changed and next_status=='aktif':
                         enqueue_status(previous_status,next_status)
                         # Status must come before queued progress events.
@@ -572,15 +570,7 @@ class ERPDatabase:
                 if converted is None:
                     changed.append(current['id']);self.siparisler.remove(current)
                 elif current is not None:
-                    sid=current['id']
-                    # Preserve local in-flight recipient/shipment details while older
-                    # cloud snapshots lack these fields; newer cloud values win.
-                    for key in ('alici_adi','telefon','adres','il','ilce','alici_il_id','alici_ilce_id',
-                                'brut_tutar','kargonomi_shipment_id','kargonomi_desi',
-                                'kargonomi_firma_id','kargonomi_onaylandi','kargonomi_barkod_yolu'):
-                        if key not in converted and key in current:
-                            converted[key]=current[key]
-                    current.clear();current.update(converted);current['id']=sid;changed.append(sid)
+                    sid=current['id'];current.clear();current.update(converted);current['id']=sid;changed.append(sid)
                 else:
                     intended=int(converted.get('bulut_siparis_no') or 0)
                     sid=intended if intended>=1 and intended not in ids else latest+1
@@ -1195,15 +1185,7 @@ class ERPDatabase:
                 "platform": str(alanlar.get("platform", "Manuel"))[:100],
                 "kod": str(alanlar["kod"]).strip()[:500], "ciro": ciro,
                 "siparis_turu": str(alanlar.get("siparis_turu", ""))[:100],
-                "durum": "havuz", "kitaplar": temiz,
-                "brut_tutar": float(alanlar.get("brut_tutar",ciro) or 0),
-                "alici_adi": str(alanlar.get("alici_adi",""))[:255],
-                "telefon": str(alanlar.get("telefon",""))[:20],
-                "adres": str(alanlar.get("adres",""))[:512],
-                "il": str(alanlar.get("il",""))[:120],
-                "ilce": str(alanlar.get("ilce",""))[:120],
-                "alici_il_id": str(alanlar.get("alici_il_id",""))[:20],
-                "alici_ilce_id": str(alanlar.get("alici_ilce_id",""))[:20]}
+                "durum": "havuz", "kitaplar": temiz}
         self.siparisler.append(yeni)
         try:
             self.siparisleri_kaydet()
