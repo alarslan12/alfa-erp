@@ -202,7 +202,7 @@ class Handler(SimpleHTTPRequestHandler):
             return self._response({'catalog':CATALOG,'settings':config,'books':selected,
                    'palettes':PALETTES,'styles':STYLES,'layouts':LAYOUTS,
                    'covers':len(COVER_IDX[0]),'cover_status':_cover_status(),
-                   'version':'3.3 - geniş başlık + kapağın altında baskı rozeti + tam kapak arşivi',
+                   'version':'3.4 - dinamik grup seçimi, alt başlık ve logosuz marka alanı',
                    'library_total':len(library.list_designs())})
         if req.path=='/api/custom-cover':
             filename=_safe_filename((q.get('name') or [''])[0])
