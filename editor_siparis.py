@@ -181,10 +181,6 @@ class SiparisEditor(QDialog):
         area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.body_lay.addWidget(area,1)
 
-    def open_kargonomi_barcode(self):
-        from kargonomi_akisi import ShipmentCompletionDialog
-        ShipmentCompletionDialog(self.db,self.current(),self).exec()
-
     def build_archive(self):
         """Tamamlanan siparişi değiştirilemeyen okunabilir arşiv olarak göster."""
         order = self.current()
@@ -197,11 +193,6 @@ class SiparisEditor(QDialog):
         line.addStretch()
         line.addWidget(text(f"Tarih: {date_value[:16].replace('T',' ')}   ·   {overview['adet']} kitap   ·   {overview['sayfa']:,} sayfa", 'Muted'))
         self.body_lay.addWidget(bar)
-        if order.get('kargonomi_shipment_id'):
-            barcode_btn=button('▣  Yeni Barkod · PDF yeniden al','Accent')
-            barcode_btn.setToolTip('Kargonomi üzerinden bu gönderinin barkod PDF dosyasını yeniden indir')
-            barcode_btn.clicked.connect(self.open_kargonomi_barcode)
-            self.body_lay.addWidget(barcode_btn)
         if order.get('kargo_turu') in ('telafi','acik_adres'):
             group = 'Telafi siparişi' if order.get('kargo_turu') == 'telafi' else 'Açık adres siparişi'
             self.body_lay.addWidget(text(f"{group} · Kargo gideri: {float(order.get('kargo_ucreti',0) or 0):,.2f} TL", 'OrderShippingCost'))
