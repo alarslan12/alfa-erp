@@ -1,0 +1,88 @@
+name: ALFACOPYCENTER Suite v2.0.4 Windows release build
+
+on:
+  push:
+    branches:
+      - fix/banner-archive-export-20261110
+    paths:
+      - '.github/workflows/alfacopycenter-suite-v204.yml'
+      - 'ALFA_BUILD_WINDOWS.ps1'
+      - 'ALFA_BUILD_SUITE_WINDOWS.ps1'
+      - 'ALFACOPYCENTER_Suite.iss'
+      - 'requirements.txt'
+      - 'main.py'
+      - 'alfa_guncelleme.py'
+      - 'guncelleme_arayuzu.py'
+      - 'docs/ALFACOPYCENTER_SUITE_V204_RELEASE.md'
+      - 'kargonomi*.py'
+      - 'alici_bilgileri.py'
+      - 'ekran_katalog.py'
+      - 'ekran_siparis.py'
+      - 'editor_siparis.py'
+      - 'alfa_rtdb.py'
+      - 'database.py'
+      - 'mobil_siparis_donusum.py'
+      - 'banner_studio/**'
+      - 'docs/ALFACOPYCENTER_SUITE_V204_RELEASE.md'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: suite-v204-candidate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package:
+    name: Compile Windows Suite without executing automated tests
+    runs-on: windows-2022
+    timeout-minutes: 95
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+          architecture: x64
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          $iscc = Join-Path ([Environment]::GetFolderPath('ProgramFilesX86')) 'Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path $iscc)) { choco install innosetup --yes --no-progress }
+          if (-not (Test-Path $iscc)) { throw 'Inno Setup compiler not found' }
+      - name: Build all ALFACOPYCENTER applications
+        shell: pwsh
+        run: .\ALFA_BUILD_SUITE_WINDOWS.ps1
+      - name: Verify generated setup exists and write SHA256
+        shell: pwsh
+        run: |
+          $setup = Get-Item .\output\ALFACOPYCENTER_Suite_Setup_V2_0_4.exe -ErrorAction Stop
+          if ($setup.Length -lt 1000000) { throw 'Unexpectedly small installer' }
+          $hash = (Get-FileHash $setup.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $($setup.Name)" | Set-Content -Encoding ascii .\output\SHA256SUMS.txt
+          Copy-Item .\docs\ALFACOPYCENTER_SUITE_V204_RELEASE.md .\output\RELEASE_NOTES.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ALFACOPYCENTER_Suite_v2.0.4_Windows_Candidate
+          path: |
+            output/ALFACOPYCENTER_Suite_Setup_V2_0_4.exe
+            output/SHA256SUMS.txt
+            output/RELEASE_NOTES.txt
+          if-no-files-found: error
+          retention-days: 21
+          compression-level: 0
+
+      - name: Publish stable v2.0.4 release for in-app updater
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = 'v2.0.4'
+          $setup = 'output/ALFACOPYCENTER_Suite_Setup_V2_0_4.exe'
+          $sha = 'output/SHA256SUMS.txt'
+          $notes = 'output/RELEASE_NOTES.txt'
+          if ((gh release view $tag --repo "${{ github.repository }}" 2>$null)) {
+            throw "Release $tag already exists; never overwrite a published installer."
+          }
+          gh release create $tag $setup $sha $notes --repo "${{ github.repository }}" --target "${{ github.sha }}" --title 'ALFACOPYCENTER Suite v2.0.4' --notes-file $notes --latest
+          if ($LASTEXITCODE -ne 0) { throw "Unable to publish $tag" }
