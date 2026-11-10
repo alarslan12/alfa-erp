@@ -241,12 +241,43 @@ def read_working_draft():
         return None
 
 
-def bulk_archive(ids):
-    """Prepare ZIP with full-resolution originals and editable project JSON.
+def artwork_png(record_id):
+    """Get one archived artwork as PNG, including legacy JPG entries.
 
-    Temporary disk-backed ZIP avoids keeping hundreds of large artworks in RAM.
-    Only existing, valid archive IDs are read. Caller removes the temporary ZIP.
+    No JSON or editable-project files are exposed by this export API.
     """
+    picture=image_path(record_id,'original')
+    with Image.open(picture) as source:
+        output=BytesIO()
+        source.convert('RGB').save(output,format='PNG',optimize=True)
+    return output.getvalue()
+
+
+def export_label(entry,index=None):
+    """User-facing safe file name: series, set/advert, subtitle, with fallback."""
+    record_id=entry['id']
+    try:
+        project=get_design(record_id)
+        settings=project.get('settings') or {}
+        parts=[str(settings.get(k) or '').strip() for k in
+               ('title_series','title_set','subtitle')]
+        if not settings.get('show_subtitle'):
+            parts[2]=''
+        # Imported artwork does not have design settings.
+        if not any(parts):
+            parts=[entry.get('title') or 'Tasarim']
+    except (OSError,ValueError,KeyError,TypeError):
+        parts=[entry.get('title') or 'Tasarim']
+    name=' - '.join(x for x in parts if x).strip() or 'Tasarim'
+    name=re.sub(r'[<>:"/\\|?*\x00-\x1f]+','_',name)
+    name=re.sub(r'\s+',' ',name).strip(' .')[:125] or 'Tasarim'
+    if index is not None:
+        return f'{index:03d}_{name}'
+    return name
+
+
+def bulk_archive(ids):
+    """ZIP with PNG pictures exclusively; never attach archive project JSON."""
     if not isinstance(ids,list) or not 1<=len(ids)<=1000:
         raise ValueError('Toplu indirmede 1–1000 tasarım seçilebilir.')
     wanted=set(str(x) for x in ids)
@@ -254,26 +285,20 @@ def bulk_archive(ids):
     if len(available)!=len(wanted):
         raise ValueError('Seçilen arşiv kayıtlarından biri bulunamadı.')
     ROOT.mkdir(parents=True,exist_ok=True)
-    handle=tempfile.NamedTemporaryFile(prefix='alfa_toplu_',suffix='.zip',
+    handle=tempfile.NamedTemporaryFile(prefix='alfa_png_toplu_',suffix='.zip',
                                        dir=ROOT,delete=False)
     output=Path(handle.name)
     handle.close()
     try:
         total=0
         with LOCK,zipfile.ZipFile(output,'w',compression=zipfile.ZIP_STORED,
-                                  allowZip64=True) as z:
+                                  allowZip64=True) as package:
             for i,entry in enumerate(available,1):
-                picture=image_path(entry['id'],'original')
-                total+=picture.stat().st_size
+                png=artwork_png(entry['id'])
+                total+=len(png)
                 if total>650*1024*1024:
-                    raise ValueError('ZIP 650 MB sınırını aştı; daha az tasarım seç.')
-                name=re.sub(r'[^\w\- .]+','_',entry.get('title') or 'Tasarim',
-                            flags=re.UNICODE).strip(' .')[:75] or 'Tasarim'
-                prefix=f'{i:03d}_{name}'
-                z.write(picture,f'{prefix}.{entry.get("format") or picture.suffix.lstrip(".")}')
-                project=_record_dir(entry['id'])/'proje.json'
-                if project.is_file() and entry.get('reason')!='import':
-                    z.write(project,f'{prefix}.proje.json')
+                    raise ValueError('Toplu PNG boyutu 650 MB sınırını aştı; daha az seç.')
+                package.writestr(export_label(entry,i)+'.png',png)
         return output
     except Exception:
         output.unlink(missing_ok=True)
