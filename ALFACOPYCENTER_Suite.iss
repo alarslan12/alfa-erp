@@ -1,19 +1,19 @@
-; ALFACOPYCENTER Suite v2.0.1
+; ALFACOPYCENTER Suite v2.0.2
 ; Unified installer for ERP Staff, ERP Owner, Banner Studio, Print Surveillance.
 ; No cloud database deletion, no spooler driver/service modification.
 #define CompanyName "ALFACOPYCENTER"
-#define SuiteVersion "2.0.1"
+#define SuiteVersion "2.0.2"
 
 [Setup]
 AppId=ALFACOPYCENTER.Suite
 AppName={#CompanyName} Uygulama Paketi
 AppVerName={#CompanyName} Suite {#SuiteVersion}
 AppVersion={#SuiteVersion}
-VersionInfoVersion=2.0.1.0
+VersionInfoVersion=2.0.2.0
 DefaultDirName={localappdata}\Programs\ALFACOPYCENTER
 DefaultGroupName={#CompanyName}
 OutputDir=output
-OutputBaseFilename=ALFACOPYCENTER_Suite_Setup_V2_0_1
+OutputBaseFilename=ALFACOPYCENTER_Suite_Setup_V2_0_2
 Compression=lzma2
 SolidCompression=yes
 PrivilegesRequired=lowest
@@ -38,7 +38,7 @@ Name: "custom"; Description: "Uygulamaları kendim seçeceğim"; Flags: iscustom
 [Components]
 Name: "staff"; Description: "ALFA ERP Personel"; Types: full custom
 Name: "owner"; Description: "ALFA ERP Yönetici (kurulum parolası gerekir)"; Types: custom
-Name: "banner"; Description: "ALFA Banner Studio Pro v3.3"; Types: full custom
+Name: "banner"; Description: "ALFA Banner Studio Pro v3.4"; Types: full custom
 Name: "print"; Description: "ALFA Print Surveillance v2.0"; Types: full custom
 Name: "print\agent"; Description: "Windows oturumu arka plan izleyicisi"; Types: full custom
 
