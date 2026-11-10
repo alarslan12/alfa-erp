@@ -290,9 +290,17 @@ async function openLibrary(){
      updateControls();renderSelected();scheduleRender();closeLibrary();toast('Eski tasarım düzenlemeye açıldı.');
     }catch(e){toast(e.message)}
    };
-   card.querySelector('[data-op=download]').onclick=()=>{
-    const a=document.createElement('a');a.href='/api/library/download?id='+encodeURIComponent(entry.id);
-    a.download='ALFA_Arsiv_'+entry.id+'.'+entry.format;a.click();
+   card.querySelector('[data-op=download]').onclick=async()=>{
+    const name=archiveExportName(entry);
+    let chosen;
+    try{chosen=await chooseSaveFile(name,'image/png')}
+    catch(e){toast('Kayıt yeri: '+e.message);return}
+    if(chosen.cancelled)return;
+    busy('PNG arşiv görseli hazırlanıyor…',true);
+    try{
+     const blob=await api('/api/library/png?id='+encodeURIComponent(entry.id));
+     await saveImageBlob(blob,name,chosen);
+    }catch(e){toast('PNG indirme: '+e.message)}finally{busy('',false)}
    };
    card.querySelector('[data-op=rename]').onclick=async()=>{
     const title=prompt('Tasarımın yeni adı:',entry.title);if(!title?.trim())return;
@@ -314,19 +322,40 @@ function updateLibrarySelection(){
 }
 async function downloadArchiveSelection(){
  if(!selectedArchiveIds.size){toast('Toplu indirmek için tasarım seç.');return}
- busy('Seçilen tasarımlar ZIP dosyasına hazırlanıyor…',true);
+ const ids=[...selectedArchiveIds];let folder=null,chosen=null;
  try{
-  const blob=await api('/api/library/bulk-download',{
-   method:'POST',headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({ids:[...selectedArchiveIds]})
-  });
-  const url=URL.createObjectURL(blob),a=document.createElement('a');
-  a.href=url;a.download='ALFA_Tasarim_Arsivi.zip';a.click();
-  setTimeout(()=>URL.revokeObjectURL(url),10000);
-  toast(selectedArchiveIds.size+' tasarım orijinal kalitesiyle ZIP olarak indirildi.');
- }catch(e){toast('Toplu indirme: '+e.message)}finally{busy('',false)}
+  if(window.showDirectoryPicker)folder=await window.showDirectoryPicker({mode:'readwrite'});
+  else chosen=await chooseSaveFile('ALFA_Tasarim_Arsivi_PNG.zip','application/zip');
+ }catch(e){if(e.name==='AbortError')return;toast('Klasör seçilemedi: '+e.message);return}
+ if(chosen&&chosen.cancelled)return;
+ busy('PNG dosyaları hazırlanıyor…',true);
+ try{
+  if(folder){
+   const manifest=await api('/api/library/export-names',{
+    method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids})
+   });
+   if(!Array.isArray(manifest.files)||manifest.files.length!==ids.length)
+    throw new Error('Seçilen dosya listesi eksik.');
+   let done=0;
+   for(const item of manifest.files){
+    $('busyTitle').textContent='PNG kaydediliyor: '+(++done)+' / '+manifest.files.length;
+    const blob=await api('/api/library/png?id='+encodeURIComponent(item.id));
+    const handle=await folder.getFileHandle(item.name,{create:true});
+    const writer=await handle.createWritable();
+    try{await writer.write(blob);await writer.close()}
+    catch(e){await writer.abort().catch(()=>{});throw e}
+   }
+   toast('Seçilen klasöre '+done+' PNG kaydedildi. JSON dosyası yok.');
+  }else{
+   const name='ALFA_Tasarim_Arsivi_PNG.zip';
+   const blob=await api('/api/library/bulk-download',{
+    method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids})
+   });
+   await saveImageBlob(blob,name,chosen);
+   toast(ids.length+' PNG dosyası arşivlendi. JSON yok.');
+  }
+ }catch(e){toast('Toplu PNG indirme: '+e.message)}finally{busy('',false)}
 }
-
 async function uploadBinary(url,file){return api(url,{method:'POST',headers:{'Content-Type':'application/octet-stream'},body:file})}
 function bindUI(){
  $('bookSearch').addEventListener('input',renderCatalog);$('groupFilter').addEventListener('change',renderCatalog);
