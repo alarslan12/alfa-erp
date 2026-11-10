@@ -1,0 +1,62 @@
+name: ALFACOPYCENTER Suite v2.0.3 - Banner and Gardrops only
+
+on:
+  push:
+    branches: [feature/banner-gardrops-only-20261110]
+    paths:
+      - '.github/workflows/alfacopycenter-suite-v203-candidate.yml'
+      - 'ALFA_BUILD_WINDOWS.ps1'
+      - 'ALFA_BUILD_SUITE_WINDOWS.ps1'
+      - 'ALFACOPYCENTER_Suite.iss'
+      - 'requirements.txt'
+      - 'main.py'
+      - 'gardrops_fiyat.py'
+      - 'ekran_katalog.py'
+      - 'banner_studio/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: suite-v203-clean-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package:
+    name: Package four-app Windows Suite (no runtime tests)
+    runs-on: windows-2022
+    timeout-minutes: 95
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+          architecture: x64
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          $iscc = Join-Path ([Environment]::GetFolderPath('ProgramFilesX86')) 'Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path $iscc)) { choco install innosetup --yes --no-progress }
+          if (-not (Test-Path $iscc)) { throw 'Inno Setup compiler not found' }
+      - name: Build all ALFACOPYCENTER components
+        shell: pwsh
+        run: .\ALFA_BUILD_SUITE_WINDOWS.ps1
+      - name: Verify candidate setup and SHA256
+        shell: pwsh
+        run: |
+          $setup = Get-Item .\output\ALFACOPYCENTER_Suite_Setup_V2_0_3.exe -ErrorAction Stop
+          if ($setup.Length -lt 1000000) { throw 'Unexpectedly small installer' }
+          $hash = (Get-FileHash $setup.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $($setup.Name)" | Set-Content -Encoding ascii .\output\SHA256SUMS.txt
+          Copy-Item .\docs\BANNER_GARDROPS_V203.md .\output\RELEASE_NOTES.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ALFACOPYCENTER_Suite_v2.0.3_Gardrops_Windows_Candidate
+          path: |
+            output/ALFACOPYCENTER_Suite_Setup_V2_0_3.exe
+            output/SHA256SUMS.txt
+            output/RELEASE_NOTES.txt
+          if-no-files-found: error
+          retention-days: 21
+          compression-level: 0
