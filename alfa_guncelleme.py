@@ -300,6 +300,8 @@ try {
     # preselected; the owner still enters the normal setup password.
     $editionArg = if ([IO.Path]::GetFileName($TargetExe) -ieq 'AlfaERPYonetici.exe') {
         '/ALFAOWNER'
+    } elseif ([IO.Path]::GetFileName($TargetExe) -ieq 'AlfaBannerStudio.exe') {
+        '/ALFABANNER'
     } else {
         '/ALFASTAFF'
     }
@@ -316,6 +318,8 @@ try {
     $suiteRoot = Join-Path $env:LOCALAPPDATA 'Programs\ALFACOPYCENTER'
     $suiteExe = if ($editionArg -eq '/ALFAOWNER') {
         Join-Path $suiteRoot 'Owner\AlfaERPYonetici.exe'
+    } elseif ($editionArg -eq '/ALFABANNER') {
+        Join-Path $suiteRoot 'BannerStudio\AlfaBannerStudio.exe'
     } else {
         Join-Path $suiteRoot 'Staff\AlfaERP.exe'
     }
@@ -351,7 +355,7 @@ def launch_update(verified,storage,app_executable,pending=0):
     if not getattr(sys,"frozen",False) or os.name!="nt":
         raise UpdateError("Otomatik yükleme yalnız kurulu Windows uygulamasında çalışır")
     exe=Path(app_executable).resolve()
-    if exe.name.lower() not in ("alfaerp.exe","alfaerpyonetici.exe"):
+    if exe.name.lower() not in ("alfaerp.exe","alfaerpyonetici.exe","alfabannerstudio.exe"):
         raise UpdateError("Bilinmeyen ALFA ERP uygulaması")
     setup=Path(str(verified["path"])).resolve()
     if setup.suffix.lower()!=".exe" or not setup.is_file():
