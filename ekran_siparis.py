@@ -456,8 +456,6 @@ class SiparisView(QWidget):
                   'havuz':'havuza geri alınsın'}.get(new_status, 'değiştirilsin')
         shipping_fee = None
         if new_status == 'tamamlandi':
-            if not self.db.kolileme_tamam(order):
-                return error(self, 'Kargonomi gönderisi oluşturmadan önce tüm kitaplar kolilenmiş olmalı.')
             category = self.db.kargo_kategorisi(order)
             if category:
                 label = 'Telafi siparişi' if category == 'telafi' else 'Normal açık adres siparişi'
@@ -466,17 +464,6 @@ class SiparisView(QWidget):
                     return
         if not confirm(self, f"#{order['id']} numaralı sipariş {action} mı?"):
             return
-        if new_status == 'tamamlandi':
-            from alici_bilgileri import request_buyer_details
-            from kargonomi_akisi import request_kargonomi_completion
-            required=('alici_adi','telefon','adres','il','ilce')
-            if any(not str(order.get(k) or '').strip() for k in required):
-                buyer=request_buyer_details(self,order)
-                if buyer is None:return
-                order.update(buyer)
-                self.db.siparisleri_kaydet()
-            if not request_kargonomi_completion(self,self.db,order):
-                return
         try:
             self.db.siparis_durumunu_degistir(order, new_status, kargo_ucreti=shipping_fee)
         except Exception as exc:
