@@ -29,11 +29,6 @@ OWNER_EDITION=(ROOT/'YONETICI_SURUMU.flag').exists()
 
 
 class AlfaMain(QMainWindow):
-    def open_kargonomi(self):
-        from kargonomi import KargonomiDialog
-        dialog=KargonomiDialog(self.db,self)
-        dialog.exec()
-
     def __init__(self,admin_cloud=None):
         super().__init__()
         self.admin_cloud=admin_cloud
@@ -109,10 +104,6 @@ class AlfaMain(QMainWindow):
         # Owner header stays unchanged; staff gets one compact settings
         # pill at the far right instead of three scattered controls.
         if OWNER_EDITION:right_row.addWidget(settings_btn)
-        self.kargonomi_button=QPushButton('▣ Kargonomi')
-        self.kargonomi_button.setToolTip('Gönderi oluşturma, kargo teklifi, takip ve barkod PDF')
-        self.kargonomi_button.clicked.connect(self.open_kargonomi)
-        right_row.addWidget(self.kargonomi_button)
         self.announcements_button=QPushButton('◉ Duyurular')
         self.announcements_button.setToolTip('Sürüm notları ve Güncelleme Merkezi')
         self.announcements_button.clicked.connect(self.open_announcements)
