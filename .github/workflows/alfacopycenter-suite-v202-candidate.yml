@@ -5,12 +5,15 @@ on:
     branches:
       - feature/banner-kargonomi-20261110
     paths:
-      - '.github/workflows/alfacopycenter-suite-v203-candidate.yml'
+      - '.github/workflows/alfacopycenter-suite-v202-candidate.yml'
       - 'ALFA_BUILD_WINDOWS.ps1'
       - 'ALFA_BUILD_SUITE_WINDOWS.ps1'
       - 'ALFACOPYCENTER_Suite.iss'
       - 'requirements.txt'
       - 'main.py'
+      - 'alfa_guncelleme.py'
+      - 'guncelleme_arayuzu.py'
+      - 'docs/ALFACOPYCENTER_SUITE_V203_RELEASE.md'
       - 'kargonomi*.py'
       - 'alici_bilgileri.py'
       - 'ekran_katalog.py'
@@ -56,7 +59,7 @@ jobs:
           if ($setup.Length -lt 1000000) { throw 'Unexpectedly small installer' }
           $hash = (Get-FileHash $setup.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
           "$hash  $($setup.Name)" | Set-Content -Encoding ascii .\output\SHA256SUMS.txt
-          Copy-Item .\docs\ALFACOPYCENTER_SUITE_V202_RELEASE.md .\output\RELEASE_NOTES.txt
+          Copy-Item .\docs\ALFACOPYCENTER_SUITE_V203_RELEASE.md .\output\RELEASE_NOTES.txt
       - uses: actions/upload-artifact@v4
         with:
           name: ALFACOPYCENTER_Suite_v2.0.3_Windows_Candidate
