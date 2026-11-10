@@ -300,6 +300,9 @@ class KatalogView(QWidget):
         self.platform_value='Dolap'
         self.platform_hint=text('Platform: Dolap (otomatik)','Muted');side_l.addWidget(self.platform_hint)
         self.revenue=FloatingPrice();side_l.addWidget(self.revenue)
+        self.net_hint=text('Gardrops için net tutar otomatik hesaplanır.','Muted')
+        side_l.addWidget(self.net_hint)
+        self.revenue.edit.textChanged.connect(self.update_net_hint)
         self.order_btn=button('🚀  Siparişi Sisteme Kaydet','Success')
         self.order_btn.clicked.connect(self.make_order);side_l.addWidget(self.order_btn)
         root.addWidget(self.side)
@@ -431,6 +434,17 @@ class KatalogView(QWidget):
         platform=otomatik_platform_bul(formatted)
         self.platform_value=platform
         self.platform_hint.setText(f'Platform: {platform} (otomatik)')
+        self.update_net_hint()
+    def update_net_hint(self):
+        if not hasattr(self,'net_hint') or not hasattr(self,'revenue'):
+            return
+        if self.platform_value == 'Gardrops':
+            gross=self.revenue.value()
+            net=net_revenue(gross,'Gardrops')
+            self.net_hint.setText(f'Gardrops: {gross:,.2f} TL → kesinti sonrası net {net:,.0f} TL (%90 · yukarı yuvarla)')
+        else:
+            self.net_hint.setText('Diğer platformlar: girilen tutar aynen kaydedilir.')
+
     def adjust_cart(self,code,kind,delta):
         values=self.cart.get(str(code))
         if not values:return
