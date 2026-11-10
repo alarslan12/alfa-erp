@@ -98,7 +98,7 @@ class UpdateDialog(QDialog):
         self.check=QPushButton("↻ Güncellemeyi kontrol et")
         self.check.clicked.connect(self.check_now)
         controls.addWidget(self.check)
-        self.download=QPushButton("İndir ve doğrula")
+        self.download=QPushButton("Güncellemeyi yükle")
         self.download.setEnabled(False)
         self.download.clicked.connect(self.download_now)
         controls.addWidget(self.download)
@@ -106,6 +106,7 @@ class UpdateDialog(QDialog):
         self.install.setObjectName("Accent")
         self.install.setEnabled(False)
         self.install.clicked.connect(self.install_now)
+        self.install.setVisible(False)
         controls.addWidget(self.install)
         root.addLayout(controls)
         bottom=QHBoxLayout()
@@ -161,6 +162,12 @@ class UpdateDialog(QDialog):
 
     def download_now(self):
         if not self.release:return
+        approval=QMessageBox.question(self,"Güncelleme onayı",
+            "Yeni sürüm uygulama içinden indirilecek ve doğrulanacak. "
+            "Sonrasında ALFA ERP kapatılıp yeni sürüm kurulacak. "
+            "Yerel veriler silinmeyecek. Devam edilsin mi?",
+            QMessageBox.StandardButton.Yes|QMessageBox.StandardButton.No)
+        if approval!=QMessageBox.StandardButton.Yes:return
         self.message.setText("Kurulum indiriliyor ve SHA-256 doğrulanıyor…")
         self.progress.setValue(0)
         self.progress.setVisible(True)
@@ -173,6 +180,7 @@ class UpdateDialog(QDialog):
                 "Doğrulandı · "+str(verified.get("version"))+
                 " · Kurulum için onay gerekiyor")
             self.install.setEnabled(True)
+            self.install_now(skip_confirmation=True)
         def failed(message):
             self.progress.setVisible(False)
             self.message.setText("İndirme başarısız: "+message)
@@ -196,7 +204,7 @@ class UpdateDialog(QDialog):
                 return window
         return None
 
-    def install_now(self):
+    def install_now(self,skip_confirmation=False):
         if not self.verified:return
         main=self._main_application()
         if main is None:
@@ -214,12 +222,13 @@ class UpdateDialog(QDialog):
             QMessageBox.warning(self,"Güncelleme",
                 "Şu anda eşitleme sürüyor. İşlem bitince yeniden deneyin.")
             return
-        yes=QMessageBox.question(self,"Kurulumu başlat",
-            "ALFA ERP kapanacak. Ardından Windows kurulum sihirbazı açılacak "
-            "(Yönetici için kurulum parolası gerekir). Kurulum tamamlanırsa "
-            "uygulama otomatik yeniden başlatılacak. Devam edilsin mi?",
-            QMessageBox.StandardButton.Yes|QMessageBox.StandardButton.No)
-        if yes!=QMessageBox.StandardButton.Yes:return
+        if not skip_confirmation:
+            yes=QMessageBox.question(self,"Kurulumu başlat",
+                "ALFA ERP kapanacak. Ardından Windows kurulum sihirbazı açılacak "
+                "(Yönetici için kurulum parolası gerekir). Kurulum tamamlanırsa "
+                "uygulama otomatik yeniden başlatılacak. Devam edilsin mi?",
+                QMessageBox.StandardButton.Yes|QMessageBox.StandardButton.No)
+            if yes!=QMessageBox.StandardButton.Yes:return
         try:
             launch_update(self.verified,self.storage,sys.executable,pending=pending)
         except (UpdateError,OSError,RuntimeError) as exc:
