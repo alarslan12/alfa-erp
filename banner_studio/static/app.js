@@ -199,19 +199,57 @@ function addSelectedGroup(){
   if(state.books.some(b=>b.id===book.id))continue;
   state.books.push({...book});added++;
  }
- state.settings.title_series=name;
- state.settings.title_set=name.toLocaleUpperCase('tr-TR');
- updateControls();afterBooksChanged();
+ // Existing headlines and prices are not changed by group selection.
+ afterBooksChanged();
  toast(added+' kitap eklendi'+(books.length>30?' · 30 kapak sınırı geçerli':''));
+}
+function cleanExportName(parts,ext){
+ const stem=parts.map(x=>String(x||'').trim()).filter(Boolean).join(' - ')
+  .replace(/[<>:"/\\|?*\x00-\x1f]/g,'_').replace(/\s+/g,' ').trim().slice(0,160);
+ return (stem||'ALFA_Tasarim')+'.'+ext;
+}
+function currentExportName(square,format){
+ const s=state.settings;
+ const subtitle=(s.show_subtitle&&String(s.subtitle||'').trim())?s.subtitle:state.books.length+' Kitap';
+ return cleanExportName([s.title_series,s.title_set,subtitle,square?'Kare':''],format==='JPEG'?'jpg':'png');
+}
+function archiveExportName(entry){
+ return cleanExportName([entry.series,entry.set||entry.title,entry.subtitle||entry.books_count+' Kitap'],'png');
+}
+async function chooseSaveFile(name,mime){
+ if(!window.showSaveFilePicker)return {fallback:true};
+ try{
+  const ext=mime==='image/png'?'.png':mime==='application/zip'?'.zip':'.jpg';
+  return {handle:await showSaveFilePicker({suggestedName:name,
+   types:[{description:'ALFA dışa aktarım',accept:{[mime]:[ext]}}]})};
+ }catch(e){if(e.name==='AbortError')return {cancelled:true};throw e}
+}
+async function saveImageBlob(blob,name,chosen){
+ if(chosen.cancelled)return false;
+ if(chosen.handle){
+  const writer=await chosen.handle.createWritable();
+  try{await writer.write(blob);await writer.close()}catch(e){await writer.abort().catch(()=>{});throw e}
+ }else{
+  const url=URL.createObjectURL(blob),link=document.createElement('a');
+  link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),10000);
+  toast('Tarayıcı indirme klasörü kullanıldı. Edge/Chrome ile kayıt yeri seçilebilir.');
+ }
+ return true;
 }
 async function downloadImage(square,format='PNG'){
  if(!state.books.length){toast('Önce afişe kitap ekle.');return}
+ const name=currentExportName(square,format);
+ let destination;
+ try{destination=await chooseSaveFile(name,format==='JPEG'?'image/jpeg':'image/png')}
+ catch(e){toast('Kayıt yeri seçilemedi: '+e.message);return}
+ if(destination.cancelled)return;
  busy('Yüksek çözünürlüklü afiş hazırlanıyor…',true);
  try{
-  const blob=await api('/api/export',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({settings:state.settings,books:state.books,square,format})});
-  const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`${state.settings.title_series}_${state.settings.title_set.replace(/\s+/g,'_')}_${square?'Kare':'Afiş'}.${format==='JPEG'?'jpg':'png'}`;a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);
-  toast((format==='JPEG'?'JPG':'PNG')+' indirildi ve Tasarım Arşivi’ne kaydedildi.');
- }catch(e){toast('PNG hatası: '+e.message)}finally{busy('',false)}
+  const blob=await api('/api/export',{method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({settings:state.settings,books:state.books,square,format})});
+  if(await saveImageBlob(blob,name,destination))
+   toast('Görsel kaydedildi ve Tasarım Arşivi’ne eklendi.');
+ }catch(e){toast('Görsel kaydedilemedi: '+e.message)}finally{busy('',false)}
 }
 async function saveToLibrary(){
  if(!state.books.length){toast('Arşive kaydetmek için kitap ekle.');return}
