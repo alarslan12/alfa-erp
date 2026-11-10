@@ -111,6 +111,8 @@ def alpha_surface(size):return Image.new('RGBA',size,(0,0,0,0))
 class Settings:
  title_series:str='TTS'
  title_set:str='TEMEL SET'
+ subtitle:str=''
+ show_subtitle:bool=False
  eyebrow:str='TUSDATA · TUS HAZIRLIK'
  edition:str='37. BASKI'
  theme:str='Bordo / Parşömen'
@@ -128,6 +130,7 @@ class Settings:
  logo_path:str=''
  logo_position:str='Sol'
  slogan:str='Güncel kaynaklar · Özenli baskı'
+ brand_message:str='Tanıdık kalite, aynı özen.'
  note1:str='İlan fiyatı tek kitap içindir; set fiyatı için mesaj atınız.'
  note2:str='Lütfen bu ilanı doğrudan satın almayınız.'
  note3:str='Siparişten önce kitap kodunu ve baskı türünü belirtiniz.'
@@ -293,8 +296,9 @@ class Renderer:
   # Edition pill is directly ABOVE the book-count label, not beside title.
   if cfg.show_edition_badge and str(cfg.edition).strip():
    self._edition(img,cfg.edition,gold,deep,paper,cfg.edition_font_size)
-  desc=(f'{len(self.books)} KİTAP  ·  {title_type}' if len(self.books)>1
-        else '1 KİTAP  ·  TEK KİTAP')
+  desc=(str(cfg.subtitle).strip() if cfg.show_subtitle and str(cfg.subtitle).strip()
+        else (f'{len(self.books)} KİTAP  ·  {title_type}' if len(self.books)>1
+              else '1 KİTAP  ·  TEK KİTAP'))
   d.rounded_rectangle((246,1050,954,1097),radius=16,fill=deep)
   fitted(d,desc,(263,1058,937,1091),26,min_size=17,bold=True,fill=paper)
   # Stable price positions regardless of visual layout / number of books.
@@ -316,7 +320,7 @@ class Renderer:
   d.rounded_rectangle((84,1442,1116,1540),radius=23,
                       fill=mix(deep,accent,.29))
   self._footer(img,cfg,p)
-  fitted(d,cfg.slogan,(180,1549,1020,1583),18,min_size=12,
+  fitted(d,cfg.slogan,(165,1553,1035,1586),18,min_size=12,
          bold=False,fill=heading)
   return img
 
@@ -486,26 +490,15 @@ class Renderer:
          bold=True,fill=deep)
 
  def _footer(self,img,cfg,p):
-  """The shop signature never overlaps notices, regardless of logo slot."""
-  d=ScaledDraw(img,self.scale);paper=from_hex(p['paper']);gold=from_hex(p['gold'])
-  position=cfg.logo_position
-  logo=None
-  if position!='Kapalı' and cfg.logo_path and Path(cfg.logo_path).is_file():
-   try:
-    with Image.open(cfg.logo_path) as file:
-     logo=ImageOps.contain(file.convert('RGBA'),(68*self.scale,68*self.scale),Image.Resampling.LANCZOS)
-   except (OSError,ValueError):pass
-  if logo:
-   if position=='Sağ':px=1021;name_area=(170,1450,960,1495);acc_area=(200,1496,930,1531)
-   elif position=='Orta':px=280;name_area=(378,1450,1015,1495);acc_area=(410,1496,982,1531)
-   else:px=112;name_area=(216,1450,1000,1495);acc_area=(240,1496,972,1531)
-   py=1455+(68-logo.height/self.scale)/2
-   img.paste(logo,(round(px*self.scale),round(py*self.scale)),logo)
-  else:
-   name_area=(175,1450,1025,1495)
-   acc_area=(240,1496,960,1531)
-  fitted(d,cfg.shop_name,name_area,37,bold=True,serif=True,fill=paper)
-  fitted(d,cfg.account_name,acc_area,26,bold=True,fill=gold)
+  """Logo-free, centered typography inside dedicated brand panel."""
+  d=ScaledDraw(img,self.scale)
+  paper=from_hex(p['paper']);gold=from_hex(p['gold'])
+  fitted(d,cfg.shop_name,(115,1447,1085,1485),32,min_size=17,
+         bold=True,serif=True,fill=paper)
+  fitted(d,cfg.account_name,(115,1484,1085,1511),21,min_size=13,
+         bold=True,fill=gold)
+  fitted(d,cfg.brand_message,(115,1512,1085,1536),17,min_size=11,
+         bold=False,fill=paper)
 
 
 def square_preview(img):
