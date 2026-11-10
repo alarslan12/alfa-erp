@@ -29,7 +29,7 @@ from banner_engine import (Renderer, Settings, read_excel, cover_files,
                            get_cover, PALETTES, LAYOUTS, STYLES, square_preview)
 import studio_library as library
 
-SUITE_VERSION='2.0.5'
+SUITE_VERSION='2.0.6'
 UPDATE_NONCE=secrets.token_urlsafe(32)
 UPDATE_LOCK=threading.RLock()
 UPDATE_STATE={'release':None,'verified':None,'busy':False}
@@ -227,7 +227,7 @@ class Handler(SimpleHTTPRequestHandler):
             return self._response({'catalog':CATALOG,'settings':config,'books':selected,
                    'palettes':PALETTES,'styles':STYLES,'layouts':LAYOUTS,
                    'covers':len(COVER_IDX[0]),'cover_status':_cover_status(),
-                   'version':'3.6 - ayarlar ve uygulama içi güvenli güncellemeler',
+                   'version':'3.7 - Excel kod doğrulama ve güvenilir kapak eşleştirme',
                    'suite_version':SUITE_VERSION,
                    'update_nonce':UPDATE_NONCE,
                    'library_total':len(library.list_designs())})
