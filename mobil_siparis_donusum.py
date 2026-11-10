@@ -50,6 +50,16 @@ def convert_mobile_order(row, items, catalog):
         'bulut_siparis_no': int(row.get('order_number') or 0),
         'bulut_version': int(row.get('version') or 1),
     }
+    recipient=row.get('recipient')
+    if isinstance(recipient,dict):
+        for key in ('alici_adi','telefon','adres','il','ilce','alici_il_id','alici_ilce_id','brut_tutar'):
+            if recipient.get(key) is not None:
+                output[key]=recipient[key]
+    kargonomi=row.get('kargonomi')
+    if isinstance(kargonomi,dict):
+        for key in ('kargonomi_shipment_id','kargonomi_desi','kargonomi_firma_id','kargonomi_onaylandi'):
+            if kargonomi.get(key) is not None:
+                output[key]=kargonomi[key]
     if row.get('shipping_fee') is not None:
         output['kargo_ucreti'] = float(row['shipping_fee'])
     if status in ('aktif', 'tamamlandi'):
