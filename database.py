@@ -234,7 +234,9 @@ class ERPDatabase:
                             'sequence':self._next_revision,'op_id':str(uuid.uuid4()),
                             'local_id':sid,'order_id':row['bulut_id'],
                             'from_status':a,'to_status':b,
-                            'shipping_fee':row.get('kargo_ucreti') if b=='tamamlandi' else None})
+                            'shipping_fee':row.get('kargo_ucreti') if b=='tamamlandi' else None,
+                            'recipient':{k:row.get(k) for k in ('alici_adi','telefon','adres','il','ilce','alici_il_id','alici_ilce_id','brut_tutar') if row.get(k) is not None},
+                            'kargonomi':{k:row.get(k) for k in ('kargonomi_shipment_id','kargonomi_desi','kargonomi_firma_id','kargonomi_onaylandi') if row.get(k) is not None}})
                     if status_changed and next_status=='aktif':
                         enqueue_status(previous_status,next_status)
                         # Status must come before queued progress events.
