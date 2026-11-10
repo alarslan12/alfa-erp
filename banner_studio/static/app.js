@@ -54,7 +54,6 @@ function updateControls(){
  qs('.palette-card').forEach(el=>el.classList.toggle('active',el.dataset.theme===s.theme));
  qs('.style-pill').forEach(el=>el.classList.toggle('active',el.dataset.style===s.style));
  $('layoutSelect').value=s.layout||'Akıllı';
- $('logoInfo').textContent=s.logo_path?'Logo yüklendi: '+s.logo_path.split(/[\\/]/).pop():'Henüz logo seçilmedi.';
  const sliders=[['editionSize','edition_font_size',' pt'],['coverEditionSize','cover_edition_font_size',' pt'],['coverBadgeSize','cover_badge_font_size',' pt']];
  sliders.forEach(([id,key,suffix])=>{const el=$(id);if(!el)return;el.value=s[key]??20;$(id+'Value').textContent=el.value+suffix});
  if($('outputResolution'))$('outputResolution').value=String(s.export_scale||2);
@@ -77,6 +76,9 @@ function renderGroups(){
  const current=$('groupFilter').value;
  $('groupFilter').innerHTML='<option value="">Tüm gruplar</option>'+groups.map(x=>`<option value="${escapeHTML(x)}">${escapeHTML(x)}</option>`).join('');
  if(groups.includes(current))$('groupFilter').value=current;
+ const quick=$('quickGroup'),prior=quick.value;
+ quick.innerHTML='<option value="">Bir grup seçiniz</option>'+groups.map(x=>`<option value="${escapeHTML(x)}">${escapeHTML(x)}</option>`).join('');
+ if(groups.includes(prior))quick.value=prior;
 }
 function filteredBooks(){const q=normalize($('bookSearch').value.trim()),g=$('groupFilter').value;return state.catalog.filter(b=>(!g||g===b.group)&&(!q||normalize([b.code,b.name,b.group].join(' ')).includes(q)))}
 function renderCatalog(){
@@ -186,15 +188,21 @@ function showCoverMenu(clientX,clientY,index){
 document.addEventListener('click',e=>{if(!e.target.closest('#coverContext')&&!e.target.closest('.cover-hit'))hideCoverMenu()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')hideCoverMenu()});
 
-function applyTTS(name){
- const lists={temel:['448','449','450','451','452','453'],klinik:['443','444','445','446','447'],tum:['443','444','445','446','447','448','449','450','451','452','453']};
- const labels={temel:'TEMEL SET',klinik:'KLİNİK SET',tum:'TÜM SET'};
- const books=lists[name].map(code=>state.catalog.find(b=>b.code===code)).filter(Boolean);
- if(!books.length){toast('TTS grubu Excel kataloğunda bulunamadı.');return}
- state.books=books.map(b=>({...b}));
- state.settings.title_series='TTS';state.settings.title_set=labels[name];
- state.settings.theme={temel:'Bordo / Parşömen',klinik:'Zümrüt / Krem',tum:'Petrol / Altın'}[name];
- updateControls();afterBooksChanged();toast(`TTS ${labels[name]} · ${books.length} kitap eklendi.`)
+function addSelectedGroup(){
+ const name=$('quickGroup').value;
+ if(!name){toast('Önce grup seçiniz.');return}
+ const books=state.catalog.filter(b=>b.group===name);
+ if(!books.length){toast('Grup boş.');return}
+ let added=0;
+ for(const book of books){
+  if(state.books.length>=30)break;
+  if(state.books.some(b=>b.id===book.id))continue;
+  state.books.push({...book});added++;
+ }
+ state.settings.title_series=name;
+ state.settings.title_set=name.toLocaleUpperCase('tr-TR');
+ updateControls();afterBooksChanged();
+ toast(added+' kitap eklendi'+(books.length>30?' · 30 kapak sınırı geçerli':''));
 }
 async function downloadImage(square,format='PNG'){
  if(!state.books.length){toast('Önce afişe kitap ekle.');return}
@@ -285,7 +293,7 @@ async function uploadBinary(url,file){return api(url,{method:'POST',headers:{'Co
 function bindUI(){
  $('bookSearch').addEventListener('input',renderCatalog);$('groupFilter').addEventListener('change',renderCatalog);
  $('addFiltered').onclick=()=>{let n=0;for(const item of filteredBooks()){if(state.books.length>=30)break;if(!state.books.some(x=>x.id===item.id)){state.books.push({...item});n++}}afterBooksChanged();toast(n+' kitap eklendi.')};
- qs('[data-preset]').forEach(el=>el.onclick=()=>applyTTS(el.dataset.preset));
+ $('addQuickGroup').onclick=addSelectedGroup;
  $('clearSelection').onclick=()=>{state.books=[];afterBooksChanged()};
  $('resetSwap').onclick=()=>{selectedCover=null;const marked=qs('.cover-hit.marked');marked.forEach(x=>x.classList.remove('marked'));toast('Kapak seçimi temizlendi.')};
  $('toggleCrop').onclick=()=>{cropMode=!cropMode;$('canvasWrap').classList.toggle('square',cropMode);$('toggleCrop').textContent=cropMode?'▤ Tam afişe dön':'▢ Kare kırpma kontrolü';selectedCover=null;scheduleRender()};
@@ -314,7 +322,7 @@ function bindUI(){
  $('saveLibrary').onclick=()=>saveToLibrary();
  $('closeLibrary').onclick=()=>closeLibrary();
  $('importLibraryImage').onclick=()=>$('fileImportArtwork').click();
- $('pickExcel').onclick=()=>$('fileExcel').click();$('pickCovers').onclick=()=>$('fileCovers').click();$('pickCoverZip').onclick=()=>$('fileCoverZip').click();$('uploadLogo').onclick=()=>$('fileLogo').click();
+ $('pickExcel').onclick=()=>$('fileExcel').click();$('pickCovers').onclick=()=>$('fileCovers').click();$('pickCoverZip').onclick=()=>$('fileCoverZip').click();
  $('addCustom').onclick=()=>{customTarget=null;$('fileCustom').click()};
  $('fileExcel').onchange=async ev=>{const file=ev.target.files[0];if(!file)return;busy('Excel katalog yükleniyor…',true);try{const result=await uploadBinary('/api/upload/excel',file);state.catalog=result.catalog;renderGroups();renderCatalog();showCoverStatus(result);toast('Excel kataloğu yüklendi: '+result.total+' kitap')}catch(e){toast(e.message)}finally{busy('',false);ev.target.value=''}};
  $('fileCoverZip').onchange=async ev=>{
@@ -334,7 +342,6 @@ function bindUI(){
   async function worker(){while(cursor<files.length){let f=files[cursor++];try{await uploadBinary('/api/upload/cover?name='+encodeURIComponent(f.name),f)}catch(e){failed++}done++;$('busyTitle').textContent=`Kapaklar aktarılıyor: ${done} / ${files.length}`}}
   try{await Promise.all(Array.from({length:Math.min(concurrency,files.length)},worker));let result=await api('/api/upload/commit',{method:'POST'});state.covers=result.covers;showCoverStatus(result);renderSelected();scheduleRender();toast(done-failed+' kapak yüklendi; '+result.matched+' kitapla eşleşti'+(failed?`, ${failed} dosya atlandı`:''))}catch(e){toast(e.message)}finally{busy('',false);ev.target.value=''}
  };
- $('fileLogo').onchange=async ev=>{const file=ev.target.files[0];if(!file)return;busy('Logo hazırlanıyor…',true);try{const result=await uploadBinary('/api/upload/logo',file);state.settings.logo_path=result.logo_path;updateControls();scheduleRender();toast('Logo yerleştirildi')}catch(e){toast(e.message)}finally{busy('',false);ev.target.value=''}};
  $('fileCustom').onchange=async ev=>{const file=ev.target.files[0];if(!file)return;busy('Kapak ekleniyor…',true);try{const result=await uploadBinary('/api/upload/custom?name='+encodeURIComponent(file.name),file);if(customTarget!==null&&state.books[customTarget]){state.books[customTarget].cover_override=result.cover_path}else if(state.books.length<30){state.books.push({id:'EXTRA-'+Date.now(),code:'ÖZEL',name:file.name.replace(/\.[^.]+$/,''),group:'Harici kapak',pages:null,color:false,cover_override:result.cover_path,badge_override:'',edition_override:''})}else{toast('30 kapak sınırı dolu.');return}afterBooksChanged();toast('Harici kapak eklendi')}catch(e){toast(e.message)}finally{busy('',false);ev.target.value=''}};
  $('saveProject').onclick=()=>{const data={schema:3,settings:state.settings,books:state.books};const file=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const url=URL.createObjectURL(file);let a=document.createElement('a');a.href=url;a.download='ALFA_Banner_Proje.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('Proje JSON indirildi.')};
  $('loadProject').onclick=()=>$('fileProject').click();
