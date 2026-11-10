@@ -67,7 +67,9 @@ def _combined_covers():
     # Uploaded covers win. The bundled sample remains available, including
     # when a different Excel catalog has been uploaded.
     uploaded=cover_files(str(ASSETS))
-    demo=cover_files(str(BASE/'ornek'/'Kapaklar'))
+    # Bundled demo covers apply to the bundled demo workbook ONLY.
+    # A newly imported Excel must not inherit old sample mappings.
+    demo=cover_files(str(BASE/'ornek'/'Kapaklar')) if CATALOG_FILE!=DATA/'Kitaplar.xlsx' else ({},{})
     return ({**demo[0],**uploaded[0]},{**demo[1],**uploaded[1]})
 
 COVER_IDX=_combined_covers()
@@ -389,12 +391,24 @@ class Handler(SimpleHTTPRequestHandler):
                 return
             if path=='/api/upload/excel':
                 raw=_read_body(self,30*1024*1024)
-                temp=DATA/'yeni_kitaplar.xlsx'
-                temp.write_bytes(raw)
-                items=read_excel(str(temp))
-                if not items:temp.unlink(missing_ok=True);raise ValueError('Excel içinde kitap kodu ve kitap adı sütunları bulunamadı.')
-                final=DATA/'Kitaplar.xlsx';temp.replace(final)
-                CATALOG_FILE=final;CATALOG=items
+                if not raw:
+                    raise ValueError('Boş Excel dosyası yüklenemez.')
+                # The original workbook is replaced ONLY after full parsing,
+                # duplicate-code checks and file validation succeed.
+                with tempfile.NamedTemporaryFile(
+                    dir=DATA,prefix='excel_kontrol_',suffix='.xlsx',delete=False
+                ) as out:
+                    temp=Path(out.name)
+                    out.write(raw)
+                try:
+                    items=read_excel(str(temp))
+                    final=DATA/'Kitaplar.xlsx'
+                    temp.replace(final)
+                finally:
+                    temp.unlink(missing_ok=True)
+                CATALOG_FILE=final
+                CATALOG=items
+                COVER_IDX=_combined_covers()
                 return self._response({'catalog':items,'total':len(items),
                                        'cover_status':_cover_status()})
             if path=='/api/upload/cover-zip':
