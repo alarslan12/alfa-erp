@@ -473,8 +473,6 @@ class KatalogView(QWidget):
               'siparis_turu':'Telafi Sipariş' if self.special_btn.isChecked() else 'Normal Sipariş'}
         if info['kod'] and not _ask_before_duplicate_shipping_code(self,self.db,info['kod']):
             return
-        buyer=request_buyer_details(self)
-        if buyer is None:return
         try:self.db.yeni_siparis_olustur(info,items)
         except Exception as exc:return error(self,str(exc))
         self.cart.clear();self.db.sepeti_yaz(self.cart)
