@@ -467,7 +467,7 @@ class SiparisView(QWidget):
         if new_status == 'tamamlandi':
             from alici_bilgileri import request_buyer_details
             from kargonomi_akisi import request_kargonomi_completion
-            required=('alici_adi','telefon','adres','alici_il_id','alici_ilce_id')
+            required=('alici_adi','telefon','adres','il','ilce')
             if any(not str(order.get(k) or '').strip() for k in required):
                 buyer=request_buyer_details(self,order)
                 if buyer is None:return
