@@ -1,0 +1,5 @@
+{
+  "_description": "Public HTTPS read-only JSON endpoints only. Leave null for the bundled static catalog. Never put admin or Firebase service credentials here.",
+  "catalog_url": null,
+  "pricing_url": null
+}
