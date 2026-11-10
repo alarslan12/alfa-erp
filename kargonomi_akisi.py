@@ -13,6 +13,29 @@ from kargonomi import (
 )
 
 
+def _normalize_place(value):
+    import unicodedata
+    value=str(value or "").strip().casefold().replace("ı","i")
+    return "".join(c for c in unicodedata.normalize("NFD",value) if not unicodedata.combining(c)).replace(" ","")
+
+def _location_records(response):
+    if isinstance(response,list):
+        return [r for r in response if isinstance(r,dict)]
+    if isinstance(response,dict):
+        for field in ("data","states","cities","results","items"):
+            if field in response:
+                return _location_records(response[field])
+    return []
+
+def _location_id(response, city_name):
+    target=_normalize_place(city_name)
+    for entry in _location_records(response):
+        for label in ("name","state_name","city_name","title"):
+            if _normalize_place(entry.get(label))==target:
+                try:return int(entry["id"])
+                except (KeyError,ValueError,TypeError):continue
+    raise ValueError(f"Kargonomi il/ilçe eşleştirmesi bulunamadı: {city_name}. Adı kontrol edin.")
+
 def shipment_identifier(response):
     if not isinstance(response, dict):
         return None
@@ -127,10 +150,10 @@ class ShipmentCompletionDialog(QDialog):
         self.worker.start()
 
     def prepare(self):
-        required=("alici_adi","telefon","adres","alici_il_id","alici_ilce_id")
+        required=("alici_adi","telefon","adres","il","ilce")
         if any(not str(self.order.get(k) or "").strip() for k in required):
             QMessageBox.warning(self,"Eksik alıcı bilgisi",
-                "Siparişin ad-soyad, telefon, açık adres ve Kargonomi il/ilçe ID alanları eksik.")
+                "Siparişin ad-soyad, telefon, açık adres, il veya ilçe alanları eksik.")
             return
         if self.order.get("kargonomi_onaylandi"):
             self.status.setText("Gönderi daha önce onaylandı; Yeni Barkod düğmesini kullanın.")
@@ -146,21 +169,29 @@ class ShipmentCompletionDialog(QDialog):
             f"#{self.order['id']} için {desi:g} desilik gönderi Kargonomi'ye kaydedilecek. Devam edilsin mi?"
         ) != QMessageBox.StandardButton.Yes:
             return
-        shipment={
-            "warehouse_id":warehouse_id(),
-            "buyer_name":str(self.order["alici_adi"]),
-            "buyer_phone":str(self.order["telefon"]),
-            "buyer_address":str(self.order["adres"]),
-            "buyer_state_id":int(self.order["alici_il_id"]),
-            "buyer_city_id":int(self.order["alici_ilce_id"]),
-            "packages":[{"desi":desi,"content":"Kitap"}]
-        }
-        self.launch(lambda api:api.create(shipment),lambda response:self.created(response,desi))
+        def create_with_location(api):
+            state_id=int(self.order.get("alici_il_id") or 0) or _location_id(api.states(),self.order["il"])
+            city_id=int(self.order.get("alici_ilce_id") or 0) or _location_id(api.cities(state_id),self.order["ilce"])
+            shipment={
+                "warehouse_id":warehouse_id(),
+                "buyer_name":str(self.order["alici_adi"]),
+                "buyer_phone":str(self.order["telefon"]),
+                "buyer_address":str(self.order["adres"]),
+                "buyer_state_id":state_id,
+                "buyer_city_id":city_id,
+                "packages":[{"desi":desi,"content":"Kitap"}]
+            }
+            response=api.create(shipment)
+            return {"response":response,"state_id":state_id,"city_id":city_id}
+        self.launch(create_with_location,lambda result:self.created(result,desi))
 
-    def created(self, response, desi):
+    def created(self, result, desi):
+        response=result["response"]
         sid=shipment_identifier(response)
         if not sid:
             raise ValueError("API gönderiyi oluşturmuş olabilir ama ID yanıtı okunamadı. Yeniden denemeden önce Kargonomi panelinden kontrol edin.")
+        self.order["alici_il_id"]=result["state_id"]
+        self.order["alici_ilce_id"]=result["city_id"]
         self.order["kargonomi_shipment_id"]=sid
         self.order["kargonomi_desi"]=desi
         self.db.siparisleri_kaydet()
