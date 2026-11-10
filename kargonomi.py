@@ -2,6 +2,7 @@
 import base64
 import json
 import os
+import uuid
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
@@ -66,7 +67,12 @@ class KargonomiClient:
         try:
             with urlopen(request, timeout=18) as response:
                 raw = response.read()
-                return json.loads(raw.decode("utf-8")) if raw else {}
+                if not raw:
+                    return {}
+                try:
+                    return json.loads(raw.decode("utf-8"))
+                except (ValueError,UnicodeDecodeError):
+                    return raw.decode("utf-8",errors="replace")
         except HTTPError as exc:
             # API may return buyer details or credentials in error payload; do not log body.
             raise RuntimeError(f"Kargonomi HTTP {exc.code}; alanları ve API yetkisini kontrol edin.") from None
@@ -95,20 +101,31 @@ class KargonomiClient:
         return self.request("GET", f"/shipment-price-comparison/{int(shipment_id)}")
 
     def confirm(self, shipment_id, provider_id):
-        # Official API accepts form data for confirmation.
-        body = urlencode({"shipment_id":int(shipment_id), "shipping_provider_id":int(provider_id)}).encode()
-        request = Request(BASE + "/confirm-shipping-price", data=body,
-                          headers={"Authorization":"Bearer " + self.token,
-                                   "Accept":"application/json",
-                                   "Content-Type":"application/x-www-form-urlencoded"},
-                          method="POST")
+        # Use multipart/form-data as documented by Kargonomi (--form).
+        boundary="AlfaKargonomi"+uuid.uuid4().hex
+        parts=[]
+        for key,value in (("shipment_id",shipment_id),("shipping_provider_id",provider_id)):
+            parts.append(
+                f"--{boundary}\r\nContent-Disposition: form-data; name=\"{key}\"\r\n\r\n{int(value)}\r\n"
+                .encode("utf-8")
+            )
+        body=b"".join(parts)+f"--{boundary}--\r\n".encode("utf-8")
+        request=Request(BASE+"/confirm-shipping-price",data=body,
+                        headers={"Authorization":"Bearer "+self.token,
+                                 "Accept":"application/json",
+                                 "Content-Type":f"multipart/form-data; boundary={boundary}"},
+                        method="POST")
         try:
-            with urlopen(request, timeout=18) as response:
-                return json.loads(response.read().decode("utf-8"))
+            with urlopen(request,timeout=18) as response:
+                raw=response.read()
+                return json.loads(raw.decode("utf-8")) if raw else {}
         except HTTPError as exc:
-            raise RuntimeError(f"Firma onayı başarısız: HTTP {exc.code}") from None
-        except (URLError, TimeoutError):
+            raise RuntimeError(f"Kargo firması onayı başarısız: HTTP {exc.code}") from None
+        except (URLError,TimeoutError):
             raise RuntimeError("Kargo firması onayında ağ hatası.") from None
+
+    def cancel(self, shipment_id):
+        return self.request("POST","/shipments/cancel",{"shipment_id":int(shipment_id)})
 
     def barcode(self, shipment_id):
         return self.request("GET", f"/shipments/{int(shipment_id)}/barcode?format=pdf")
@@ -323,17 +340,12 @@ class KargonomiDialog(QDialog):
         try:sid=self.sid()
         except ValueError as exc:QMessageBox.warning(self,"Kargonomi",str(exc));return
         def save(data):
-            payload=data.get("barcode") or data.get("data") or data.get("pdf")
-            if isinstance(payload,dict):
-                payload=payload.get("barcode") or payload.get("content") or payload.get("pdf")
-            if not isinstance(payload,str):
-                QMessageBox.warning(self,"Kargonomi","Barkod PDF verisi yanıtta bulunamadı.");return
-            try:
-                pdf=base64.b64decode(payload.split(",")[-1],validate=True)
-                if not pdf.startswith(b"%PDF"):
-                    raise ValueError("PDF imzası yok")
-            except Exception:
-                QMessageBox.warning(self,"Kargonomi","Barkod yanıtı PDF formatında değil.");return
-            target,_=QFileDialog.getSaveFileName(self,"Barkod PDF kaydet",f"Kargonomi_{sid}.pdf","PDF (*.pdf)")
+            from kargonomi_akisi import decode_barcode
+            try:pdf=decode_barcode(data)
+            except ValueError as exc:
+                QMessageBox.warning(self,"Kargonomi",str(exc));return
+            target,_=QFileDialog.getSaveFileName(self,"Yeni Barkod PDF kaydet",
+                                                    f"Yeni_Barkod_{sid}.pdf","PDF (*.pdf)")
             if target:Path(target).write_bytes(pdf)
         self.run_request(lambda api:api.barcode(sid),save)
+
