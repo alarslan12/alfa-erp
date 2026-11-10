@@ -150,8 +150,8 @@ def canonical_book_code(value):
   return ''
  if isinstance(value,float) and (not math.isfinite(value)):
   return ''
- text=str(value).strip().replace('\\u00a0',' ')
- if re.fullmatch(r'\\d+(?:[.,]0+)?',text):
+ text=str(value).strip().replace('\u00a0',' ')
+ if re.fullmatch(r'\d+(?:[.,]0+)?',text):
   return str(int(text.replace(',','.').split('.')[0]))
  return text.upper()
 
@@ -246,7 +246,7 @@ def cover_files(folder):
    if p.suffix.lower() not in ('.jpg','.jpeg','.png','.webp'):continue
    stem=p.stem.strip()
    # Explicit code needs a separator: '71 - title', '071_title', or '71'.
-   m=re.match(r'^#?(\\d+)(?=$|[ _.-])',stem)
+   m=re.match(r'^#?(\d+)(?=$|[ _.-])',stem)
    if m:
     code=canonical_book_code(m.group(1))
     by_code.setdefault(code,[]).append(str(p))
@@ -270,7 +270,7 @@ def get_cover(row,index):
  exact=[];bare=[]
  for candidate in matches:
   stem=Path(candidate).stem.strip()
-  marker=re.match(r'^#?(\\d+)(?=$|[ _.-])',stem)
+  marker=re.match(r'^#?(\d+)(?=$|[ _.-])',stem)
   title=normalize(stem[marker.end():].lstrip(' -._')) if marker else ''
   if title and name and (title==name or title.endswith(name) or name.endswith(title)):
    exact.append(candidate)
