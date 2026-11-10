@@ -147,205 +147,151 @@ class ApiWorker(QThread):
 
 
 class KargonomiDialog(QDialog):
-    """Standalone shipping tool; source orders remain unchanged until confirmed."""
-    def __init__(self, database, parent=None):
+    """Kargonomi account setup and shipment lookup; order-specific shipping occurs in completion flow."""
+    def __init__(self,database,parent=None):
         super().__init__(parent)
         self.db=database
-        self.setWindowTitle("Kargonomi · Kargo Yönetimi")
-        self.resize(660,780)
-        self.setMinimumWidth(550)
         self.worker=None
-        self.current_shipment=None
-        self.providers=[]
-        self.fields={}
+        self.setWindowTitle("ALFA ERP · Kargonomi Yönetimi")
+        self.resize(690,570)
         root=QVBoxLayout(self)
-        root.addWidget(QLabel("Kargonomi API · Onay verilmedikçe sipariş gönderilmez."))
-        form=QFormLayout()
+        root.addWidget(QLabel("Kargonomi bağlantısı · Bir defa ayarla, sonrasında otomatik kullan."))
+        settings=QFormLayout()
         self.token=QLineEdit(saved_token())
         self.token.setEchoMode(QLineEdit.EchoMode.Password)
-        self.token.setPlaceholderText("İlk kurulumda bir kez girin; Windows kasasında saklanır")
-        form.addRow("API Token",self.token)
-        self.save_credentials=QPushButton("Bağlantı bilgilerini güvenle kaydet (bir kez)")
-        self.save_credentials.clicked.connect(self.store_credentials)
-        form.addRow("",self.save_credentials)
-        self.order_select=QComboBox()
-        self.order_select.addItem("Sipariş seçiniz (isteğe bağlı)",None)
+        self.token.setPlaceholderText("Kargonomi API Bearer Token")
+        settings.addRow("API anahtarı",self.token)
+        self.warehouse=QLineEdit(str(warehouse_id() or ""))
+        self.warehouse.setPlaceholderText("Kargonomi gönderici depo ID")
+        settings.addRow("Depo ID",self.warehouse)
+        save=QPushButton("Bağlantıyı Windows kimlik kasasında sakla")
+        save.clicked.connect(self.save_settings)
+        settings.addRow("",save)
+        root.addLayout(settings)
+        root.addWidget(QLabel("Sipariş seçimi / mevcut gönderinin kontrolü"))
+        self.orders=QComboBox()
+        self.orders.addItem("Sipariş seçiniz",None)
         for order in database.siparisler:
-            self.order_select.addItem(f"#{order.get('id')} · {str(order.get('kod',''))[:65]}",order.get("id"))
-        self.order_select.currentIndexChanged.connect(self.select_order)
-        form.addRow("ERP siparişi",self.order_select)
+            self.orders.addItem(f"#{order.get('id')} · {str(order.get('kod',''))[:55]}",order.get("id"))
+        self.orders.currentIndexChanged.connect(self.select_order)
+        root.addWidget(self.orders)
+        row=QHBoxLayout()
         self.shipment_id=QLineEdit()
-        self.shipment_id.setPlaceholderText("Gönderi oluşturulduktan sonra otomatik dolar")
-        form.addRow("Kargonomi gönderi ID",self.shipment_id)
-        for key,label,placeholder in [
-            ("warehouse_id","Gönderici depo ID","Kargonomi panelindeki depo ID"),
-            ("buyer_name","Alıcı adı","Ad Soyad"),
-            ("buyer_phone","Alıcı telefon","5XXXXXXXXX"),
-            ("buyer_email","Alıcı e-posta","İsteğe bağlı"),
-            ("buyer_address","Alıcı adresi","Açık adres"),
-            ("buyer_state_id","İl ID","Kargonomi il kimliği"),
-            ("buyer_city_id","İlçe ID","Kargonomi ilçe kimliği"),
-            ("desi","Paket desi","1"),
-            ("content","Paket içeriği","Kitap")]:
-            field=QLineEdit()
-            field.setPlaceholderText(placeholder)
-            self.fields[key]=field
-            form.addRow(label,field)
-        self.fields["warehouse_id"].setText(str(warehouse_id() or ""))
-        self.fields["desi"].setText("1")
-        self.fields["content"].setText("Kitap")
-        root.addLayout(form)
+        self.shipment_id.setPlaceholderText("Kargonomi gönderi ID")
+        row.addWidget(self.shipment_id)
+        root.addLayout(row)
         actions=QHBoxLayout()
         self.actions=[]
-        for label,callback in [
-            ("Gönderi listesi",self.list_shipments),
-            ("Taslak oluştur",self.create_shipment),
-            ("Fiyatları getir",self.get_prices),
-            ("Gönderiyi kontrol et",self.get_detail),
-            ("Barkod PDF",self.get_barcode)]:
-            btn=QPushButton(label);btn.clicked.connect(callback);actions.addWidget(btn);self.actions.append(btn)
+        for name,callback in (
+            ("Gönderiler",self.list_shipments),
+            ("Gönderi detayı",self.get_detail),
+            ("Fiyat teklifleri",self.get_prices),
+            ("Bakiye",self.get_credit),
+            ("Yeni Barkod PDF",self.get_barcode),
+            ("İptal talebi",self.cancel_shipment),
+        ):
+            button=QPushButton(name)
+            button.clicked.connect(callback)
+            actions.addWidget(button)
+            self.actions.append(button)
         root.addLayout(actions)
-        pricing=QHBoxLayout()
-        self.provider=QComboBox()
-        self.provider.addItem("Önce fiyatları getiriniz",None)
-        pricing.addWidget(self.provider)
-        self.confirm_button=QPushButton("Seçili firmayı onayla")
-        self.confirm_button.clicked.connect(self.confirm_shipping)
-        pricing.addWidget(self.confirm_button)
-        root.addLayout(pricing)
         self.output=QPlainTextEdit()
         self.output.setReadOnly(True)
-        self.output.setPlaceholderText("Kargonomi sonuçları burada gösterilir. Kişisel bilgiler içerebilir.")
+        self.output.setPlaceholderText(
+            "Sipariş tamamlamada desi sorulur, kargo teklifi seçilir ve Yeni Barkod otomatik açılır.\n"
+            "Bu ekranda mevcut gönderileri takip edebilirsiniz.")
         root.addWidget(self.output)
 
-    def store_credentials(self):
+    def save_settings(self):
         try:
-            save_token(self.token.text())
-            wid=self.fields["warehouse_id"].text().strip()
-            if wid:save_warehouse_id(wid)
-            QMessageBox.information(self,"Kargonomi","API anahtarı Windows kimlik kasasına, depo ID yerel ayarlara kaydedildi.")
+            token=self.token.text().strip()
+            if token:save_token(token)
+            if self.warehouse.text().strip():save_warehouse_id(self.warehouse.text().strip())
+            if not saved_token() or not warehouse_id():
+                raise ValueError("API anahtarı ve depo ID gerekli.")
         except Exception as exc:
-            QMessageBox.warning(self,"Kargonomi",f"Ayarlar kaydedilemedi: {exc}")
+            QMessageBox.warning(self,"Kargonomi","Bağlantı kaydedilemedi: "+str(exc))
+            return
+        QMessageBox.information(self,"Kargonomi",
+            "API anahtarı Windows kimlik kasasına, depo kimliği yerel ayarlara kalıcı kaydedildi. Tekrar girmen gerekmeyecek.")
 
     def select_order(self):
-        sid=self.order_select.currentData()
+        sid=self.orders.currentData()
         order=next((o for o in self.db.siparisler if str(o.get("id"))==str(sid)),None)
-        if not order:
-            return
-        # ERP 'kod' is sometimes a cargo code, sometimes a pasted address.
-        # Never treat an ambiguous cargo code as a validated postal address.
-        for field,key in [("buyer_name","alici_adi"),("buyer_phone","telefon"),
-                          ("buyer_address","adres")]:
-            if order.get(key):
-                self.fields[field].setText(str(order[key]))
-
-    def client(self):
-        return KargonomiClient(self.token.text() or saved_token())
-
-    def run_request(self, call, on_done=None):
-        if self.worker is not None and self.worker.isRunning():
-            return
-        try:
-            api=self.client()
-        except ValueError as exc:
-            QMessageBox.warning(self,"Kargonomi",str(exc));return
-        for btn in self.actions+[self.confirm_button]:
-            btn.setEnabled(False)
-        self.output.setPlainText("Kargonomi ile bağlantı kuruluyor…")
-        self.worker=ApiWorker(lambda:call(api),self)
-        def success(data):
-            for btn in self.actions+[self.confirm_button]:btn.setEnabled(True)
-            if on_done:on_done(data)
-            display=data if isinstance(data,dict) else {"result":data}
-            # Do not display bearer secret.
-            self.output.setPlainText(json.dumps(display,ensure_ascii=False,indent=2)[:18000])
-        def failure(message):
-            for btn in self.actions+[self.confirm_button]:btn.setEnabled(True)
-            self.output.setPlainText(message)
-        self.worker.done.connect(success)
-        self.worker.failed.connect(failure)
-        self.worker.start()
+        self.shipment_id.setText(str(order.get("kargonomi_shipment_id") or "") if order else "")
 
     def sid(self):
         value=self.shipment_id.text().strip()
-        if not value.isdecimal() or int(value)<=0:
-            raise ValueError("Geçerli gönderi ID giriniz.")
+        if not value.isdigit() or int(value)<=0:
+            raise ValueError("Önce geçerli bir Kargonomi gönderi ID seçin.")
         return int(value)
 
-    def create_shipment(self):
-        data={key:field.text().strip() for key,field in self.fields.items()}
-        required=("warehouse_id","buyer_name","buyer_phone","buyer_address",
-                  "buyer_state_id","buyer_city_id","desi","content")
-        if any(not data.get(k) for k in required):
-            QMessageBox.warning(self,"Kargonomi","Depo, alıcı, telefon, adres, il/ilçe ID, desi ve içerik zorunludur.")
-            return
-        if not all(data[k].isdigit() for k in ("warehouse_id","buyer_state_id","buyer_city_id")):
-            QMessageBox.warning(self,"Kargonomi","Depo, il ve ilçe ID sayısal olmalı.")
-            return
-        if QMessageBox.question(self,"Gönderi oluştur",
-                "Alıcı ve depo bilgileri Kargonomi'ye gönderilerek taslak oluşturulacak. Onaylıyor musunuz?"
-                )!=QMessageBox.StandardButton.Yes:
-            return
-        shipment={
-            "warehouse_id":int(data["warehouse_id"]),
-            "buyer_name":data["buyer_name"],"buyer_phone":data["buyer_phone"],
-            "buyer_address":data["buyer_address"],
-            "buyer_state_id":int(data["buyer_state_id"]),
-            "buyer_city_id":int(data["buyer_city_id"]),
-            "packages":[{"content":data["content"],"desi":data["desi"]}]
-        }
-        if data["buyer_email"]:shipment["buyer_email"]=data["buyer_email"]
-        self.run_request(lambda api:api.create(shipment),self.created)
+    def client(self):
+        token=self.token.text().strip() or saved_token()
+        return KargonomiClient(token)
 
-    def created(self,data):
-        record=data.get("shipment") or data.get("data") or data
-        if isinstance(record,dict) and record.get("id"):
-            self.shipment_id.setText(str(record["id"]))
+    def request(self,action,on_success=None):
+        if self.worker is not None and self.worker.isRunning():
+            return
+        try:api=self.client()
+        except ValueError as exc:
+            QMessageBox.warning(self,"Kargonomi",str(exc))
+            return
+        for btn in self.actions:btn.setEnabled(False)
+        self.output.setPlainText("Kargonomi yanıtı alınıyor…")
+        self.worker=ApiWorker(lambda:action(api),self)
+        def success(data):
+            for btn in self.actions:btn.setEnabled(True)
+            if on_success:
+                try:on_success(data)
+                except Exception as exc:
+                    QMessageBox.warning(self,"Kargonomi",str(exc))
+            self.output.setPlainText(json.dumps(data,ensure_ascii=False,indent=2)[:20000])
+        def failed(message):
+            for btn in self.actions:btn.setEnabled(True)
+            self.output.setPlainText(message)
+        self.worker.done.connect(success)
+        self.worker.failed.connect(failed)
+        self.worker.start()
 
     def list_shipments(self):
-        self.run_request(lambda api:api.shipments())
+        self.request(lambda api:api.shipments())
 
     def get_detail(self):
         try:sid=self.sid()
         except ValueError as exc:QMessageBox.warning(self,"Kargonomi",str(exc));return
-        self.run_request(lambda api:api.detail(sid))
+        self.request(lambda api:api.detail(sid))
 
     def get_prices(self):
         try:sid=self.sid()
         except ValueError as exc:QMessageBox.warning(self,"Kargonomi",str(exc));return
-        self.run_request(lambda api:api.prices(sid),self.show_providers)
+        self.request(lambda api:api.prices(sid))
 
-    def show_providers(self,data):
-        self.provider.clear()
-        for provider in data.get("shipping_provider_with_price",[]):
-            self.provider.addItem(
-                f"{provider.get('name','Kargo')} · {provider.get('price') or 'Otomatik'}",
-                provider.get("id"))
-        if not self.provider.count():
-            self.provider.addItem("Fiyat teklifi bulunamadı",None)
-
-    def confirm_shipping(self):
-        try:sid=self.sid()
-        except ValueError as exc:QMessageBox.warning(self,"Kargonomi",str(exc));return
-        provider_id=self.provider.currentData()
-        if provider_id is None:
-            QMessageBox.warning(self,"Kargonomi","Önce fiyat teklifini ve kargo firmasını seçiniz.");return
-        if QMessageBox.question(self,"Kargo firması onayı",
-                "Bu işlem gönderiyi işleme hazır hale getirir ve ücret doğurabilir. Onaylıyor musunuz?"
-                )!=QMessageBox.StandardButton.Yes:
-            return
-        self.run_request(lambda api:api.confirm(sid,provider_id))
+    def get_credit(self):
+        self.request(lambda api:api.credit())
 
     def get_barcode(self):
         try:sid=self.sid()
         except ValueError as exc:QMessageBox.warning(self,"Kargonomi",str(exc));return
         def save(data):
             from kargonomi_akisi import decode_barcode
-            try:pdf=decode_barcode(data)
-            except ValueError as exc:
-                QMessageBox.warning(self,"Kargonomi",str(exc));return
-            target,_=QFileDialog.getSaveFileName(self,"Yeni Barkod PDF kaydet",
-                                                    f"Yeni_Barkod_{sid}.pdf","PDF (*.pdf)")
+            pdf=decode_barcode(data)
+            target,_=QFileDialog.getSaveFileName(self,"Yeni Barkod PDF",
+                    f"Yeni_Barkod_{sid}.pdf","PDF (*.pdf)")
             if target:Path(target).write_bytes(pdf)
-        self.run_request(lambda api:api.barcode(sid),save)
+        self.request(lambda api:api.barcode(sid),save)
 
+    def cancel_shipment(self):
+        try:sid=self.sid()
+        except ValueError as exc:QMessageBox.warning(self,"Kargonomi",str(exc));return
+        if QMessageBox.question(self,"Kargonomi · İptal talebi",
+                f"#{sid} gönderisi için Kargonomi'ye iptal talebi gönderilsin mi?"
+                )!=QMessageBox.StandardButton.Yes:return
+        self.request(lambda api:api.cancel(sid))
+
+    def closeEvent(self,event):
+        if self.worker is not None and self.worker.isRunning():
+            QMessageBox.information(self,"Kargonomi","İşlem tamamlanmadan pencereyi kapatmayın.")
+            event.ignore()
+            return
+        super().closeEvent(event)
