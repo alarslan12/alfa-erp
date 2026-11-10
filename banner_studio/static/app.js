@@ -73,7 +73,7 @@ function generatePresets(){
 }
 function normalizeCode(value){
  const raw=String(value??'').trim();
- if(/^\\d+(?:[.,]0+)?$/.test(raw))return String(Number(raw.replace(',','.')));
+ if(/^\d+(?:[.,]0+)?$/.test(raw))return String(Number(raw.replace(',','.')));
  return raw.toUpperCase();
 }
 function reconcileSelectedBooks(){
@@ -486,7 +486,7 @@ function bindUI(){
     (counts.removed?' '+counts.removed+' eski/kaldırılmış kod afişten çıkarıldı.':''));
   }catch(e){
    toast('Excel değişmedi: '+e.message);
-   alert('Excel içe aktarılamadı; önceki katalog korundu.\\n\\n'+e.message);
+   alert('Excel içe aktarılamadı; önceki katalog korundu.\n\n'+e.message);
   }finally{busy('',false);ev.target.value=''}
  };
  $('fileCoverZip').onchange=async ev=>{
