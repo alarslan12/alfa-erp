@@ -1,11 +1,11 @@
-name: ALFACOPYCENTER Suite v2.0.4 Windows release build
+name: ALFACOPYCENTER Suite v2.0.5 Windows release build
 
 on:
   push:
     branches:
       - fix/banner-archive-export-20261110
     paths:
-      - '.github/workflows/alfacopycenter-suite-v204.yml'
+      - '.github/workflows/alfacopycenter-suite-v205.yml'
       - 'ALFA_BUILD_WINDOWS.ps1'
       - 'ALFA_BUILD_SUITE_WINDOWS.ps1'
       - 'ALFACOPYCENTER_Suite.iss'
@@ -13,7 +13,7 @@ on:
       - 'main.py'
       - 'alfa_guncelleme.py'
       - 'guncelleme_arayuzu.py'
-      - 'docs/ALFACOPYCENTER_SUITE_V204_RELEASE.md'
+      - 'docs/ALFACOPYCENTER_SUITE_V205_RELEASE.md'
       - 'kargonomi*.py'
       - 'alici_bilgileri.py'
       - 'ekran_katalog.py'
@@ -23,14 +23,14 @@ on:
       - 'database.py'
       - 'mobil_siparis_donusum.py'
       - 'banner_studio/**'
-      - 'docs/ALFACOPYCENTER_SUITE_V204_RELEASE.md'
+      - 'docs/ALFACOPYCENTER_SUITE_V205_RELEASE.md'
   workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: suite-v204-candidate-${{ github.ref }}
+  group: suite-v205-candidate-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -56,33 +56,33 @@ jobs:
       - name: Verify generated setup exists and write SHA256
         shell: pwsh
         run: |
-          $setup = Get-Item .\output\ALFACOPYCENTER_Suite_Setup_V2_0_4.exe -ErrorAction Stop
+          $setup = Get-Item .\output\ALFACOPYCENTER_Suite_Setup_V2_0_5.exe -ErrorAction Stop
           if ($setup.Length -lt 1000000) { throw 'Unexpectedly small installer' }
           $hash = (Get-FileHash $setup.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
           "$hash  $($setup.Name)" | Set-Content -Encoding ascii .\output\SHA256SUMS.txt
-          Copy-Item .\docs\ALFACOPYCENTER_SUITE_V204_RELEASE.md .\output\RELEASE_NOTES.txt
+          Copy-Item .\docs\ALFACOPYCENTER_SUITE_V205_RELEASE.md .\output\RELEASE_NOTES.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: ALFACOPYCENTER_Suite_v2.0.4_Windows_Candidate
+          name: ALFACOPYCENTER_Suite_v2.0.5_Windows_Candidate
           path: |
-            output/ALFACOPYCENTER_Suite_Setup_V2_0_4.exe
+            output/ALFACOPYCENTER_Suite_Setup_V2_0_5.exe
             output/SHA256SUMS.txt
             output/RELEASE_NOTES.txt
           if-no-files-found: error
           retention-days: 21
           compression-level: 0
 
-      - name: Publish stable v2.0.4 release for in-app updater
+      - name: Publish stable v2.0.5 release for in-app updater
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $tag = 'v2.0.4'
-          $setup = 'output/ALFACOPYCENTER_Suite_Setup_V2_0_4.exe'
+          $tag = 'v2.0.5'
+          $setup = 'output/ALFACOPYCENTER_Suite_Setup_V2_0_5.exe'
           $sha = 'output/SHA256SUMS.txt'
           $notes = 'output/RELEASE_NOTES.txt'
           if ((gh release view $tag --repo "${{ github.repository }}" 2>$null)) {
             throw "Release $tag already exists; never overwrite a published installer."
           }
-          gh release create $tag $setup $sha $notes --repo "${{ github.repository }}" --target "${{ github.sha }}" --title 'ALFACOPYCENTER Suite v2.0.4' --notes-file $notes --latest
+          gh release create $tag $setup $sha $notes --repo "${{ github.repository }}" --target "${{ github.sha }}" --title 'ALFACOPYCENTER Suite v2.0.5' --notes-file $notes --latest
           if ($LASTEXITCODE -ne 0) { throw "Unable to publish $tag" }
