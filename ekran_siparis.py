@@ -456,6 +456,8 @@ class SiparisView(QWidget):
                   'havuz':'havuza geri alınsın'}.get(new_status, 'değiştirilsin')
         shipping_fee = None
         if new_status == 'tamamlandi':
+            if not self.db.kolileme_tamam(order):
+                return error(self, 'Kargonomi gönderisi oluşturmadan önce tüm kitaplar kolilenmiş olmalı.')
             category = self.db.kargo_kategorisi(order)
             if category:
                 label = 'Telafi siparişi' if category == 'telafi' else 'Normal açık adres siparişi'
