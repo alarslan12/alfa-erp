@@ -236,7 +236,7 @@ def read_excel(path):
   book.close()
 
 def cover_files(folder):
- """Index exact numeric prefixes before fuzzy names; no accidental 44→444."""
+ """Index images by exact code and by unnumbered title, never mixed prefixes."""
  by_code={};by_name={}
  if not folder or not Path(folder).is_dir():return by_code,by_name
  for root,dirs,files in os.walk(folder):
@@ -244,47 +244,43 @@ def cover_files(folder):
   for filename in sorted(files):
    p=Path(root)/filename
    if p.suffix.lower() not in ('.jpg','.jpeg','.png','.webp'):continue
-   m=re.match(r'^\s*#?0*(\d+)(?=\D|$)',p.stem)
-   if m:by_code.setdefault(m.group(1),str(p))
-   key=normalize(p.stem)
-   by_name.setdefault(key,str(p))
-   # Use the title after its numeric prefix as an independent exact key.
-   # Covers named '448 - TUSDATA TTS Anatomi.jpg' can now match by title too.
-   stripped=re.sub(r'^\d+\s*', '', key).strip()
-   if stripped:by_name.setdefault(stripped,str(p))
+   stem=p.stem.strip()
+   # Explicit code needs a separator: '71 - title', '071_title', or '71'.
+   m=re.match(r'^#?(\\d+)(?=$|[ _.-])',stem)
+   if m:
+    code=canonical_book_code(m.group(1))
+    by_code.setdefault(code,[]).append(str(p))
+    tail=stem[m.end():].lstrip(' -._')
+    if tail:by_name.setdefault(normalize(tail),str(p))
+   else:
+    by_name.setdefault(normalize(stem),str(p))
  return by_code,by_name
 
 
 def get_cover(row,index):
- if row.get('cover_override') and Path(row['cover_override']).is_file():return row['cover_override']
+ override=row.get('cover_override')
+ if override and Path(override).is_file():return override
  by_code,by_name=index
- code=str(row.get('code') or '').strip()
- code=re.sub(r'\.0+$','',code)
- code=code.lstrip('0') or '0'
+ code=canonical_book_code(row.get('code'))
  name=normalize(row.get('name'))
- if code in by_code:
-  candidate=by_code[code]
-  # The bundled TTS demo must never be misattached to a different user
-  # catalog that coincidentally reuses an ISBN/catalog code.
-  parts=Path(candidate).parts
-  if not ('ornek' in parts and 'Kapaklar' in parts):
-   return candidate
-  stem=normalize(Path(candidate).stem)
-  stem_title=re.sub(r'^\d+\s*','',stem)
-  # The package includes the owner's actual numeric-name cover archive;
-  # exact numeric prefix wins when the two catalog names agree enough.
-  if not name or stem.endswith(name) or name.endswith(stem_title):
-   return candidate
-  a=set(name.split());b=set(stem_title.split())
-  if a and b and len(a&b)/max(1,min(len(a),len(b)))>=.75:
-   return candidate
- if name in by_name:return by_name[name]
- # Fallback for "448 TUSDATA TTS Anatomi", exact token match only.
- for key,path in by_name.items():
-  if name and len(name)>7 and (key.endswith(name) or name.endswith(key)):
-   return path
- return None
-
+ matches=by_code.get(code,[])
+ if isinstance(matches,str):matches=[matches]
+ # Prefer a code-title pair, otherwise accept a code-only filename.
+ # A reused numeric prefix with a different title is NOT the same book.
+ exact=[];bare=[]
+ for candidate in matches:
+  stem=Path(candidate).stem.strip()
+  marker=re.match(r'^#?(\\d+)(?=$|[ _.-])',stem)
+  title=normalize(stem[marker.end():].lstrip(' -._')) if marker else ''
+  if title and name and (title==name or title.endswith(name) or name.endswith(title)):
+   exact.append(candidate)
+  elif not title:
+   bare.append(candidate)
+ if exact:return exact[-1]
+ if bare:return bare[-1]
+ # Name-only covers are valid, but a numbered cover belongs exclusively to
+ # that number; do not attach it to a different book via fuzzy similarity.
+ return by_name.get(name)
 
 def columns_for(n,layout):
  if n==1:return 1
