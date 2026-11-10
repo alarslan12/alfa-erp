@@ -1,6 +1,5 @@
 """Explicit two-phase Kargonomi shipment and Yeni Barkod workflow."""
 import base64
-from decimal import Decimal
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QUrl
@@ -100,6 +99,8 @@ class ShipmentCompletionDialog(QDialog):
 
     def launch(self, task, on_success):
         if self.worker and self.worker.isRunning():
+            current=self.worker
+            current.finished.connect(lambda: self.launch(task,on_success))
             return
         try:
             client=self.client()
