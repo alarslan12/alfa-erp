@@ -101,6 +101,7 @@ def save_design(settings, books, image, cover_index, resolve_cover, name='', ima
                 'id': record_id, 'title': title, 'created_at': now,
                 'series': _safe_text(settings.title_series),
                 'set': _safe_text(settings.title_set),
+                'subtitle': _safe_text(settings.subtitle) if settings.show_subtitle else '',
                 'books_count': len(books), 'format': ext,
                 'reason': _safe_text(reason, 32),
                 'theme': _safe_text(settings.theme),
