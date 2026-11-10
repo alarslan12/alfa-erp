@@ -27,10 +27,7 @@ class BuyerDetailsDialog(QDialog):
             inp=QLineEdit(str(data.get(key) or ""))
             inp.setPlaceholderText(example);self.fields[key]=inp;form.addRow(label,inp)
         root.addLayout(form)
-        root.addWidget(QLabel("Kargonomi il/ilçe kimlikleri aşağıdaki alanlara girilir; adres ve telefon eksiksiz olmalıdır."))
-        for key,label in [("alici_il_id","İl ID"),("alici_ilce_id","İlçe ID")]:
-            inp=QLineEdit(str(data.get(key) or ""));inp.setPlaceholderText("Sayısal Kargonomi ID")
-            self.fields[key]=inp;form.addRow(label,inp)
+        root.addWidget(QLabel("İl ve ilçe adları gönderi sırasında Kargonomi ile otomatik eşleştirilir."))
         buttons=QDialogButtonBox(QDialogButtonBox.StandardButton.Ok|QDialogButtonBox.StandardButton.Cancel)
         buttons.button(QDialogButtonBox.StandardButton.Ok).setText("Alıcı bilgilerini kaydet")
         buttons.accepted.connect(self.validate);buttons.rejected.connect(self.reject);root.addWidget(buttons)
@@ -45,8 +42,8 @@ class BuyerDetailsDialog(QDialog):
             QMessageBox.warning(self,"Telefon","Telefon 5XXXXXXXXX biçiminde olmalı.");return
         if len(value["adres"])<10:
             QMessageBox.warning(self,"Adres","En az 10 karakterlik açık adres gerekli.");return
-        if not value["il"] or not value["ilce"] or not value["alici_il_id"].isdigit() or not value["alici_ilce_id"].isdigit():
-            QMessageBox.warning(self,"İl/ilçe","İl, ilçe ve Kargonomi sayısal kimliklerini belirtin.");return
+        if not value["il"] or not value["ilce"]:
+            QMessageBox.warning(self,"İl/ilçe","İl ve ilçeyi belirtin.");return
         value["telefon"]=digits;self.values=value;self.accept()
 
 def request_buyer_details(parent,previous=None):
