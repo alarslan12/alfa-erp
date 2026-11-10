@@ -390,16 +390,6 @@ class Workstation:
                 "version": int(prior.get("version") or 1)}
         return {v["id"]: v for v in rows.values()}
 
-    @staticmethod
-    def _recipient_meta(local):
-        keys=("alici_adi","telefon","adres","il","ilce","alici_il_id","alici_ilce_id","brut_tutar")
-        return {key:local.get(key) for key in keys if local.get(key) is not None}
-
-    @staticmethod
-    def _kargonomi_meta(local):
-        keys=("kargonomi_shipment_id","kargonomi_desi","kargonomi_firma_id","kargonomi_onaylandi")
-        return {key:local.get(key) for key in keys if local.get(key) is not None}
-
     def commit(self, edits):
         results = []
         for edit in edits:
@@ -427,8 +417,6 @@ class Workstation:
                     previous["shipping_reference"] = str(local.get("kod") or "")
                     previous["order_type"] = str(local.get("siparis_turu") or "")
                     previous["gross_amount"] = float(local.get("ciro") or 0)
-                    previous["recipient"] = self._recipient_meta(local)
-                    previous["kargonomi"] = self._kargonomi_meta(local)
                     previous["items"] = self._make_items(
                         order_id, local.get("kitaplar") or [], previous.get("items") or {})
                     previous["version"] = expected + 1
@@ -463,8 +451,6 @@ class Workstation:
                          "shipping_reference":str(local.get("kod") or ""),
                          "order_type":str(local.get("siparis_turu") or ""),
                          "gross_amount":float(local.get("ciro") or 0),
-                         "recipient":self._recipient_meta(local),
-                         "kargonomi":self._kargonomi_meta(local),
                          "shipping_fee":local.get("kargo_ucreti"),
                          "placed_at":str(local.get("tarih") or now),
                          "created_at":now,"updated_at":now,
@@ -643,10 +629,6 @@ class Workstation:
                             raise DeviceError("Siparişin tüm kitapları kolilenmedi", 422)
                         row["completed_at"]=datetime.now(timezone.utc).isoformat()
                         row["shipping_fee"]=event.get("shipping_fee")
-                        if isinstance(event.get("recipient"),dict):
-                            row["recipient"]=event["recipient"]
-                        if isinstance(event.get("kargonomi"),dict):
-                            row["kargonomi"]=event["kargonomi"]
                     if dst=="aktif":
                         row["started_at"]=datetime.now(timezone.utc).isoformat()
                         row["completed_at"]=None
