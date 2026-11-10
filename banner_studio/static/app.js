@@ -203,6 +203,64 @@ function addSelectedGroup(){
  afterBooksChanged();
  toast(added+' kitap eklendi'+(books.length>30?' · 30 kapak sınırı geçerli':''));
 }
+let studioRelease=null;
+let studioNonce='';
+let studioUpdateInProgress=false;
+async function studioCheckUpdate(){
+ if(studioUpdateInProgress)return;
+ studioUpdateInProgress=true;
+ $('studioCheckUpdate').disabled=true;
+ $('studioInstallUpdate').disabled=true;
+ $('studioUpdateStatus').textContent='GitHub kararlı sürümü kontrol ediliyor…';
+ try{
+  const result=await api('/api/update/check');
+  studioRelease=result.release;
+  if(result.release.available){
+   $('studioUpdateStatus').textContent='Yeni Suite sürümü: '+result.release.latest+' · Kurulu: '+result.current;
+   $('studioReleaseNotes').textContent=result.release.notes||'Sürüm notları belirtilmedi.';
+   $('studioInstallUpdate').disabled=false;
+  }else{
+   $('studioUpdateStatus').textContent='Güncel sürümdesin. Suite '+result.current;
+   $('studioReleaseNotes').textContent='Yeni güncelleme bulunmadı.';
+  }
+ }catch(e){
+  studioRelease=null;
+  $('studioUpdateStatus').textContent='Sürüm kontrolüne erişilemedi: '+e.message;
+  $('studioReleaseNotes').textContent='Ağ bağlantısını ve GitHub erişimini kontrol et.';
+ }finally{
+  studioUpdateInProgress=false;
+  $('studioCheckUpdate').disabled=false;
+ }
+}
+async function studioInstallUpdate(){
+ if(studioUpdateInProgress||!studioRelease?.available||!studioNonce)return;
+ const approved=confirm(
+  'Suite '+studioRelease.latest+' yüklensin mi?\n\n'+
+  'Yeni kurulum GitHub’dan indirilecek ve SHA-256 ile doğrulanacak. '+
+  'Banner Studio kapanacak, Windows kurulum sihirbazı açılacak ve '+
+  'kurulum tamamlandığında yeniden başlatılacak.\n\nDevam edilsin mi?');
+ if(!approved)return;
+ studioUpdateInProgress=true;
+ $('studioInstallUpdate').disabled=true;
+ $('studioCheckUpdate').disabled=true;
+ try{
+  $('studioUpdateStatus').textContent='Suite kurulumu indiriliyor ve SHA-256 ile doğrulanıyor…';
+  await api('/api/update/download',{
+   method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({nonce:studioNonce})
+  });
+  $('studioUpdateStatus').textContent='Kurulum doğrulandı. Banner Studio kapatılıp kurulum başlatılıyor…';
+  await api('/api/update/install',{
+   method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({nonce:studioNonce})
+  });
+  $('studioUpdateStatus').textContent='Kurulum başlatılıyor. Stüdyo penceresi kapanabilir; Windows kurulum sihirbazını tamamla.';
+ }catch(e){
+  $('studioUpdateStatus').textContent='Güncelleme başarısız: '+e.message;
+  $('studioInstallUpdate').disabled=false;
+  $('studioCheckUpdate').disabled=false;
+ }finally{studioUpdateInProgress=false}
+}
 function cleanExportName(parts,ext){
  const stem=parts.map(x=>String(x||'').trim()).filter(Boolean).join(' - ')
   .replace(/[<>:"/\\|?*\x00-\x1f]/g,'_').replace(/\s+/g,' ').trim().slice(0,160);
@@ -361,6 +419,8 @@ function bindUI(){
  $('bookSearch').addEventListener('input',renderCatalog);$('groupFilter').addEventListener('change',renderCatalog);
  $('addFiltered').onclick=()=>{let n=0;for(const item of filteredBooks()){if(state.books.length>=30)break;if(!state.books.some(x=>x.id===item.id)){state.books.push({...item});n++}}afterBooksChanged();toast(n+' kitap eklendi.')};
  $('addQuickGroup').onclick=addSelectedGroup;
+ $('studioCheckUpdate').onclick=studioCheckUpdate;
+ $('studioInstallUpdate').onclick=studioInstallUpdate;
  $('clearSelection').onclick=()=>{state.books=[];afterBooksChanged()};
  $('resetSwap').onclick=()=>{selectedCover=null;const marked=qs('.cover-hit.marked');marked.forEach(x=>x.classList.remove('marked'));toast('Kapak seçimi temizlendi.')};
  $('toggleCrop').onclick=()=>{cropMode=!cropMode;$('canvasWrap').classList.toggle('square',cropMode);$('toggleCrop').textContent=cropMode?'▤ Tam afişe dön':'▢ Kare kırpma kontrolü';selectedCover=null;scheduleRender()};
@@ -417,6 +477,8 @@ function bindUI(){
  $('libraryModal').addEventListener('click',e=>{if(e.target.id==='libraryModal')closeLibrary()});
 }
 async function boot(){try{const result=await api('/api/bootstrap');state={...state,...result};
+  studioNonce=result.update_nonce||'';
+  $('studioVersion').textContent='Banner Studio v3.6 · Suite '+(result.suite_version||'bilinmiyor');
  const previous=await api('/api/draft').catch(()=>({draft:null}));
  if(previous.draft){state.books=previous.draft.books||[];state.settings={...state.settings,...previous.draft.settings};}
  generatePresets();renderGroups();bindUI();updateControls();renderCatalog();renderSelected();showCoverStatus(result);
