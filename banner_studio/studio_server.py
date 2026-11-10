@@ -174,6 +174,13 @@ class Handler(SimpleHTTPRequestHandler):
                 'image/png' if path.suffix=='.png' else 'image/webp' if path.suffix=='.webp' else 'image/jpeg')
         if req.path=='/api/library/list':
             return self._response({'items':library.list_designs(limit=5000),'folder':str(library.ROOT)})
+        if req.path=='/api/library/png':
+            ident=(q.get('id') or [''])[0]
+            try:
+                data=library.artwork_png(ident)
+                return self._binary(data,'image/png',filename='ALFA_Tasarim.png')
+            except (ValueError,OSError,KeyError,TypeError) as exc:
+                return self._response({'error':str(exc)[:200]},404)
         if req.path in ('/api/library/open','/api/library/preview','/api/library/download'):
             ident=(q.get('id') or [''])[0]
             try:
@@ -293,6 +300,17 @@ class Handler(SimpleHTTPRequestHandler):
                 books=_rows(request.get('books') or [])
                 library.save_working_draft(cfg,books)
                 return self._response({'success':True})
+            if path=='/api/library/export-names':
+                request=json.loads(_read_body(self,90_000))
+                ids=request.get('ids')
+                if not isinstance(ids,list) or not 1<=len(ids)<=1000:
+                    raise ValueError('En fazla 1000 arşiv kaydı seçilebilir.')
+                available={x['id']:x for x in library.list_designs(limit=5000)}
+                if any(i not in available for i in ids) or len(set(ids))!=len(ids):
+                    raise ValueError('Arşiv seçimi geçersiz.')
+                return self._response({'files':[{
+                    'id':i,'name':library.export_label(available[i],n)+'.png'
+                } for n,i in enumerate(ids,1)]})
             if path=='/api/library/bulk-download':
                 request=json.loads(_read_body(self,90_000))
                 package=library.bulk_archive(request.get('ids'))
