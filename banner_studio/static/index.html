@@ -54,7 +54,7 @@
   </div>
   <div class="side-section" style="margin-bottom:8px">
    <div class="row split"><div class="section-kicker" style="margin:0 0 9px">03 · Kapak Yerleşimi</div><span class="pill gold" id="selectedCount">0 / 30</span></div>
-   <div class="row" style="margin-bottom:8px"><button class="btn compact" data-preset="temel">TTS Temel</button><button class="btn compact" data-preset="klinik">TTS Klinik</button><button class="btn compact" data-preset="tum">TTS Tüm</button></div>
+   <label class="field"><span>Grup seçimi · tıklayarak seç, kaydırarak gez</span><select id="quickGroup" class="control"><option value="">Grup seçiniz</option></select></label><div class="row" style="margin-bottom:8px"><button class="btn compact" id="addQuickGroup">Seçili grubu afişe ekle</button><span class="hint-label">En fazla 30 kapak</span></div>
    <div id="selectedList" class="selected-list"><div class="empty">Kitap seçerek başlayın.</div></div>
    <div class="row" style="margin-top:9px"><button class="btn compact" id="addCustom">+ Harici JPG kapağı</button><button class="btn compact ghost" id="clearSelection">Listeyi temizle</button></div>
    <p class="hint-label">↕ Kitapları tutup sürükleyerek sıralayın. Afişte iki farklı kapağa sırayla tıklayarak yer değiştirin.</p>
@@ -71,7 +71,7 @@
    <div class="tabpane active" id="tab-ilan">
     <h2 class="section-title">İlan bilgileri</h2><p class="section-desc">Başlık, baskı ve fiyatlar görselde sabit bölgelerde kalır.</p>
     <label class="field"><span>Seri başlığı</span><input class="control" data-setting="title_series" placeholder="TTS"></label>
-    <label class="field"><span>Set / ilan adı</span><input class="control" data-setting="title_set" placeholder="KLİNİK SET"></label>
+    <label class="field"><span>Set / ilan adı</span><input class="control" data-setting="title_set" placeholder="KLİNİK SET"></label><label class="field"><span>Kitap sayısı yerine alt başlık</span><input class="control" data-setting="subtitle" placeholder="Konu Anlatımı · Güncel Baskı"></label><label class="checkline"><input type="checkbox" data-setting="show_subtitle"> Alt başlığı afişte göster (kapalıysa kitap sayısını göster)</label>
     <label class="field"><span>Üst açıklama</span><input class="control" data-setting="eyebrow"></label>
     <label class="field"><span>Genel baskı numarası</span><input class="control" data-setting="edition"></label>
     <label class="checkline"><input type="checkbox" data-setting="show_edition_badge"> Genel baskı rozetini afişte göster</label>
@@ -116,16 +116,13 @@
     <div class="note"><strong>Thumbnail güvenli alanı</strong><br>Dolap ve Gardrops üst/alt kırpma yapabilir. Kare kontrolüyle afişin kritik kısmını önizle.</div>
    </div>
    <div class="tabpane" id="tab-marka">
-    <h2 class="section-title">Mağaza kimliği</h2><p class="section-desc">Logonu, mağaza adını ve hesap kullanıcı adını bir kere kaydet. Afişte altta, uyarılardan ayrı görünür.</p>
+    <h2 class="section-title">Mağaza kimliği</h2><p class="section-desc">Firma adı, hesap adı ve kısa spot; logosuz, dengeli afiş altlığı.</p>
     <label class="field"><span>Mağaza / firma adı</span><input class="control" data-setting="shop_name" placeholder="DTY KİTAP"></label>
     <label class="field"><span>Hesap / kullanıcı adı</span><input class="control" data-setting="account_name" placeholder="@kitapmagazam"></label>
-    <label class="field"><span>Logo konumu</span><select class="control" data-setting="logo_position"><option>Sol</option><option>Orta</option><option>Sağ</option><option>Kapalı</option></select></label>
-    <button id="uploadLogo" class="btn wide">＋ Marka logosu ekle (PNG/JPG)</button>
-    <p class="hint-label" id="logoInfo">Henüz logo seçilmedi.</p>
     <div class="divider"></div><div class="subhead">Kısa reklam spotu</div>
     <label class="field"><input class="control" data-setting="slogan" placeholder="Güncel kaynaklar · Özenli baskı"></label>
     <button class="btn compact wide" id="randomSlogan">✧ Rastgele spot seç</button>
-    <div class="divider"></div><div class="note">Mağaza adı değişse bile tüm fiyat ve uyarı alanları yerinde kalır. Logo dosyan bu bilgisayarda saklanır.</div>
+    <div class="divider"></div><label class="field"><span>Marka mesajı (platform/iletişim adresi olmadan)</span><input class="control" data-setting="brand_message" placeholder="Tanıdık kalite, aynı özen."></label><div class="note">Logo kullanılmaz. Mağaza adı, hesap adı, marka mesajı ve reklam spotu birbirinden ayrı alanlarda gösterilir.</div>
    </div>
    <div class="tabpane" id="tab-uyari">
     <h2 class="section-title">Sipariş ve uyarı alanı</h2><p class="section-desc">Söylediğin iki önemli uyarıyı özellikle görünür tutuyoruz. Üç satırı da isteğin gibi değiştirebilirsin.</p>
@@ -144,7 +141,7 @@
 <input type="file" accept=".xlsx" id="fileExcel" hidden>
 <input type="file" webkitdirectory directory multiple id="fileCovers" hidden>
 <input type="file" accept=".zip,application/zip" id="fileCoverZip" hidden>
-<input type="file" accept="image/png,image/jpeg,image/webp" id="fileLogo" hidden>
+
 <input type="file" accept="image/png,image/jpeg,image/webp" id="fileCustom" hidden>
 <input type="file" accept="application/json,.json" id="fileProject" hidden>
 <input type="file" accept="image/png,image/jpeg,.jpg,.jpeg,.png" id="fileImportArtwork" hidden>
