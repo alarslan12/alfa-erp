@@ -77,35 +77,99 @@ def _asset(assets,name,release_tag):
     raise UpdateError("Kararlı sürümün gerekli dosyaları eksik: "+name)
 
 
+def _release_page_fallback(current, reason):
+    """Fallback only through the official GitHub release redirect, never a mirror."""
+    page="https://github.com/alarslan12/alfa-erp/releases/latest"
+    request=urllib.request.Request(page,headers={
+        "User-Agent":"ALFACOPYCENTER-Update/2",
+        "Accept":"text/html"})
+    try:
+        with urllib.request.urlopen(request,timeout=20) as response:
+            final=response.geturl()
+            # GitHub may serve a page instead of redirecting. Never parse
+            # untrusted arbitrary HTML to decide what executable to install.
+            response.read(256)
+    except urllib.error.HTTPError as exc:
+        raise UpdateError(
+            f"GitHub API kontrolü başarısız ({reason}); "
+            f"GitHub sürüm sayfası da HTTP {exc.code} döndürdü.") from None
+    except (urllib.error.URLError,TimeoutError,OSError) as exc:
+        why=_network_error(exc)
+        raise UpdateError(
+            f"GitHub API kontrolü başarısız ({reason}); "
+            f"GitHub sürüm sayfası da açılamadı ({why}).") from None
+    prefix="https://github.com/alarslan12/alfa-erp/releases/tag/"
+    if not final.startswith(prefix):
+        raise UpdateError(
+            f"GitHub API kontrolü başarısız ({reason}); "
+            "alternatif sürüm adresi doğrulanamadı.")
+    tag=urllib.parse.unquote(final[len(prefix):].strip("/"))
+    try:
+        available=version_tuple(tag)
+    except UpdateError:
+        raise UpdateError("GitHub sürüm etiketi geçersiz: "+tag[:45]) from None
+    if available<=version_tuple(current):
+        return {"available":False,"latest":tag}
+    version="_".join(map(str,available))
+    filename=(f"ALFACOPYCENTER_Suite_Setup_V{version}.exe"
+              if available[0]>=2 else f"ALFA_ERP_Setup_V{version}.exe")
+    url=REPO_PREFIX+urllib.parse.quote(tag,safe="")+"/"
+    return {"available":True,"latest":tag,
+            "version":".".join(map(str,available)),
+            "installer":{"name":filename,"url":url+filename,"size":0},
+            "checksum":{"name":"SHA256SUMS.txt",
+                        "url":url+"SHA256SUMS.txt","size":0},
+            "notes":"Resmî GitHub API erişimi kısıtlı. Sürüm etiketi "
+                    "GitHub'ın kendi sürüm sayfasından doğrulandı; "
+                    "güncelleme SHA-256 ile kontrol edilecektir.",
+            "release_url":final}
+
+
+def _network_error(exc):
+    if isinstance(exc,urllib.error.HTTPError):
+        if exc.code==403:
+            return "HTTP 403: engellenmiş veya API istek sınırı aşılmış"
+        if exc.code==429:
+            return "HTTP 429: GitHub istek sınırı"
+        if exc.code==404:
+            return "HTTP 404: yayımlanmış sürüm bulunamadı"
+        return f"HTTP {exc.code}"
+    reason=getattr(exc,"reason",exc)
+    if isinstance(reason,TimeoutError):
+        return "bağlantı zaman aşımı"
+    message=str(reason).strip()
+    if "CERTIFICATE_VERIFY_FAILED" in message or "certificate verify failed" in message:
+        return "Windows/Python HTTPS sertifika doğrulaması başarısız"
+    if "getaddrinfo failed" in message or "Name or service not known" in message:
+        return "DNS alan adı çözümlenemedi"
+    if "timed out" in message.lower():
+        return "bağlantı zaman aşımı"
+    if "proxy" in message.lower():
+        return "proxy bağlantı hatası"
+    if "refused" in message.lower():
+        return "bağlantı reddedildi"
+    if "reset" in message.lower():
+        return "bağlantı sıfırlandı"
+    return (message or type(reason).__name__)[:145]
+
+
 def check_for_update(current,edition):
-    """At most one GET to the public GitHub latest endpoint."""
+    """Use the GitHub Releases API; fallback to a verified official redirect."""
     try:
         with _request(GITHUB_API) as response:
             if response.geturl()!=GITHUB_API:
-                raise UpdateError("GitHub sürüm adresi değiştirildi")
+                raise UpdateError("GitHub API farklı adrese yönlendirildi")
             data=json.load(response)
-    except urllib.error.HTTPError as exc:
-        if exc.code==404:
-            raise UpdateError(
-                "GitHub'da henüz kalıcı kararlı sürüm yayımlanmadı. "
-                "Yönetici Releases sayfasından yayınlamalı.") from None
-        raise UpdateError("GitHub güncelleme servisi HTTP "+str(exc.code)) from None
-    except (urllib.error.URLError,OSError,TimeoutError,ValueError):
-        raise UpdateError("GitHub sürüm kontrolüne erişilemiyor") from None
+    except (urllib.error.HTTPError,urllib.error.URLError,TimeoutError,OSError,ValueError) as exc:
+        return _release_page_fallback(current,_network_error(exc))
     if data.get("draft") or data.get("prerelease"):
         raise UpdateError("Önizleme sürümleri otomatik yüklenmez")
     tag=str(data.get("tag_name") or "")
     available=version_tuple(tag)
     running=version_tuple(current)
-    # Product numbering restarted at v1.0.0 after the Firebase 6.x preview.
-    # Until v1 reaches GitHub Releases/latest, do NOT treat the legacy
-    # v6.x release as a newer compatible unified-installer update.
     if (running[0]==1 and available[0]>=6) or available<=running:
         return {"available":False,"latest":tag}
-    # Both editions are distributed in ONE setup; the user selects the
-    # edition in the installer and owner installs require the setup password.
     version="_".join(str(x) for x in available)
-    # Version 2+ is a four-app branded Suite; v1 uses the old installer.
     name=(f"ALFACOPYCENTER_Suite_Setup_V{version}.exe"
           if available[0]>=2 else f"ALFA_ERP_Setup_V{version}.exe")
     assets=data.get("assets") or []
