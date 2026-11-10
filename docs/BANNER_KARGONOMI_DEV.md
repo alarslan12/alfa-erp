@@ -1,29 +1,25 @@
-# ALFACOPYCENTER Suite — Banner Studio & Kargonomi geliştirme dalı
+# ALFACOPYCENTER Suite v2.0.2 · Banner Studio v3.4 + Kargonomi
 
-Kaynak: `v2.0.1` birleşik kurulum etiketi. **Ana dal değiştirilmedi, yeni Setup.exe derlenmedi.**
+Geliştirme dalı: `feature/banner-kargonomi-20261110` (v2.0.1 birleşik kurulumunu temel alır). Ana dal değiştirilmemiştir.
 
-## Banner Studio
-- Kapak Yerleşimi altındaki TTS'ye sabit üç düğme kaldırıldı.
-- Excel kataloğundan dinamik gelen tüm gruplar açılır/kaydırılabilir listeden seçiliyor; tek tıkla o grubun kapakları ekleniyor (30 sınırı korunuyor).
-- Bağımsız `subtitle` metin alanı ve `show_subtitle` anahtarı eklendi. Gösterilmediğinde eski kitap sayısı etiketi korunur.
-- Marka sekmesindeki logo yükleme/konumlandırma kaldırıldı; kayıtlı eski logolar afişte artık çizilmiyor.
-- Alt marka bloğunda mağaza adı, hesap adı, yeni nötr marka mesajı ve kısa spot ayrı satırlarda tutuluyor.
-- Önceki proje JSON dosyaları açılabilir; eski logo ayarları yalnızca eski kayıtlarla geriye dönük veri uyumu için ayar modelinde kaldı.
+## Kurulum / bir defalık Kargonomi yetkilendirmesi
 
-## Kargonomi
-- ERP üst çubuğunda **Kargonomi** düğmesi ve ayrı yönetim penceresi.
-- Resmi `https://app.kargonomi.com.tr/api/v1` API; Bearer kimlik doğrulaması.
-- Gönderi listeleme, sipariş seçerek taslak oluşturma, gönderi detayı, fiyat karşılaştırma, firma onayı ve barkod PDF alma.
-- Kullanıcı, ERP siparişinden gelen bilgileri kontrol ederek eksikleri tamamlar. ERP'deki `kod` alanı kargo kodu veya adres olabildiğinden, alıcı adresine **otomatik taşınmaz**.
-- Depo/şehir/ilçe için Kargonomi panelindeki sayısal ID'ler kullanılır.
-- Token git deposuna ve yerel ayar JSON'una yazılmaz; çevre değişkeni `KARGONOMI_API_TOKEN` veya penceredeki oturumluk şifreli giriş kullanılabilir.
-- Gönderi oluşturma ve firma onayı kullanıcıya ayrıca sorulur. İstekler arka plan iş parçacığında 18 saniyelik ağ zaman aşımıyla çalışır.
-- **Sınır:** Bu ilk entegrasyon sürümü, Kargonomi gönderi ID'sini ERP/Firebase siparişine kalıcı şekilde eşleştirmez; durum webhook'u ve otomatik kargo ücreti muhasebeleştirmesi de henüz bağlı değildir. Canlı tokenla gerçek API çağrısı yapılmadı.
+1. GitHub Actions > **ALFACOPYCENTER Suite v2.0.2 Windows candidate (build only)** başarılı işin **Artifacts** alanından `ALFACOPYCENTER_Suite_v2.0.2_Windows_Candidate` ZIP'ini indir.
+2. Mevcut `%LOCALAPPDATA%\AlfaERP` verilerini yedekle. İndirilen ZIP'i açıp `ALFACOPYCENTER_Suite_Setup_V2_0_2.exe` dosyasını çalıştır. Kurulumda mevcut uygulamalar aynı AppId ile güncellenir; yönetici bileşeni seçildiyse onun kurulum parolası gerekebilir.
+3. Kargonomi panelinden işletme hesabının **API Bearer Token** değerini ve **gönderici depo ID** bilgisini temin et. Üretimde API'ye yetkin ve kargo kredin olmalı.
+4. ERP'yi aç; sağ üstte **Kargonomi** > API anahtarını ve depo ID'yi bir kez gir > **Bağlantıyı Windows kimlik kasasında sakla**. Anahtar kaynak koduna, herkese açık GitHub'a, Firebase'e veya düz metin ayar dosyasına yazılmaz. Farklı Windows kullanıcıları / PC'lerde bu adım ayrı yapılır.
+5. Yeni sipariş için katalogdan kitapları seç, kargo kodu ve **satış fiyatı** gir, kayda bas. Açılan pencerede **ad soyad, cep telefonu, açık adres, il ve ilçe** doldur.
+6. Gardrops kodu otomatik algılanıyorsa **net ciro = yukarı yuvarla(girilen fiyat × %90)** uygulanır. Örnek: 555 TL → 500 TL. Diğer platformların tutarı aynen kalır.
+7. Sipariş aktifte tamamen hazırlandı ve kolilendiğinde **Tamamlandı** seç. Uygulama desiyi sorar. **Kargo tekliflerini getir** ile taslak açar, il/ilçe ID'lerini Kargonomi'den bulur ve teklifleri sunar. Otomatik en uygun teklif ön seçilidir; farklı firmayı da seçebilirsin.
+8. **Yeni Barkod** düğmesine basıp ücret doğurabilecek gönderi/firma onayını kabul et. PDF **KargonomiBarcodes** klasörüne kaydedilip açıldıktan sonra ERP siparişi tamamlanır. PDF başarısızsa ERP'de otomatik tamamlanmaz.
+9. Tamamlanan siparişin detayında **Yeni Barkod · PDF yeniden al** düğmesi vardır. ERP üst menüsündeki Kargonomi ekranından gönderi detayını, fiyatları, bakiyeyi görebilir ve iptal talebinde bulunabilirsin.
 
-## Üretim öncesi
-1. Kargonomi hesabından kişisel API token ve depo ID temin edin.
-2. Test/küçük hacimli gönderide il/ilçe ID, gönderi oluşturma, fiyat ve barkod yanıtlarını doğrulayın.
-3. Birleştirilmiş setup, bu dal üzerinden Windows'ta yeniden derlenmelidir. Eski v2.0.1 EXE dosyası kendiliğinden güncellenmez.
-4. Uçtan uca Windows GUI testi ve canlı Kargonomi işlemi **yapılmadı**.
+## İş kuralları ve güvenlik
 
-Resmi referans: https://www.kargonomi.com.tr/help/api-dokumantasyonu/kargonomi-api/
+- Tek bir ERP siparişinin Kargonomi gönderi ID'si saklanır; daha sonraki denemede aynı taslağa devam edilir. Ağda onaysız hata olursa gerçek gönderi var mı Kargonomi panelinden kontrol etmeden ikinci kez taslak oluşturma.
+- Alıcı bilgileri ve gönderi kimliği, mevcut Firebase sipariş oluşturma/tamamlama senkronizasyon mesajlarıyla taşınır; eski bulut anlık görüntüleri yerel gönderi bilgilerini düşürmez.
+- Her platform siparişine **ayrı Kargonomi etiketi** açmadan önce, satış platformunun zaten ücretli/aktif bir taşıma etiketi oluşturmadığını kontrol et. Çift kargo ödemesi doğabilir.
+- İkinci cihazdan aynı siparişte eşzamanlı barkod oluşturulması konusunda sunucu tarafı dağıtık kilit henüz yoktur; gönderi kesimi tek yetkili cihazdan yapılmalıdır.
+- Kargonomi gönderi güncellemeleri ERP içinde otomatik webhook ile izlenmez. Gönderi detayı Kargonomi penceresinden sorgulanır.
+- **Canlı API tokenı olmadan gerçek gönderi, fiyat ve barkod uçtan uca doğrulanmamıştır.** Windows GUI testleri özellikle çalıştırılmamıştır; Actions iş akışı yalnızca kurulum paketi üretir.
+- Kargonomi API resmi referansı: https://www.kargonomi.com.tr/help/api-dokumantasyonu/kargonomi-api/
