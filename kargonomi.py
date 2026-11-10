@@ -73,6 +73,15 @@ class KargonomiClient:
         except (URLError, TimeoutError) as exc:
             raise RuntimeError("Kargonomi bağlantısı kurulamadı; ağ erişimini kontrol edin.") from None
 
+    def states(self):
+        return self.request("GET", "/states/1")
+
+    def cities(self, state_id):
+        return self.request("GET", f"/cities/{int(state_id)}")
+
+    def credit(self):
+        return self.request("GET", "/user/credit")
+
     def shipments(self):
         return self.request("GET", "/shipments")
 
