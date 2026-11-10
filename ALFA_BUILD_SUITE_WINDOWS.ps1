@@ -82,7 +82,7 @@ $iscc = $candidates | Where-Object { $_ -and (Test-Path $_) } |
 if (-not $iscc) { throw 'Inno Setup 6 ISCC.exe is required' }
 
 Run $iscc @('ALFACOPYCENTER_Suite.iss')
-$setup = Join-Path $PSScriptRoot 'output\ALFACOPYCENTER_Suite_Setup_V2_0_2.exe'
+$setup = Join-Path $PSScriptRoot 'output\ALFACOPYCENTER_Suite_Setup_V2_0_3.exe'
 if (-not (Test-Path $setup)) { throw 'Suite Setup.exe not created' }
 Get-FileHash -Path $setup -Algorithm SHA256 | Format-Table
 Write-Host "ALFACOPYCENTER suite ready: $setup"
