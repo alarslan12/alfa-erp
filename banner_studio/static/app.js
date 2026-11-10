@@ -71,8 +71,30 @@ function generatePresets(){
  });
  const sel=$('layoutSelect');sel.innerHTML=state.layouts.map(s=>`<option value="${escapeHTML(s)}">${escapeHTML(s)}</option>`).join('');
 }
+function normalizeCode(value){
+ const raw=String(value??'').trim();
+ if(/^\\d+(?:[.,]0+)?$/.test(raw))return String(Number(raw.replace(',','.')));
+ return raw.toUpperCase();
+}
+function reconcileSelectedBooks(){
+ const current=new Map(state.catalog.map(b=>[normalizeCode(b.code),b]));
+ let refreshed=0,removed=0;
+ state.books=state.books.flatMap(old=>{
+  if(String(old.id||'').startsWith('EXTRA-')||old.group==='Harici kapak')return [old];
+  const book=current.get(normalizeCode(old.code));
+  if(!book){removed++;return []}
+  const nameChanged=normalize(old.name)!==normalize(book.name);
+  if(nameChanged)refreshed++;
+  return [{...book,
+   cover_override:nameChanged?'':(old.cover_override||''),
+   badge_override:old.badge_override||'',
+   edition_override:old.edition_override||''}];
+ });
+ return {refreshed,removed};
+}
 function renderGroups(){
- const groups=[...new Set(state.catalog.map(b=>b.group).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'tr'));
+ // Preserve the workbook's first-appearance order instead of alphabetizing.
+ const groups=[...new Set(state.catalog.map(b=>b.group).filter(Boolean))];
  const current=$('groupFilter').value;
  $('groupFilter').innerHTML='<option value="">Tüm gruplar</option>'+groups.map(x=>`<option value="${escapeHTML(x)}">${escapeHTML(x)}</option>`).join('');
  if(groups.includes(current))$('groupFilter').value=current;
@@ -84,12 +106,12 @@ function filteredBooks(){const q=normalize($('bookSearch').value.trim()),g=$('gr
 function renderCatalog(){
  const results=filteredBooks();$('catalogCount').textContent=results.length+' kayıt';
  const panel=$('catalogList');panel.innerHTML='';
- for(const book of results.slice(0,160)){
+ for(const book of results){
   const el=document.createElement('button');el.className='catalog-item';
   el.innerHTML=`<span class="code">${escapeHTML(book.code)}</span><span class="name">${escapeHTML(book.name)}</span><span class="plus">+</span>`;
   el.title=book.group;el.onclick=()=>addBook(book);panel.append(el)
  }
- if(results.length>160){const more=document.createElement('p');more.className='hint-label';more.textContent=`${results.length} sonuç bulundu; ilk 160 gösteriliyor. Aramayı daraltabilirsiniz.`;panel.append(more)}
+
  if(!results.length)panel.innerHTML='<div class="empty">Bu aramaya uygun kitap bulunamadı.</div>';
 }
 function addBook(book){
@@ -451,7 +473,22 @@ function bindUI(){
  $('importLibraryImage').onclick=()=>$('fileImportArtwork').click();
  $('pickExcel').onclick=()=>$('fileExcel').click();$('pickCovers').onclick=()=>$('fileCovers').click();$('pickCoverZip').onclick=()=>$('fileCoverZip').click();
  $('addCustom').onclick=()=>{customTarget=null;$('fileCustom').click()};
- $('fileExcel').onchange=async ev=>{const file=ev.target.files[0];if(!file)return;busy('Excel katalog yükleniyor…',true);try{const result=await uploadBinary('/api/upload/excel',file);state.catalog=result.catalog;renderGroups();renderCatalog();showCoverStatus(result);toast('Excel kataloğu yüklendi: '+result.total+' kitap')}catch(e){toast(e.message)}finally{busy('',false);ev.target.value=''}};
+ $('fileExcel').onchange=async ev=>{
+  const file=ev.target.files[0];if(!file)return;
+  busy('Excel kodları ve başlıkları doğrulanıyor…',true);
+  try{
+   const result=await uploadBinary('/api/upload/excel',file);
+   state.catalog=result.catalog;
+   const counts=reconcileSelectedBooks();
+   renderGroups();renderCatalog();renderSelected();showCoverStatus(result);scheduleRender();
+   toast('Excel: '+result.total+' kitap, kodlar doğrulandı.'+
+    (counts.refreshed?' '+counts.refreshed+' seçili başlık güncellendi.':'')+
+    (counts.removed?' '+counts.removed+' eski/kaldırılmış kod afişten çıkarıldı.':''));
+  }catch(e){
+   toast('Excel değişmedi: '+e.message);
+   alert('Excel içe aktarılamadı; önceki katalog korundu.\\n\\n'+e.message);
+  }finally{busy('',false);ev.target.value=''}
+ };
  $('fileCoverZip').onchange=async ev=>{
   const file=ev.target.files[0];if(!file)return;
   busy('Kapak ZIP arşivi açılıyor (birkaç dakika sürebilir)…',true);
@@ -480,7 +517,14 @@ async function boot(){try{const result=await api('/api/bootstrap');state={...sta
   studioNonce=result.update_nonce||'';
   $('studioVersion').textContent='Banner Studio v3.6 · Suite '+(result.suite_version||'bilinmiyor');
  const previous=await api('/api/draft').catch(()=>({draft:null}));
- if(previous.draft){state.books=previous.draft.books||[];state.settings={...state.settings,...previous.draft.settings};}
+ if(previous.draft){
+  state.books=previous.draft.books||[];
+  state.settings={...state.settings,...previous.draft.settings};
+  const reconciled=reconcileSelectedBooks();
+  if(reconciled.removed||reconciled.refreshed)
+   toast('Taslak güncel Excel kodlarıyla eşleştirildi.'+
+    (reconciled.removed?' '+reconciled.removed+' eski kayıt ayıklandı.':''));
+ }
  generatePresets();renderGroups();bindUI();updateControls();renderCatalog();renderSelected();showCoverStatus(result);
  draftReady=true;scheduleRender();
  if(previous.draft)toast('Son çalışman otomatik geri yüklendi.');
