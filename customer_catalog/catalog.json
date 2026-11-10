@@ -1,0 +1,1820 @@
+[
+  {
+    "code": "29",
+    "name": "DENTOMY Soru ADÇ Cerrahi",
+    "group_name": "DENTOMY Soru - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "30",
+    "name": "DENTOMY Soru ADÇ Radyoloji",
+    "group_name": "DENTOMY Soru - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "31",
+    "name": "DENTOMY Soru Endodonti",
+    "group_name": "DENTOMY Soru - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "32",
+    "name": "DENTOMY Soru Ortodonti",
+    "group_name": "DENTOMY Soru - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "33",
+    "name": "DENTOMY Soru Pedodonti",
+    "group_name": "DENTOMY Soru - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "35",
+    "name": "DENTOMY Soru Protetik Diş Tedavisi",
+    "group_name": "DENTOMY Soru - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "36",
+    "name": "DENTOMY Soru Restoratif Diş Tedavisi",
+    "group_name": "DENTOMY Soru - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "37",
+    "name": "DENTOMY Soru Anatomi",
+    "group_name": "DENTOMY Soru - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "38",
+    "name": "DENTOMY Soru Biyokimya",
+    "group_name": "DENTOMY Soru - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "39",
+    "name": "DENTOMY Soru Farmakoloji",
+    "group_name": "DENTOMY Soru - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "40",
+    "name": "DENTOMY Soru Fizyoloji",
+    "group_name": "DENTOMY Soru - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "41",
+    "name": "DENTOMY Soru Mikrobiyoloji",
+    "group_name": "DENTOMY Soru - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "42",
+    "name": "DENTOMY Soru Patoloji",
+    "group_name": "DENTOMY Soru - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "43",
+    "name": "DUSAK Branş ADÇ Cerrahi",
+    "group_name": "DUSAK Branş - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "44",
+    "name": "DUSAK Branş ADÇ Radyoloji",
+    "group_name": "DUSAK Branş - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "48",
+    "name": "DUSAK Branş Periodontoloji",
+    "group_name": "DUSAK Branş - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "49",
+    "name": "DUSAK Branş Protetik Diş Tedavisi",
+    "group_name": "DUSAK Branş - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "50",
+    "name": "DUSAK Branş Restoratif Diş Tedavisi",
+    "group_name": "DUSAK Branş - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "51",
+    "name": "DUSAK Branş Anatomi",
+    "group_name": "DUSAK Branş - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "52",
+    "name": "DUSAK Branş Biyokimya",
+    "group_name": "DUSAK Branş - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "54",
+    "name": "DUSAK Branş Fizyoloji",
+    "group_name": "DUSAK Branş - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "56",
+    "name": "DUSAK Branş Patoloji",
+    "group_name": "DUSAK Branş - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "57",
+    "name": "DUSAK Kamp ADÇ Cerrahi",
+    "group_name": "DUSAK Kamp - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "58",
+    "name": "DUSAK Kamp ADÇ Radyoloji",
+    "group_name": "DUSAK Kamp - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "59",
+    "name": "DUSAK Kamp Endodonti",
+    "group_name": "DUSAK Kamp - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "60",
+    "name": "DUSAK Kamp Ortodonti",
+    "group_name": "DUSAK Kamp - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "61",
+    "name": "DUSAK Kamp Pedodonti",
+    "group_name": "DUSAK Kamp - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "62",
+    "name": "DUSAK Kamp Periodontoloji",
+    "group_name": "DUSAK Kamp - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "63",
+    "name": "DUSAK Kamp Protetik Diş Tedavisi",
+    "group_name": "DUSAK Kamp - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "64",
+    "name": "DUSAK Kamp Restoratif Diş Tedavisi",
+    "group_name": "DUSAK Kamp - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "65",
+    "name": "DUSAK Kamp Anatomi",
+    "group_name": "DUSAK Kamp - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "66",
+    "name": "DUSAK Kamp Biyokimya",
+    "group_name": "DUSAK Kamp - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "67",
+    "name": "DUSAK Kamp Farmakoloji",
+    "group_name": "DUSAK Kamp - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "68",
+    "name": "DUSAK Kamp Fizyoloji",
+    "group_name": "DUSAK Kamp - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "69",
+    "name": "DUSAK Kamp Mikrobiyoloji",
+    "group_name": "DUSAK Kamp - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "70",
+    "name": "DUSAK Kamp Patoloji",
+    "group_name": "DUSAK Kamp - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "71",
+    "name": "DUSAK Konu ADÇ Cerrahi",
+    "group_name": "DUSAK Konu - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "72",
+    "name": "DUSAK Konu ADÇ Radyoloji",
+    "group_name": "DUSAK Konu - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "73",
+    "name": "DUSAK Konu Endodonti",
+    "group_name": "DUSAK Konu - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "74",
+    "name": "DUSAK Konu Ortodonti",
+    "group_name": "DUSAK Konu - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "75",
+    "name": "DUSAK Konu Pedodonti",
+    "group_name": "DUSAK Konu - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "76",
+    "name": "DUSAK Konu Periodontoloji",
+    "group_name": "DUSAK Konu - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "77",
+    "name": "DUSAK Konu Protetik Diş Tedavisi",
+    "group_name": "DUSAK Konu - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "78",
+    "name": "DUSAK Konu Restoratif Diş Tedavisi",
+    "group_name": "DUSAK Konu - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "79",
+    "name": "DUSAK Konu Anatomi",
+    "group_name": "DUSAK Konu - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "80",
+    "name": "DUSAK Konu Biyokimya",
+    "group_name": "DUSAK Konu - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "81",
+    "name": "DUSAK Konu Farmakoloji",
+    "group_name": "DUSAK Konu - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "82",
+    "name": "DUSAK Konu Fizyoloji",
+    "group_name": "DUSAK Konu - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "83",
+    "name": "DUSAK Konu Mikrobiyoloji",
+    "group_name": "DUSAK Konu - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "84",
+    "name": "DUSAK Konu Patoloji",
+    "group_name": "DUSAK Konu - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "85",
+    "name": "DUSAK Soru ADÇ Cerrahi",
+    "group_name": "DUSAK Soru - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "88",
+    "name": "DUSAK Soru Ortodonti",
+    "group_name": "DUSAK Soru - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "91",
+    "name": "DUSAK Soru Protetik Diş Tedavisi",
+    "group_name": "DUSAK Soru - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "92",
+    "name": "DUSAK Soru Restoratif Diş Tedavisi",
+    "group_name": "DUSAK Soru - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "93",
+    "name": "DUSAK Soru Anatomi",
+    "group_name": "DUSAK Soru - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "94",
+    "name": "DUSAK Soru Biyokimya",
+    "group_name": "DUSAK Soru - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "95",
+    "name": "DUSAK Soru Farmakoloji",
+    "group_name": "DUSAK Soru - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "96",
+    "name": "DUSAK Soru Fizyoloji",
+    "group_name": "DUSAK Soru - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "97",
+    "name": "DUSAK Soru Mikrobiyoloji",
+    "group_name": "DUSAK Soru - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "98",
+    "name": "DUSAK Soru Patoloji",
+    "group_name": "DUSAK Soru - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "113",
+    "name": "DUSDATA 1+2 1. Cilt",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "114",
+    "name": "DUSDATA 1+2 2. Cilt",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "115",
+    "name": "DUSDATA 1+2 3. Cilt",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "116",
+    "name": "DUSDATA 1+2 4. Cilt",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "117",
+    "name": "DUSDATA 33 ADÇ Cerrahi",
+    "group_name": "DUSDATA 33 - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "118",
+    "name": "DUSDATA 33 ADÇ Radyoloji",
+    "group_name": "DUSDATA 33 - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "119",
+    "name": "DUSDATA 33 Endodonti",
+    "group_name": "DUSDATA 33 - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "120",
+    "name": "DUSDATA 33 Ortodonti",
+    "group_name": "DUSDATA 33 - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "121",
+    "name": "DUSDATA 33 Pedodonti",
+    "group_name": "DUSDATA 33 - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "122",
+    "name": "DUSDATA 33 Periodontoloji",
+    "group_name": "DUSDATA 33 - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "123",
+    "name": "DUSDATA 33 Protetik Diş Tedavisi",
+    "group_name": "DUSDATA 33 - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "124",
+    "name": "DUSDATA 33 Restoratif Diş Tedavisi",
+    "group_name": "DUSDATA 33 - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "125",
+    "name": "DUSDATA 33 Anatomi",
+    "group_name": "DUSDATA 33 - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "126",
+    "name": "DUSDATA 33 Biyokimya",
+    "group_name": "DUSDATA 33 - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "127",
+    "name": "DUSDATA 33 Farmakoloji",
+    "group_name": "DUSDATA 33 - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "128",
+    "name": "DUSDATA 33 Fizyoloji",
+    "group_name": "DUSDATA 33 - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "129",
+    "name": "DUSDATA 33 Mikrobiyoloji",
+    "group_name": "DUSDATA 33 - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "130",
+    "name": "DUSDATA 33 Patoloji",
+    "group_name": "DUSDATA 33 - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "131",
+    "name": "DUSDATA DENTTEST 12",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "132",
+    "name": "DUSDATA DENTTEST 13",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "133",
+    "name": "DUSDATA DENTTEST 14",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "134",
+    "name": "DUSDATA DENTTEST 15",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "135",
+    "name": "DUSDATA DENTTEST 16",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "136",
+    "name": "DUSDATA DENTTEST 17",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "137",
+    "name": "DUSDATA Konu ADÇ Cerrahi",
+    "group_name": "DUSDATA Konu - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "138",
+    "name": "DUSDATA Konu ADÇ Radyoloji",
+    "group_name": "DUSDATA Konu - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "139",
+    "name": "DUSDATA Konu Endodonti",
+    "group_name": "DUSDATA Konu - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "140",
+    "name": "DUSDATA Konu Ortodonti",
+    "group_name": "DUSDATA Konu - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "141",
+    "name": "DUSDATA Konu Pedodonti",
+    "group_name": "DUSDATA Konu - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "142",
+    "name": "DUSDATA Konu Periodontoloji",
+    "group_name": "DUSDATA Konu - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "143",
+    "name": "DUSDATA Konu Protetik Diş Tedavisi",
+    "group_name": "DUSDATA Konu - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "144",
+    "name": "DUSDATA Konu Restoratif Diş Tedavisi",
+    "group_name": "DUSDATA Konu - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "145",
+    "name": "DUSDATA Konu Anatomi",
+    "group_name": "DUSDATA Konu - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "146",
+    "name": "DUSDATA Konu Biyokimya",
+    "group_name": "DUSDATA Konu - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "147",
+    "name": "DUSDATA Konu Farmakoloji",
+    "group_name": "DUSDATA Konu - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "148",
+    "name": "DUSDATA Konu Fizyoloji",
+    "group_name": "DUSDATA Konu - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "149",
+    "name": "DUSDATA Konu Mikrobiyoloji",
+    "group_name": "DUSDATA Konu - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "150",
+    "name": "DUSDATA Konu Patoloji",
+    "group_name": "DUSDATA Konu - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "151",
+    "name": "DUSDATA Max ADÇ Cerrahi",
+    "group_name": "DUSDATA Max - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "152",
+    "name": "DUSDATA Max ADÇ Radyoloji",
+    "group_name": "DUSDATA Max - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "153",
+    "name": "DUSDATA Max Endodonti",
+    "group_name": "DUSDATA Max - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "154",
+    "name": "DUSDATA Max Ortodonti",
+    "group_name": "DUSDATA Max - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "155",
+    "name": "DUSDATA Max Pedodonti",
+    "group_name": "DUSDATA Max - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "156",
+    "name": "DUSDATA Max Periodontoloji",
+    "group_name": "DUSDATA Max - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "157",
+    "name": "DUSDATA Max Protetik Diş Tedavisi",
+    "group_name": "DUSDATA Max - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "158",
+    "name": "DUSDATA Max Restoratif Diş Tedavisi",
+    "group_name": "DUSDATA Max - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "159",
+    "name": "DUSDATA Max Anatomi",
+    "group_name": "DUSDATA Max - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "160",
+    "name": "DUSDATA Max Biyokimya",
+    "group_name": "DUSDATA Max - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "161",
+    "name": "DUSDATA Max Farmakoloji",
+    "group_name": "DUSDATA Max - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "162",
+    "name": "DUSDATA Max Fizyoloji",
+    "group_name": "DUSDATA Max - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "163",
+    "name": "DUSDATA Max Mikrobiyoloji",
+    "group_name": "DUSDATA Max - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "164",
+    "name": "DUSDATA Max Patoloji",
+    "group_name": "DUSDATA Max - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "165",
+    "name": "DUSDATA Prodent ADÇ Cerrahi",
+    "group_name": "DUSDATA Prodent - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "166",
+    "name": "DUSDATA Prodent ADÇ Radyoloji",
+    "group_name": "DUSDATA Prodent - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "167",
+    "name": "DUSDATA Prodent Endodonti",
+    "group_name": "DUSDATA Prodent - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "168",
+    "name": "DUSDATA Prodent Ortodonti",
+    "group_name": "DUSDATA Prodent - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "169",
+    "name": "DUSDATA Prodent Pedodonti",
+    "group_name": "DUSDATA Prodent - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "170",
+    "name": "DUSDATA Prodent Periodontoloji",
+    "group_name": "DUSDATA Prodent - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "171",
+    "name": "DUSDATA Prodent Protetik Diş Tedavisi",
+    "group_name": "DUSDATA Prodent - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "172",
+    "name": "DUSDATA Prodent Restoratif Diş Tedavisi",
+    "group_name": "DUSDATA Prodent - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "173",
+    "name": "DUSDATA Prodent Anatomi",
+    "group_name": "DUSDATA Prodent - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "174",
+    "name": "DUSDATA Prodent Biyokimya",
+    "group_name": "DUSDATA Prodent - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "175",
+    "name": "DUSDATA Prodent Farmakoloji",
+    "group_name": "DUSDATA Prodent - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "176",
+    "name": "DUSDATA Prodent Fizyoloji",
+    "group_name": "DUSDATA Prodent - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "177",
+    "name": "DUSDATA Prodent Mikrobiyoloji",
+    "group_name": "DUSDATA Prodent - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "178",
+    "name": "DUSDATA Prodent Patoloji",
+    "group_name": "DUSDATA Prodent - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "193",
+    "name": "DUSDATA Vaka 1. Cilt",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "194",
+    "name": "DUSDATA Vaka 2. Cilt",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "195",
+    "name": "DUSDATA Vaka 3. Cilt",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "211",
+    "name": "DUSDEMY Soru ADÇ Radyoloji",
+    "group_name": "DUSDEMY Soru - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "213",
+    "name": "DUSDEMY Soru Ortodonti",
+    "group_name": "DUSDEMY Soru - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "215",
+    "name": "DUSDEMY Soru Periodontoloji",
+    "group_name": "DUSDEMY Soru - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "216",
+    "name": "DUSDEMY Soru Protetik Diş Tedavisi",
+    "group_name": "DUSDEMY Soru - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "217",
+    "name": "DUSDEMY Soru Restoratif Diş Tedavisi",
+    "group_name": "DUSDEMY Soru - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "224",
+    "name": "DUSTIME Branş ADÇ Cerrahi",
+    "group_name": "DUSTIME Branş - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "225",
+    "name": "DUSTIME Branş ADÇ Radyoloji",
+    "group_name": "DUSTIME Branş - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "226",
+    "name": "DUSTIME Branş Endodonti",
+    "group_name": "DUSTIME Branş - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "227",
+    "name": "DUSTIME Branş Ortodonti",
+    "group_name": "DUSTIME Branş - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "228",
+    "name": "DUSTIME Branş Pedodonti",
+    "group_name": "DUSTIME Branş - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "229",
+    "name": "DUSTIME Branş Periodontoloji",
+    "group_name": "DUSTIME Branş - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "230",
+    "name": "DUSTIME Branş Protetik Diş Tedavisi",
+    "group_name": "DUSTIME Branş - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "231",
+    "name": "DUSTIME Branş Restoratif Diş Tedavisi",
+    "group_name": "DUSTIME Branş - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "232",
+    "name": "DUSTIME Branş Anatomi & Farmakoloji",
+    "group_name": "DUSTIME Branş - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "233",
+    "name": "DUSTIME Branş Biyokimya",
+    "group_name": "DUSTIME Branş - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "234",
+    "name": "DUSTIME Branş Fizyoloji",
+    "group_name": "DUSTIME Branş - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "235",
+    "name": "DUSTIME Branş Mikrobiyoloji & Patoloji",
+    "group_name": "DUSTIME Branş - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "280",
+    "name": "TIPAK Flash Dahiliye",
+    "group_name": "TIPAK Flash - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "286",
+    "name": "TIPAK Flash Biyokimya",
+    "group_name": "TIPAK Flash - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "287",
+    "name": "TIPAK Flash Farmakoloji",
+    "group_name": "TIPAK Flash - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "291",
+    "name": "TIPAK Kamp Dahiliye",
+    "group_name": "TIPAK Kamp - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "292",
+    "name": "TIPAK Kamp Genel Cerrahi",
+    "group_name": "TIPAK Kamp - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "293",
+    "name": "TIPAK Kamp Kadın Doğum",
+    "group_name": "TIPAK Kamp - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "294",
+    "name": "TIPAK Kamp Küçük Stajlar",
+    "group_name": "TIPAK Kamp - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "295",
+    "name": "TIPAK Kamp Pediatri",
+    "group_name": "TIPAK Kamp - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "296",
+    "name": "TIPAK Kamp Anatomi",
+    "group_name": "TIPAK Kamp - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "297",
+    "name": "TIPAK Kamp Biyokimya",
+    "group_name": "TIPAK Kamp - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "298",
+    "name": "TIPAK Kamp Farmakoloji",
+    "group_name": "TIPAK Kamp - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "299",
+    "name": "TIPAK Kamp Fizyoloji",
+    "group_name": "TIPAK Kamp - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "300",
+    "name": "TIPAK Kamp Mikrobiyoloji",
+    "group_name": "TIPAK Kamp - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "301",
+    "name": "TIPAK Kamp Patoloji",
+    "group_name": "TIPAK Kamp - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "302",
+    "name": "TIPAK Konu Dahiliye",
+    "group_name": "TIPAK Konu - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "303",
+    "name": "TIPAK Konu Genel Cerrahi",
+    "group_name": "TIPAK Konu - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "304",
+    "name": "TIPAK Konu Kadın Doğum",
+    "group_name": "TIPAK Konu - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "305",
+    "name": "TIPAK Konu Küçük Stajlar",
+    "group_name": "TIPAK Konu - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "306",
+    "name": "TIPAK Konu Pediatri",
+    "group_name": "TIPAK Konu - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "307",
+    "name": "TIPAK Konu Anatomi",
+    "group_name": "TIPAK Konu - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "308",
+    "name": "TIPAK Konu Biyokimya",
+    "group_name": "TIPAK Konu - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "309",
+    "name": "TIPAK Konu Farmakoloji",
+    "group_name": "TIPAK Konu - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "310",
+    "name": "TIPAK Konu Fizyoloji",
+    "group_name": "TIPAK Konu - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "311",
+    "name": "TIPAK Konu Mikrobiyoloji",
+    "group_name": "TIPAK Konu - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "312",
+    "name": "TIPAK Konu Patoloji",
+    "group_name": "TIPAK Konu - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "313",
+    "name": "TIPAK Soru Dahiliye",
+    "group_name": "TIPAK Soru - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "314",
+    "name": "TIPAK Soru Dahiliye 2",
+    "group_name": "TIPAK Soru - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "317",
+    "name": "TIPAK Soru Küçük Stajlar",
+    "group_name": "TIPAK Soru - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "318",
+    "name": "TIPAK Soru Pediatri",
+    "group_name": "TIPAK Soru - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "319",
+    "name": "TIPAK Soru Anatomi",
+    "group_name": "TIPAK Soru - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "320",
+    "name": "TIPAK Soru Biyokimya",
+    "group_name": "TIPAK Soru - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "321",
+    "name": "TIPAK Soru Farmakoloji",
+    "group_name": "TIPAK Soru - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "322",
+    "name": "TIPAK Soru Fizyoloji",
+    "group_name": "TIPAK Soru - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "323",
+    "name": "TIPAK Soru Mikrobiyoloji",
+    "group_name": "TIPAK Soru - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "325",
+    "name": "TIPAK ÇTS Dahiliye",
+    "group_name": "TIPAK ÇTS - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "326",
+    "name": "TIPAK ÇTS Genel Cerrahi",
+    "group_name": "TIPAK ÇTS - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "327",
+    "name": "TIPAK ÇTS Kadın Doğum",
+    "group_name": "TIPAK ÇTS - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "328",
+    "name": "TIPAK ÇTS Küçük Stajlar",
+    "group_name": "TIPAK ÇTS - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "329",
+    "name": "TIPAK ÇTS Pediatri",
+    "group_name": "TIPAK ÇTS - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "330",
+    "name": "TIPAK ÇTS Anatomi",
+    "group_name": "TIPAK ÇTS - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "331",
+    "name": "TIPAK ÇTS Biyokimya",
+    "group_name": "TIPAK ÇTS - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "332",
+    "name": "TIPAK ÇTS Farmakoloji",
+    "group_name": "TIPAK ÇTS - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "333",
+    "name": "TIPAK ÇTS Fizyoloji",
+    "group_name": "TIPAK ÇTS - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "334",
+    "name": "TIPAK ÇTS Mikrobiyoloji",
+    "group_name": "TIPAK ÇTS - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "335",
+    "name": "TIPAK ÇTS Patoloji",
+    "group_name": "TIPAK ÇTS - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "336",
+    "name": "TIPDEMY SST Dahiliye",
+    "group_name": "TIPDEMY SST - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "346",
+    "name": "TIPDEMY SST Patoloji",
+    "group_name": "TIPDEMY SST - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "347",
+    "name": "TML DUSPLUS 1",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "348",
+    "name": "TML DUSPLUS 2",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "349",
+    "name": "TML DUSPLUS 3",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "350",
+    "name": "TML DUSPLUS 4",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "351",
+    "name": "TML DUSPLUS 5",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "352",
+    "name": "TML DUSPLUS 6",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "353",
+    "name": "TML DUSPLUS 7",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "354",
+    "name": "TUSDATA 24 Dahiliye",
+    "group_name": "TUSDATA 24 - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "355",
+    "name": "TUSDATA 24 Genel Cerrahi",
+    "group_name": "TUSDATA 24 - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "356",
+    "name": "TUSDATA 24 Kadın Doğum",
+    "group_name": "TUSDATA 24 - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "357",
+    "name": "TUSDATA 24 Küçük Stajlar",
+    "group_name": "TUSDATA 24 - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "358",
+    "name": "TUSDATA 24 Pediatri",
+    "group_name": "TUSDATA 24 - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "359",
+    "name": "TUSDATA 24 Anatomi",
+    "group_name": "TUSDATA 24 - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "360",
+    "name": "TUSDATA 24 Biyokimya",
+    "group_name": "TUSDATA 24 - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "361",
+    "name": "TUSDATA 24 Farmakoloji",
+    "group_name": "TUSDATA 24 - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "362",
+    "name": "TUSDATA 24 Fizyoloji",
+    "group_name": "TUSDATA 24 - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "363",
+    "name": "TUSDATA 24 Mikrobiyoloji",
+    "group_name": "TUSDATA 24 - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "364",
+    "name": "TUSDATA 24 Patoloji",
+    "group_name": "TUSDATA 24 - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "390",
+    "name": "TUSDATA Meditus Dahiliye",
+    "group_name": "TUSDATA Meditus - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "391",
+    "name": "TUSDATA Meditus Genel Cerrahi",
+    "group_name": "TUSDATA Meditus - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "392",
+    "name": "TUSDATA Meditus Kadın Doğum",
+    "group_name": "TUSDATA Meditus - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "393",
+    "name": "TUSDATA Meditus Küçük Stajlar",
+    "group_name": "TUSDATA Meditus - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "394",
+    "name": "TUSDATA Meditus Pediatri",
+    "group_name": "TUSDATA Meditus - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "395",
+    "name": "TUSDATA Meditus Anatomi",
+    "group_name": "TUSDATA Meditus - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "396",
+    "name": "TUSDATA Meditus Biyokimya",
+    "group_name": "TUSDATA Meditus - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "397",
+    "name": "TUSDATA Meditus Farmakoloji",
+    "group_name": "TUSDATA Meditus - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "398",
+    "name": "TUSDATA Meditus Fizyoloji",
+    "group_name": "TUSDATA Meditus - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "399",
+    "name": "TUSDATA Meditus Mikrobiyoloji",
+    "group_name": "TUSDATA Meditus - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "400",
+    "name": "TUSDATA Meditus Patoloji",
+    "group_name": "TUSDATA Meditus - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "402",
+    "name": "TUSDATA PRETUS 3",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "403",
+    "name": "TUSDATA PRETUS 4",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "404",
+    "name": "TUSDATA PRETUS 5",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "405",
+    "name": "TUSDATA PRETUS 6",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "406",
+    "name": "TUSDATA PRETUS 7",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "407",
+    "name": "TUSDATA PRETUS 8",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "408",
+    "name": "TUSDATA Prime Dahiliye",
+    "group_name": "TUSDATA Prime - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "409",
+    "name": "TUSDATA Prime Dahiliye 2",
+    "group_name": "TUSDATA Prime - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "410",
+    "name": "TUSDATA Prime Genel Cerrahi",
+    "group_name": "TUSDATA Prime - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "411",
+    "name": "TUSDATA Prime Kadın Doğum",
+    "group_name": "TUSDATA Prime - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "412",
+    "name": "TUSDATA Prime Küçük Stajlar",
+    "group_name": "TUSDATA Prime - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "413",
+    "name": "TUSDATA Prime Pediatri",
+    "group_name": "TUSDATA Prime - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "414",
+    "name": "TUSDATA Prime Pediatri 2",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "415",
+    "name": "TUSDATA Prime Anatomi",
+    "group_name": "TUSDATA Prime - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "416",
+    "name": "TUSDATA Prime Biyokimya",
+    "group_name": "TUSDATA Prime - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "417",
+    "name": "TUSDATA Prime Farmakoloji",
+    "group_name": "TUSDATA Prime - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "418",
+    "name": "TUSDATA Prime Fizyoloji",
+    "group_name": "TUSDATA Prime - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "419",
+    "name": "TUSDATA Prime Mikrobiyoloji",
+    "group_name": "TUSDATA Prime - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "420",
+    "name": "TUSDATA Prime Patoloji",
+    "group_name": "TUSDATA Prime - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "421",
+    "name": "TUSDATA Prospektus Dahiliye",
+    "group_name": "TUSDATA Prospektus - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "422",
+    "name": "TUSDATA Prospektus Genel Cerrahi",
+    "group_name": "TUSDATA Prospektus - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "423",
+    "name": "TUSDATA Prospektus Kadın Doğum",
+    "group_name": "TUSDATA Prospektus - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "424",
+    "name": "TUSDATA Prospektus Küçük Stajlar",
+    "group_name": "TUSDATA Prospektus - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "425",
+    "name": "TUSDATA Prospektus Pediatri",
+    "group_name": "TUSDATA Prospektus - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "426",
+    "name": "TUSDATA Prospektus Anatomi",
+    "group_name": "TUSDATA Prospektus - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "427",
+    "name": "TUSDATA Prospektus Biyokimya",
+    "group_name": "TUSDATA Prospektus - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "428",
+    "name": "TUSDATA Prospektus Farmakoloji",
+    "group_name": "TUSDATA Prospektus - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "429",
+    "name": "TUSDATA Prospektus Fizyoloji",
+    "group_name": "TUSDATA Prospektus - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "430",
+    "name": "TUSDATA Prospektus Mikrobiyoloji",
+    "group_name": "TUSDATA Prospektus - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "431",
+    "name": "TUSDATA Prospektus Patoloji",
+    "group_name": "TUSDATA Prospektus - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "432",
+    "name": "TUSDATA Speetus Dahiliye",
+    "group_name": "TUSDATA Speetus - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "433",
+    "name": "TUSDATA Speetus Genel Cerrahi",
+    "group_name": "TUSDATA Speetus - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "434",
+    "name": "TUSDATA Speetus Kadın Doğum",
+    "group_name": "TUSDATA Speetus - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "435",
+    "name": "TUSDATA Speetus Küçük Stajlar",
+    "group_name": "TUSDATA Speetus - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "436",
+    "name": "TUSDATA Speetus Pediatri",
+    "group_name": "TUSDATA Speetus - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "437",
+    "name": "TUSDATA Speetus Anatomi",
+    "group_name": "TUSDATA Speetus - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "438",
+    "name": "TUSDATA Speetus Biyokimya",
+    "group_name": "TUSDATA Speetus - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "439",
+    "name": "TUSDATA Speetus Farmakoloji",
+    "group_name": "TUSDATA Speetus - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "440",
+    "name": "TUSDATA Speetus Fizyoloji",
+    "group_name": "TUSDATA Speetus - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "441",
+    "name": "TUSDATA Speetus Mikrobiyoloji",
+    "group_name": "TUSDATA Speetus - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "442",
+    "name": "TUSDATA Speetus Patoloji",
+    "group_name": "TUSDATA Speetus - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "443",
+    "name": "TUSDATA TTS Dahiliye",
+    "group_name": "TUSDATA TTS - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "444",
+    "name": "TUSDATA TTS Genel Cerrahi",
+    "group_name": "TUSDATA TTS - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "445",
+    "name": "TUSDATA TTS Kadın Doğum",
+    "group_name": "TUSDATA TTS - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "446",
+    "name": "TUSDATA TTS Küçük Stajlar",
+    "group_name": "TUSDATA TTS - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "447",
+    "name": "TUSDATA TTS Pediatri",
+    "group_name": "TUSDATA TTS - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "448",
+    "name": "TUSDATA TTS Anatomi",
+    "group_name": "TUSDATA TTS - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "449",
+    "name": "TUSDATA TTS Biyokimya",
+    "group_name": "TUSDATA TTS - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "450",
+    "name": "TUSDATA TTS Farmakoloji",
+    "group_name": "TUSDATA TTS - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "451",
+    "name": "TUSDATA TTS Fizyoloji",
+    "group_name": "TUSDATA TTS - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "452",
+    "name": "TUSDATA TTS Mikrobiyoloji",
+    "group_name": "TUSDATA TTS - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "453",
+    "name": "TUSDATA TTS Patoloji",
+    "group_name": "TUSDATA TTS - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "454",
+    "name": "TUSDATA Vaka Dahiliye",
+    "group_name": "TUSDATA Vaka - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "455",
+    "name": "TUSDATA Vaka Genel Cerrahi",
+    "group_name": "TUSDATA Vaka - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "456",
+    "name": "TUSDATA Vaka Kadın Doğum",
+    "group_name": "TUSDATA Vaka - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "457",
+    "name": "TUSDATA Vaka Küçük Stajlar",
+    "group_name": "TUSDATA Vaka - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "458",
+    "name": "TUSDATA Vaka Pediatri",
+    "group_name": "TUSDATA Vaka - Klinik Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "459",
+    "name": "TUSDATA Vaka Anatomi",
+    "group_name": "TUSDATA Vaka - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "460",
+    "name": "TUSDATA Vaka Biyokimya",
+    "group_name": "TUSDATA Vaka - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "461",
+    "name": "TUSDATA Vaka Farmakoloji",
+    "group_name": "TUSDATA Vaka - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "462",
+    "name": "TUSDATA Vaka Fizyoloji",
+    "group_name": "TUSDATA Vaka - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "463",
+    "name": "TUSDATA Vaka Mikrobiyoloji",
+    "group_name": "TUSDATA Vaka - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "464",
+    "name": "TUSDATA Vaka Patoloji",
+    "group_name": "TUSDATA Vaka - Temel Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "487",
+    "name": "AE İmparator Genel Cerrahi",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "488",
+    "name": "AE İmparator Pediatri",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "490",
+    "name": "AE Nirvana Genel Cerrahi",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "493",
+    "name": "Levent Kodal GC Soru",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "498",
+    "name": "Mia Academia Pediatri Ders Notları",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "500",
+    "name": "SMT Anatomi DUS",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "501",
+    "name": "SMT Anatomi TUS",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "502",
+    "name": "TIPAK DUSCHECK Denemeleri",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "504",
+    "name": "TIPDEMY 100 Soruda Sendromlar",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "505",
+    "name": "TIPDEMY ADÇ Cerrahi SST",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "506",
+    "name": "TIPDEMY Dahiliye Konu",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "507",
+    "name": "TIPDEMY Dahiliye Konu 2",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "508",
+    "name": "TIPDEMY Dahiliye Vaka",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "509",
+    "name": "TIPDEMY Patoloji HT",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "510",
+    "name": "TIPDEMY Patoloji Konu",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "511",
+    "name": "TIPDEMY Protetik SST",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "512",
+    "name": "TUSDATA Vaka 1. Cilt Temel",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  },
+  {
+    "code": "513",
+    "name": "TUSDATA Vaka 2. Cilt Klinik",
+    "group_name": "Tekil Kitaplar",
+    "cover_url": ""
+  }
+]
