@@ -132,10 +132,12 @@ class ShipmentCompletionDialog(QDialog):
             return
         self.offer.setEnabled(False)
         self.barcode.setEnabled(False)
+        self.cancel.setEnabled(False)
         self.status.setText("Kargonomi işlemi sürüyor…")
         self.worker=ApiWorker(lambda:task(client),self)
         def done(data):
             self.offer.setEnabled(True)
+            self.cancel.setEnabled(True)
             self.barcode.setEnabled(bool(self.order.get("kargonomi_onaylandi")))
             try:on_success(data)
             except Exception as exc:
@@ -143,6 +145,7 @@ class ShipmentCompletionDialog(QDialog):
                 QMessageBox.warning(self,"Kargonomi",str(exc))
         def fail(message):
             self.offer.setEnabled(True)
+            self.cancel.setEnabled(True)
             self.barcode.setEnabled(bool(self.order.get("kargonomi_onaylandi")))
             self.status.setText(message+" · Sipariş tamamlanmadı.")
         self.worker.done.connect(done)
@@ -215,6 +218,10 @@ class ShipmentCompletionDialog(QDialog):
             self.provider.addItem("Otomatik · en uygun teklif", -1)
         if not self.provider.count():
             raise ValueError("Kargonomi fiyat teklifi dönmedi.")
+        for index in range(self.provider.count()):
+            if self.provider.itemData(index)==-1:
+                self.provider.setCurrentIndex(index)
+                break
         self.barcode.setEnabled(True)
         self.status.setText("Kargo firmasını seçip Yeni Barkod düğmesine basın. Onay ücret doğurabilir.")
 
@@ -252,7 +259,22 @@ class ShipmentCompletionDialog(QDialog):
         self.db.siparisleri_kaydet()
         self.status.setText("Yeni Barkod PDF hazır. Sipariş tamamlanabilir.")
         QDesktopServices.openUrl(QUrl.fromLocalFile(str(target)))
-        self.accept()
+        if self.worker and self.worker.isRunning():
+            self.worker.finished.connect(self.accept)
+        else:
+            self.accept()
+
+    def reject(self):
+        if self.worker and self.worker.isRunning():
+            QMessageBox.information(self,"Kargonomi","Ağ işlemi tamamlanmadan pencere kapatılamaz.")
+            return
+        super().reject()
+
+    def closeEvent(self,event):
+        if self.worker and self.worker.isRunning():
+            event.ignore()
+            return
+        super().closeEvent(event)
 
 
 def request_kargonomi_completion(parent,database,order):
