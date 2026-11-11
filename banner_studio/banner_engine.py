@@ -157,9 +157,9 @@ def canonical_book_code(value):
 
 
 def valid_page_count(value):
- """Only a positive whole page count represents an actual book.
+ """Return a valid page count, or None when unspecified/invalid.
 
- Empty/formula-unresolved/zero/placeholder text is not a book record.
+ Page count is optional; book code and name determine catalog membership.
  """
  if value is None or isinstance(value,bool):return None
  text=str(value).strip().replace('\u00a0','').replace(' ','')
@@ -218,9 +218,10 @@ def read_excel(path):
     code=canonical_book_code(raw_code)
     name=' '.join(str(cell('name') or '').split())
     pages=valid_page_count(cell('pages'))
-    # Excel deliberately contains blank book placeholders. They are NOT
-    # errors or products. Never add them to groups, cached books or posters.
-    if not code or not name or pages is None:continue
+    # Excel has empty placeholders that carry a code but no book name.
+    # A real named book remains valid even when its page count is blank.
+    # Do not create catalog entries for name-less placeholders.
+    if not code or not name:continue
     if len(code)>55 or len(name)>180:
      problems.append(f'{sheet.title} satır {row_number}: kod veya başlık çok uzun')
      continue
