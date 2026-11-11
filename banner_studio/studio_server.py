@@ -527,7 +527,7 @@ class Handler(SimpleHTTPRequestHandler):
                 name='Ozel_'+secrets.token_hex(5)+'_'+filename
                 dest=ASSETS/name
                 dest.write_bytes(raw)
-                COVER_IDX=cover_files(str(ASSETS))
+                COVER_IDX=_combined_covers()
                 return self._response({'cover_path':str(dest)})
             return self._response({'error':'Bilinmeyen işlem'},404)
         except (OSError,ValueError,TypeError,KeyError,UnicodeError) as exc:
