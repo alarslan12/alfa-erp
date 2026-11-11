@@ -244,6 +244,18 @@ def read_excel(path):
  finally:
   book.close()
 
+def upright_cover(image):
+ """Orient landscape artwork for portrait book slots; never rewrite original.
+
+ First honor embedded EXIF orientation, then rotate remaining landscape
+ image 270 degrees clockwise, with canvas expansion so nothing is cropped.
+ """
+ source=ImageOps.exif_transpose(image)
+ if source.width>source.height:
+  source=source.rotate(270,expand=True,resample=Image.Resampling.BICUBIC)
+ return source
+
+
 def cover_files(folder):
  """Index images by exact code and by unnumbered title, never mixed prefixes."""
  by_code={};by_name={}
@@ -482,7 +494,7 @@ class Renderer:
    try:
     if not cover:raise FileNotFoundError
     with Image.open(cover) as original:
-     pic=ImageOps.contain(original.convert('RGBA'),(cw*self.scale,ch*self.scale),method=Image.Resampling.LANCZOS)
+     pic=ImageOps.contain(upright_cover(original).convert('RGBA'),(cw*self.scale,ch*self.scale),method=Image.Resampling.LANCZOS)
     iw,ih=pic.size
     iw=iw/self.scale;ih=ih/self.scale
     ix=bx+(cw-iw)/2;iy=by+(ch-ih)/2
