@@ -553,7 +553,7 @@ function bindUI(){
 }
 async function boot(){try{const result=await api('/api/bootstrap');state={...state,...result};
   studioNonce=result.update_nonce||'';
-  $('studioVersion').textContent='Banner Studio v3.11 · Suite '+(result.suite_version||'bilinmiyor');
+  $('studioVersion').textContent='Banner Studio v3.12 · Suite '+(result.suite_version||'bilinmiyor');
  const previous=await api('/api/draft').catch(()=>({draft:null}));
  if(previous.draft){
   state.books=previous.draft.books||[];
