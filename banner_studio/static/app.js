@@ -526,6 +526,11 @@ async function boot(){try{const result=await api('/api/bootstrap');state={...sta
     (reconciled.removed?' '+reconciled.removed+' eski kayıt ayıklandı.':''));
  }
  generatePresets();renderGroups();bindUI();updateControls();renderCatalog();renderSelected();showCoverStatus(result);
+ if(result.catalog_error){
+  toast('Katalog yüklenemedi: '+result.catalog_error);
+  $('catalogList').innerHTML='<div class="empty">'+escapeHTML(result.catalog_error)+
+   '<br>Excel katalog düğmesiyle geçerli kitap listesini yeniden yükle.</div>';
+ }
  draftReady=true;scheduleRender();
  if(previous.draft)toast('Son çalışman otomatik geri yüklendi.');
  }catch(e){toast('Uygulama başlatılamadı: '+e.message)}}
