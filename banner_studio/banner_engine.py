@@ -104,6 +104,64 @@ def fitted(draw,text,box,max_size,min_size=14,bold=True,serif=False,fill='#111',
            stroke_width=round(stroke*scale),stroke_fill=stroke_fill)
 
 
+
+def price_badge(draw,text,ix,iy,iw,ih,preferred,accent,gold,paper):
+ """Draw a price label with a real adjustable font, not a fixed 1-line fit.
+
+ Split an overflowing amount/currency onto two lines so increasing the
+ slider can increase its glyph size rather than only its background.
+ """
+ text=' '.join(str(text).split())
+ if not text:return
+ scale=getattr(draw,'scale',1)
+ maxw=max(28,iw*.96)
+ maxh=max(22,min(ih*.53,150))
+ parts=text.split()
+ layouts=[[text]]
+ if len(parts)>=2:
+  for pos in range(1,len(parts)):
+   layouts.append([' '.join(parts[:pos]),' '.join(parts[pos:])])
+ best=None
+ for size in range(max(8,int(preferred)),7,-1):
+  f=font(round(size*scale),True,False)
+  for lines in layouts:
+   metrics=[draw.textbbox((0,0),line,font=f) for line in lines]
+   widths=[(bb[2]-bb[0])/scale for bb in metrics]
+   heights=[(bb[3]-bb[1])/scale for bb in metrics]
+   pad=max(5,min(11,size*.18))
+   gap=max(1,size*.09) if len(lines)>1 else 0
+   width=max(widths)+2*pad
+   height=sum(heights)+2*pad+(len(lines)-1)*gap
+   if width<=maxw and height<=maxh:
+    best=(size,lines,width,height,heights,pad,gap)
+    break
+  if best:break
+ if best is None:
+  # Respect very small thumbnails without drawing outside the book.
+  size=8;lines=layouts[-1]
+  f=font(round(size*scale),True,False)
+  metrics=[draw.textbbox((0,0),line,font=f) for line in lines]
+  widths=[(bb[2]-bb[0])/scale for bb in metrics]
+  heights=[(bb[3]-bb[1])/scale for bb in metrics]
+  pad=3;gap=1
+  best=(size,lines,min(maxw,max(widths)+2*pad),
+        min(maxh,sum(heights)+2*pad+gap),heights,pad,gap)
+ size,lines,bw,bh,heights,pad,gap=best
+ rx=ix+iw-bw
+ ry=iy+2
+ draw.rounded_rectangle((rx,ry,rx+bw,ry+bh),radius=6,
+                        fill=accent,outline=gold,width=2)
+ # textbbox reports the true painted glyph bounds: offset the bbox top
+ # to center visibly instead of allowing Pillow's ascent to eat the height.
+ y=ry+(bh-sum(heights)-(len(lines)-1)*gap)/2
+ f=font(round(size*scale),True,False)
+ for line,paint_h in zip(lines,heights):
+  bounds=draw.textbbox((0,0),line,font=f)
+  draw.text((rx+bw/2-(bounds[0]+bounds[2])/(2*scale),
+             y-bounds[1]/scale),line,font=f,fill=paper,anchor=None)
+  y+=paint_h+gap
+
+
 def alpha_surface(size):return Image.new('RGBA',size,(0,0,0,0))
 
 
@@ -542,15 +600,7 @@ class Renderer:
    badge=custom_badge or str(cfg.badge or '').strip()
    if badge and (bool(custom_badge) or cfg.badge_enabled) and iw>=42:
     pref=max(10,min(86,int(cfg.cover_badge_font_size)))
-    limitw=max(37,iw*.93)
-    targetw=len(badge)*pref*.67+19
-    bw=min(limitw,max(52,targetw))
-    bh=min(max(28,pref*1.48),max(28,ih*.32),95)
-    rx=ix+iw-bw;ry=iy+2
-    draw.rounded_rectangle((rx,ry,rx+bw,ry+bh),radius=7,
-                           fill=accent,outline=gold,width=2)
-    fitted(draw,badge,(rx+3,ry+2,rx+bw-3,ry+bh-2),pref,
-           min_size=8,fill=paper)
+    price_badge(draw,badge,ix,iy,iw,ih,pref,accent,gold,paper)
    edition=str(book.get('edition_override') or '').strip()
    if edition and iw>=40:
     pref=max(10,min(86,int(cfg.cover_edition_font_size)))
