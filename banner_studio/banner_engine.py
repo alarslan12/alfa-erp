@@ -257,7 +257,11 @@ def upright_cover(image):
 
 
 def cover_files(folder):
- """Index images by exact code and by unnumbered title, never mixed prefixes."""
+ """Index original artwork by canonical code and exact normalized title.
+
+ A code remains authoritative even if a publisher changed the displayed
+ title. Numeric prefixes are never fuzzy-matched (e.g. 14 != 140).
+ """
  by_code={};by_name={}
  if not folder or not Path(folder).is_dir():return by_code,by_name
  for root,dirs,files in os.walk(folder):
@@ -266,42 +270,68 @@ def cover_files(folder):
    p=Path(root)/filename
    if p.suffix.lower() not in ('.jpg','.jpeg','.png','.webp'):continue
    stem=p.stem.strip()
-   # Explicit code needs a separator: '71 - title', '071_title', or '71'.
    m=re.match(r'^#?(\d+)(?=$|[ _.-])',stem)
    if m:
     code=canonical_book_code(m.group(1))
     by_code.setdefault(code,[]).append(str(p))
-    tail=stem[m.end():].lstrip(' -._')
-    # Numbered artwork belongs to its code only, never a different name match.
+    title=normalize(stem[m.end():].lstrip(' -._'))
+    if title and len(title)>=7:
+     by_name.setdefault(title,[]).append(str(p))
    else:
-    by_name.setdefault(normalize(stem),str(p))
+    title=normalize(stem)
+    if title:by_name.setdefault(title,[]).append(str(p))
  return by_code,by_name
 
 
+def _is_bundled_demo(path):
+ parts=Path(path).parts
+ return 'ornek' in parts and 'Kapaklar' in parts
+
+
+def _cover_title(path):
+ stem=Path(path).stem.strip()
+ match=re.match(r'^#?(\d+)(?=$|[ _.-])',stem)
+ return normalize(stem[match.end():].lstrip(' -._') if match else stem)
+
+
+def _title_confidence(first,second):
+ if not first or not second:return 0.0
+ if first==second:return 1.0
+ if len(first)>7 and (first in second or second in first):return .90
+ a=set(first.split());b=set(second.split())
+ return len(a&b)/max(1,min(len(a),len(b)))
+
+
 def get_cover(row,index):
+ """Choose an existing image without rejecting correct numbered artwork.
+
+ User-uploaded code matches win; demo images need a compatible title.
+ Exact unique title fallback recovers covers when a book was renumbered.
+ """
  override=row.get('cover_override')
  if override and Path(override).is_file():return override
  by_code,by_name=index
  code=canonical_book_code(row.get('code'))
  name=normalize(row.get('name'))
- matches=by_code.get(code,[])
- if isinstance(matches,str):matches=[matches]
- # Prefer a code-title pair, otherwise accept a code-only filename.
- # A reused numeric prefix with a different title is NOT the same book.
- exact=[];bare=[]
- for candidate in matches:
-  stem=Path(candidate).stem.strip()
-  marker=re.match(r'^#?(\d+)(?=$|[ _.-])',stem)
-  title=normalize(stem[marker.end():].lstrip(' -._')) if marker else ''
-  if title and name and (title==name or title.endswith(name) or name.endswith(title)):
-   exact.append(candidate)
-  elif not title:
-   bare.append(candidate)
- if exact:return exact[-1]
- if bare:return bare[-1]
- # Name-only covers are valid, but a numbered cover belongs exclusively to
- # that number; do not attach it to a different book via fuzzy similarity.
- return by_name.get(name)
+ candidates=by_code.get(code,[])
+ if isinstance(candidates,str):candidates=[candidates]
+ candidates=[x for x in candidates if Path(x).is_file()]
+ uploads=[x for x in candidates if not _is_bundled_demo(x)]
+ demos=[x for x in candidates if _is_bundled_demo(x)]
+ if uploads:
+  # A code printed on an uploaded cover is decisive, regardless of naming
+  # differences such as 'Cerrahi' versus 'Ağız Diş Çene Cerrahisi'.
+  return max(uploads,key=lambda x:(_title_confidence(name,_cover_title(x)),Path(x).stat().st_mtime))
+ if demos:
+  trusted=[x for x in demos if _title_confidence(name,_cover_title(x))>=.65]
+  if trusted:return max(trusted,key=lambda x:_title_confidence(name,_cover_title(x)))
+ # Old Excel code may have changed while the cover file retained its old
+ # prefix. Only a UNIQUE exact full-title match may recover that artwork.
+ named=by_name.get(name,[])
+ if isinstance(named,str):named=[named]
+ named=list(dict.fromkeys(x for x in named if Path(x).is_file()))
+ if len(named)==1:return named[0]
+ return None
 
 def columns_for(n,layout):
  if n==1:return 1
