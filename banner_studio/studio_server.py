@@ -58,9 +58,19 @@ if not CATALOG_FILE.is_file():
     if example.is_file():CATALOG_FILE=example
 
 
+CATALOG_ERROR=''
 def _catalog():
-    try:return read_excel(str(CATALOG_FILE)) if CATALOG_FILE.is_file() else []
-    except (OSError,ValueError,KeyError):return []
+    global CATALOG_ERROR
+    if not CATALOG_FILE.is_file():
+        CATALOG_ERROR='Kitap kataloğu dosyası bulunamadı. Excel kataloğunu yeniden seç.'
+        return []
+    try:
+        books=read_excel(str(CATALOG_FILE))
+        CATALOG_ERROR=''
+        return books
+    except (OSError,ValueError,KeyError,TypeError) as exc:
+        CATALOG_ERROR='Kayıtlı Excel açılamadı: '+str(exc)[:300]
+        return []
 
 CATALOG=_catalog()
 def _combined_covers():
@@ -230,6 +240,7 @@ class Handler(SimpleHTTPRequestHandler):
                    'version':'3.7 - Excel kod doğrulama ve güvenilir kapak eşleştirme',
                    'suite_version':SUITE_VERSION,
                    'update_nonce':UPDATE_NONCE,
+                   'catalog_error':CATALOG_ERROR,
                    'library_total':len(library.list_designs())})
         if req.path=='/api/custom-cover':
             filename=_safe_filename((q.get('name') or [''])[0])
@@ -257,7 +268,7 @@ class Handler(SimpleHTTPRequestHandler):
         return super().do_GET()
 
     def do_POST(self):
-        global CATALOG,COVER_IDX,CATALOG_FILE
+        global CATALOG,COVER_IDX,CATALOG_FILE,CATALOG_ERROR
         path=urlsplit(self.path).path
         try:
             if path in ('/api/update/download','/api/update/install'):
@@ -424,6 +435,7 @@ class Handler(SimpleHTTPRequestHandler):
                     temp.unlink(missing_ok=True)
                 CATALOG_FILE=final
                 CATALOG=items
+                CATALOG_ERROR=''
                 COVER_IDX=_combined_covers()
                 return self._response({'catalog':items,'total':len(items),
                                        'cover_status':_cover_status()})
