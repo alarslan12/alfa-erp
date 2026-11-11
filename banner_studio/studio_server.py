@@ -26,7 +26,7 @@ from alfa_guncelleme import check_for_update,download_update,launch_update,Updat
 
 from PIL import Image
 from banner_engine import (Renderer, Settings, read_excel, cover_files,
-                           get_cover, PALETTES, LAYOUTS, STYLES, square_preview)
+                           get_cover, upright_cover, PALETTES, LAYOUTS, STYLES, square_preview)
 import studio_library as library
 
 SUITE_VERSION='2.0.9'
@@ -248,7 +248,7 @@ class Handler(SimpleHTTPRequestHandler):
             if target.is_file() and target.suffix.lower() in ('.jpg','.jpeg','.png','.webp'):
                 try:
                     with Image.open(target) as source:
-                        im=source.convert('RGB');im.thumbnail((90,130))
+                        im=upright_cover(source).convert('RGB');im.thumbnail((90,130))
                         out=BytesIO();im.save(out,'JPEG',quality=78)
                     return self._binary(out.getvalue())
                 except OSError:pass
@@ -260,7 +260,7 @@ class Handler(SimpleHTTPRequestHandler):
             if p and Path(p).is_file():
                 try:
                     with Image.open(p) as source:
-                        im=source.convert('RGB');im.thumbnail((90,130))
+                        im=upright_cover(source).convert('RGB');im.thumbnail((90,130))
                         f=BytesIO();im.save(f,'JPEG',quality=78)
                     return self._binary(f.getvalue())
                 except OSError:pass
