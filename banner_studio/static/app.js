@@ -478,12 +478,18 @@ function bindUI(){
   busy('Excel kodları ve başlıkları doğrulanıyor…',true);
   try{
    const result=await uploadBinary('/api/upload/excel',file);
+   // An accepted workbook REPLACES the entire working Excel catalog.
+   // Clear the old selection so cached book rows cannot mix into new sets.
+   // Saved designs and local cover archive are deliberately untouched.
    state.catalog=result.catalog;
-   const counts=reconcileSelectedBooks();
+   state.books=[];
+   selectedCover=null;
+   $('bookSearch').value='';
+   $('groupFilter').value='';
+   $('quickGroup').value='';
    renderGroups();renderCatalog();renderSelected();showCoverStatus(result);scheduleRender();
-   toast('Excel: '+result.total+' kitap, kodlar doğrulandı.'+
-    (counts.refreshed?' '+counts.refreshed+' seçili başlık güncellendi.':'')+
-    (counts.removed?' '+counts.removed+' eski/kaldırılmış kod afişten çıkarıldı.':''));
+   await saveDraft();
+   toast('Yeni Excel etkin: '+result.total+' geçerli kitap. Önceki Excel seçimleri sıfırlandı; kapak arşivi korundu.');
   }catch(e){
    toast('Excel değişmedi: '+e.message);
    alert('Excel içe aktarılamadı; önceki katalog korundu.\n\n'+e.message);
