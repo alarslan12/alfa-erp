@@ -139,7 +139,7 @@ function renderCatalog(){
  const panel=$('catalogList');panel.innerHTML='';
  for(const book of results){
   const el=document.createElement('button');el.className='catalog-item';
-  el.innerHTML=`<span class="code">${escapeHTML(book.code)}</span><span class="name">${escapeHTML(book.name)}</span><span class="plus">+</span>`;
+  el.innerHTML=`<span class="code">${escapeHTML(book.code)}</span><span class="name">${escapeHTML(book.name)}<small style="display:block;color:#9db4bc;font-size:10px;margin-top:3px">Grup: ${escapeHTML(book.group||"Tanımsız")}</small></span><span class="plus">+</span>`;
   el.title='Excel alt grubu: '+book.group;
   el.onclick=()=>addBook(book);panel.append(el)
  }
@@ -398,7 +398,7 @@ async function openLibrary(){
    card.querySelector('[data-op=open]').onclick=async()=>{
     try{const project=await api('/api/library/open?id='+encodeURIComponent(entry.id));
      if(project.editable===false)throw new Error('Bu kayıt dışarıdan eklenmiş bir JPG/PNG. Görüntülenebilir fakat katmanlı proje değildir.');
-     state.books=project.books;state.settings={...state.settings,...project.settings};
+     state.books=project.books;state.settings={...state.settings,...project.settings};reconcileSelectedBooks();
      updateControls();renderSelected();scheduleRender();closeLibrary();toast('Eski tasarım düzenlemeye açıldı.');
     }catch(e){toast(e.message)}
    };
@@ -547,7 +547,7 @@ function bindUI(){
  $('fileCustom').onchange=async ev=>{const file=ev.target.files[0];if(!file)return;busy('Kapak ekleniyor…',true);try{const result=await uploadBinary('/api/upload/custom?name='+encodeURIComponent(file.name),file);if(customTarget!==null&&state.books[customTarget]){state.books[customTarget].cover_override=result.cover_path}else if(state.books.length<30){state.books.push({id:'EXTRA-'+Date.now(),code:'ÖZEL',name:file.name.replace(/\.[^.]+$/,''),group:'Harici kapak',pages:null,color:false,cover_override:result.cover_path,badge_override:'',edition_override:''})}else{toast('30 kapak sınırı dolu.');return}afterBooksChanged();toast('Harici kapak eklendi')}catch(e){toast(e.message)}finally{busy('',false);ev.target.value=''}};
  $('saveProject').onclick=()=>{const data={schema:3,settings:state.settings,books:state.books};const file=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const url=URL.createObjectURL(file);let a=document.createElement('a');a.href=url;a.download='ALFA_Banner_Proje.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('Proje JSON indirildi.')};
  $('loadProject').onclick=()=>$('fileProject').click();
- $('fileProject').onchange=async ev=>{const file=ev.target.files[0];if(!file)return;try{const obj=JSON.parse(await file.text());if(![3,4].includes(obj.schema)||!Array.isArray(obj.books)||obj.books.length>30||!obj.settings)throw new Error('Banner Studio proje dosyası değil.');state.books=obj.books;state.settings={...state.settings,...obj.settings};updateControls();renderSelected();scheduleRender();toast('Proje açıldı.')}catch(e){toast('Proje açılamadı: '+e.message)}ev.target.value=''};
+ $('fileProject').onchange=async ev=>{const file=ev.target.files[0];if(!file)return;try{const obj=JSON.parse(await file.text());if(![3,4].includes(obj.schema)||!Array.isArray(obj.books)||obj.books.length>30||!obj.settings)throw new Error('Banner Studio proje dosyası değil.');state.books=obj.books;state.settings={...state.settings,...obj.settings};reconcileSelectedBooks();updateControls();renderSelected();scheduleRender();toast('Proje açıldı.')}catch(e){toast('Proje açılamadı: '+e.message)}ev.target.value=''};
  $('fileImportArtwork').onchange=async e=>{const f=e.target.files[0];if(!f)return;busy('Eski afiş arşive alınıyor…',true);try{await uploadBinary('/api/library/import?name='+encodeURIComponent(f.name),f);await openLibrary();toast('Önceden indirilmiş JPG/PNG arşive eklendi.')}catch(err){toast(err.message)}finally{busy('',false);e.target.value=''}};
  $('libraryModal').addEventListener('click',e=>{if(e.target.id==='libraryModal')closeLibrary()});
 }
