@@ -105,15 +105,18 @@ function renderGroups(){
 function searchTokens(value){
  // Preserve set identities such as "1+2" as one token. No fuzzy matches,
  // substring aliases or accidental matches in an unrelated group/title.
- return (normalize(value).match(/[a-z0-9]+(?:\+[a-z0-9]+)*/g)||[]);
+ return (normalize(value).replace(/\s*\+\s*/g,'+').match(/[a-z0-9]+(?:\+[a-z0-9]+)*/g)||[]);
 }
 function containsTokenSequence(haystack,needle){
  if(!needle.length)return false;
  const tokens=searchTokens(haystack);
- for(let i=0;i<=tokens.length-needle.length;i++){
-  if(needle.every((word,j)=>tokens[i+j]===word))return true;
+ let offset=0;
+ for(const word of needle){
+  while(offset<tokens.length&&tokens[offset]!==word)offset++;
+  if(offset>=tokens.length)return false;
+  offset++;
  }
- return false;
+ return true;
 }
 function filteredBooks(){
  const g=$('groupFilter').value;
