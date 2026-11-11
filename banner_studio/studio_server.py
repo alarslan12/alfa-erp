@@ -395,15 +395,31 @@ class Handler(SimpleHTTPRequestHandler):
                     raise ValueError('Boş Excel dosyası yüklenemez.')
                 # The original workbook is replaced ONLY after full parsing,
                 # duplicate-code checks and file validation succeed.
+                # Parse in-memory: Windows/openpyxl/antivirus can keep a
+                # read-only .xlsx ZIP handle open after close(), causing
+                # WinError 32 when that same temporary file is renamed.
+                # Never open our eventual rename source with openpyxl.
+                items=read_excel(BytesIO(raw))
                 with tempfile.NamedTemporaryFile(
                     dir=DATA,prefix='excel_kontrol_',suffix='.xlsx',delete=False
                 ) as out:
                     temp=Path(out.name)
                     out.write(raw)
                 try:
-                    items=read_excel(str(temp))
                     final=DATA/'Kitaplar.xlsx'
-                    temp.replace(final)
+                    # Windows Defender/indexing or an external Excel
+                    # process can briefly lock the destination.
+                    for attempt in range(6):
+                        try:
+                            os.replace(temp,final)
+                            break
+                        except PermissionError:
+                            if attempt==5:
+                                raise ValueError(
+                                    'Kitaplar.xlsx başka bir program tarafından kullanılıyor. '
+                                    'Excel dosyasını kapatıp tekrar dene.'
+                                )
+                            time.sleep(0.2*(attempt+1))
                 finally:
                     temp.unlink(missing_ok=True)
                 CATALOG_FILE=final
