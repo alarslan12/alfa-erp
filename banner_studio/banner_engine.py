@@ -162,8 +162,8 @@ def valid_page_count(value):
  Empty/formula-unresolved/zero/placeholder text is not a book record.
  """
  if value is None or isinstance(value,bool):return None
- text=str(value).strip().replace('\\u00a0','').replace(' ','')
- if not re.fullmatch(r'\\d+(?:[.,]0+)?',text):return None
+ text=str(value).strip().replace('\u00a0','').replace(' ','')
+ if not re.fullmatch(r'\d+(?:[.,]0+)?',text):return None
  pages=int(float(text.replace(',','.')))
  return pages if 0<pages<=100000 else None
 
