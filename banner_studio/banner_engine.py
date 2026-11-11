@@ -156,6 +156,18 @@ def canonical_book_code(value):
  return text.upper()
 
 
+def valid_page_count(value):
+ """Only a positive whole page count represents an actual book.
+
+ Empty/formula-unresolved/zero/placeholder text is not a book record.
+ """
+ if value is None or isinstance(value,bool):return None
+ text=str(value).strip().replace('\\u00a0','').replace(' ','')
+ if not re.fullmatch(r'\\d+(?:[.,]0+)?',text):return None
+ pages=int(float(text.replace(',','.')))
+ return pages if 0<pages<=100000 else None
+
+
 def read_excel(path):
  """Strict, order-preserving Excel catalog import with explicit collision checks.
 
@@ -205,14 +217,10 @@ def read_excel(path):
     raw_code=cell('code')
     code=canonical_book_code(raw_code)
     name=' '.join(str(cell('name') or '').split())
-    if not code and not name:continue
-    if not code:
-     # A group-heading / spacer row is not a book, but report other text.
-     if name:problems.append(f'{sheet.title} satır {row_number}: kitap kodu yok ({name[:70]})')
-     continue
-    if not name:
-     problems.append(f'{sheet.title} satır {row_number}: {code} kodunda kitap adı eksik')
-     continue
+    pages=valid_page_count(cell('pages'))
+    # Excel deliberately contains blank book placeholders. They are NOT
+    # errors or products. Never add them to groups, cached books or posters.
+    if not code or not name or pages is None:continue
     if len(code)>55 or len(name)>180:
      problems.append(f'{sheet.title} satır {row_number}: kod veya başlık çok uzun')
      continue
@@ -222,7 +230,7 @@ def read_excel(path):
     seen[code]=f'{sheet.title} satır {row_number}'
     raw_color=cell('color')
     colored=bool(raw_color) if isinstance(raw_color,(int,bool)) else header_key(raw_color) in ('evet','yes','var','renkli','true','1')
-    output.append({'id':code,'code':code,'name':name,'group':group,'pages':cell('pages'),'color':colored,'cover_override':'','badge_override':'','edition_override':''})
+    output.append({'id':code,'code':code,'name':name,'group':group,'pages':pages,'color':colored,'cover_override':'','badge_override':'','edition_override':''})
   if not found_header:
    raise ValueError('Excel başlıkları bulunamadı. Kitap Kodu ve Kitap Adı sütunlarını kontrol et.')
   if not output:
@@ -230,7 +238,7 @@ def read_excel(path):
   if problems:
    # Never silently accept a partial catalog: the user must fix the source.
    details='; '.join(problems[:5])
-   raise ValueError(f'Excelde {len(problems)} eksik veya hatalı kitap satırı var: {details}. Eski katalog korundu.')
+   raise ValueError(f'Excelde {len(problems)} geçersiz ürün satırı var: {details}. Eski katalog korundu.')
   return output
  finally:
   book.close()
