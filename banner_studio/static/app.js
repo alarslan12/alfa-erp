@@ -102,14 +102,43 @@ function renderGroups(){
  quick.innerHTML='<option value="">Bir grup seçiniz</option>'+groups.map(x=>`<option value="${escapeHTML(x)}">${escapeHTML(x)}</option>`).join('');
  if(groups.includes(prior))quick.value=prior;
 }
-function filteredBooks(){const q=normalize($('bookSearch').value.trim()),g=$('groupFilter').value;return state.catalog.filter(b=>(!g||g===b.group)&&(!q||normalize([b.code,b.name,b.group].join(' ')).includes(q)))}
+function searchTokens(value){
+ // Preserve set identities such as "1+2" as one token. No fuzzy matches,
+ // substring aliases or accidental matches in an unrelated group/title.
+ return (normalize(value).match(/[a-z0-9]+(?:\+[a-z0-9]+)*/g)||[]);
+}
+function containsTokenSequence(haystack,needle){
+ if(!needle.length)return false;
+ const tokens=searchTokens(haystack);
+ for(let i=0;i<=tokens.length-needle.length;i++){
+  if(needle.every((word,j)=>tokens[i+j]===word))return true;
+ }
+ return false;
+}
+function filteredBooks(){
+ const g=$('groupFilter').value;
+ const q=$('bookSearch').value.trim();
+ const base=state.catalog.filter(b=>!g||b.group===g);
+ if(!q)return base;
+ const terms=searchTokens(q);
+ if(!terms.length)return [];
+ const uniqueGroups=[...new Set(base.map(b=>b.group).filter(Boolean))];
+ // A recognized group/series query gets ONLY the matching Excel groups.
+ // "YDUS" must never match a book belonging to a different group just
+ // because YDUS appears in its title. Same for "DUSDATA 1+2".
+ const matchingGroups=new Set(uniqueGroups.filter(name=>containsTokenSequence(name,terms)));
+ if(matchingGroups.size)return base.filter(b=>matchingGroups.has(b.group));
+ // Otherwise search strictly by book code/title, never by group substring.
+ return base.filter(b=>containsTokenSequence(b.code,terms)||containsTokenSequence(b.name,terms));
+}
 function renderCatalog(){
  const results=filteredBooks();$('catalogCount').textContent=results.length+' kayıt';
  const panel=$('catalogList');panel.innerHTML='';
  for(const book of results){
   const el=document.createElement('button');el.className='catalog-item';
   el.innerHTML=`<span class="code">${escapeHTML(book.code)}</span><span class="name">${escapeHTML(book.name)}</span><span class="plus">+</span>`;
-  el.title=book.group;el.onclick=()=>addBook(book);panel.append(el)
+  el.title='Excel alt grubu: '+book.group;
+  el.onclick=()=>addBook(book);panel.append(el)
  }
 
  if(!results.length)panel.innerHTML='<div class="empty">Bu aramaya uygun kitap bulunamadı.</div>';
