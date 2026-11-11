@@ -77,10 +77,14 @@ def _combined_covers():
     # Uploaded covers win. The bundled sample remains available, including
     # when a different Excel catalog has been uploaded.
     uploaded=cover_files(str(ASSETS))
-    # Bundled demo covers apply to the bundled demo workbook ONLY.
-    # A newly imported Excel must not inherit old sample mappings.
-    demo=cover_files(str(BASE/'ornek'/'Kapaklar')) if CATALOG_FILE!=DATA/'Kitaplar.xlsx' else ({},{})
-    return ({**demo[0],**uploaded[0]},{**demo[1],**uploaded[1]})
+    # Do not discard bundled artwork just because Excel was reimported.
+    # get_cover validates demo title + code before using those candidates.
+    demo=cover_files(str(BASE/'ornek'/'Kapaklar'))
+    codes={key:list(uploaded[0].get(key,[]))+list(demo[0].get(key,[]))
+           for key in set(uploaded[0])|set(demo[0])}
+    titles={key:list(uploaded[1].get(key,[]))+list(demo[1].get(key,[]))
+            for key in set(uploaded[1])|set(demo[1])}
+    return codes,titles
 
 COVER_IDX=_combined_covers()
 
