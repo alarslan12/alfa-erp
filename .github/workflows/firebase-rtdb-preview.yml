@@ -1,100 +1,120 @@
-name: ALFA ERP v1.1.1 Updater Hotfix Windows build
+name: ALFA ERP v1.1.2 Firebase Windows quality gate and installer
 
 on:
   push:
     branches: [firebase-rtdb-final]
-    # Build only when release-critical Firebase code or this workflow changes.
-    # No timer, no tests: syntax, packaging, Qt PDF import and installer hashes.
     paths:
-      - '.github/workflows/firebase-rtdb-preview.yml'
-      - 'alfa_hatalar.py'
-      - 'alfa_rtdb.py'
-      - 'firebase/database.rules.json'
-      - 'tools/firebase_error_rules_cutover.py'
+      - '**.py'
+      - '**.iss'
+      - 'firebase/**'
       - 'ALFA_BUILD_WINDOWS.ps1'
-      - 'alfa_tek_kurulum.iss'
-      - 'main.py'
-      - 'alfa_guncelleme.py'
-      - 'guncelleme_arayuzu.py'
-      - 'duyuru_merkezi.py'
-      - 'ekran_envanter.py'
-      - 'rtdb_owner_admin.py'
-      - 'urun_katalogu.py'
-      - 'database.py'
-      - 'ayar_yonetimi.py'
-      - 'firebase_pair_ui.py'
-      - 'bildirim_servisi.py'
-      - 'alfa_hatalar.py'
+      - 'requirements.txt'
+      - '.github/workflows/firebase-rtdb-preview.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: firebase-windows-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
-    name: One setup with staff/owner editions - syntax and bundled dependencies
+    name: Firebase offline tests and Windows unified installer smoke
     runs-on: windows-2022
-    timeout-minutes: 65
+    timeout-minutes: 70
     env:
       PYTHONUTF8: '1'
       PYTHONIOENCODING: utf-8
+      QT_QPA_PLATFORM: offscreen
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
         with:
           python-version: '3.13'
           architecture: x64
-      - name: Compile Python source (syntax only; no tests)
+      - name: Verify sources and Python syntax
         shell: pwsh
         run: |
-          python -m compileall -q main.py alfa_rtdb.py rtdb_owner_admin.py firebase_pair_ui.py bulut_canli.py bildirim_servisi.py bildirim_sesleri.py pdf_kapak.py pdf_kitap.py widgets.py ekran_ayarlar.py ayar_yonetimi.py analytics_access.py yonetici_giris.py yonetici_kompakt.py ekran_envanter.py urun_katalogu.py inventory_batches.py alfa_hatalar.py hata_merkezi_ui.py alfa_guncelleme.py guncelleme_arayuzu.py duyuru_merkezi.py urun_katalogu.py tools/firebase_error_rules_cutover.py
-          if ($LASTEXITCODE -ne 0) { throw 'Python syntax check failed' }
+          python KONTROL_DOSYA_UYUMU.py
+          if ($LASTEXITCODE -ne 0) { throw 'Missing or incompatible Firebase source' }
+          python -m compileall -q .
+          if ($LASTEXITCODE -ne 0) { throw 'Python syntax failed' }
+      - name: Install desktop dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check -r requirements.txt
+          if ($LASTEXITCODE -ne 0) { throw 'Dependency installation failed' }
+      - name: Run offline Firebase, local queue and GUI tests
+        shell: pwsh
+        run: |
+          python -u -c "import unittest,faulthandler,sys; faulthandler.dump_traceback_later(130,exit=True); result=unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.discover('tests')); sys.exit(not result.wasSuccessful())"
+          if ($LASTEXITCODE -ne 0) { throw 'Regression tests failed' }
       - name: Install Inno Setup 6
         shell: pwsh
         run: |
           $iscc = Join-Path ([Environment]::GetFolderPath('ProgramFilesX86')) 'Inno Setup 6\ISCC.exe'
           if (-not (Test-Path $iscc)) { choco install innosetup --yes --no-progress }
           if (-not (Test-Path $iscc)) { throw 'Inno Setup 6 required' }
-      - name: Package owner application files
+      - name: Build Firebase owner EXE
         shell: pwsh
         run: .\ALFA_BUILD_WINDOWS.ps1 -Edition yonetici -SkipInstaller
-      - name: Package staff application and notification service
+      - name: Build Firebase staff EXE and notifications
         shell: pwsh
         run: .\ALFA_BUILD_WINDOWS.ps1 -Edition personel -SkipInstaller
-      - name: Compile one edition-selectable Windows Setup
+      - name: Smoke-test packaged Windows EXEs
+        shell: pwsh
+        run: |
+          $apps = @(
+            @('dist\AlfaERPYonetici\AlfaERPYonetici.exe','owner'),
+            @('dist\AlfaERP\AlfaERP.exe','staff')
+          )
+          foreach ($item in $apps) {
+            $exe = Join-Path $env:GITHUB_WORKSPACE $item[0]
+            $report = Join-Path $env:RUNNER_TEMP "alfa_firebase_$($item[1])_smoke.json"
+            $env:ALFA_SMOKE_RESULT_PATH = $report
+            $proc = Start-Process -FilePath $exe -ArgumentList '--self-test' -PassThru
+            try {
+              if (-not $proc.WaitForExit(90000)) { throw "EXE startup timed out: $exe" }
+              if ($proc.ExitCode -ne 0) {
+                $details = if (Test-Path $report) { Get-Content $report -Raw } else { 'No result file' }
+                throw "EXE failed: $details"
+              }
+            } finally {
+              if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
+              $env:ALFA_SMOKE_RESULT_PATH = ''
+            }
+            if (-not (Test-Path $report)) { throw 'Smoke report missing' }
+            $result=Get-Content $report -Raw | ConvertFrom-Json
+            if (-not $result.ok -or $result.pages -ne 5 -or $result.books -lt 1) {
+              throw 'Smoke contents invalid'
+            }
+            Write-Host "$($item[1]) verified: $($result.books) books"
+          }
+      - name: Compile edition-selectable Windows Setup
         shell: pwsh
         run: .\ALFA_BUILD_WINDOWS.ps1 -Edition ortak
-      - name: Verify bundled Qt PDF dependency is importable
+      - name: Verify Qt PDF dependency
         shell: pwsh
         run: |
           & .\.buildvenv\Scripts\python.exe -c "from PySide6.QtPdf import QPdfDocument; print('QtPdf import OK')"
-          if ($LASTEXITCODE -ne 0) { throw 'Missing official PySide6-Pdf module' }
-      - name: Verify files and collect checksums
+          if ($LASTEXITCODE -ne 0) { throw 'Missing Qt PDF module' }
+      - name: Verify installer checksum
         shell: pwsh
         run: |
-          $files = @(Get-ChildItem .\output -Filter 'ALFA_ERP_Setup_V1_1_1.exe' -File)
-          if ($files.Count -ne 1) { throw "Expected one unified Setup EXE; got $($files.Count)" }
+          $files=@(Get-ChildItem output -Filter 'ALFA_ERP_Setup_V1_1_2.exe' -File)
+          if ($files.Count -ne 1) { throw 'Expected one unified installer' }
           $files | ForEach-Object { "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash)  $($_.Name)" } |
-            Set-Content -Path .\output\SHA256SUMS.txt -Encoding utf8
-          Copy-Item .\firebase\RTDB_KURULUM.md .\output\RTDB_KURULUM.md
-      - name: Upload checked unified installer binary
+            Set-Content -Path output\SHA256SUMS.txt -Encoding utf8
+          Copy-Item firebase\RTDB_KURULUM.md output\RTDB_KURULUM.md
+      - name: Upload checked Firebase installer
         uses: actions/upload-artifact@v4
         with:
-          name: ALFA_ERP_V1_1_1_Unified_Setup
+          name: ALFA_ERP_V1_1_2_Firebase_Unified_Setup
           path: |
-            output/ALFA_ERP_Setup_V1_1_1.exe
+            output/ALFA_ERP_Setup_V1_1_2.exe
             output/SHA256SUMS.txt
             output/RTDB_KURULUM.md
           if-no-files-found: error
-          retention-days: 14
-
-      - name: Explain stable installer distribution
-        shell: pwsh
-        run: |
-          @'
-          ## ALFA ERP v1.1.1 unified Windows hotfix successfully built
-          One edition-selectable Setup.exe and SHA256SUMS.txt are in Artifacts.
-          Sign in to GitHub to download Actions artifacts. These workflow artifacts expire after 14 days.
-          A durable GitHub Release requires manual scoped repository authorization.
-          It is intentionally not attempted by this preview build workflow.
-          '@ | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+          retention-days: 30
