@@ -306,9 +306,15 @@ class AnalitikView(QWidget):
         self.refresh()
 
     def eventFilter(self, watched, event):
-        if watched is self.results_scroll.viewport() and event.type()==QEvent.Type.Resize:
-            if hasattr(self,'_reflow_timer'):
-                self._reflow_timer.start()
+        # Qt can deliver a final event while the scroll area is being
+        # destroyed. Never dereference a deleted C++ widget at shutdown.
+        try:
+            viewport=self.results_scroll.viewport()
+            if watched is viewport and event.type()==QEvent.Type.Resize:
+                if hasattr(self,'_reflow_timer'):
+                    self._reflow_timer.start()
+        except RuntimeError:
+            return False
         return super().eventFilter(watched,event)
 
     def _metric_columns(self):
