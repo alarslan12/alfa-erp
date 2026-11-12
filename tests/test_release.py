@@ -28,17 +28,22 @@ class ReleaseContractTests(unittest.TestCase):
         crypto=(ROOT/'cihaz_sifreleme.py').read_text('utf-8')
         self.assertNotIn('urllib',crypto)
 
-    def test_versions_and_unified_setup_match(self):
+    def test_versions_and_unified_suite_match(self):
         src=(ROOT/'main.py').read_text('utf-8')
-        m=re.search(r"^VERSION='([^']+)'",src,re.MULTILINE)
-        self.assertIsNotNone(m)
-        version=m.group(1)
-        for name in ('alfa_tek_kurulum.iss','alfa_personel.iss','alfa_yonetici.iss'):
-            body=(ROOT/name).read_text('utf-8')
-            self.assertIn('#define MyAppVersion "'+version+'"',body)
-        unified=(ROOT/'alfa_tek_kurulum.iss').read_text('utf-8')
-        self.assertIn('ALFA_ERP_Setup_V'+version.replace('.','_'),unified)
-        self.assertNotIn('GetSHA256OfString',unified)
+        version=re.search(r"^VERSION='([^']+)'",src,re.MULTILINE).group(1)
+        suite=(ROOT/'ALFACOPYCENTER_Suite.iss').read_text('utf-8')
+        self.assertIn('#define SuiteVersion "'+version+'"',suite)
+        self.assertIn('ALFACOPYCENTER_Suite_Setup_V'+version.replace('.','_'),suite)
+        self.assertIn('AppId=ALFACOPYCENTER.Suite',suite)
+        self.assertNotIn('GetSHA256OfString',suite)
+        for name in ('staff','owner','banner','print','print\\agent'):
+            self.assertIn('Name: "'+name+'";',suite)
+        self.assertEqual(version, re.search(r"^SUITE_VERSION='([^']+)'",
+            (ROOT/'banner_studio/studio_server.py').read_text('utf-8'),
+            re.MULTILINE).group(1))
+        self.assertFalse((ROOT/'alfa_tek_kurulum.iss').exists())
+        self.assertFalse((ROOT/'alfa_personel.iss').exists())
+        self.assertFalse((ROOT/'alfa_yonetici.iss').exists())
 
     def test_no_embedded_secret_ticket(self):
         self.assertFalse((ROOT/'kurulum_bilgisi.json').exists())
