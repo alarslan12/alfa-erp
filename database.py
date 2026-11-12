@@ -41,6 +41,17 @@ class ERPDatabase:
         self.cloud_accounting_loaded=False
         self.cloud_required=False
         self.cloud_epoch=None
+        # A previously paired workstation must keep working after an offline restart.
+        # The epoch was written only after a successfully applied server snapshot.
+        # Do not invent an epoch for a never-synchronized/new workstation.
+        epoch_marker=Path(self.siparis_dosyasi).parent/'alfa_cloud_epoch.json'
+        if epoch_marker.exists():
+            try:
+                saved_epoch=json.loads(epoch_marker.read_text(encoding='utf-8'))
+                if isinstance(saved_epoch,dict):
+                    self.cloud_epoch=str(saved_epoch.get('epoch') or '').strip() or None
+            except (OSError,ValueError,TypeError):
+                pass  # Fail closed if the marker is missing or corrupted.
         self.cloud_catalog_revision=None
         self._cloud_applying=False
         # Durable optimistic outbox: all network writes happen in a QThread.
