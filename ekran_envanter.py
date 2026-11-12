@@ -383,7 +383,7 @@ class EnvanterView(QWidget):
     @property
     def owner(self):
         # The owner build has the manager feature; only a live admin session
-        # can authorize writes to the catalog via Supabase.
+        # can authorize writes to the catalog via Firebase Security Rules.
         return (Path(__file__).resolve().parent/'YONETICI_SURUMU.flag').exists()
 
     def _admin_request(self):
