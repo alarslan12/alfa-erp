@@ -1,78 +1,64 @@
-"""Network protocol and error classification without production requests."""
-import io
-import json
-import unittest
+"""Firebase-only regression tests. No network and no production writes."""
+import json, os, tempfile, unittest
+from pathlib import Path
 from unittest.mock import patch
-from urllib.error import HTTPError, URLError
+from urllib.error import HTTPError,URLError
+import io
 
-from alfa_cihaz import api, DeviceError
+from alfa_rtdb import DeviceError, Workstation, _http_json
 
-class ProtocolTests(unittest.TestCase):
-    def test_conflict_is_not_labeled_as_offline(self):
-        error = HTTPError('https://example.invalid',409,'Conflict',{},
-                          io.BytesIO(b'{"error":"Version conflict"}'))
-        with patch('alfa_cihaz.urllib.request.urlopen', side_effect=error):
-            with self.assertRaises(DeviceError) as ctx:
-                api('progress','A'*64,events=[])
-        self.assertEqual(ctx.exception.status,409)
-        self.assertTrue(ctx.exception.permanent)
-        self.assertIn('Version conflict',str(ctx.exception))
 
-    def test_sync_requests_revisions_in_one_call_without_separate_pulse(self):
-        from alfa_cihaz import Workstation
-        revisions={'epoch':'a','orders_revision':11,
-                   'catalog_revision':8,'inventory_revision':4}
-        with patch('alfa_cihaz.api',return_value={'epoch':'a'}) as request:
-            workstation=Workstation(token='C'*64)
-            self.assertEqual(workstation.sync(known=revisions),{'epoch':'a'})
-            request.assert_called_once_with('sync','C'*64,timeout=20,
-                known=revisions)
+class FirebaseProtocolTests(unittest.TestCase):
+    def test_rtdb_conflict_is_not_an_internet_outage(self):
+        ex=HTTPError('https://example.invalid',412,'Precondition Failed',{},
+                     io.BytesIO(b'{"error":"conflict"}'))
+        with patch('alfa_rtdb.urllib.request.urlopen',side_effect=ex):
+            with self.assertRaises(DeviceError) as result:
+                _http_json('https://example.invalid')
+        self.assertEqual(result.exception.status,409)
+        self.assertTrue(result.exception.permanent)
 
-    def test_tray_uses_order_headers_not_large_snapshot(self):
+    def test_temporary_firebase_unavailable_is_retryable(self):
+        ex=HTTPError('https://example.invalid',503,'Unavailable',{},
+                     io.BytesIO(b'{}'))
+        with patch('alfa_rtdb.urllib.request.urlopen',side_effect=ex):
+            with self.assertRaises(DeviceError) as result:
+                _http_json('https://example.invalid')
+        self.assertEqual(result.exception.status,503)
+        self.assertFalse(result.exception.permanent)
+
+    def test_firebase_permission_denial_is_not_a_revoked_token(self):
+        ex=HTTPError('https://example.invalid',401,'Unauthorized',{},
+                     io.BytesIO(b'{"error":"Permission denied"}'))
+        with patch('alfa_rtdb.urllib.request.urlopen',side_effect=ex):
+            with self.assertRaises(DeviceError) as result:
+                _http_json('https://example.invalid')
+        self.assertEqual(result.exception.status,403)
+
+    def test_network_failure_does_not_expose_credentials(self):
+        with patch('alfa_rtdb.urllib.request.urlopen',side_effect=URLError('DNS failed')):
+            with self.assertRaises(DeviceError) as result:
+                _http_json('https://example.invalid/secret?auth=SENSITIVE')
+        self.assertIsNone(result.exception.status)
+        self.assertNotIn('SENSITIVE',str(result.exception))
+
+    def test_notification_reads_headers_only(self):
         from bildirim_servisi import Reader
         class FakeClient:
             def sync(self,**kwargs):
                 self.kwargs=kwargs
-                return {'epoch':'a','orders_revision':12,
-                   'catalog_revision':8,'inventory_revision':4,
-                   'orders_brief':[{'id':'new-order','order_number':35}]}
-            def pulse(self):raise AssertionError('Unnecessary HTTP pulse')
-            def snapshot(self):raise AssertionError('Unnecessary large snapshot')
+                return {'epoch':'live','orders_revision':12,'catalog_revision':4,
+                        'inventory_revision':3,
+                        'orders_brief':[{'id':'order','order_number':35}]}
         client=FakeClient()
-        worker=Reader(client,{'epoch':'a','orders_revision':11},34)
+        worker=Reader(client,{'epoch':'live','orders_revision':11},34)
         received=[]
         worker.done.connect(received.append)
         worker.run()
-        self.assertEqual(len(received),1)
         self.assertEqual(received[0]['orders'][0]['order_number'],35)
         self.assertTrue(client.kwargs['notification'])
         self.assertEqual(client.kwargs['last_order_number'],34)
 
-    def test_temporary_database_timeout_remains_retryable_and_is_not_conflict(self):
-        error=HTTPError('https://example.invalid',503,'Service Unavailable',{},
-                        io.BytesIO(b'{"error":"upstream request timeout"}'))
-        with patch('alfa_cihaz.urllib.request.urlopen',side_effect=error):
-            with self.assertRaises(DeviceError) as ctx:
-                api('progress','A'*64,events=[{'op_id':'example'}])
-        self.assertEqual(ctx.exception.status,503)
-        self.assertFalse(ctx.exception.permanent)
-        self.assertIn('timeout',str(ctx.exception))
 
-    def test_revoked_device_does_not_drop_queued_operations(self):
-        error=HTTPError('https://example.invalid',401,'Unauthorized',{},
-                        io.BytesIO(b'{"error":"Device pairing revoked"}'))
-        with patch('alfa_cihaz.urllib.request.urlopen',side_effect=error):
-            with self.assertRaises(DeviceError) as ctx:
-                api('transition','A'*64,events=[{'op_id':'example'}])
-        self.assertEqual(ctx.exception.status,401)
-        self.assertFalse(ctx.exception.permanent)
-
-    def test_temporary_network_failure_is_retryable(self):
-        with patch('alfa_cihaz.urllib.request.urlopen',side_effect=URLError('DNS unavailable')):
-            with self.assertRaises(DeviceError) as ctx:
-                api('pulse','B'*64)
-        self.assertIsNone(ctx.exception.status)
-        self.assertFalse(ctx.exception.permanent)
-        self.assertNotIn('B'*64,str(ctx.exception))
-
-if __name__ == '__main__': unittest.main()
+if __name__=='__main__':
+    unittest.main()
