@@ -23,7 +23,7 @@ from guncelleme_arayuzu import CheckWorker,should_check_today,mark_checked
 from duyuru_merkezi import AnnouncementsDialog,ManualReportDialog
 
 ROOT=Path(__file__).resolve().parent
-VERSION='1.1.1'
+VERSION='1.1.2'
 OWNER_EDITION=(ROOT/'YONETICI_SURUMU.flag').exists()
 
 
@@ -245,8 +245,7 @@ class AlfaMain(QMainWindow):
         self._update_daily.setInterval(24*60*60*1000)
         self._update_daily.timeout.connect(self.check_background_updates)
         self._update_daily.start()
-        QTimer.singleShot(2000,self._show_whats_new_once)
-        QTimer.singleShot(3500,self.check_background_updates)
+        # Announcements and update checks start after the splash closes.
         QApplication.instance().aboutToQuit.connect(self._stop_update_job)
         # Firebase pairing is explicit and remembered; legacy ticket timers
         # were intentionally removed (no idle work, no repeat login).
@@ -532,6 +531,7 @@ class AlfaMain(QMainWindow):
         self.stack.setCurrentWidget(self.orders)
         self._mark_navigation(1,status)
         self.orders.change_status(status)
+        self.live.boost()
         if status=='havuz':
             self.live.pull()
 
@@ -646,8 +646,7 @@ def _install_error_diagnostics():
 def start():
     local=os.environ.get('ALFA_ERP_DATA_DIR') or str(
         Path(os.environ.get('LOCALAPPDATA') or Path.home())/'AlfaERP')
-    install_reporter(VERSION,"owner" if OWNER_EDITION else "staff",
-                     data_dir=local)
+    install_reporter(VERSION,"owner" if OWNER_EDITION else "staff",data_dir=local)
     _install_error_diagnostics()
     app=QApplication(sys.argv)
     app.setApplicationName('ALFA ERP')
@@ -655,29 +654,61 @@ def start():
     app.setProperty('alfa_edition',"owner" if OWNER_EDITION else "staff")
     app.setStyle('Fusion')
     app.setStyleSheet(QSS)
-    try:
-        # Both editions open immediately, without blocking authentication
-        # or mandatory enrollment dialogs. A safe, visible one-time activation
-        # is available from the app header if this device is not paired.
-        main=AlfaMain(admin_cloud=None)
-        # Mevcut ekranın kullanılabilir alanına göre ölçeklendir ve tam ortala.
-        screen=app.primaryScreen()
-        if screen:
-            area=screen.availableGeometry()
-            width=min(1600,max(780,area.width()-32))
-            height=min(960,max(580,area.height()-32))
-            main.setMinimumSize(min(860,width),min(620,height))
-            main.resize(width,height)
-            frame=main.frameGeometry()
-            frame.moveCenter(area.center())
-            main.move(frame.topLeft())
-        main.show();return app.exec()
-    except Exception as exc:
-        record_error(type(exc),exc,exc.__traceback__,source="startup")
-        QMessageBox.critical(None,'ALFA ERP başlangıç hatası',str(exc)+'\n\n'+traceback.format_exc(limit=3))
-        return 1
+    from ekran_baslangic import launch_with_splash
+    return launch_with_splash(app,lambda:AlfaMain(admin_cloud=None),
+                              version=VERSION,owner=OWNER_EDITION,
+                              on_error=record_error)
 
+
+def release_smoke_test():
+    """Packaged EXE startup probe; never connects to production Firebase."""
+    import tempfile
+    from ekran_baslangic import StartupSplash
+    class OfflineDevice:
+        paired=False
+        token=None
+        uid=None
+    original=globals()['Workstation']
+    original_data=os.environ.get('ALFA_ERP_DATA_DIR')
+    globals()['Workstation']=OfflineDevice
+    os.environ['QT_QPA_PLATFORM']='offscreen'
+    report={}
+    window=None
+    try:
+        with tempfile.TemporaryDirectory(prefix='alfa_firebase_smoke_') as folder:
+            os.environ['ALFA_ERP_DATA_DIR']=folder
+            app=QApplication.instance() or QApplication(['alfa-firebase-smoke'])
+            app.setStyle('Fusion')
+            app.setStyleSheet(QSS)
+            splash=StartupSplash(owner=OWNER_EDITION,version=VERSION)
+            splash.show()
+            splash.update_step('storage','Doğrulandı.')
+            app.processEvents()
+            if splash.progress.value()!=1:
+                raise RuntimeError('Startup indicator failed')
+            splash.close()
+            window=AlfaMain(admin_cloud=None)
+            app.processEvents()
+            if window.stack.count()!=5 or not window.db.katalog:
+                raise RuntimeError('ERP pages or book catalog unavailable')
+            report={'ok':True,'version':VERSION,'pages':5,
+                    'books':len(window.db.katalog),
+                    'edition':'owner' if OWNER_EDITION else 'staff'}
+            code=0
+    except Exception as exc:
+        report={'ok':False,'error':str(exc)[:320]}
+        code=2
+    finally:
+        if window is not None:
+            window.close()
+        globals()['Workstation']=original
+        if original_data is None:os.environ.pop('ALFA_ERP_DATA_DIR',None)
+        else:os.environ['ALFA_ERP_DATA_DIR']=original_data
+    output=os.environ.get('ALFA_SMOKE_RESULT_PATH')
+    if output:
+        Path(output).write_text(json.dumps(report,ensure_ascii=False),encoding='utf-8')
+    return code
 
 
 if __name__=='__main__':
-    sys.exit(start())
+    sys.exit(release_smoke_test() if '--self-test' in sys.argv else start())
