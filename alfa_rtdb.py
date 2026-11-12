@@ -70,13 +70,13 @@ def _http_json(url, method="GET", body=None, headers=None, timeout=20):
 
 
 def _session_path():
-    from alfa_cihaz import DATA, OWNER_APP
+    from cihaz_sifreleme import DATA, OWNER_APP
     return Path(DATA) / ("firebase_owner_session.bin" if OWNER_APP
                          else "firebase_staff_session.bin")
 
 
 def load_identity():
-    from alfa_cihaz import crypt
+    from cihaz_sifreleme import crypt
     try:
         state = json.loads(crypt(_session_path().read_bytes(), True))
         if not all(state.get(k) for k in ("refresh_token", "uid")):
@@ -87,7 +87,7 @@ def load_identity():
 
 
 def save_identity(identity):
-    from alfa_cihaz import crypt
+    from cihaz_sifreleme import crypt
     path = _session_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".tmp")
