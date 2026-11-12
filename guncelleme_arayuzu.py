@@ -216,7 +216,7 @@ class UpdateDialog(QDialog):
             return
         yes=QMessageBox.question(self,"Kurulumu başlat",
             "ALFA ERP kapanacak. Ardından Windows kurulum sihirbazı açılacak "
-            "(Yönetici için kurulum parolası gerekir). Kurulum tamamlanırsa "
+            "(Yönetici erişimi Firebase rolüyle doğrulanır). Kurulum tamamlanırsa "
             "uygulama otomatik yeniden başlatılacak. Devam edilsin mi?",
             QMessageBox.StandardButton.Yes|QMessageBox.StandardButton.No)
         if yes!=QMessageBox.StandardButton.Yes:return
