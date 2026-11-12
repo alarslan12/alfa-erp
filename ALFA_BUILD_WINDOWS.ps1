@@ -33,8 +33,8 @@ Run $Virtual @('-m','pip','install','--disable-pip-version-check','-r','requirem
 # Generate branded multi-resolution .ico assets before PyInstaller and Inno Setup.
 Run $Virtual @('tools\build_icons.py')
 if($Edition -eq 'personel') {
- # Generic Firebase installer: no secrets or legacy Supabase enrollment
- # tickets are embedded in executable assets.
+ # Generic Firebase installer: no service credentials or private tickets
+ # are embedded in executable assets.
  Run $Virtual @('-m','PyInstaller','--noconfirm','--clean','--onedir','--windowed',
   '--name','AlfaERP','--icon=assets\icons\alfa_personel.ico','--add-data','KİTAPS.xlsx;.','--add-data','katalog.json;.',
   '--add-data','assets;assets','--hidden-import=PySide6.QtPdf','main.py')
