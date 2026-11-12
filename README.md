@@ -1,79 +1,44 @@
-# ALFA ERP v1.1.1 — Personel ve Yönetici için tek Windows kurulumu
+# ALFA ERP v1.1.2 — Firebase masaüstü uygulaması
 
-Windows 11 · PySide6 · Firebase Realtime Database · ortak çoklu cihaz sipariş havuzu.
+**Personel ve Yönetici**, tek Windows Setup.exe içerisinde ayrı kurulum
+seçenekleridir. Masaüstü uygulaması PySide6, Firebase Authentication ve
+Firebase Realtime Database kullanır.
 
-**Sürüm notları:** [CHANGELOG.md](CHANGELOG.md). Eski v1.0.0
-kararlı yayın [GitHub Releases](https://github.com/alarslan12/alfa-erp/releases/tag/v1.0.0)
-üzerinde korunur.
+## Bu sürümde
 
-## Kurulum ve erişim
+- Açılışta ALFA ERP splash screen: yerel dosyalar, sipariş kuyruğu, katalog,
+  cihaz kimliği ve Firebase bağlantısı denetimi.
+- İnternet yokken uygulama en fazla kısa bir bağlantı denetiminden sonra
+  çevrimdışı açılır. Önceden doğrulanmış çalışma alanı işareti diskten alınır;
+  gönderilmeyi bekleyen kuyruk korumalıdır.
+- Firebase SSE ile değişiklik bildirimi ve kaçırılan olaylar için
+  aktif kullanımda 10–13 saniye, boşta 45–52 saniye fallback senkronizasyon.
+- Gardrops siparişine girilen tutarın **%100'ü** kaydedilir; %90 kesinti yoktur.
+- Eski bulut istemcileri ve geçiş araçları aktif kaynak ağacından kaldırılmıştır.
+- Firebase cihaz kimlikleri Windows DPAPI ile şifrelenir. Personel ve Yönetici
+  cihaz oturumları birbirinden ayrıdır.
+- Yönetici yetkisi yalnızca Firebase Security Rules ve onaylı owner UID ile
+  belirlenir; kuruluma gömülü sabit bir yönetici şifresi bulunmaz.
+- Yerel Katalog ve Siparişler ekranlarının mevcut tasarımı korunur.
 
-`ALFA_ERP_Setup_V1_1_1.exe` tek dosya olarak **Personel / Yönetici**
-seçtirir; her bilgisayara seçilen uygulama kurulur.
+## Kurulum
 
-- **Personel:** katalog, siparişler, envanter, açık/koyu tema anahtarı,
-  kategorili Hata Bildir, Duyurular ve Windows sipariş ses/bildirim ajanı.
-- **Yönetici:** yönetim, cihaz yetkisi, Hata Merkezi, envanter satış iptali,
-  ürün arşivleme/geri alma, Duyurular ve Güncelleme Merkezi.
-- Yönetici kurulumu sabit kurulum parolası ister.
-  **Bu parola bulutta yönetici rolü oluşturmaz.** Firebase
-  `members/{uid}.role=owner` ve `active=true` kontrolünü ayrıca uygular.
-- Yerel `%LOCALAPPDATA%\AlfaERP` veri ve cihaz dosyaları silinmez.
+\`ALFA_ERP_Setup_V1_1_2.exe\` üzerinden Personel veya Yönetici seçin.
+Eski sürümün üzerine kurarken **\`%LOCALAPPDATA%\AlfaERP\` klasörünü silmeyin**.
+Burada cihaz kimliği, siparişler ve gönderilmeyi bekleyen işlemler bulunur.
 
-## v1.1.1 Güncelleme Merkezi onarımı
+Firebase rolü bilinmeyen bir bilgisayara yönetici sürümünü kurmak,
+bulut üzerinde yönetici ayrıcalığı vermez. Cihaz onayı Firebase ile yapılır.
 
-Güncelleme komutu ana ERP penceresini doğru kapatır; doğrulanmış Windows
-kurulumu kullanıcıya açılır, başarıyla tamamlanınca aynı sürüm
-(Personel veya Yönetici) tek kez yeniden başlatılır. Kurulumdaki
-başarısızlık sebebi yalnız cihazda güncelleme durum dosyasında tutulur;
-bir sonraki Güncelleme Merkezi açılışında görünür.
+## Yayımlama ve test
 
-**İlk geçiş:** v1.0.0/v1.1.0 Güncelleme Merkezi'nde bu başlatma hatası
-bulunduğu için v1.1.1'in resmî Setup.exe dosyasını **bir defa
-GitHub Releases'den indirip manuel kurun**. Eski kurulumun üzerine
-kurulur, `%LOCALAPPDATA%\\AlfaERP` ve Firebase kimliği korunur.
+Kaynak kodu: \`firebase-rtdb-final\` dalı.
+GitHub Actions: \`.github/workflows/firebase-rtdb-preview.yml\`.
+Güvenlik kuralları: \`firebase/database.rules.json\`.
+Kuralların Firebase'e yayımlanması ayrıca yetkili bir proje hesabı gerektirir.
 
-## v1.1 yenilikleri
+Önceki çevrimdışı veri ve kuyrukların korunması, bilgisayarların fiziksel
+bağlantı kesintisiyle test edilmesi ve Firebase Rules yetkilerinin gerçek
+bir test hesabıyla doğrulanması üretime alma önkoşuludur.
 
-- Satış iptalinde tek ETag kontrollü Firebase ürün güncellemesiyle
-  orijinal alım partisine stok iadesi, iptal kaydını geçmişte tutma.
-- Katalog ürünlerinde hard-delete yerine arşiv ve geri yükleme.
-- Pillbox biçiminde okunur envanter satış formu, iptali muhasebeden
-  düşen analiz ve işlem geçmişi.
-- ETag yarışları için korunmuş retry; sipariş havuzu silme sonrası
-  eski sunucu görüntüsünün geri eklenmesini engelleme.
-- Başlıkta uygulama adı/sürümü, personel tema anahtarı ve Hata Bildir.
-- Açık tema kontrastı: Siparişlere Genel Bakış, Cihaz Yetkisi,
-  Sipariş Geldi popup pencereleri.
-- Uygulama içinde Duyuru Merkezi ve otomatik kararlı güncelleme popup'ı.
-  Sürüm kontrolü en fazla 24 saatte bir GitHub API isteği yapar; Firebase
-  verisine fazladan sorgu eklemez. Kullanıcı onayı olmadan yeni sürüm kurulmaz.
-
-## Güvenilirlik
-
-- Siparişler, stok partileri, satış geçmişi ve kullanıcı kimlikleri
-  sırf sürüm yükseltmesi için silinmez.
-- Firebase Security Rules mevcut v1.0 sürümüyle uyumlu kalır;
-  yeni kurallar veya ücretli Cloud Functions **gerekmez**.
-- Firebase silme koruması, cihaz rolü, hata raporları ve bulut
-  bağlantısı [Firebase kuralları](firebase/database.rules.json) üzerinden.
-- Eşzamanlı iş kuralı çakışması oluşursa başarısız işlem arşive alınır,
-  başka cihazın verisinin üzerine körlemesine yazılmaz.
-- Yeni sürümün ilk yüklenmesinde duyurular otomatik görünür.
-- Güncelleme Merkezi SHA-256 kontrolü yapar ve buluta henüz
-  gönderilmemiş işler varsa yükseltmeye izin vermez.
-
-## Derleme ve kararlı yayın
-
-`.github/workflows/firebase-rtdb-preview.yml` Windows paketini,
-`SHA256SUMS.txt` ve `RTDB_KURULUM.md` dosyasını Actions artifact olarak üretir.
-Resmî sürüm yalnız başarılı kaynak derlemesinin tek EXE + SHA-256
-dosyalarını GitHub Release'e ekler.
-
-Kullanıcının hız tercihi doğrultusunda otomatik fonksiyonel testler
-koşulmaz; sözdizimi, PyInstaller, Qt PDF modülü, Inno Setup paketleme
-ve kurulum checksum kontrolleri yapılır. Gerçek Windows davranışının
-ayrıca kabul edilmesi gerekir.
-
-**Mimari uyarı:** Supabase tabanlı eski `main` dalıyla Firebase tabanlı
-`firebase-rtdb-final` dalını körlemesine birleştirmeyin.
+[Kurulum ve işletim rehberi](firebase/RTDB_KURULUM.md)
