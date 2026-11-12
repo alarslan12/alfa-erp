@@ -88,6 +88,9 @@ class Sync(QObject):
             self._status(False,'Cihaz eşleştirilmedi; bulut işlemleri kapalı')
             return
         self.db.cloud_api=self.client
+        # A fresh server epoch must be checked before sending persisted offline
+        # actions, including after re-pairing to a different workspace.
+        self.last_pulse=None
         self.force_pull=True
         self._pull_retry_after=0
         self.retry_after=0
@@ -177,7 +180,10 @@ class Sync(QObject):
         worker.start()
 
     def push(self):
-        if not self.client.paired or self.push_task is not None or not self.db.cloud_epoch:
+        # Keep new/offline outbox entries local until this run has validated the
+        # workspace epoch by pulling once. Never push into a reset workspace.
+        if (not self.client.paired or self.push_task is not None or
+                not self.db.cloud_epoch or self.last_pulse is None):
             return
         if not self.db.pending_count or time.monotonic()<self.retry_after:
             return
