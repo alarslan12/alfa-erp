@@ -102,9 +102,9 @@ class Sync(QObject):
         self._last_status = None
         self.timer = QTimer(self)
         self._recent_until = time.monotonic() + 16
-        # Free-tier safety: reduce repetitive polling on multiple machines.
-        self._active_poll_ms = 30000 + (id(self) % 5000)
-        self._idle_poll_ms = 90000 + (id(self) % 15000)
+        # SSE watches live revisions. Adaptive fallback recovers missed events.
+        self._active_poll_ms = 10000 + (id(self) % 3000)
+        self._idle_poll_ms = 45000 + (id(self) % 7000)
         self.timer.setInterval(self._active_poll_ms)
         self.timer.timeout.connect(self.pull)
         self.sender = QTimer(self)
@@ -119,6 +119,8 @@ class Sync(QObject):
             self._status(False,'Cihaz eşleştirilmedi; bulut işlemleri kapalı')
             return
         self.db.cloud_api=self.client
+        # Check Firebase workspace identity before replaying offline edits.
+        self.last_pulse=None
         self.force_pull=True
         self._pull_retry_after=0
         self.retry_after=0
@@ -149,6 +151,11 @@ class Sync(QObject):
                     time.monotonic() < self._recent_until else self._idle_poll_ms)
         if self.timer.interval() != interval:
             self.timer.setInterval(interval)
+
+    def boost(self, seconds=90):
+        """Check more often while an operator is managing orders."""
+        self._recent_until=max(self._recent_until,time.monotonic()+seconds)
+        self._retune_poll()
 
     def _status(self, online, message):
         state=(online,message)
@@ -216,9 +223,10 @@ class Sync(QObject):
             if self._consecutive_pull_failures==4:
                 from alfa_hatalar import record_operational_error
                 record_operational_error("RepeatedPull",status)
+            base=3 if status in (0,408) else (60 if status in (429,500,502,503,504) else 30)
+            cap=30 if status in (0,408) else 600
             self._pull_retry_after=time.monotonic()+min(
-                600,(60 if status in (429,500,502,503,504) else 30)*
-                (2**min(self._consecutive_pull_failures-1,4)))
+                cap,base*(2**min(self._consecutive_pull_failures-1,4)))
             self._retune_poll()
             self._status(False, 'Bulut eşitlemesi beklemede: '+message[:160])
         worker.done.connect(finish)
@@ -227,7 +235,8 @@ class Sync(QObject):
         worker.start()
 
     def push(self):
-        if not self.client.paired or self.push_task is not None or not self.db.cloud_epoch:
+        if (not self.client.paired or self.push_task is not None or
+                not self.db.cloud_epoch or self.last_pulse is None):
             return
         if not self.db.pending_count or time.monotonic()<self.retry_after:
             return
@@ -288,8 +297,10 @@ class Sync(QObject):
             if self._consecutive_push_failures==4:
                 from alfa_hatalar import record_operational_error
                 record_operational_error("RepeatedPush",status)
+            base=3 if status in (0,408) else 45
+            cap=30 if status in (0,408) else 600
             self.retry_after=time.monotonic()+min(
-                600,45*(2**min(self._consecutive_push_failures-1,4)))
+                cap,base*(2**min(self._consecutive_push_failures-1,4)))
             self._status(False,'Bulut işlemi geçici beklemede: '+
                 message[:150]+' · kuyruk korunuyor')
         worker.done.connect(finish)
