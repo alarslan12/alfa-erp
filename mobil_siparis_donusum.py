@@ -1,4 +1,4 @@
-"""Validate and map Supabase orders into pre-existing desktop order JSON structure."""
+"""Validate and map Firebase RTDB orders into pre-existing desktop order JSON structure."""
 from datetime import datetime
 
 
