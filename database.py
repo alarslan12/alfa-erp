@@ -41,6 +41,16 @@ class ERPDatabase:
         self.cloud_accounting_loaded=False
         self.cloud_required=False
         self.cloud_epoch=None
+        # Restore a previously verified Firebase workspace on offline restart.
+        # Never invent an epoch on a new or unpaired workstation.
+        epoch_marker=Path(self.siparis_dosyasi).parent/'alfa_cloud_epoch.json'
+        if epoch_marker.is_file():
+            try:
+                saved=json.loads(epoch_marker.read_text(encoding='utf-8'))
+                if isinstance(saved,dict):
+                    self.cloud_epoch=str(saved.get('epoch') or '').strip() or None
+            except (OSError,ValueError,TypeError):
+                pass
         self.cloud_catalog_revision=None
         self._cloud_applying=False
         # Durable optimistic outbox: all network writes happen in a QThread.
@@ -180,7 +190,7 @@ class ERPDatabase:
         for sid,prior in old.items():
             if sid not in current:
                 if not prior.get('bulut_id') and sid in self._pending:
-                    # The creation never reached Supabase: cancel it locally.
+                    # The creation never reached Firebase: cancel it locally.
                     self._pending.pop(sid,None)
                     continue
                 if not prior.get('bulut_id'):
