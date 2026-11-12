@@ -1,19 +1,19 @@
-; ALFACOPYCENTER Suite v2.0.2
+; ALFACOPYCENTER Suite v2.0.13
 ; Unified installer for ERP Staff, ERP Owner, Banner Studio, Print Surveillance.
 ; No cloud database deletion, no spooler driver/service modification.
 #define CompanyName "ALFACOPYCENTER"
-#define SuiteVersion "2.0.12"
+#define SuiteVersion "2.0.13"
 
 [Setup]
 AppId=ALFACOPYCENTER.Suite
 AppName={#CompanyName} Uygulama Paketi
 AppVerName={#CompanyName} Suite {#SuiteVersion}
 AppVersion={#SuiteVersion}
-VersionInfoVersion=2.0.12.0
+VersionInfoVersion=2.0.13.0
 DefaultDirName={localappdata}\Programs\ALFACOPYCENTER
 DefaultGroupName={#CompanyName}
 OutputDir=output
-OutputBaseFilename=ALFACOPYCENTER_Suite_Setup_V2_0_12
+OutputBaseFilename=ALFACOPYCENTER_Suite_Setup_V2_0_13
 Compression=lzma2
 SolidCompression=yes
 PrivilegesRequired=lowest
@@ -25,6 +25,7 @@ UninstallDisplayIcon={app}\Brand\alfa_company.ico
 DisableDirPage=no
 DisableProgramGroupPage=yes
 UsePreviousTasks=yes
+UsePreviousSetupType=yes
 UsePreviousLanguage=no
 CloseApplications=yes
 RestartApplications=no
@@ -37,7 +38,7 @@ Name: "custom"; Description: "Uygulamaları kendim seçeceğim"; Flags: iscustom
 
 [Components]
 Name: "staff"; Description: "ALFA ERP Personel"; Types: full custom
-Name: "owner"; Description: "ALFA ERP Yönetici (kurulum parolası gerekir)"; Types: custom
+Name: "owner"; Description: "ALFA ERP Yönetici (Firebase owner yetkisi gerekir)"; Types: custom
 Name: "banner"; Description: "ALFA Banner Studio Pro v3.13"; Types: full custom
 Name: "print"; Description: "ALFA Print Surveillance v2.0"; Types: full custom
 Name: "print\agent"; Description: "Windows oturumu arka plan izleyicisi"; Types: full custom
@@ -80,16 +81,15 @@ Filename: "{app}\PrintSupervisor\AlfaPrintSupervisor.exe"; Parameters: "--data-d
 Filename: "{app}\Notifications\AlfaBildirim.exe"; Flags: nowait postinstall skipifsilent; Components: staff; Check: NotUpdate
 
 [Code]
-var
-  OwnerPasswordPage: TInputQueryWizardPage;
-
+// Edition selection is installation preference, NOT cloud authorization.
+// Firebase Auth and RTDB rules verify every owner operation.
 function HasCommand(Flag: String): Boolean;
 var
   I: Integer;
 begin
   Result := False;
   for I := 1 to ParamCount() do
-    if CompareText(ParamStr(I), Flag) = 0 then
+    if CompareText(ParamStr(I),Flag) = 0 then
     begin
       Result := True;
       Exit;
@@ -101,54 +101,29 @@ begin
   Result := not HasCommand('/ALFAUPDATE');
 end;
 
-function OwnerPasswordValid(): Boolean;
+function ExistingSuite(): Boolean;
 begin
-  Result := CompareText(
-    GetSHA256OfString(
-      'ALFA-ERP-OWNER-SETUP-v1-4a81f7|' + OwnerPasswordPage.Values[0]),
-    '60d251ed1c49cd140d00d6caae45f13bbab68322b0735f03b4142e2fe36210a7'
-  ) = 0;
+  Result := FileExists(ExpandConstant('{localappdata}\Programs\ALFACOPYCENTER\Brand\ALFACOPYCENTER.png'));
 end;
 
 procedure InitializeWizard();
 begin
-  OwnerPasswordPage := CreateInputQueryPage(wpSelectComponents,
-    'Yönetici kurulumu', 'Yönetici ERP için ek kurulum doğrulaması',
-    'Yalnız seçili Yönetici bileşeni için parola sorulur. Bulut yönetici '
-    + 'yetkisi Firebase rolüyle ayrıca denetlenir.');
-  OwnerPasswordPage.Add('Yönetici kurulum parolası:', True);
-
-  // Legacy ALFA ERP update helper requests its existing edition.
-  // Unlike a silent shortcut it never bypasses owner verification.
+  // Existing suite keeps its previous selected components across upgrades.
+  // Only first-time migration from pre-Suite ERP uses the requested edition.
+  if ExistingSuite() then Exit;
   if HasCommand('/ALFAOWNER') then
-    WizardSelectComponents('owner,banner,print,print\agent')
+    WizardSelectComponents('owner')
   else if HasCommand('/ALFASTAFF') then
-    WizardSelectComponents('staff,banner,print,print\agent')
+    WizardSelectComponents('staff')
   else if HasCommand('/ALFABANNER') then
-    WizardSelectComponents('banner');
-end;
-
-function ShouldSkipPage(PageID: Integer): Boolean;
-begin
-  Result := (PageID = OwnerPasswordPage.ID) and
-            (not WizardIsComponentSelected('owner'));
-end;
-
-function NextButtonClick(CurPageID: Integer): Boolean;
-begin
-  Result := True;
-  if (CurPageID = OwnerPasswordPage.ID) and
-      WizardIsComponentSelected('owner') then
-  begin
-    Result := OwnerPasswordValid();
-    if not Result then
-      MsgBox('Yönetici kurulum parolası geçersiz.', mbError, MB_OK);
-  end;
+    WizardSelectComponents('banner')
+  else if HasCommand('/ALFAPRINT') then
+    WizardSelectComponents('print,print\agent');
 end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
   Result := '';
-  if WizardIsComponentSelected('owner') and not OwnerPasswordValid() then
-    Result := 'Yönetici kurulum parolası gerekli.';
+  // Never overwrite any locally cached order, cover, design or print history.
+  // Such data lives outside the installer directory.
 end;
