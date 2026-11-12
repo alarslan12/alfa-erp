@@ -11,5 +11,5 @@ export const firebaseConfig = Object.freeze({
   messagingSenderId: "992806140382",
   appId: "1:992806140382:web:0cab0fed51b72fba91054f"
 });
-// Confirmed source workspace UUID, from Supabase read-only query.
+// Stable ALFA ERP workspace identifier.
 export const workspaceId = "e2fc57b1-ef52-47b2-a6c9-ecd2e3832756";
