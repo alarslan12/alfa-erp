@@ -1,4 +1,4 @@
-"""Owner-only Firebase RTDB administration without Supabase or secret keys."""
+"""Owner-only Firebase RTDB administration with Firebase Rules and no embedded admin secrets."""
 from __future__ import annotations
 import base64
 import copy
@@ -262,7 +262,7 @@ def admin_request(cloud,action,timeout=None,**kwargs):
         client._request("PUT","members/"+uid,{**old,"active":False})
         return {"revoked":True}
     if action=="admin_audit":
-        # Archive from Supabase migration is intentionally NOT readable by
+        # Archived legacy records are intentionally NOT readable by
         # staff/owner RTDB rules. Fetching it used to return HTTP 401, falsely
         # shown as "Firebase oturumu gecersiz".
         # Only user-requested refresh accesses this data; no background loop.
