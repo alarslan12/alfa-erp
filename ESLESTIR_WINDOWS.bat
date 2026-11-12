@@ -1,7 +1,5 @@
 @echo off
-cd /d "%~dp0"
-if exist ".venv\Scripts\python.exe" (
-  ".venv\Scripts\python.exe" cihaz_eslestir.py
-) else (
-  python cihaz_eslestir.py
-)
+chcp 65001 >nul
+echo Firebase cihaz eslestirmesi, ALFA ERP icindeki Cihaz yetkisi menusunden yapilir.
+echo Uygulama aciliyor...
+call "%~dp0BASLAT_WINDOWS.bat"
