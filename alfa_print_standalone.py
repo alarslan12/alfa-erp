@@ -65,6 +65,10 @@ class PrintWindow(QMainWindow):
             "okur; izinleri veya yazdırma kuyruğunu değiştirmez.")
         diagnostic.clicked.connect(self.show_diagnostics)
         top.addWidget(diagnostic)
+        update_button=QPushButton("Güncelleme Merkezi")
+        update_button.setToolTip("Suite Personel, Yönetici, Banner Studio ve Print Center güncellemelerini denetler.")
+        update_button.clicked.connect(self.open_update_center)
+        top.addWidget(update_button)
         top.addWidget(QLabel("Tema"))
         themes = QComboBox()
         for label, key in (("Koyu", "koyu"), ("Açık", "acik"),
@@ -89,6 +93,11 @@ class PrintWindow(QMainWindow):
         self.setStyleSheet("QMainWindow {background: #102033; color: #f3f8fe;}"
                            "QStatusBar {color: #d1e5f1;}")
         self.change_theme(str(themes.currentData()))
+
+    def open_update_center(self):
+        from suite_update_center import PrintSuiteUpdateDialog
+        dialog=PrintSuiteUpdateDialog(self)
+        dialog.exec()
 
     def change_theme(self, theme):
         theme = theme if theme in ("koyu", "acik", "kontrast") else "koyu"
