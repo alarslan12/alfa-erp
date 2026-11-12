@@ -44,6 +44,38 @@ class DatabaseTests(unittest.TestCase):
         self.assertEqual(reopened.siparisler[0]['id'], 1)
         self.assertEqual(reopened.siparis_durumu(reopened.siparisler[0]), 'tamamlandi')
 
+    def test_gardrops_revenue_is_full_entered_amount(self):
+        """Gardrops sales must not be multiplied by the old 90% rule."""
+        order=self.db.yeni_siparis_olustur(
+            {'kod':'123456789','platform':'Gardrops','ciro':245.75,
+             'siparis_turu':'Normal Sipariş'},
+            [{'kod':self.book,'tur':'SB','adet':1,'hazir':0,'koli':0}])
+        self.assertEqual(order['ciro'],245.75)
+        from database import ERPDatabase
+        reopened=ERPDatabase(ROOT / 'KİTAPS.xlsx', data_dir=self.tmp.name)
+        self.assertEqual(reopened.siparisler[0]['ciro'],245.75)
+
+    def test_paired_device_can_enqueue_orders_after_offline_restart(self):
+        """Previously validated workstations remain writable without network."""
+        epoch='verified-workspace-epoch'
+        self.db._atomik_json_yaz(
+            str(Path(self.tmp.name)/'alfa_cloud_epoch.json'),{'epoch':epoch})
+        from database import ERPDatabase
+        reopened=ERPDatabase(ROOT / 'KİTAPS.xlsx', data_dir=self.tmp.name)
+        self.assertEqual(reopened.cloud_epoch,epoch)
+        class NoNetwork:
+            def __getattr__(self,name):
+                raise AssertionError('No network call allowed while offline')
+        reopened.cloud_required=True
+        reopened.cloud_api=NoNetwork()
+        order=reopened.yeni_siparis_olustur(
+            {'kod':'TEST-OFFLINE','platform':'Manuel','ciro':90,
+             'siparis_turu':'Normal Sipariş'},
+            [{'kod':self.book,'tur':'SB','adet':1,'hazir':0,'koli':0}])
+        self.assertEqual(order['ciro'],90.0)
+        self.assertEqual(reopened.pending_count,1)
+        self.assertEqual(reopened.next_outbox_batch()['kind'],'commit')
+
     def test_cloud_queue_dependency_order_and_ack(self):
         order = self.new_order(connected=True)
         self.assertEqual(self.db.pending_count, 1)
