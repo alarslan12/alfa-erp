@@ -53,7 +53,7 @@ jobs:
         run: |
           python -u -c "import unittest,faulthandler,sys; faulthandler.dump_traceback_later(150,exit=True); r=unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.discover('tests')); sys.exit(not r.wasSuccessful())"
           if ($LASTEXITCODE -ne 0) { throw 'Firebase or Suite regression tests failed' }
-          python -u tools/test_print_contract.py
+          python -u -m unittest -v tools.test_print_contract
           if ($LASTEXITCODE -ne 0) { throw 'Print contract checks failed' }
 
       - name: Install Inno Setup 6
