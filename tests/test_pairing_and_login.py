@@ -48,7 +48,7 @@ class FirebasePairingTests(unittest.TestCase):
 
     def test_owner_actions_do_not_use_stored_app_passwords(self):
         from pathlib import Path
-        installer=(Path(__file__).resolve().parents[1]/'alfa_tek_kurulum.iss').read_text('utf-8')
+        installer=(Path(__file__).resolve().parents[1]/'ALFACOPYCENTER_Suite.iss').read_text('utf-8')
         self.assertNotIn('OwnerPasswordValid',installer)
         self.assertNotIn('GetSHA256OfString',installer)
         self.assertIn('Firebase',installer)
