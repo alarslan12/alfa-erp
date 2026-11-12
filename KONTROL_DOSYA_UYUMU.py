@@ -1,4 +1,4 @@
-"""ALFA ERP V6.1.2 - source compatibility inspection.
+"""ALFA ERP Firebase v1.1.2 - source compatibility inspection.
 This checks only currently used application modules. Retired cloud settings UI
 (ekran_bulut.py / CloudPage) is NOT a project requirement.
 """
@@ -8,10 +8,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 BASE_REQUIRED = {
     'main.py': {'AlfaMain', 'start'},
-    'alfa_bulut.py': {'AlfaCloud', 'CloudError'},
-    'alfa_cihaz.py': {'Workstation', 'DeviceError'},
+    'alfa_rtdb.py': {'Workstation', 'DeviceError'},
+    'cihaz_sifreleme.py': {'crypt'},
+    'ekran_baslangic.py': {'StartupSplash', 'launch_with_splash'},
     'bulut_canli.py': {'Sync'},
-    'bulut_gelen_kutusu.py': {'CloudInboxSynchronizer'},
     'mobil_siparis_donusum.py': {'convert_mobile_order'},
     'ekran_envanter.py': {'EnvanterView'},
     'widgets.py': {'fallback_cover_pixmap', 'refresh_cover_placeholders', 'cover_label'},
@@ -19,7 +19,7 @@ BASE_REQUIRED = {
     'editor_siparis.py': {'SiparisTakipSekmeleri', 'SiparisEditor'},
 }
 ADMIN_REQUIRED = {
-    'yonetici_giris.py': {'AdminLogin'},
+    'rtdb_owner_admin.py': {'admin_request'},
     'yonetici_kompakt.py': {'OwnerSettingsPage'},
 }
 
