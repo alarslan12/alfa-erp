@@ -38,8 +38,7 @@ try {
   Write-Host 'ALFA ERP gerekli bileşenleri kuruluyor...'
   & $Virtual -m pip install -r (Join-Path $Install 'requirements.txt') --disable-pip-version-check
   if($LASTEXITCODE -ne 0) {throw 'Python modülleri kurulamadı.'}
-  & $Virtual (Join-Path $Install 'auto_eslestir.py')
-  if($LASTEXITCODE -ne 0) {throw 'Otomatik cihaz kaydı başarısız oldu.'}
+  Write-Host 'Firebase cihaz yetkisi uygulama içerisinden bir defa onaylanır.'
   $Pythonw=Join-Path $Install '.venv\Scripts\pythonw.exe'
   $ws=New-Object -ComObject WScript.Shell
   $link=Join-Path ([Environment]::GetFolderPath('Desktop')) 'ALFA ERP Personel.lnk'
