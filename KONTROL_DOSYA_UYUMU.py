@@ -8,6 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 BASE_REQUIRED = {
     'main.py': {'AlfaMain', 'start'},
+    'ekran_baslangic.py': {'StartupSplash'},
     'alfa_bulut.py': {'AlfaCloud', 'CloudError'},
     'alfa_cihaz.py': {'Workstation', 'DeviceError'},
     'bulut_canli.py': {'Sync'},
