@@ -4,7 +4,7 @@ from pathlib import Path
 from PySide6.QtCore import QTimer,QThread,Signal,Qt,QLockFile
 from PySide6.QtWidgets import QApplication,QSystemTrayIcon,QMenu,QDialog,QVBoxLayout,QLabel,QPushButton
 from PySide6.QtGui import QPixmap,QIcon,QPainter,QColor,QFont,QAction
-from alfa_cihaz import DATA
+from cihaz_sifreleme import DATA
 from alfa_rtdb import Workstation
 from bildirim_sesleri import configured_sound,play_order_sound
 from alfa_hatalar import install_reporter,record_error,connect_device
