@@ -40,35 +40,18 @@ if($Edition -eq 'personel') {
   '--add-data','assets;assets','--hidden-import=PySide6.QtPdf','main.py')
  Run $Virtual @('-m','PyInstaller','--noconfirm','--clean','--onedir','--windowed',
   '--name','AlfaBildirim','--icon=assets\icons\alfa_personel.ico','bildirim_servisi.py')
- $iss='alfa_personel.iss'
+ Run $Virtual @('-m','PyInstaller','--noconfirm','--clean','--onedir','--windowed',
+  '--name','AlfaPrintAgent','--icon=assets\icons\alfa_print.ico',
+  '--add-data','assets;assets','alfa_print_agent.py')
 } elseif($Edition -eq 'yonetici') {
  Run $Virtual @('-m','PyInstaller','--noconfirm','--clean','--onedir','--windowed',
   '--name','AlfaERPYonetici','--icon=assets\icons\alfa_yonetici.ico','--add-data','YONETICI_SURUMU.flag;.',
   '--add-data','KİTAPS.xlsx;.','--add-data','katalog.json;.',
   '--add-data','assets;assets','--hidden-import=PySide6.QtPdf','--hidden-import=yonetici_kompakt','main.py')
- $iss='alfa_yonetici.iss'
+
 } else {
- foreach($required in @('dist\AlfaERP\AlfaERP.exe','dist\AlfaERPYonetici\AlfaERPYonetici.exe','dist\AlfaBildirim\AlfaBildirim.exe')) {
-  if(-not (Test-Path $required)){ throw "Ortak kurulum icin eksik uygulama: $required" }
- }
- $iss='alfa_tek_kurulum.iss'
+ throw 'ALFA_BUILD_WINDOWS.ps1 sadece ERP personel / yonetici bilesenlerini derler. Suite icin ALFA_BUILD_SUITE_WINDOWS.ps1 kullanin.'
 }
-if($SkipInstaller){Write-Host "Sadece $Edition EXE hazirlandi."; return}
-$Candidates=@(
- "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
- "$env:ProgramFiles\Inno Setup 6\ISCC.exe",
- "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe"
-)
-$Iscc=$Candidates | Where-Object {$_ -and (Test-Path $_)} | Select-Object -First 1
-if(-not $Iscc) {
- if(-not (Get-Command winget.exe -ErrorAction SilentlyContinue)) {
-  throw 'Inno Setup 6 bulunamadı ve winget yok; sadece derleme bilgisayarına Inno Setup 6 kurulmalıdır.'
- }
- Write-Host 'Sadece derleme bilgisayarına Inno Setup kuruluyor...'
- Run 'winget.exe' @('install','-e','--id','JRSoftware.InnoSetup','--silent',
-  '--accept-package-agreements','--accept-source-agreements')
- $Iscc=$Candidates | Where-Object {$_ -and (Test-Path $_)} | Select-Object -First 1
- if(-not $Iscc){throw 'Inno Setup kuruldu fakat ISCC.exe bulunamadı.'}
+if(-not $SkipInstaller) {
+ Write-Host 'Tek dagitim bicimi Suite Setup. ALFA_BUILD_SUITE_WINDOWS.ps1 dosyasini kullanin.'
 }
-Run $Iscc @($iss)
-Write-Host 'Tamamlandı: output klasöründe Windows Setup.exe oluşturuldu.'
