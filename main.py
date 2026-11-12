@@ -564,10 +564,12 @@ def start():
             splash.close()
             QMessageBox.critical(None,'ALFA ERP başlangıç hatası',
                 str(exc)+'\n\n'+traceback.format_exc(limit=3))
-            app.quit()
+            state['failed']=True
+            app.exit(1)
 
     QTimer.singleShot(0,load)
-    return app.exec()
+    code=app.exec()
+    return 1 if state.get('failed') else code
 
 
 
@@ -593,6 +595,15 @@ def release_smoke_test():
         app.setStyle('Fusion')
         window=None
         try:
+            # Smoke the actual splash widget as well as normal ERP windows.
+            from ekran_baslangic import StartupSplash
+            splash=StartupSplash(owner=OWNER_EDITION,version=VERSION)
+            splash.show()
+            splash.update_step('storage','Yerel dosyalar doğrulandı.')
+            app.processEvents()
+            if splash.progress.value()!=1:
+                raise RuntimeError('Startup splash status did not advance')
+            splash.close()
             window=AlfaMain(admin_cloud=None)
             from alfa_cihaz import OWNER_APP,SECRET
             from auto_eslestir import ROOT as PRIVATE_TICKET_ROOT
