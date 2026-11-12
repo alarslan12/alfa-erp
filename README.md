@@ -1,44 +1,72 @@
-# ALFA ERP v1.1.2 — Firebase masaüstü uygulaması
+# ALFACOPYCENTER Suite v2.0.13
 
-**Personel ve Yönetici**, tek Windows Setup.exe içerisinde ayrı kurulum
-seçenekleridir. Masaüstü uygulaması PySide6, Firebase Authentication ve
-Firebase Realtime Database kullanır.
+**Tek Windows kurulumu**, dört seçilebilir bileşen:
 
-## Bu sürümde
+| Bileşen | Kaynak/çalıştırılabilir | Kurulum |
+|---|---|---|
+| ALFA ERP Personel | Staff/AlfaERP.exe | Seçilebilir, varsayılan |
+| ALFA ERP Yönetici | Owner/AlfaERPYonetici.exe | Seçilebilir; Firebase'de yetkili owner rolü zorunlu |
+| ALFA Banner Studio Pro | BannerStudio/AlfaBannerStudio.exe | Seçilebilir, varsayılan |
+| ALFA Print Center | PrintSurveillance/AlfaPrintSurveillance.exe | Seçilebilir, varsayılan |
+| Arka plan yardımcıları | Bildirim, PrintAgent, PrintSupervisor | Seçilen bileşene bağlı |
 
-- Açılışta ALFA ERP splash screen: yerel dosyalar, sipariş kuyruğu, katalog,
-  cihaz kimliği ve Firebase bağlantısı denetimi.
-- İnternet yokken uygulama en fazla kısa bir bağlantı denetiminden sonra
-  çevrimdışı açılır. Önceden doğrulanmış çalışma alanı işareti diskten alınır;
-  gönderilmeyi bekleyen kuyruk korumalıdır.
-- Firebase SSE ile değişiklik bildirimi ve kaçırılan olaylar için
-  aktif kullanımda 10–13 saniye, boşta 45–52 saniye fallback senkronizasyon.
-- Gardrops siparişine girilen tutarın **%100'ü** kaydedilir; %90 kesinti yoktur.
-- Eski bulut istemcileri ve geçiş araçları aktif kaynak ağacından kaldırılmıştır.
-- Firebase cihaz kimlikleri Windows DPAPI ile şifrelenir. Personel ve Yönetici
-  cihaz oturumları birbirinden ayrıdır.
-- Yönetici yetkisi yalnızca Firebase Security Rules ve onaylı owner UID ile
-  belirlenir; kuruluma gömülü sabit bir yönetici şifresi bulunmaz.
-- Yerel Katalog ve Siparişler ekranlarının mevcut tasarımı korunur.
+Kurulum: `ALFACOPYCENTER_Suite_Setup_V2_0_13.exe`. Aynı Inno Setup AppId
+(`ALFACOPYCENTER.Suite`) ve kurulum yolu korundu:
+`%LOCALAPPDATA%\Programs\ALFACOPYCENTER`.
 
-## Kurulum
+## Güncelleme Merkezi
 
-\`ALFA_ERP_Setup_V1_1_2.exe\` üzerinden Personel veya Yönetici seçin.
-Eski sürümün üzerine kurarken **\`%LOCALAPPDATA%\AlfaERP\` klasörünü silmeyin**.
-Burada cihaz kimliği, siparişler ve gönderilmeyi bekleyen işlemler bulunur.
+Personel, Yönetici, Banner Studio ve Print Center **aynı kararlı Suite
+sürümünü** kontrol eder. Yalnız `v2.x` Suite GitHub Releases ve gerçek
+`ALFACOPYCENTER_Suite_Setup_Vx_y_z.exe` + `SHA256SUMS.txt` birlikte
+yayımlandıysa güncelleme sunulur. Diğer geçmiş ERP v1/v6 yayınları Suite
+güncellemesi sayılmaz.
 
-Firebase rolü bilinmeyen bir bilgisayara yönetici sürümünü kurmak,
-bulut üzerinde yönetici ayrıcalığı vermez. Cihaz onayı Firebase ile yapılır.
+Paket indirildikten sonra SHA-256 doğrulanır. Onaylanan güncelleme sırasında
+uygulama kapanır, mevcut Suite'in seçili bileşenleri korunur ve aynı
+uygulama yeniden başlatılır. ERP işlem kuyruğu doluysa ERP güncellemesi
+engellenir. Print Center, yerel ERP kuyruğunu ayrıca kontrol eder.
+Banner Studio kendi yerel web Güncelleme Merkezi'ne sahiptir.
 
-## Yayımlama ve test
+Güncelleme **otomatik kontrol** ve **kullanıcı onaylı kurulum** yapar;
+kullanıcı izni olmadan uygulama değiştirilmez.
 
-Kaynak kodu: \`firebase-rtdb-final\` dalı.
-GitHub Actions: \`.github/workflows/firebase-rtdb-preview.yml\`.
-Güvenlik kuralları: \`firebase/database.rules.json\`.
-Kuralların Firebase'e yayımlanması ayrıca yetkili bir proje hesabı gerektirir.
+## Firebase ve çevrimdışı mod
 
-Önceki çevrimdışı veri ve kuyrukların korunması, bilgisayarların fiziksel
-bağlantı kesintisiyle test edilmesi ve Firebase Rules yetkilerinin gerçek
-bir test hesabıyla doğrulanması üretime alma önkoşuludur.
+Personel ve Yönetici bulutta Firebase Authentication + Realtime Database
+kullanır. Firebase cihaz kimlikleri Windows DPAPI ile korunur.
+Başarılı ilk eşitlemeden sonra internet kesintisinde sipariş kuyruğu yerelde
+kalır; doğru çalışma alanı yeniden doğrulanmadan buluta gönderilmez.
+Firebase SSE etkin bildirim kullanır, kaçırılan olaylar periyodik denetlenir.
+Gardrops satışında girilen tutarın **%100'ü** saklanır.
 
-[Kurulum ve işletim rehberi](firebase/RTDB_KURULUM.md)
+Açılış splash ekranında yerel dosyalar, kuyruk, katalog, cihaz kimliği ve
+Firebase durumu ayrı gösterilir. İnternet olmaması uygulamayı süresiz
+bekletmez. Mevcut Katalog ve Siparişler ekran tasarımı korunur.
+
+## Veriler korunur
+
+**Aşağıdaki kullanıcı klasörlerini silmeyin:**
+
+- `%LOCALAPPDATA%\AlfaERP`: siparişler, kuyruk, Firebase kimlikleri,
+  bildirimler ve Print Center geçmişi.
+- `%LOCALAPPDATA%\ALFA_Banner_Studio_Pro`: afiş tasarımları, kapaklar,
+  fiyatlar ve çalışma arşivi.
+
+Yeni sürüm önceki Suite v2.x kurulumuna yükseltme olarak uygulanır.
+İlk geçişte eski v1 ERP kurulumuyla yan yana bulunabilir; eski kısayolu
+yeniden kullanmayın.
+
+## Derleme ve doğrulama
+
+Tek dağıtım komutu: `ALFA_BUILD_SUITE_WINDOWS.ps1`.
+Tek dağıtım manifesti: `ALFACOPYCENTER_Suite.iss`.
+Tek Windows kalite kapısı: `.github/workflows/alfacopycenter-suite.yml`.
+Eski tekil ERP Setup betikleri yeni derlemeden çıkarılmıştır.
+
+Yerel/CI testleri, gerçek Firebase hesap onayı ve fiziksel yazıcı
+hatalarını tek başına doğrulamaz. Uçtan uca iki-PC senkronizasyon ve
+fiziksel çıktı güvenilirliği ayrı operatör doğrulaması gerektirir.
+
+[Suite yayınları](https://github.com/alarslan12/alfa-erp/releases) ·
+[Firebase kurulum rehberi](firebase/RTDB_KURULUM.md)
