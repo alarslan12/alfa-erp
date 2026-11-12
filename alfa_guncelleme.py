@@ -23,14 +23,14 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-GITHUB_API="https://api.github.com/repos/alarslan12/alfa-erp/releases/latest"
+GITHUB_API="https://api.github.com/repos/alarslan12/alfa-erp/releases?per_page=100"
 REPO_PREFIX="https://github.com/alarslan12/alfa-erp/releases/download/"
 UPDATE_HOSTS={
     "github.com","release-assets.githubusercontent.com",
     "objects.githubusercontent.com","github-releases.githubusercontent.com",
 }
 VERSION_PATTERN=re.compile(r"^v?([0-9]+)\.([0-9]+)\.([0-9]+)$")
-MAX_SETUP_SIZE=230*1024*1024
+MAX_SETUP_SIZE=600*1024*1024
 MAX_CHECKSUM_SIZE=32768
 
 
@@ -77,45 +77,87 @@ def _asset(assets,name,release_tag):
     raise UpdateError("Kararlı sürümün gerekli dosyaları eksik: "+name)
 
 
+def _network_error(exc):
+    if isinstance(exc,urllib.error.HTTPError):
+        if exc.code==403:
+            return "HTTP 403: engellenmiş veya API istek sınırı aşılmış"
+        if exc.code==429:
+            return "HTTP 429: GitHub istek sınırı"
+        if exc.code==404:
+            return "HTTP 404: yayımlanmış sürüm bulunamadı"
+        return f"HTTP {exc.code}"
+    reason=getattr(exc,"reason",exc)
+    if isinstance(reason,TimeoutError):
+        return "bağlantı zaman aşımı"
+    message=str(reason).strip()
+    if "CERTIFICATE_VERIFY_FAILED" in message or "certificate verify failed" in message:
+        return "Windows/Python HTTPS sertifika doğrulaması başarısız"
+    if "getaddrinfo failed" in message or "Name or service not known" in message:
+        return "DNS alan adı çözümlenemedi"
+    if "timed out" in message.lower():
+        return "bağlantı zaman aşımı"
+    if "proxy" in message.lower():
+        return "proxy bağlantı hatası"
+    if "refused" in message.lower():
+        return "bağlantı reddedildi"
+    if "reset" in message.lower():
+        return "bağlantı sıfırlandı"
+    return (message or type(reason).__name__)[:145]
+
+
 def check_for_update(current,edition):
-    """At most one GET to the public GitHub latest endpoint."""
+    """Find the newest stable *Suite* release, ignoring unrelated legacy tags.
+
+    GitHub /releases/latest can point to the separate v6 ERP release, which
+    would permanently break v2 Suite update discovery.
+    """
     try:
         with _request(GITHUB_API) as response:
             if response.geturl()!=GITHUB_API:
-                raise UpdateError("GitHub sürüm adresi değiştirildi")
-            data=json.load(response)
-    except urllib.error.HTTPError as exc:
-        if exc.code==404:
-            raise UpdateError(
-                "GitHub'da henüz kalıcı kararlı sürüm yayımlanmadı. "
-                "Yönetici Releases sayfasından yayınlamalı.") from None
-        raise UpdateError("GitHub güncelleme servisi HTTP "+str(exc.code)) from None
-    except (urllib.error.URLError,OSError,TimeoutError,ValueError):
-        raise UpdateError("GitHub sürüm kontrolüne erişilemiyor") from None
-    if data.get("draft") or data.get("prerelease"):
-        raise UpdateError("Önizleme sürümleri otomatik yüklenmez")
-    tag=str(data.get("tag_name") or "")
-    available=version_tuple(tag)
+                raise UpdateError("GitHub sürüm adresi farklı yere yönlendirildi")
+            releases=json.load(response)
+    except (urllib.error.HTTPError,urllib.error.URLError,TimeoutError,OSError,ValueError) as exc:
+        raise UpdateError("Suite sürüm listesi alınamadı: "+_network_error(exc)) from None
+    if not isinstance(releases,list):
+        raise UpdateError("GitHub sürüm listesi geçersiz")
     running=version_tuple(current)
-    # Product numbering restarted at v1.0.0 after the Firebase 6.x preview.
-    # Until v1 reaches GitHub Releases/latest, do NOT treat the legacy
-    # v6.x release as a newer compatible unified-installer update.
-    if (running[0]==1 and available[0]>=6) or available<=running:
+    valid=[]
+    for entry in releases:
+        if not isinstance(entry,dict) or entry.get("draft") or entry.get("prerelease"):
+            continue
+        tag=str(entry.get("tag_name") or "")
+        try:
+            version=version_tuple(tag)
+        except UpdateError:
+            continue
+        # v1 was the previous edition-selectable ERP, v6 is obsolete/other.
+        # Only v2+ Suite assets participate in the unified Suite channel.
+        if version[0]!=2:
+            continue
+        name="ALFACOPYCENTER_Suite_Setup_V"+"_".join(str(n) for n in version)+".exe"
+        asset_names={str(a.get("name")) for a in (entry.get("assets") or [])
+                     if isinstance(a,dict)}
+        if name not in asset_names or "SHA256SUMS.txt" not in asset_names:
+            continue
+        valid.append((version,entry,name))
+    if not valid:
+        return {"available":False,"latest":None}
+    version,entry,name=max(valid,key=lambda x:x[0])
+    tag=str(entry.get("tag_name") or "")
+    if version<=running:
         return {"available":False,"latest":tag}
-    # Both editions are distributed in ONE setup; the user selects the
-    # edition in the installer and owner installs require the setup password.
-    version="_".join(str(x) for x in available)
-    name=f"ALFA_ERP_Setup_V{version}.exe"
-    assets=data.get("assets") or []
-    installer=_asset(assets,name,tag)
-    checksum=_asset(assets,"SHA256SUMS.txt",tag)
+    installer=_asset(entry["assets"],name,tag)
+    checksum=_asset(entry["assets"],"SHA256SUMS.txt",tag)
     if not 100000<=installer["size"]<=MAX_SETUP_SIZE:
-        raise UpdateError("Güncelleme kurulum dosyasının boyutu geçersiz")
+        raise UpdateError("Suite kurulum dosyasının boyutu geçersiz")
+    if not 1<=checksum["size"]<=MAX_CHECKSUM_SIZE:
+        raise UpdateError("Suite SHA-256 dosyasının boyutu geçersiz")
     return {
-        "available":True,"latest":tag,"version":".".join(map(str,available)),
+        "available":True,"latest":tag,
+        "version":".".join(str(n) for n in version),
         "installer":installer,"checksum":checksum,
-        "notes":str(data.get("body") or "")[:1400],
-        "release_url":str(data.get("html_url") or ""),
+        "notes":str(entry.get("body") or "")[:1400],
+        "release_url":str(entry.get("html_url") or ""),
     }
 
 
@@ -230,10 +272,14 @@ try {
     if ($actual -ne $Sha256.ToLowerInvariant()) {
         throw 'SHA-256 uyusmuyor; kurulum iptal edildi.'
     }
-    # One installer contains both editions. The existing edition is
-    # preselected; the owner still enters the normal setup password.
+    # One Suite installer contains all components. Inno retains the
+    # previously selected components without any embedded admin password.
     $editionArg = if ([IO.Path]::GetFileName($TargetExe) -ieq 'AlfaERPYonetici.exe') {
         '/ALFAOWNER'
+    } elseif ([IO.Path]::GetFileName($TargetExe) -ieq 'AlfaBannerStudio.exe') {
+        '/ALFABANNER'
+    } elseif ([IO.Path]::GetFileName($TargetExe) -ieq 'AlfaPrintSurveillance.exe') {
+        '/ALFAPRINT'
     } else {
         '/ALFASTAFF'
     }
@@ -243,6 +289,22 @@ try {
     ) -PassThru -Wait -ErrorAction Stop
     if ($p.ExitCode -ne 0) {
         throw "Kurulum tamamlanmadi (cikis kodu $($p.ExitCode))."
+    }
+    # A v1->v2 upgrade installs to the new suite directory without
+    # deleting the old data/EXE. Start the newly installed edition,
+    # NEVER silently start the obsolete v1 binary.
+    $suiteRoot = Join-Path $env:LOCALAPPDATA 'Programs\ALFACOPYCENTER'
+    $suiteExe = if ($editionArg -eq '/ALFAOWNER') {
+        Join-Path $suiteRoot 'Owner\AlfaERPYonetici.exe'
+    } elseif ($editionArg -eq '/ALFABANNER') {
+        Join-Path $suiteRoot 'BannerStudio\AlfaBannerStudio.exe'
+    } elseif ($editionArg -eq '/ALFAPRINT') {
+        Join-Path $suiteRoot 'PrintSurveillance\AlfaPrintSurveillance.exe'
+    } else {
+        Join-Path $suiteRoot 'Staff\AlfaERP.exe'
+    }
+    if (Test-Path -LiteralPath $suiteExe -PathType Leaf) {
+        $TargetExe = $suiteExe
     }
     if (-not (Test-Path -LiteralPath $TargetExe -PathType Leaf)) {
         throw 'Kurulum bitti ama uygulamanin EXE dosyasi bulunamadi.'
@@ -273,7 +335,7 @@ def launch_update(verified,storage,app_executable,pending=0):
     if not getattr(sys,"frozen",False) or os.name!="nt":
         raise UpdateError("Otomatik yükleme yalnız kurulu Windows uygulamasında çalışır")
     exe=Path(app_executable).resolve()
-    if exe.name.lower() not in ("alfaerp.exe","alfaerpyonetici.exe"):
+    if exe.name.lower() not in ("alfaerp.exe","alfaerpyonetici.exe","alfabannerstudio.exe","alfaprintsurveillance.exe"):
         raise UpdateError("Bilinmeyen ALFA ERP uygulaması")
     setup=Path(str(verified["path"])).resolve()
     if setup.suffix.lower()!=".exe" or not setup.is_file():
