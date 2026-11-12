@@ -169,9 +169,13 @@ class Sync(QObject):
             self.pull_task=None
             self.force_pull=True
             self._consecutive_pull_failures+=1
+            # Retry transient offline/timeout failures promptly, but back off
+            # server overload/rate-limit responses to protect Supabase.
+            retry_base=3 if status in (0,408) else (
+                60 if status in (429,500,502,503,504) else 30)
+            retry_cap=30 if status in (0,408) else 600
             self._pull_retry_after=time.monotonic()+min(
-                600,(60 if status in (429,500,502,503,504) else 30)*
-                (2**min(self._consecutive_pull_failures-1,4)))
+                retry_cap,retry_base*(2**min(self._consecutive_pull_failures-1,4)))
             self._retune_poll()
             self._status(False, 'Bulut eşitlemesi beklemede: '+message[:160])
         worker.done.connect(finish)
@@ -239,8 +243,12 @@ class Sync(QObject):
             # Network/timeouts/503 and revoked keys are NOT permanent poison
             # actions. Preserve the exact op_id so retries stay idempotent.
             self._consecutive_push_failures+=1
+            # A temporary loss of internet gets a quick first retry; repeated
+            # failures slow to 30s. Server errors retain conservative backoff.
+            retry_base=3 if status in (0,408) else 45
+            retry_cap=30 if status in (0,408) else 600
             self.retry_after=time.monotonic()+min(
-                600,45*(2**min(self._consecutive_push_failures-1,4)))
+                retry_cap,retry_base*(2**min(self._consecutive_push_failures-1,4)))
             self._status(False,'Bulut işlemi geçici beklemede: '+
                 message[:150]+' · kuyruk korunuyor')
         worker.done.connect(finish)
