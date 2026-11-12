@@ -4,15 +4,14 @@ Run only in a trusted Google Cloud Shell with ADC and repo venv.
 """
 import uuid
 from collections import Counter
-from rtdb_migrate import request, session
+from firebase_admin_access import read as firebase_read
 
 WSID = "e2fc57b1-ef52-47b2-a6c9-ecd2e3832756"
 ROOT = "alfa/" + WSID
 
 
-def read(client, node):
-    value, _, _ = request(client, "GET", ROOT + "/" + node)
-    return value or {}
+def read(_client, node):
+    return firebase_read(node) or {}
 
 
 def rows(obj):
@@ -24,7 +23,7 @@ def rows(obj):
 
 
 def diagnose():
-    client = session()
+    client = None  # Firebase Admin uses scoped Google ADC, not a shared session.
     print("ALFA ERP Firebase RTDB — salt okunur kontrol")
     meta = read(client, "meta")
     orders = read(client, "orders")
