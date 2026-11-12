@@ -71,9 +71,10 @@ class Sync(QObject):
         self._last_status = None
         self.timer = QTimer(self)
         self._recent_until = time.monotonic() + 16
-        # Free-tier safety: reduce repetitive polling on multiple machines.
-        self._active_poll_ms = 30000 + (id(self) % 5000)
-        self._idle_poll_ms = 90000 + (id(self) % 15000)
+        # Responsive while staff work; conservative when idle to keep
+        # authenticated Edge Function usage within a reasonable budget.
+        self._active_poll_ms = 10000 + (id(self) % 3000)
+        self._idle_poll_ms = 45000 + (id(self) % 7000)
         self.timer.setInterval(self._active_poll_ms)
         self.timer.timeout.connect(self.pull)
         self.sender = QTimer(self)
@@ -105,6 +106,11 @@ class Sync(QObject):
                     time.monotonic() < self._recent_until else self._idle_poll_ms)
         if self.timer.interval() != interval:
             self.timer.setInterval(interval)
+
+    def boost(self, seconds=90):
+        """Check frequently while the user is actively working with orders."""
+        self._recent_until=max(self._recent_until,time.monotonic()+seconds)
+        self._retune_poll()
 
     def _status(self, online, message):
         state=(online,message)
