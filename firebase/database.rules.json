@@ -177,10 +177,6 @@
           }
         }
       }
-    },
-    "migration_staging": {
-      ".read": false,
-      ".write": false
     }
   }
 }
