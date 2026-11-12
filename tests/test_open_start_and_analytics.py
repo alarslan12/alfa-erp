@@ -12,7 +12,7 @@ class StartupTests(unittest.TestCase):
 
     def test_splash_reports_only_checks_performed(self):
         from ekran_baslangic import StartupSplash
-        splash=StartupSplash(owner=False,version='1.1.2')
+        splash=StartupSplash(owner=False,version='2.0.13')
         splash.show()
         self.app.processEvents()
         self.assertEqual(splash.progress.value(),0)
