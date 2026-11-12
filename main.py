@@ -20,7 +20,7 @@ from ayar_yonetimi import UserSettings, theme_styles
 from widgets import text,button,panel,Covers
 
 ROOT=Path(__file__).resolve().parent
-VERSION='6.2.2'
+VERSION='6.2.3'
 OWNER_EDITION=(ROOT/'YONETICI_SURUMU.flag').exists()
 
 
@@ -438,6 +438,8 @@ class AlfaMain(QMainWindow):
         self.stack.setCurrentWidget(self.orders)
         self._mark_navigation(1,status)
         self.orders.change_status(status)
+        # Prioritize the screen currently being used; no blocking network I/O.
+        self.live.boost()
         if status=='havuz':
             self.live.pull()
 
@@ -475,14 +477,22 @@ class AlfaMain(QMainWindow):
         self.open_order_status('havuz')
 
 def start():
+    """Display meaningful startup checks without blocking on network availability."""
+    from ekran_baslangic import StartupSplash
+    import tempfile
+
     app=QApplication(sys.argv);app.setApplicationName('ALFA ERP');app.setStyle('Fusion')
     app.setStyleSheet(QSS)
-    try:
-        # Both editions open immediately, without blocking authentication
-        # or mandatory enrollment dialogs. A safe, visible one-time activation
-        # is available from the app header if this device is not paired.
-        main=AlfaMain(admin_cloud=None)
-        # Mevcut ekranın kullanılabilir alanına göre ölçeklendir ve tam ortala.
+    splash=StartupSplash(owner=OWNER_EDITION,version=VERSION)
+    splash.center_on_screen(app.primaryScreen())
+    splash.show()
+    state={'main':None,'finished':False}
+
+    def finish():
+        if state['finished'] or state['main'] is None:
+            return
+        state['finished']=True
+        main=state['main']
         screen=app.primaryScreen()
         if screen:
             area=screen.availableGeometry()
@@ -493,10 +503,71 @@ def start():
             frame=main.frameGeometry()
             frame.moveCenter(area.center())
             main.move(frame.topLeft())
-        main.show();return app.exec()
-    except Exception as exc:
-        QMessageBox.critical(None,'ALFA ERP başlangıç hatası',str(exc)+'\n\n'+traceback.format_exc(limit=3))
-        return 1
+        main.show()
+        splash.close()
+
+    def on_cloud_status(online,message):
+        if state['finished']:
+            return
+        if online:
+            splash.update_step('cloud','Bulut eşitlemesi doğrulandı.')
+            QTimer.singleShot(130,finish)
+        elif any(word in message.lower() for word in
+                 ('beklemede','ulaşılamadı','hata','geçici','eşleştirilmedi','iptal')):
+            splash.update_step('cloud','Bulut erişimi beklemede; işlemler yerelde korunuyor.',
+                               warning=True)
+            QTimer.singleShot(130,finish)
+
+    def cloud_timeout():
+        if not state['finished']:
+            splash.update_step('cloud','Bağlantı denetimi arka planda devam ediyor.',
+                               warning=True)
+            finish()
+
+    def load():
+        try:
+            splash.detail.setText('Yerel dosyalar ve sipariş geçmişi denetleniyor…')
+            app.processEvents()
+            main=AlfaMain(admin_cloud=None)
+            state['main']=main
+
+            # Opening the database validated the JSON and durable outbox already.
+            # Check actual filesystem writability without altering user data.
+            directory=Path(main.db.siparis_dosyasi).parent
+            with tempfile.NamedTemporaryFile(prefix='.alfa_boot_',dir=directory) as handle:
+                handle.write(b'ok')
+                handle.flush()
+            splash.update_step('storage','Yerel çalışma dizini kullanılabilir.')
+            splash.update_step('orders',(
+                f'{main.db.pending_count} işlem güvenle kuyrukta.'
+                if main.db.pending_count else 'Sipariş kayıtları ve kuyruk hazır.'))
+            if not main.db.katalog or main.stack.count()!=5:
+                raise RuntimeError('Katalog veya uygulama sayfaları hazırlanamadı.')
+            splash.update_step('catalog',
+                               f'{len(main.db.katalog)} kitap ve tüm ana sayfalar hazır.')
+
+            if main.device.paired:
+                splash.update_step('device','Cihaz yetkilendirmesi yüklendi.')
+                main.live.status.connect(on_cloud_status)
+                # If the cloud cannot answer quickly, the desktop still opens
+                # and its existing network worker continues in the background.
+                QTimer.singleShot(6000,cloud_timeout)
+            else:
+                splash.update_step('device','Cihaz eşleştirilmedi.',warning=True)
+                splash.update_step('cloud',
+                                   'Katalog kullanılabilir; bulut için cihazı eşleştirin.',
+                                   warning=True)
+                QTimer.singleShot(150,finish)
+        except Exception as exc:
+            splash.update_step('storage','Başlangıç doğrulaması tamamlanamadı.',
+                               error=True)
+            splash.close()
+            QMessageBox.critical(None,'ALFA ERP başlangıç hatası',
+                str(exc)+'\n\n'+traceback.format_exc(limit=3))
+            app.quit()
+
+    QTimer.singleShot(0,load)
+    return app.exec()
 
 
 
