@@ -1,5 +1,5 @@
 #define MyAppName "ALFA ERP"
-#define MyAppVersion "1.1.1"
+#define MyAppVersion "1.1.2"
 
 [Setup]
 ; Keep the old edition-specific AppIds and install paths so upgrades preserve
@@ -8,11 +8,11 @@ AppId={code:EditionAppId}
 UsePreviousLanguage=no
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
-AppVerName=ALFA ERP v1.1.1
+AppVerName=ALFA ERP v1.1.2
 DefaultDirName={code:EditionDirectory}
 DefaultGroupName=ALFA ERP
 OutputDir=output
-OutputBaseFilename=ALFA_ERP_Setup_V1_1_1
+OutputBaseFilename=ALFA_ERP_Setup_V1_1_2
 Compression=lzma2
 SolidCompression=yes
 PrivilegesRequired=lowest
@@ -46,7 +46,6 @@ Filename: "{app}\AlfaERPYonetici.exe"; Description: "ALFA ERP Yönetici uygulama
 [Code]
 var
   EditionPage: TInputOptionWizardPage;
-  OwnerPasswordPage: TInputQueryWizardPage;
 
 function IsOwner(): Boolean;
 begin
@@ -58,8 +57,6 @@ begin
   Result := not IsOwner();
 end;
 
-// When the update helper is responsible for restarting the app, do
-// not start an extra app copy from Inno Setup's Finish page.
 function HasUpdateFlag(): Boolean;
 var
   I: Integer;
@@ -107,42 +104,20 @@ begin
     Result := 'AlfaERP.exe';
 end;
 
-function OwnerPasswordValid(): Boolean;
-begin
-  // Deliberately store only a salted SHA-256 verifier, NEVER the password.
-  // This gates edition selection; Firebase 'owner' role is still mandatory.
-  Result := CompareText(
-    GetSHA256OfString('ALFA-ERP-OWNER-SETUP-v1-4a81f7|' + OwnerPasswordPage.Values[0]),
-    '60d251ed1c49cd140d00d6caae45f13bbab68322b0735f03b4142e2fe36210a7'
-  ) = 0;
-end;
-
 procedure InitializeWizard();
 var
   I: Integer;
 begin
   EditionPage := CreateInputOptionPage(wpWelcome,
     'Kurulum türü', 'Bu bilgisayara hangi ALFA ERP sürümü kurulacak?',
-    'Personel veya Yönetici seçin. Yalnızca seçilen sürüm yüklenir.',
+    'Yönetici erişimi Firebase üzerinde onaylı owner rolüyle korunur.',
     True, False);
   EditionPage.Add('Personel (sipariş, katalog, bildirimler)');
   EditionPage.Add('Yönetici (yönetim, cihazlar, hata merkezi)');
   EditionPage.SelectedValueIndex := 0;
-  // An in-app update selects the current edition by default; the owner
-  // must still enter the password to proceed.
   for I := 1 to ParamCount() do
     if CompareText(ParamStr(I), '/ALFAOWNER') = 0 then
       EditionPage.SelectedValueIndex := 1;
-
-  OwnerPasswordPage := CreateInputQueryPage(EditionPage.ID,
-    'Yönetici doğrulaması', 'Yönetici kurulum parolası gerekli',
-    'Bu parola yalnız Yönetici kurulumunu açar. Bulut yetkisi için ayrıca Firebase owner rolü gereklidir.');
-  OwnerPasswordPage.Add('Kurulum parolası:', True);
-end;
-
-function ShouldSkipPage(PageID: Integer): Boolean;
-begin
-  Result := (PageID = OwnerPasswordPage.ID) and not IsOwner();
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;
@@ -150,18 +125,4 @@ begin
   Result := True;
   if CurPageID = EditionPage.ID then
     WizardForm.DirEdit.Text := EditionDirectory('');
-  if (CurPageID = OwnerPasswordPage.ID) and IsOwner() then
-  begin
-    Result := OwnerPasswordValid();
-    if not Result then
-      MsgBox('Yönetici kurulum parolası geçersiz.', mbError, MB_OK);
-  end;
-end;
-
-function PrepareToInstall(var NeedsRestart: Boolean): String;
-begin
-  Result := '';
-  // Do not allow a silent-mode bypass of the password page.
-  if IsOwner() and not OwnerPasswordValid() then
-    Result := 'Yönetici kurulumu için geçerli kurulum parolası gerekli.';
 end;
