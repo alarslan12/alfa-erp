@@ -1,0 +1,156 @@
+name: ALFACOPYCENTER Suite v2.0.13 Windows build and release
+
+on:
+  push:
+    branches: [firebase-rtdb-final]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: alfacopycenter-suite-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-suite:
+    runs-on: windows-2022
+    timeout-minutes: 100
+    env:
+      PYTHONUTF8: '1'
+      PYTHONIOENCODING: utf-8
+      QT_QPA_PLATFORM: offscreen
+      SUITE_TAG: v2.0.13
+      SUITE_EXE: ALFACOPYCENTER_Suite_Setup_V2_0_13.exe
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+          architecture: x64
+
+      - name: Source tree and syntax gate
+        shell: pwsh
+        run: |
+          python KONTROL_DOSYA_UYUMU.py
+          if ($LASTEXITCODE -ne 0) { throw 'Firebase files missing' }
+          python -m compileall -q .
+          if ($LASTEXITCODE -ne 0) { throw 'Python syntax failed' }
+          $old = @('alfa_bulut.py','alfa_cihaz.py','alfa_tek_kurulum.iss',
+                   'alfa_personel.iss','alfa_yonetici.iss','supabase')
+          foreach ($file in $old) {
+            if (Test-Path $file) { throw "Obsolete legacy backend or setup: $file" }
+          }
+
+      - name: Install required desktop libraries
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check -r requirements.txt Pillow==11.3.0
+          if ($LASTEXITCODE -ne 0) { throw 'Dependency installation failed' }
+
+      - name: Firebase offline and all component contracts
+        shell: pwsh
+        run: |
+          python -u -c "import unittest,faulthandler,sys; faulthandler.dump_traceback_later(150,exit=True); r=unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.discover('tests')); sys.exit(not r.wasSuccessful())"
+          if ($LASTEXITCODE -ne 0) { throw 'Firebase or Suite regression tests failed' }
+          python -u tools/test_print_contract.py
+          if ($LASTEXITCODE -ne 0) { throw 'Print contract checks failed' }
+
+      - name: Install Inno Setup 6
+        shell: pwsh
+        run: |
+          $iscc = Join-Path ([Environment]::GetFolderPath('ProgramFilesX86')) 'Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path $iscc)) { choco install innosetup --yes --no-progress }
+          if (-not (Test-Path $iscc)) { throw 'Inno Setup 6 required' }
+
+      - name: Build all Suite components in one Setup
+        shell: pwsh
+        run: .\ALFA_BUILD_SUITE_WINDOWS.ps1
+
+      - name: Smoke-test packaged Personel and Yönetici EXEs
+        shell: pwsh
+        run: |
+          $apps=@(
+            @('dist\AlfaERP\AlfaERP.exe','staff'),
+            @('dist\AlfaERPYonetici\AlfaERPYonetici.exe','owner')
+          )
+          foreach ($item in $apps) {
+            $exe=Join-Path $env:GITHUB_WORKSPACE $item[0]
+            $report=Join-Path $env:RUNNER_TEMP "suite_$($item[1])_smoke.json"
+            $env:ALFA_SMOKE_RESULT_PATH=$report
+            $proc=Start-Process -FilePath $exe -ArgumentList '--self-test' -PassThru
+            try {
+              if (-not $proc.WaitForExit(90000)) { throw "Startup timeout: $exe" }
+              if ($proc.ExitCode -ne 0) {
+                $detail=if (Test-Path $report) { Get-Content $report -Raw } else { 'No report' }
+                throw "EXE startup failed: $detail"
+              }
+            } finally {
+              if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
+              $env:ALFA_SMOKE_RESULT_PATH=''
+            }
+            if (-not (Test-Path $report)) { throw 'EXE smoke report missing' }
+            $result=Get-Content $report -Raw | ConvertFrom-Json
+            if (-not $result.ok -or $result.pages -ne 5 -or $result.books -lt 1) {
+              throw 'EXE smoke contents invalid'
+            }
+          }
+
+      - name: Smoke-test packaged Banner Studio and Print Center
+        shell: pwsh
+        run: |
+          $apps=@(
+            'dist\AlfaBannerStudio\AlfaBannerStudio.exe',
+            'dist\AlfaPrintSurveillance\AlfaPrintSurveillance.exe'
+          )
+          foreach ($app in $apps) {
+            $exe=Join-Path $env:GITHUB_WORKSPACE $app
+            if (-not (Test-Path $exe)) { throw "Missing component: $app" }
+            $proc=Start-Process -FilePath $exe -ArgumentList '--self-check' -PassThru
+            try {
+              if (-not $proc.WaitForExit(90000)) { throw "Self-check timeout: $app" }
+              if ($proc.ExitCode -ne 0) { throw "Self-check failed: $app ($($proc.ExitCode))" }
+            } finally {
+              if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
+            }
+          }
+
+      - name: Verify Suite binary and SHA-256
+        shell: pwsh
+        run: |
+          $file=Get-Item ".\output\$env:SUITE_EXE" -ErrorAction Stop
+          if ($file.Length -lt 1000000) { throw 'Setup unexpectedly small' }
+          $hash=(Get-FileHash $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $($file.Name)" | Set-Content -Encoding ascii .\output\SHA256SUMS.txt
+          Copy-Item .\docs\ALFACOPYCENTER_SUITE_V2013_RELEASE.md .\output\RELEASE_NOTES.txt
+          & .\.buildvenv\Scripts\python.exe -c "from PySide6.QtPdf import QPdfDocument;print('Qt PDF import OK')"
+          if ($LASTEXITCODE -ne 0) { throw 'QtPdf unavailable' }
+
+      - name: Upload Suite Setup for CI audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: ALFACOPYCENTER_Suite_v2.0.13_Windows
+          path: |
+            output/ALFACOPYCENTER_Suite_Setup_V2_0_13.exe
+            output/SHA256SUMS.txt
+            output/RELEASE_NOTES.txt
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Publish verified immutable stable Suite v2.0.13 release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag=$env:SUITE_TAG
+          $repo="${{ github.repository }}"
+          gh release view $tag --repo $repo 2>$null | Out-Null
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Verified Suite release already exists: $tag"
+            exit 0
+          }
+          gh release create $tag "output/$env:SUITE_EXE" output/SHA256SUMS.txt output/RELEASE_NOTES.txt --repo $repo --target "${{ github.sha }}" --title "ALFACOPYCENTER Suite v2.0.13" --notes-file output/RELEASE_NOTES.txt --latest
+          if ($LASTEXITCODE -ne 0) { throw 'Suite release publishing failed' }
+          gh release view $tag --repo $repo --json tagName,assets,url
+          if ($LASTEXITCODE -ne 0) { throw 'Published Suite release is not readable' }
