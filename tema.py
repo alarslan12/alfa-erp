@@ -1602,3 +1602,45 @@ QToolTip {
     padding:5px;
 }
 """
+
+
+QSS += """
+/* Suite card density: two-line book titles, taller aligned SB/RNK touch strips. */
+QWidget#StandaloneHeader { min-height:40px; max-height:40px; }
+QLabel#StandaloneName { min-height:0; max-height:26px; font-size:10px; }
+QLabel#StandalonePages { min-height:0; max-height:12px; font-size:9px; }
+QWidget#StandaloneQuantities { min-height:27px; max-height:27px; }
+QWidget#StandaloneCounterSB { border:0; border-radius:0; }
+QWidget#StandaloneCounterRNK { border:0; border-radius:0; }
+QWidget#StandaloneCounterSB QPushButton#StandaloneStep,
+QWidget#StandaloneCounterRNK QPushButton#StandaloneStep {
+    min-width:20px; max-width:20px; min-height:27px; max-height:27px;
+    font-size:14px; font-weight:850; padding:0; margin:0;
+}
+QLabel#StandaloneCount { min-height:0; max-height:27px; font-size:11px; }
+QLabel#StandaloneSB, QLabel#StandaloneRNK { min-height:0; max-height:27px; font-size:10px; }
+
+/* Keep five top-level track actions; pending filters share one pillbox. */
+QFrame#TrackPendingFilters {
+    min-height:46px; max-height:46px; padding:0; margin:0;
+    border:1px solid #7193ac; border-radius:8px; background:#2d394b;
+}
+QPushButton#TrackUnpreparedToggle,
+QPushButton#TrackUnboxedToggle {
+    min-height:44px; max-height:44px; min-width:0; padding:0 1px;
+    border:0; border-radius:0; background:transparent;
+    color:#e7f3ff; font-size:10px; font-weight:800;
+}
+QPushButton#TrackUnpreparedToggle:hover,
+QPushButton#TrackUnboxedToggle:hover { background:#3a5166; }
+QPushButton#TrackUnpreparedToggle:checked,
+QPushButton#TrackUnboxedToggle:checked { background:#70512c; color:#fff1ce; }
+QPushButton#TrackUnpreparedToggle { border-top-left-radius:7px; border-bottom-left-radius:7px; }
+QPushButton#TrackUnboxedToggle { border-top-right-radius:7px; border-bottom-right-radius:7px; }
+
+/* Many tabs must scroll horizontally rather than squeeze the content pane. */
+QTabBar#OrderTrackTabBar::tab {
+    max-width:190px; min-width:90px; padding:7px 9px;
+    margin:2px 3px 2px 0;
+}
+"""
