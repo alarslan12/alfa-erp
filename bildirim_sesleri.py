@@ -20,6 +20,12 @@ SOUND_CHOICES=(
     ("net","Belirgin üçlü ton"),
     ("kisa","Kısa çift uyarı"),
     ("karisik","Her yeni siparişte farklı ton"),
+    ("tts_kadin","Kadın konuşma sesi (Windows)"),
+    ("tts_erkek","Erkek konuşma sesi (Windows)"),
+    ("tts_karisik","Konuşma sesi (rastgele)"),
+    ("eleven_a","ElevenLabs doğal ses A"),
+    ("eleven_b","ElevenLabs doğal ses B"),
+    ("eleven_karisik","ElevenLabs (A/B rastgele)"),
     ("sessiz","Sessiz (yalnız görsel bildirim)"),
 )
 SOUND_IDS={key for key,_label in SOUND_CHOICES}
@@ -78,6 +84,19 @@ def play_order_sound(mode="klasik",directory=None):
         mode="klasik"
     if mode=="sessiz":
         return True
+    if mode.startswith("tts_"):
+        from bildirim_dogal_ses import play_windows_voice
+        if play_windows_voice(mode):
+            return True
+        mode="klasik"  # Windows Turkish speech engine unavailable.
+    elif mode.startswith("eleven_"):
+        from bildirim_dogal_ses import play_elevenlabs
+        if play_elevenlabs(mode,directory or _default_directory()):
+            # Immediate chime even if the natural voice is still being
+            # synthesized (first-time network call, later played from cache).
+            mode="yumusak"
+        else:
+            mode="klasik"  # No key/voice ID, offline or plan restriction.
     if mode=="karisik":
         mode=random.choice(("yumusak","net","kisa"))
     try:
