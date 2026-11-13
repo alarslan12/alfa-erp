@@ -39,7 +39,9 @@ if($Edition -eq 'personel') {
   '--name','AlfaERP','--icon=assets\icons\alfa_personel.ico','--add-data','KİTAPS.xlsx;.','--add-data','katalog.json;.',
   '--add-data','assets;assets','--hidden-import=PySide6.QtPdf','main.py')
  Run $Virtual @('-m','PyInstaller','--noconfirm','--clean','--onedir','--windowed',
-  '--name','AlfaBildirim','--icon=assets\icons\alfa_personel.ico','bildirim_servisi.py')
+  '--name','AlfaBildirim','--icon=assets\icons\alfa_personel.ico',
+  '--hidden-import=PySide6.QtTextToSpeech',
+  '--hidden-import=PySide6.QtMultimedia','bildirim_servisi.py')
  Run $Virtual @('-m','PyInstaller','--noconfirm','--clean','--onedir','--windowed',
   '--name','AlfaPrintAgent','--icon=assets\icons\alfa_print.ico',
   '--add-data','assets;assets','alfa_print_agent.py')
