@@ -16,7 +16,7 @@ from PySide6.QtPdf import QPdfDocument
 
 from pdf_kitap import PdfKutuphane
 
-CACHE_VERSION=3
+CACHE_VERSION=4
 MAX_PDFS=4000
 MAX_SOURCE_BYTES=850*1024*1024
 
@@ -53,10 +53,10 @@ def render_first_page(source,target):
             raise ValueError("PDF kapağı oluşturulamadı")
         if landscape:
             # A landscape first page is physically a rotated portrait cover.
-            # Correct orientation is +90 degrees (opposite of old 270/-90).
+            # Correct orientation for these landscape-source covers is -90 degrees.
             # Never crop or stretch the content.
             picture=picture.transformed(
-                QTransform().rotate(90),
+                QTransform().rotate(-90),
                 Qt.TransformationMode.SmoothTransformation)
             size=picture.size()
         # PDFium page backgrounds can be transparent; JPEG lacks alpha.
@@ -80,16 +80,29 @@ def render_first_page(source,target):
 
 
 def refresh_pdf_covers(data_dir,book_codes,progress=None):
-    """Incrementally build one JPEG per numeric book code, with metadata cache.
+    """Safely refresh matching PDF covers using explicit code AND full title.
 
-    progress(done,total) is optional and must remain pure; when called from
-    QThread do not mutate Qt GUI widgets directly.
+    Accepts legacy list[str] or catalog list[{'kod': ..., 'isim': ...}].
+    Nonmatching generated thumbnails remain on disk for recovery, but are
+    not published in the active manifest (no stale/wrong cover display).
     """
     data_dir=Path(data_dir)
+    books={}
+    for book in book_codes:
+        if isinstance(book,dict):
+            code=str(book.get("kod") or book.get("code") or "").strip()
+            title=str(book.get("isim") or book.get("name") or "").strip()
+        else:
+            code=str(book).strip()
+            title=""
+        if code.isdecimal():
+            books[str(int(code))]=title
+    if len(books)>MAX_PDFS:
+        raise ValueError("PDF kapak taraması güvenlik sınırını aşıyor")
     pdf=PdfKutuphane(data_dir)
     if not pdf.folder:
         return {"matched":0,"created":0,"unchanged":0,"manual":0,
-                "missing":len(book_codes),"errors":0,"message":"PDF klasörü seçilmedi"}
+                "missing":len(books),"errors":0,"message":"PDF klasörü seçilmedi"}
     pdf.scan()
     folder=data_dir/"kapaklar"/"pdf_otomatik"
     folder.mkdir(parents=True,exist_ok=True)
@@ -102,54 +115,60 @@ def refresh_pdf_covers(data_dir,book_codes,progress=None):
     if not isinstance(recorded,dict):
         recorded={}
     current={}
-    codes=sorted({str(int(x)) for x in book_codes if str(x).isdigit()},key=int)
-    if len(codes)>MAX_PDFS:
-        raise ValueError("PDF kapak taraması güvenlik sınırını aşıyor")
-    stats={"matched":0,"created":0,"unchanged":0,
-           "manual":0,"missing":0,"errors":0}
+    codes=sorted(books,key=int)
+    stats={"matched":0,"created":0,"unchanged":0,"manual":0,
+           "missing":0,"errors":0,"missing_examples":[],"error_examples":[]}
     manual=data_dir/"kapaklar"
     pdf_folder=pdf.folder
     for index,code in enumerate(codes,1):
-        src=pdf.find(code)
-        if not src:
-            stats["missing"]+=1
-            if progress:progress(index,len(codes))
-            continue
-        stats["matched"]+=1
+        title=books[code]
         try:
+            src=pdf.find(code,title=title)
+            if not src:
+                stats["missing"]+=1
+                if len(stats["missing_examples"])<25:
+                    stats["missing_examples"].append(f"#{code} {title}"[:135])
+                continue
+            stats["matched"]+=1
             stat=src.stat()
-            # Canonical relative location differentiates same code/name in
-            # nested directories; never match by substring alone.
             signature=[str(pdf_folder.resolve()),str(src.relative_to(pdf_folder)),
                        stat.st_size,stat.st_mtime_ns]
             target=folder/(code+".jpg")
-            manual_exists=any((manual/(code+ext)).exists()
-                for ext in (".jpg",".jpeg",".png",".webp",".bmp"))
+            manual_exists=any(
+                path.is_file() and path.stem.casefold()==code
+                and path.suffix.lower() in (".jpg",".jpeg",".png",".webp",".bmp")
+                for path in manual.iterdir() if path.is_file()
+            )
             if manual_exists:
-                # A user-supplied cover has higher priority, so do not render
-                # its PDF at all; avoid waste when hundreds were hand-curated.
                 stats["manual"]+=1
-                if recorded.get(code)==signature and target.exists():
-                    current[code]=signature
-                if progress:progress(index,len(codes))
+                # The manual cover takes precedence, regardless of the auto
+                # cache state. No need to render a redundant image.
                 continue
-            if (recorded.get(code)==signature and target.exists() and
-                    target.stat().st_size>0):
+            if (recorded.get(code)==signature and target.exists()
+                and target.stat().st_size>1500):
                 stats["unchanged"]+=1
                 current[code]=signature
             elif stat.st_size>MAX_SOURCE_BYTES:
-                stats["errors"]+=1
+                raise ValueError("PDF boyutu güvenlik sınırını aşıyor")
             else:
                 render_first_page(src,target)
                 current[code]=signature
                 stats["created"]+=1
-        except (OSError,ValueError,RuntimeError,PermissionError):
+        except (OSError,ValueError,RuntimeError,PermissionError) as exc:
             stats["errors"]+=1
-            if recorded.get(code) and (folder/(code+".jpg")).exists():
-                current[code]=recorded[code]
-        if progress:progress(index,len(codes))
+            if len(stats["error_examples"])<25:
+                stats["error_examples"].append(f"#{code} {title}: {str(exc)[:160]}")
+            # If thumbnail creation fails, a stale old auto-cover is NOT
+            # included in the current manifest (it is retained for recovery).
+        finally:
+            if progress:
+                progress(index,len(codes))
+    # One atomic write: Covers may continue showing old manifest until this
+    # validated new manifest is fully available.
     _atomic_json(manifest,{"version":CACHE_VERSION,"entries":current,
                            "source_folder":str(pdf_folder)})
-    # Don't delete old generated JPEGs automatically. Some PDFs may have
-    # been moved temporarily, and manual overrides remain untouched.
+    _atomic_json(data_dir/"alfa_pdf_kapak_tarama_raporu.json",{
+        "summary":stats,"source_folder":str(pdf_folder),
+        "hint":"Eksik kapaklarda PDF dosya adını tam kitap adı veya kitap kodu yapın."
+    })
     return stats
