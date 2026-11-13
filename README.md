@@ -1,4 +1,4 @@
-# ALFACOPYCENTER Suite v2.0.24
+# ALFACOPYCENTER Suite v2.0.25
 
 **Tek Windows kurulumu**, dört seçilebilir bileşen:
 
@@ -132,3 +132,7 @@ yenilemek için Ayarlar → Kapakları tara / güncelle kullanılabilir.
 ## v2.0.24: Önceki çalışan sürüm kaynaklarına dönüş
 
 PDF/kapak/Excel/katalog kodları v2.0.19 sürümüne geri alındı. Yerel otomatik JPEG kapaklar manifest yüzünden gizlenmeyecek. Firebase verileri otomatik değiştirilmez. Kurulumdan önce `%LOCALAPPDATA%\AlfaERP` klasörünü ve Excel/PDF arşivini yedekleyin. Sayfa sayıları Firebase'de zaten sıfırlanmışsa eski Excel veya `catalog_backups` dosyalarıyla ayrıca geri yüklenmelidir.
+
+## v2.0.25: DUSDATA 33 ve DENTTEST PDF kapakları
+
+Çalışan v2.0.24 sistemi korunur. Tam ve benzersiz kitap adından PDF eşleştirilir; DUSDATA 33 / DENTTEST seri sayıları kitap koduyla karışmaz. Var olan kapaklar ve Firebase verileri değişmez. Ayarlar → Görünüm'de sayfa bilgisi boş kitapların gösterimi isteğe bağlıdır (varsayılan açık). Personel ve Yönetici aynı ortak PDF ve ayar kodunu kullanır.

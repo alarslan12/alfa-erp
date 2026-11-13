@@ -1,5 +1,13 @@
 # ALFA ERP · Sürüm Geçmişi
 
+## [v2.0.25] — 2026-11-13
+
+- DUSDATA 33 (katalog 117–130) ve DENTTEST (131–136) için benzersiz tam PDF adı eşleştirmesi.
+- Kitap kodu yerine seri/cilt numarası yanlışlıkla eşleşmez; manuel ve mevcut kodlu kapaklar korunur.
+- Sayfa bilgisi olmayan kitapları göster/gizle tercihi eklendi; varsayılan açık, sadece katalog görüntüsünü etkiler.
+- Personel/Yönetici ortak kodu güncellendi; Firebase ve Excel verisi değişmez.
+
+
 ## [v2.0.24] — 2026-11-13
 
 - v2.0.20–v2.0.23 kapak/Excel/PDF gerilemelerini geri alır; v2.0.19 çalışan koduna döner.

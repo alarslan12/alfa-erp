@@ -6,6 +6,13 @@ https://github.com/alarslan12/alfa-erp/releases.
 """
 
 _RELEASES = [
+    ("2.0.25", "DUSDATA 33 ve DENTTEST kitap kapak eşleştirmesi", [
+        "DUSDATA 33 ve DENTTEST PDF adları kitap kodundan bağımsız tam adlarıyla eşleştirilir.",
+        "Seri/cilt numaraları yanlış kitap kodu sayılmaz.",
+        "Eski kodlu ve elle eklenen kapaklar, JPEG önbelleği ve Firebase verileri korunur.",
+        "Sayfa sayısı boş kitapları katalogda gösterme ayarı eklendi; varsayılan açık.",
+        "Personel ile Yönetici ortak PDF kütüphanesi ve ayarlar kodunu kullanır.",
+    ]),
     ("2.0.24", "Çalışan v2.0.19 koduna güvenli geri dönüş", [
         "PDF kod eşleme, kapak görselleri ve katalog yükleme kodu v2.0.19'a geri alındı.",
         "Önceki kapak JPEG'leri manifest doğrulaması yüzünden gizlenmez.",
