@@ -4,13 +4,14 @@ from pathlib import Path
 from PySide6.QtCore import QThread, Signal, QTimer
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QFrame, QComboBox,
-    QFileDialog, QMessageBox, QStackedWidget, QLabel, QPushButton
+    QFileDialog, QMessageBox, QStackedWidget, QLabel, QPushButton, QLineEdit
 )
 from ayar_yonetimi import theme_styles
 from tema import QSS
 from pdf_kitap import PdfKutuphane
 from pdf_kapak import refresh_pdf_covers
 from bildirim_sesleri import SOUND_CHOICES, play_order_sound
+from bildirim_dogal_ses import (store_api_key,remove_api_key,validate_voice_id,voice_key_path)
 from guncelleme_arayuzu import (UpdateDialog,CheckWorker,should_check_today,mark_checked)
 from widgets import (
     button, text, refresh_cover_placeholders, refresh_all_cover_labels
@@ -123,6 +124,43 @@ class SettingsPage(QWidget):
         preview.clicked.connect(self.preview_sound)
         sound_row.addWidget(preview)
         sound_col.addLayout(sound_row)
+        cloud_help=QLabel(
+            'Doğal Windows sesleri ücretsizdir (yüklü Türkçe seslere bağlı). '
+            'ElevenLabs doğal sesleri isteğe bağlıdır; API kullanımı ücretli '
+            'olabilir. Anahtar yalnız bu Windows kullanıcısında şifrelenir. '
+            'Yalnız sabit sipariş uyarı cümlesi gönderilir, müşteri bilgileri gönderilmez.')
+        cloud_help.setObjectName('SettingsHint')
+        cloud_help.setWordWrap(True)
+        sound_col.addWidget(cloud_help)
+        cloud_voice_row=QHBoxLayout()
+        self.eleven_a=QLineEdit()
+        self.eleven_a.setPlaceholderText('ElevenLabs ses A · Voice ID')
+        self.eleven_a.setText(str(config.get('elevenlabs_voice_a','') or ''))
+        self.eleven_b=QLineEdit()
+        self.eleven_b.setPlaceholderText('ElevenLabs ses B · Voice ID')
+        self.eleven_b.setText(str(config.get('elevenlabs_voice_b','') or ''))
+        cloud_voice_row.addWidget(self.eleven_a)
+        cloud_voice_row.addWidget(self.eleven_b)
+        sound_col.addLayout(cloud_voice_row)
+        api_row=QHBoxLayout()
+        self.eleven_key=QLineEdit()
+        self.eleven_key.setEchoMode(QLineEdit.EchoMode.Password)
+        self.eleven_key.setPlaceholderText(
+            'ElevenLabs API anahtarı (yalnız değiştirmek için gir)')
+        api_row.addWidget(self.eleven_key,1)
+        voice_save=button('Sesleri kaydet','Accent')
+        voice_save.clicked.connect(self.save_cloud_voices)
+        api_row.addWidget(voice_save)
+        voice_remove=button('API anahtarını sil','SmallAction')
+        voice_remove.clicked.connect(self.remove_cloud_key)
+        api_row.addWidget(voice_remove)
+        sound_col.addLayout(api_row)
+        self.voice_status=QLabel(
+            'API anahtarı: '+
+            ('şifreli olarak kayıtlı' if voice_key_path(config.data_dir).exists()
+             else 'henüz kaydedilmedi'))
+        self.voice_status.setObjectName('SettingsHint')
+        sound_col.addWidget(self.voice_status)
         col.addWidget(sound_card)
         update_card=QFrame();update_card.setObjectName('SettingsCard')
         update_layout=QVBoxLayout(update_card)
@@ -219,6 +257,34 @@ class SettingsPage(QWidget):
         if not play_order_sound(mode,self.config.data_dir):
             QMessageBox.information(self,'Bildirim sesi',
                 'Bu bilgisayarda Windows ses çıkışı kullanılamıyor.')
+
+    def save_cloud_voices(self):
+        try:
+            voice_a=validate_voice_id(self.eleven_a.text())
+            voice_b=validate_voice_id(self.eleven_b.text())
+            secret=self.eleven_key.text().strip()
+            if secret:
+                store_api_key(self.config.data_dir,secret)
+                self.eleven_key.clear()
+            self.config.set('elevenlabs_voice_a',voice_a)
+            self.config.set('elevenlabs_voice_b',voice_b)
+            self.voice_status.setText('ElevenLabs: '+(
+                'API anahtarı şifreli kayıtlı.' if voice_key_path(
+                    self.config.data_dir).exists() else
+                'Voice ID kaydedildi; API anahtarı gerekli.'))
+        except Exception as exc:
+            QMessageBox.warning(self,'Doğal ses ayarları',str(exc))
+
+    def remove_cloud_key(self):
+        if QMessageBox.question(
+            self,'ElevenLabs bağlantısını kaldır',
+            'Bu bilgisayarda saklanan ElevenLabs API anahtarı silinsin mi?',
+            QMessageBox.StandardButton.Yes|QMessageBox.StandardButton.No
+        )!=QMessageBox.StandardButton.Yes:
+            return
+        remove_api_key(self.config.data_dir)
+        self.eleven_key.clear()
+        self.voice_status.setText('API anahtarı silindi. Yerel sesler çalışır.')
 
     def select_pdf(self):
         folder=QFileDialog.getExistingDirectory(
