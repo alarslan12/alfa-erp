@@ -1,5 +1,14 @@
 # ALFA ERP · Sürüm Geçmişi
 
+## [v2.0.26] — 2026-11-14
+
+- TUSDATA Konu kitaplarının PDF adlarında kelime sırası ve Cilt 1/II farkları desteklendi.
+- Seri, ders ve cilt numarası korunarak yanlış kapak eşleşmesi önlenir.
+- Gerçekte eşleşmeyen PDF adları ayrıca raporlanır; katalogda PDF'si olmayan kitaplar işleme hatası sayılmaz.
+- Sayfa sayısı olmayan kitaplar Katalog'da varsayılan gizlidir. İlk açılış ve Personel/Yönetici tercihleri düzeltilmiştir.
+- Firebase kitap/siparişleri, çalışan kapak önbelleği ve manuel kapaklar korunur.
+
+
 ## [v2.0.25] — 2026-11-13
 
 - DUSDATA 33 (katalog 117–130) ve DENTTEST (131–136) için benzersiz tam PDF adı eşleştirmesi.

@@ -23,7 +23,7 @@ from guncelleme_arayuzu import CheckWorker,should_check_today,mark_checked
 from duyuru_merkezi import AnnouncementsDialog,ManualReportDialog
 
 ROOT=Path(__file__).resolve().parent
-VERSION='2.0.25'
+VERSION='2.0.26'
 OWNER_EDITION=(ROOT/'YONETICI_SURUMU.flag').exists()
 
 

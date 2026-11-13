@@ -1,4 +1,4 @@
-# ALFACOPYCENTER Suite v2.0.25
+# ALFACOPYCENTER Suite v2.0.26
 
 **Tek Windows kurulumu**, dört seçilebilir bileşen:
 
@@ -136,3 +136,7 @@ PDF/kapak/Excel/katalog kodları v2.0.19 sürümüne geri alındı. Yerel otomat
 ## v2.0.25: DUSDATA 33 ve DENTTEST PDF kapakları
 
 Çalışan v2.0.24 sistemi korunur. Tam ve benzersiz kitap adından PDF eşleştirilir; DUSDATA 33 / DENTTEST seri sayıları kitap koduyla karışmaz. Var olan kapaklar ve Firebase verileri değişmez. Ayarlar → Görünüm'de sayfa bilgisi boş kitapların gösterimi isteğe bağlıdır (varsayılan açık). Personel ve Yönetici aynı ortak PDF ve ayar kodunu kullanır.
+
+## v2.0.26 — TUSDATA Konu kapakları ve sayfasız kitaplar
+
+TUSDATA Konu kapakları sırası değişmiş veya `Cilt 1` eklenmiş PDF dosya adlarıyla benzersiz eşleştirilir; diğer serilere veya cilt numaralarına ait PDF seçilmez. Eşleşmeyen gerçek dosya adları `alfa_pdf_eslestirme_raporu.json` dosyasına kaydedilir. Katalog kartlarında sayfa sayısı boş/0 kitaplar varsayılan gizli; Personel/Yönetici aynı ayarı kullanır. Firebase verileri ve eski kapaklar korunur.

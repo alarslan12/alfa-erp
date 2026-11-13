@@ -6,6 +6,13 @@ https://github.com/alarslan12/alfa-erp/releases.
 """
 
 _RELEASES = [
+    ("2.0.26", "TUSDATA Konu kapakları ve boş sayfalı kitap görünürlüğü", [
+        "TUSDATA Konu derslerinin PDF adındaki kelime sırası, Cilt 1/II yazımı ve işaret farklılıkları tanınır.",
+        "Kitap serisi, dersi ve cilt numarası birebir doğrulanır; başka serinin kapağı atanmaz.",
+        "Gerçek eşleşmeyen PDF dosyaları ayrı JSON raporunda listelenir; mevcut manuel/otomatik kapaklar korunur.",
+        "Sayfa sayısı olmayan kitaplar katalogda varsayılan olarak gizlenir; Firebase'den silinmez.",
+        "Personel ve Yönetici ayarları ilk açılıştan itibaren uygulanır.",
+    ]),
     ("2.0.25", "DUSDATA 33 ve DENTTEST kitap kapak eşleştirmesi", [
         "DUSDATA 33 ve DENTTEST PDF adları kitap kodundan bağımsız tam adlarıyla eşleştirilir.",
         "Seri/cilt numaraları yanlış kitap kodu sayılmaz.",
