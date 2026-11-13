@@ -16,7 +16,7 @@ from PySide6.QtPdf import QPdfDocument
 
 from pdf_kitap import PdfKutuphane
 
-CACHE_VERSION=2
+CACHE_VERSION=3
 MAX_PDFS=4000
 MAX_SOURCE_BYTES=850*1024*1024
 
@@ -53,9 +53,10 @@ def render_first_page(source,target):
             raise ValueError("PDF kapağı oluşturulamadı")
         if landscape:
             # A landscape first page is physically a rotated portrait cover.
-            # Turn clockwise 270 degrees; never crop or stretch the content.
+            # Correct orientation is +90 degrees (opposite of old 270/-90).
+            # Never crop or stretch the content.
             picture=picture.transformed(
-                QTransform().rotate(270),
+                QTransform().rotate(90),
                 Qt.TransformationMode.SmoothTransformation)
             size=picture.size()
         # PDFium page backgrounds can be transparent; JPEG lacks alpha.

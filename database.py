@@ -831,8 +831,11 @@ class ERPDatabase:
             raise ValueError("Katalogda bulunmayan kitap kodu var")
         if not str(alanlar.get("kod", "")).strip():
             raise ValueError("Kargo kodu / adres boş olamaz")
+        # Compensation orders have no sale revenue; never persist a hidden
+        # stale price when an order is reclassified as Telafi.
+        is_telafi = "telafi" in tr_kucult(alanlar.get("siparis_turu", ""))
         try:
-            ciro = float(str(alanlar.get("ciro", 0)).replace(",", "."))
+            ciro = 0.0 if is_telafi else float(str(alanlar.get("ciro", 0)).replace(",", "."))
         except (ValueError, TypeError) as exc:
             raise ValueError("Ciro sayısal olmalıdır") from exc
         if not 0 <= ciro < 1_000_000_000:
@@ -1211,8 +1214,9 @@ class ERPDatabase:
         """Katalog sepetini havuza ekler; eski JSON şemasını aynen kullanır."""
         if not str(alanlar.get("kod", "")).strip():
             raise ValueError("Kargo kodu / adres boş olamaz.")
+        is_telafi = "telafi" in tr_kucult(alanlar.get("siparis_turu", ""))
         try:
-            ciro = float(str(alanlar.get("ciro", 0)).replace(",", "."))
+            ciro = 0.0 if is_telafi else float(str(alanlar.get("ciro", 0)).replace(",", "."))
         except (TypeError, ValueError) as exc:
             raise ValueError("Ciro sayısal olmalı.") from exc
         if not 0 <= ciro < 1_000_000_000:

@@ -292,6 +292,12 @@ class KatalogView(QWidget):
         self.platform_value='Dolap'
         self.platform_hint=text('Platform: Dolap (otomatik)','Muted');side_l.addWidget(self.platform_hint)
         self.revenue=FloatingPrice();side_l.addWidget(self.revenue)
+        self.telafi_notice=text(
+            'Telafi siparişi: ciro 0 TL. Yalnız kargo gideri '
+            'sipariş tamamlanırken girilir.', 'SettingsHint', True)
+        side_l.addWidget(self.telafi_notice)
+        self.telafi_notice.hide()
+        self.special_btn.toggled.connect(self._compensation_changed)
         self.order_btn=button('🚀  Siparişi Sisteme Kaydet','Success')
         self.order_btn.clicked.connect(self.make_order);side_l.addWidget(self.order_btn)
         root.addWidget(self.side)
@@ -441,6 +447,13 @@ class KatalogView(QWidget):
     def clear_cart(self):
         if self.cart and not confirm(self,'Sepetteki tüm kitaplar temizlensin mi?'):return
         self.cart.clear();self.db.sepeti_yaz(self.cart);self.update_cart();self.refresh_grid()
+    def _compensation_changed(self,enabled):
+        # The normal price must never leak into the compensation order.
+        if enabled:
+            self.revenue.clear()
+        self.revenue.setVisible(not enabled)
+        self.telafi_notice.setVisible(enabled)
+
     def make_order(self):
         if not self.cart:return
         items=[]
@@ -449,7 +462,8 @@ class KatalogView(QWidget):
                 amount=int(variants.get(kind,0))
                 if amount>0:items.append({'kod':code,'tur':kind,'adet':amount,'hazir':0,'koli':0})
         info={'kod':format_kargo_kodu(self.shipping.text(),self.platform_value),
-              'platform':self.platform_value,'ciro':self.revenue.value(),
+              'platform':self.platform_value,
+              'ciro':0.0 if self.special_btn.isChecked() else self.revenue.value(),
               'siparis_turu':'Telafi Sipariş' if self.special_btn.isChecked() else 'Normal Sipariş'}
         if info['kod'] and not _ask_before_duplicate_shipping_code(self,self.db,info['kod']):
             return

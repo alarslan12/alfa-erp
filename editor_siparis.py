@@ -813,13 +813,23 @@ class SiparisEditor(QDialog):
             info_grid.addWidget(text(label, 'Tiny'), 0, col)
             info_grid.addWidget(widget, 1, col)
         for col, (label, widget) in enumerate((('CİRO', self.revenue_box), ('SİPARİŞ TÜRÜ', self.kind))):
-            info_grid.addWidget(text(label, 'Tiny'), 2, col)
+            caption=text(label, 'Tiny')
+            info_grid.addWidget(caption, 2, col)
             info_grid.addWidget(widget, 3, col)
+            if col==0:
+                self.revenue_caption=caption
+        self.telafi_caption=QLabel(
+            'Telafi · 0 TL ciro · Kargo gideri tamamlanırken girilir')
+        self.telafi_caption.setObjectName('OrderShippingCost')
+        self.telafi_caption.setWordWrap(True)
+        info_grid.addWidget(self.telafi_caption, 3, 0)
+        self.kind.currentTextChanged.connect(self._sync_compensation_kind)
         info_grid.setColumnStretch(0, 3)
         info_grid.setColumnStretch(1, 2)
         self.shipping.setEnabled(editable)
         self.revenue.setEnabled(editable)
         self.kind.setEnabled(editable)
+        self._sync_compensation_kind(self.kind.currentText())
         self.body_lay.addWidget(info_panel)
 
         top = QHBoxLayout()
@@ -869,6 +879,17 @@ class SiparisEditor(QDialog):
         self.save_btn.clicked.connect(self.save_edit)
         footer.addWidget(self.save_btn)
         self.body_lay.addLayout(footer)
+
+    def _sync_compensation_kind(self,kind):
+        from utils import tr_kucult
+        is_telafi='telafi' in tr_kucult(kind)
+        if is_telafi:
+            self.revenue.setText('0,00')
+        self.revenue_box.setVisible(not is_telafi)
+        self.revenue_caption.setVisible(not is_telafi)
+        self.telafi_caption.setVisible(is_telafi)
+        self.revenue.setEnabled(
+            not is_telafi and self.db.siparis_durumu(self.current()) in ('havuz','aktif'))
 
     def add_book_row(self, code):
         code = str(code)
@@ -952,7 +973,8 @@ class SiparisEditor(QDialog):
             self.db.siparis_duzenle(
                 self.current(),
                 {'kod': format_kargo_kodu(self.shipping.text()), 'platform': self.platform_value,
-                 'ciro': ciro_metinini_sayiya_cevir(self.revenue.text()),
+                 'ciro': 0.0 if 'telafi' in self.kind.currentText().casefold()
+                         else ciro_metinini_sayiya_cevir(self.revenue.text()),
                  'siparis_turu': self.kind.currentText()},
                 items,
             )
