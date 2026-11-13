@@ -1,5 +1,26 @@
 # ALFA ERP · Sürüm Geçmişi
 
+## [v2.0.19] — 2026-11-13
+
+- Analitik'te en önemli dört rakam (Toplam Ciro, Kargo Sonrası
+  Ciro, Ödenen Ciro, Ödenmeyen Ciro) belirgin ve açıklamalı tek finans
+  panelinde toplandı; küçük ortalama/verimlilik KPI'ları ayrı gruba geçti.
+- Ödenen/ödenmeyen tutarların müşteri bazlı banka tahsilatı değil,
+  **Ödendi** işaretlenmiş tamamlanma günleriyle ilişkili olduğu açıklanıyor.
+- Telafi siparişlerinde yeni kayıt ve düzenleme sırasında ciro zorunlu
+  olarak sıfır; fiyat alanı gösterilmiyor. Eski yanlış telafi tutarları
+  muhasebe raporu ve analitikte satış cirosu olarak sayılmıyor.
+- Telafi ve açık adres kargoları tamamlanırken ayrı sorulmaya devam
+  ediyor, genel kargo giderine bir kez eklenip cirodan düşülüyor.
+- Kargo sonrası ciro **net kâr değildir**; formül ekranda açıklandı.
+- Yatay PDF kapaklar artık +90° döndürülür; yeni otomatik kapak
+  önbelleği mevcut manuel kapakları korur.
+- Kitaplara Genel Bakış seçimlerinde yeni temalı açılır menü kullanılır;
+  alttaki beyaz Qt listesi/şerit sorunu giderildi.
+- Firebase, sipariş ve kullanıcı dosyaları, dört bileşenli Suite,
+  Windows bildirim ajanı ve ortak Güncelleme Merkezi korunur.
+
+
 ## [v2.0.18] — 2026-11-13
 
 - Sipariş grupları sayısal kitap koduna göre, veriyi değiştirmeden sıralanır.

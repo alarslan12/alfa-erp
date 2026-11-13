@@ -6,6 +6,15 @@ https://github.com/alarslan12/alfa-erp/releases.
 """
 
 _RELEASES = [
+    ("2.0.19", "Analitik ciro odağı ve telafi muhasebesi", [
+        "Toplam, kargo sonrası, ödenen ve ödenmeyen ciro dört belirgin açıklamalı kartta toplandı.",
+        "Ortalama sipariş, sayfa başı ciro ve kitap başı ortalamalar ayrı verimlilik grubuna taşındı.",
+        "Telafi siparişi oluşturma ve düzenlemede ciro otomatik 0 TL; kargo gideri tamamlanırken sorulur.",
+        "Eski telafi siparişindeki hatalı ciro Analitik ve HTML muhasebe toplamlarına dahil edilmez.",
+        "Telafi/açık adres kargo giderleri ayrı gösterilip kargo sonrası tutardan tek kez düşülür.",
+        "Yatay ilk PDF kapaklar ters yön yerine +90° döndürülür; eski otomatik kapak önbelleği yenilenir.",
+        "Genel Bakış filtreleri beyaz boşluksuz kurumsal açılır liste stilini kullanır.",
+    ]),
     ("2.0.18", "Sipariş görünümü, bildirim ajanı ve yatay kapaklar", [
         "Sipariş detayları ve genel bakış kitapları sayısal kitap koduna göre sıralar.",
         "Hazırlanmayanlar ve kolilenmeyenler aynı pillbox'ta ayrı filtrelenebilir.",

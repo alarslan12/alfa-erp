@@ -1,4 +1,4 @@
-# ALFACOPYCENTER Suite v2.0.18
+# ALFACOPYCENTER Suite v2.0.19
 
 **Tek Windows kurulumu**, dört seçilebilir bileşen:
 
@@ -10,7 +10,7 @@
 | ALFA Print Center | PrintSurveillance/AlfaPrintSurveillance.exe | Seçilebilir, varsayılan |
 | Arka plan yardımcıları | Bildirim, PrintAgent, PrintSupervisor | Seçilen bileşene bağlı |
 
-Kurulum: `ALFACOPYCENTER_Suite_Setup_V2_0_18.exe`. Aynı Inno Setup AppId
+Kurulum: `ALFACOPYCENTER_Suite_Setup_V2_0_19.exe`. Aynı Inno Setup AppId
 (`ALFACOPYCENTER.Suite`) ve kurulum yolu korundu:
 `%LOCALAPPDATA%\Programs\ALFACOPYCENTER`.
 
@@ -83,7 +83,7 @@ Owner Firebase UID yetkisi, yetkili proje operatörü tarafından Google Cloud
 Shell'de `tools/rtdb_authorize.py` ile onaylanır. Kurulum ve onaylama adımları
 `firebase/RTDB_KURULUM.md` dosyasındadır.
 
-## v2.0.18: Excel / Firebase katalog eşleştirme onarımı
+## v2.0.19: Excel / Firebase katalog eşleştirme onarımı
 
 Katalogda kitap kodları veya sayfa bilgileri yanlışsa doğru Excel'i
 Yönetici uygulamasındaki Excel kataloğu bölümünden buluta yeniden yükleyin.
@@ -96,7 +96,7 @@ Yetki reddi yaşanırsa Cloud Shell araçları ile salt-okunur karşılaştırma
 ve kontrollü düzeltme yapılabilir (firebase/RTDB_KURULUM.md).
 Yeni Suite kurulumu canlı Firebase katalogunu tek başına değiştirmez.
 
-## v2.0.18: Sipariş sekmeleri ve bildirim ajanı
+## v2.0.19: Sipariş sekmeleri ve bildirim ajanı
 
 Sipariş detayları sayısal kitap koduyla sıralanır. 'Hazırlanmayanlar'
 ve 'Kolilenmeyenler' filtreleri tek buton alanını paylaşır. Sekme çubuğunda
@@ -111,3 +111,19 @@ Windows kullanıcı oturumu açık ve Firebase cihazı onaylı olmalıdır.
 
 Yatay ilk PDF sayfaları 270° döndürülür. Kapaklar için Ayarlar →
 Tara ve kapakları güncelle kullanılabilir. Manuel kapaklara dokunulmaz.
+
+## Suite v2.0.19 — finans paneli ve telafi muhasebesi
+
+Analitik sayfasında en önemli dört ciro göstergesi kendi panelinde
+birbirine yakın ve açıklamalı görünür. Ödeme değerleri tamamlanma günü
+bazlı 'Ödendi' işaretinden hesaplanır; doğrudan banka tahsilatı değildir.
+
+Telafi siparişinde fiyat girilmez ve tüm yerel yeni/düzenle işlemleri
+0 TL ciro kaydeder. Kargo bedeli yalnız tamamlanırken sorulup
+Analitik'te Telafi/Açık Adres olarak ayrı gösterilir. Kargo sonrası
+cirodan baskı, işçilik veya diğer giderler düşülmediği için net kâr
+değildir. Önceden yanlış ciro yazılmış telafi kayıtları raporda satış
+görülmez; geçmiş sipariş verileri otomatik olarak değiştirilmez.
+
+Yatay ilk PDF kapaklar artık ters yöne değil +90° döndürülür; kapakları
+yenilemek için Ayarlar → Kapakları tara / güncelle kullanılabilir.
