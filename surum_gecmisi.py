@@ -6,7 +6,14 @@ https://github.com/alarslan12/alfa-erp/releases.
 """
 
 _RELEASES = [
-    ("2.0.20", "PDF kapak taraması ve kitap eşleşmesi onarımı", [
+    ("2.0.21", "PDF kapak görünürlüğü ve eşleşme güncellemesi", [
+        "Küçük ama geçerli JPEG kapaklar katalogdan gizlenmez.",
+        "Tam PDF dosya adı eşleştirmesi güvenli kapak/baskı eklerini destekler.",
+        "Otomatik PDF kapak önbelleği v5'e yükseltildi; yeniden tarama gerekir.",
+        "Yatay PDF kapakları -90 derece döner; manuel kapaklar korunur.",
+        "Önceki Excel, Analitik PIN, hata ve cihaz temizliği revizyonları korunur.",
+    ]),
+    ("2.0.21", "PDF kapak taraması ve kitap eşleşmesi onarımı", [
         "Yatay ilk PDF sayfaları -90 derece döndürülür ve ters yönlü önbellek yenilenir.",
         "PRETUS 3 kitabının 402 kodu ile PDF'nin tam adı eşleşebilir.",
         "PDF adındaki seri sayıları yanlış kitap kodu olarak kullanılmaz.",
