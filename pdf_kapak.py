@@ -119,6 +119,12 @@ def refresh_pdf_covers(data_dir,book_codes,progress=None):
     stats={"matched":0,"created":0,"unchanged":0,"manual":0,
            "missing":0,"errors":0,"missing_examples":[],"error_examples":[]}
     manual=data_dir/"kapaklar"
+    # One directory scan, not one scan per book (thousands of images can exist).
+    manual_codes={
+        str(int(path.stem)) for path in manual.iterdir()
+        if path.is_file() and path.stem.isdecimal()
+        and path.suffix.lower() in (".jpg",".jpeg",".png",".webp",".bmp")
+    }
     pdf_folder=pdf.folder
     for index,code in enumerate(codes,1):
         title=books[code]
@@ -134,11 +140,7 @@ def refresh_pdf_covers(data_dir,book_codes,progress=None):
             signature=[str(pdf_folder.resolve()),str(src.relative_to(pdf_folder)),
                        stat.st_size,stat.st_mtime_ns]
             target=folder/(code+".jpg")
-            manual_exists=any(
-                path.is_file() and path.stem.casefold()==code
-                and path.suffix.lower() in (".jpg",".jpeg",".png",".webp",".bmp")
-                for path in manual.iterdir() if path.is_file()
-            )
+            manual_exists=code in manual_codes
             if manual_exists:
                 stats["manual"]+=1
                 # The manual cover takes precedence, regardless of the auto
