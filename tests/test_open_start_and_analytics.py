@@ -45,6 +45,32 @@ class StartupTests(unittest.TestCase):
         self.assertEqual(owner.mode,'set')
         owner.close()
 
+    def test_staff_pin_success_closes_on_gui_thread(self):
+        import hashlib
+        from unittest.mock import patch
+        from PySide6.QtCore import QTimer
+        from analytics_access import AnalyticsGate
+        pin="123456"
+        salt=b"0123456789ABCDEF"
+        hashed=hashlib.scrypt(pin.encode(),salt=salt,n=16384,r=8,p=1,dklen=32)
+        class StubWorkstation:
+            paired=True
+            token="offline-test-token"
+            uid="stub-uid"
+            def _get(self,path):
+                if path=="analytics_pin":
+                    return {"scheme":"scrypt-ui-gate",
+                            "salt":salt.hex(),"digest":hashed.hex()}
+                return None
+        with patch("analytics_access.Workstation",StubWorkstation):
+            dialog=AnalyticsGate(owner=False)
+            QTimer.singleShot(0,lambda:(dialog.pin.setText(pin),dialog.submit()))
+            QTimer.singleShot(3500,dialog.reject)
+            outcome=dialog.exec()
+            self.assertEqual(outcome,dialog.DialogCode.Accepted)
+            self.assertFalse(dialog._workers)
+            dialog.close()
+
     def test_cloud_activation_uses_firebase_device_pairing(self):
         from main import AlfaMain
         source=inspect.getsource(AlfaMain.connect_cloud)

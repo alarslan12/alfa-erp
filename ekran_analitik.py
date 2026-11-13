@@ -322,6 +322,10 @@ class AnalitikView(QWidget):
         return 2 if width<600 else 3 if width<880 else 4 if width<1170 else 5
 
     def _adapt_width(self):
+        # A viewport resize can arrive during navigation/teardown while
+        # pending Qt layout deletions are still being processed.
+        if not self.isVisible() or getattr(self,'_report_building',False):
+            return
         if self._last_metric_columns != self._metric_columns():
             self.show_report()
 
@@ -469,8 +473,15 @@ class AnalitikView(QWidget):
         self.show_report()
 
     def show_report(self):
-        if self.start is None:
+        if self.start is None or getattr(self,'_report_building',False):
             return
+        self._report_building=True
+        try:
+            self._build_report()
+        finally:
+            self._report_building=False
+
+    def _build_report(self):
         start=self.start.isoformat()
         end=(self.end or self.start).isoformat()
         self.latest=completed_summary(self.db,start,end)

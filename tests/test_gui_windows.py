@@ -28,6 +28,16 @@ class WindowsGuiTests(unittest.TestCase):
                     win.navigate(3)
                     app.processEvents()
                     self.assertEqual(win.stack.currentIndex(),3)
+                    # Exercise the real analytics widget after a successful
+                    # PIN gate, including viewport resizing and report rebuild.
+                    win._analytics_unlocked=True
+                    win.navigate(2)
+                    app.processEvents()
+                    win.analytics.resize(1075,850)
+                    app.processEvents()
+                    win.analytics.refresh()
+                    app.processEvents()
+                    self.assertEqual(win.stack.currentIndex(),2)
                 finally:
                     win.close()
                     app.processEvents()

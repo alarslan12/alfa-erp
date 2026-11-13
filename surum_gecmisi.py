@@ -6,6 +6,12 @@ https://github.com/alarslan12/alfa-erp/releases.
 """
 
 _RELEASES = [
+    ("2.0.16", "Analitik PIN açılış güvenliği", [
+        "Personel ve Yönetici PIN kontrolü artık GUI iş parçacığına yönlendirilen Qt slotları ile sonuçlanır.",
+        "İş parçacığı bitişinde pencereyi doğrudan sonlandırma/iş parçacığı bekleme yarışı giderildi.",
+        "Analitik raporun yeniden çizimi ve boyut değişimi sırasında iç içe render korunur.",
+        "Personel PIN sonrası Analitik ekranı için Windows regresyon testi eklendi.",
+    ]),
     ("2.0.15", "Geçmiş notlar, Personel Excel ve temizlik araçları", [
         "Personel ve Yönetici güncelleme ekranları önceki Suite revizyonlarını çevrimdışı gösterir.",
         "Personel, yetkilendirilmiş Firebase cihazından Excel kitap kataloğu aktarabilir.",

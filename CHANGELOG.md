@@ -1,5 +1,18 @@
 # ALFA ERP · Sürüm Geçmişi
 
+## [v2.0.16] — 2026-11-13
+
+- Personel PIN doğrulama iş parçacığı tamamlandığında arayüze
+  Qt GUI-thread slotları üzerinden dönülüyor; pencere ve thread kapanış
+  sırasındaki yarış durumu önleniyor.
+- Analitik ekranında yeniden boyutlandırma sırasında reentrant rapor
+  inşasına karşı koruma eklendi.
+- PIN doğrulaması başarılı Personel/Analitik açılışı ve grafik
+  yeniden boyutlandırma Windows kalite kontrolüne dahil edildi.
+- Firebase oturumları, siparişler, Suite kurulum şifresi ve diğer dört
+  bileşenin dağıtım düzeni değişmedi.
+
+
 ## [v2.0.15] — 2026-11-13
 
 - **Duyurular / Güncelleme Merkezi:** Personel ve Yönetici sürümlerinin

@@ -4,7 +4,7 @@ Staff can unlock the UI with the owner-defined PIN, but server roles still contr
 Firebase Realtime Database PIN is a UI gate; not a server-enforced secret verifier.
 Do not treat it as a separate authorization boundary. Device roles remain enforced by RTDB Rules.
 """
-from PySide6.QtCore import Qt,QThread,Signal,QTimer
+from PySide6.QtCore import Qt,QThread,Signal,QTimer,Slot
 from PySide6.QtWidgets import (
     QDialog,QVBoxLayout,QHBoxLayout,QLabel,QLineEdit,QPushButton
 )
@@ -59,6 +59,7 @@ class AnalyticsGate(QDialog):
         self.mode='verify'
         self._worker=None
         self._workers=[]
+        self._verification={'ok':False,'error':None}
         self.setWindowTitle('ALFA ERP · Analitik PIN')
         self.setMinimumWidth(410)
         root=QVBoxLayout(self)
@@ -135,27 +136,41 @@ class AnalyticsGate(QDialog):
         self._workers.append(worker)
         self.pin.clear()
         self.confirm.clear()
-        result={'ok':False,'error':None}
-        worker.succeeded.connect(lambda:result.__setitem__('ok',True))
-        worker.failed.connect(lambda error:result.__setitem__('error',error))
-        def finished():
-            # Qt signals may be delivered before the worker thread is fully
-            # torn down. Never destroy the PIN dialog (and its QThread child)
-            # while that thread is still alive.
-            worker.wait()
-            if self._worker is worker:
-                self._worker=None
-            try:self._workers.remove(worker)
-            except ValueError:pass
-            self.button.setEnabled(True)
-            if self.set_button:self.set_button.setEnabled(True)
-            if result['ok']:
-                QTimer.singleShot(0,self.accept)
-            else:
-                self.note.setText(str(result['error'] or 'PIN kontrolü tamamlanamadı'))
-        worker.finished.connect(finished)
+        # Receiver slots belong to QDialog's GUI thread. Free Python
+        # functions/lambdas here may execute in the worker thread depending
+        # on Qt connection internals and can race QDialog teardown.
+        self._verification={'ok':False,'error':None}
+        worker.succeeded.connect(self._pin_verified)
+        worker.failed.connect(self._pin_failed)
+        worker.finished.connect(self._pin_finished)
         worker.finished.connect(worker.deleteLater)
         worker.start()
+
+    @Slot()
+    def _pin_verified(self):
+        self._verification['ok']=True
+
+    @Slot(str)
+    def _pin_failed(self,error):
+        self._verification['error']=str(error)[:230]
+
+    @Slot()
+    def _pin_finished(self):
+        # QThread.finished is queued to this widget on the GUI thread.
+        # Never call wait() inside a finished callback, which can deadlock
+        # or crash if a Python receiver runs on the producer thread.
+        worker=self._worker
+        if worker is None:return
+        self._worker=None
+        try:self._workers.remove(worker)
+        except ValueError:pass
+        self.button.setEnabled(True)
+        if self.set_button:self.set_button.setEnabled(True)
+        if self._verification['ok']:
+            QTimer.singleShot(0,self.accept)
+        else:
+            self.note.setText(str(self._verification['error'] or
+                                  'PIN kontrolü tamamlanamadı'))
 
     def reject(self):
         if any(worker.isRunning() for worker in self._workers):
