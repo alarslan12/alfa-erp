@@ -51,11 +51,11 @@ def match_score(stem, code):
     if re.fullmatch(rf'0*{number}', stem, re.I):
         return 0
     # 31-endodonti.pdf, 031 Endodonti.pdf are explicit book codes.
-    if re.match(rf'^\\s*0*{number}(?=$|[^0-9])', stem, re.I):
+    if re.match(rf'^\s*0*{number}(?=$|[^0-9])', stem, re.I):
         return 1
     # kitap_31.pdf, kod-31-endodonti.pdf are explicit book codes.
     if re.match(
-            rf'^\\s*(?:kitap|kod|book|pdf|alfa)[\\s._-]*0*{number}(?=$|[^0-9])',
+            rf'^\s*(?:kitap|kod|book|pdf|alfa)[\s._-]*0*{number}(?=$|[^0-9])',
             stem, re.I):
         return 1
     return None
