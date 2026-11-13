@@ -85,7 +85,9 @@ class SiparisEditor(QDialog):
             self.setObjectName('OrderTrackWindow')
             self.setWindowTitle(f'ALFA ERP · Sipariş #{sid} · Kitap Takibi')
             self.resize(1180, 740)
-            self.setMinimumSize(920, 600)
+            # Embedded pages must not force their parent tab pane to be wider
+            # than the available window: that clipped the lower control bar.
+            self.setMinimumSize(0, 0) if embedded else self.setMinimumSize(920, 600)
 
         self.root = QVBoxLayout(self)
         self.root.setContentsMargins(14, 12, 14, 14)
