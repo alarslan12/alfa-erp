@@ -53,7 +53,7 @@ def _title_similarity(stem, title):
         norm = unicodedata.normalize(
             'NFKD', str(value).replace('İ', 'i').replace('ı', 'i')).casefold()
         return [x for x in re.findall(r'[a-z0-9]+', norm)
-                if len(x) > 1 and x not in _ALLOWED_SUFFIXES]
+                if (len(x) > 1 or x.isdecimal()) and x not in _ALLOWED_SUFFIXES]
     source, wanted = words(stem), words(title)
     if len(source) < 2 or len(wanted) < 2:
         return 0.0
