@@ -1,12 +1,12 @@
 """Yerel Qt pencereleri: takip ve düzenleme ayrı açılır."""
 from pathlib import Path
 from utils import otomatik_platform_bul, format_kargo_kodu
-from PySide6.QtCore import Qt, QUrl, QTimer
-from PySide6.QtGui import QDesktopServices, QColor
+from PySide6.QtCore import Qt, QUrl, QTimer, QMimeData, Signal
+from PySide6.QtGui import QDesktopServices, QColor, QDrag
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QWidget, QFrame, QLabel, QScrollArea,
     QCheckBox, QSpinBox, QDoubleSpinBox, QLineEdit, QComboBox, QFormLayout, QGridLayout, QAbstractSpinBox,
-    QMessageBox, QFileDialog, QTabWidget, QSizePolicy, QApplication
+    QMessageBox, QFileDialog, QTabWidget, QTabBar, QPushButton, QSizePolicy, QApplication
 )
 from widgets import text, button, cover_label, scrollable, clear_layout, error, confirm
 from kart_siparis import ProgressCover
@@ -961,6 +961,113 @@ class SiparisEditor(QDialog):
         QMessageBox.information(self, 'ALFA ERP', 'Sipariş değişiklikleri kaydedildi.')
 
 
+
+class OrderDockTabBar(QTabBar):
+    """Reorder tabs normally; tear them off by dragging beyond the strip."""
+    tearOff = Signal(int, object)
+    reattachDrop = Signal(str)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._down_index = -1
+        self._down_point = None
+        self.setAcceptDrops(True)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._down_index = self.tabAt(event.position().toPoint())
+            self._down_point = event.position().toPoint()
+        super().mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        outside = not self.rect().adjusted(-20,-30,20,30).contains(event.position().toPoint())
+        index = self._down_index
+        self._down_index = -1
+        if (event.button() == Qt.MouseButton.LeftButton and index >= 0
+            and outside and self._down_point is not None
+            and (event.position().toPoint() - self._down_point).manhattanLength() > 40):
+            self.tearOff.emit(index, event.globalPosition().toPoint())
+            event.accept()
+            return
+        super().mouseReleaseEvent(event)
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasFormat('application/x-alfa-order-tab'):
+            event.acceptProposedAction()
+        else:
+            super().dragEnterEvent(event)
+
+    def dragMoveEvent(self, event):
+        if event.mimeData().hasFormat('application/x-alfa-order-tab'):
+            event.acceptProposedAction()
+        else:
+            super().dragMoveEvent(event)
+
+    def dropEvent(self, event):
+        if event.mimeData().hasFormat('application/x-alfa-order-tab'):
+            sid = bytes(event.mimeData().data('application/x-alfa-order-tab')).decode('utf-8','ignore')
+            self.reattachDrop.emit(sid)
+            event.acceptProposedAction()
+        else:
+            super().dropEvent(event)
+
+
+class OrderDragHandle(QPushButton):
+    def __init__(self,sid,parent=None):
+        super().__init__('↔  Buradan tutup sekme çubuğuna sürükle',parent)
+        self.sid = str(sid)
+        self._start = None
+
+    def mousePressEvent(self,event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._start = event.position().toPoint()
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self,event):
+        if (not (event.buttons() & Qt.MouseButton.LeftButton)
+            or self._start is None
+            or (event.position().toPoint()-self._start).manhattanLength() < 12):
+            super().mouseMoveEvent(event)
+            return
+        drag = QDrag(self)
+        data = QMimeData()
+        data.setData('application/x-alfa-order-tab',self.sid.encode('utf-8'))
+        drag.setMimeData(data)
+        drag.exec(Qt.DropAction.MoveAction)
+        self._start = None
+
+
+class DetachedOrderWindow(QDialog):
+    """A floating order editor which returns to its dock on close."""
+    def __init__(self,host,page,location):
+        super().__init__(host.parentWidget())
+        self.host = host
+        self.page = page
+        self.sid = str(page.sid)
+        self.setObjectName('DetachedOrderWindow')
+        self.setWindowTitle(f'ALFA ERP · Sipariş #{self.sid}')
+        self.resize(1100,740)
+        self.setMinimumSize(750,540)
+        root = QVBoxLayout(self)
+        root.setContentsMargins(8,8,8,8)
+        root.setSpacing(6)
+        controls=QHBoxLayout()
+        controls.addWidget(OrderDragHandle(self.sid,self),1)
+        dock=QPushButton('↩  Sekmeye geri al')
+        dock.clicked.connect(lambda:host.reattach_order(self.sid))
+        controls.addWidget(dock)
+        root.addLayout(controls)
+        page.setParent(self)
+        root.addWidget(page,1)
+        self.move(location)
+        self.show()
+
+    def closeEvent(self,event):
+        if self.host is not None and self.sid in self.host.detached:
+            self.host.reattach_order(self.sid,from_close=True)
+        super().closeEvent(event)
+
+
 class SiparisTakipSekmeleri(QDialog):
     """Birden fazla sipariş detayını tek popup içinde sekmeler halinde toplar."""
     def __init__(self, db, covers, on_updated, parent=None):
@@ -969,6 +1076,7 @@ class SiparisTakipSekmeleri(QDialog):
         self.covers = covers
         self.on_updated = on_updated
         self.pages = {}
+        self.detached = {}
         self.setObjectName('OrderTrackTabsWindow')
         self.setWindowTitle('ALFA ERP · Sipariş Detayları')
         self.resize(1220, 740)
@@ -989,10 +1097,15 @@ class SiparisTakipSekmeleri(QDialog):
         root.addWidget(tabs_header)
         self.tabs = QTabWidget()
         self.tabs.setObjectName("OrderTrackTabs")
+        self.tabs.setTabBar(OrderDockTabBar(self.tabs))
         self.tabs.tabBar().setObjectName('OrderTrackTabBar')
         self.tabs.setDocumentMode(False)
         self.tabs.tabBar().setDrawBase(False)
         self.tabs.tabBar().setUsesScrollButtons(True)
+        self.tabs.tabBar().setExpanding(False)
+        self.tabs.tabBar().tearOff.connect(self.detach_order)
+        self.tabs.tabBar().reattachDrop.connect(self.reattach_order)
+        self.tabs.setSizePolicy(QSizePolicy.Policy.Expanding,QSizePolicy.Policy.Expanding)
         self.tabs.setTabsClosable(True)
         self.tabs.setMovable(True)
         self.tabs.tabCloseRequested.connect(self._close_index)
@@ -1018,6 +1131,11 @@ class SiparisTakipSekmeleri(QDialog):
     def add_order(self, sid):
         sid = str(sid)
         if sid in self.pages:
+            if sid in self.detached:
+                self.detached[sid].showNormal()
+                self.detached[sid].raise_()
+                self.detached[sid].activateWindow()
+                return
             self.tabs.setCurrentWidget(self.pages[sid])
             self._retitle()
             return
@@ -1033,6 +1151,8 @@ class SiparisTakipSekmeleri(QDialog):
         page = self.pages.get(sid)
         if page is None:
             return
+        if sid in self.detached:
+            self.reattach_order(sid)
         index = self.tabs.indexOf(page)
         if index >= 0:
             self._close_index(index)
@@ -1049,9 +1169,40 @@ class SiparisTakipSekmeleri(QDialog):
         if not self.pages:
             self.close()
 
+    def detach_order(self,index,global_position):
+        page=self.tabs.widget(index)
+        if page is None:
+            return
+        sid=str(page.sid)
+        if sid in self.detached:
+            return
+        self.tabs.removeTab(index)
+        window=DetachedOrderWindow(self,page,global_position)
+        self.detached[sid]=window
+        self._retitle()
+
+    def reattach_order(self,sid,from_close=False):
+        sid=str(sid)
+        window=self.detached.pop(sid,None)
+        if window is None:
+            return
+        page=self.pages.get(sid)
+        if page is not None:
+            window.layout().removeWidget(page)
+            page.setParent(self.tabs)
+            self.tabs.addTab(page,f'#{sid}')
+            self.tabs.setCurrentWidget(page)
+            page.show()
+        window.host=None
+        if not from_close:
+            window.close()
+        window.deleteLater()
+        self.showNormal()
+        self._retitle()
+
     def _retitle(self):
         count = self.tabs.count()
-        self.tabs_count.setText(f'{count} açık sekme')
+        self.tabs_count.setText(f'{count} sekme · {len(self.detached)} ayrı pencere')
         light = bool(QApplication.instance() and QApplication.instance().property('alfa_theme') == 'acik')
         if light:
             stage_labels = {'aktif': ('AKTİF', '#276e9b', '●'),
