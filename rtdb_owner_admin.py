@@ -28,46 +28,152 @@ def staff_catalog_import(client, incoming):
 
 
 def _catalog(client, incoming):
+    """Replace the active Firebase book catalog by the Excel's BOOK CODE.
+
+    Never map titles by array position: older RTDB imports shifted code 508/
+    509/510 while still looking plausible in the card list. Do not publish a
+    new revision until the server confirms all active books and mobile data.
+    """
+    from pathlib import Path
+    import json
+    import os
+    import tempfile
+    from cihaz_sifreleme import DATA
+
     if not isinstance(incoming,list) or not 1 <= len(incoming) <= 2000:
-        raise DeviceError("Katalog 1-2000 kitap içermeli.", 422)
-    codes = [str(x.get("code") or "").strip() for x in incoming]
-    if not all(codes) or len(set(codes)) != len(codes):
-        raise DeviceError("Katalogda tekrarlanan veya boş kitap kodu var", 422)
-    if any(any(c in x for c in '.#$[]/') for x in codes):
-        raise DeviceError("Firebase'de kullanılamayan kitap kodu.", 422)
+        raise DeviceError("Katalog 1–2000 kitap içermeli.",422)
+    prepared={}
+    for raw in incoming:
+        if not isinstance(raw,dict):
+            raise DeviceError("Excel kitap kaydı geçersiz.",422)
+        code=str(raw.get("code") or "").strip()
+        name=str(raw.get("name") or "").strip()
+        if not code or not name or len(code)>80 or len(name)>350:
+            raise DeviceError("Excel'de kodu veya adı boş/geçersiz kitap var.",422)
+        if any(ch in code for ch in '.#$[]/') or code in prepared:
+            raise DeviceError("Tekrarlanan veya Firebase'de geçersiz kitap kodu: "+code,422)
+        try:
+            pages=int(raw.get("page_count") or 0)
+        except (TypeError,ValueError,OverflowError):
+            raise DeviceError("Sayfa sayısı geçersiz: "+code,422) from None
+        if pages<0 or pages>100000:
+            raise DeviceError("Sayfa sayısı aralık dışında: "+code,422)
+        prepared[code]={
+            "code":code,"name":name,
+            "group_name":str(raw.get("group_name") or "Tekil Kitaplar")[:200],
+            "page_count":pages,
+            "supports_color":bool(raw.get("supports_color")),
+        }
     current=client._get("books") or {}
-    by_code={str(book.get("code")):(id,book) for id,book in current.items()}
-    fresh={}
-    public={}
+    if not isinstance(current,dict):
+        raise DeviceError("Firebase kitap arşivi beklenmeyen biçimde; yazma yapılmadı.",422)
+    prev_public=client._get("public_catalog")
+    if not isinstance(prev_public,(dict,list,type(None))):
+        raise DeviceError("Firebase mobil katalog biçimi geçersiz; yazma yapılmadı.",422)
+
+    # Preserve the old catalog as a local recoverable backup before ANY write.
+    backup_dir=Path(DATA)/"catalog_backups"
+    backup_dir.mkdir(parents=True,exist_ok=True)
     now=datetime.now(timezone.utc).isoformat()
-    for incoming_row in incoming:
-        code=str(incoming_row["code"]).strip()
-        old_id,old=by_code.get(code,(str(uuid.uuid4()),{}))
-        row={**old, "id":old_id, "workspace_id":WORKSPACE_ID,
-             "code":code, "name":str(incoming_row["name"])[:350],
-             "group_name":str(incoming_row.get("group_name") or "")[:200],
-             "page_count":int(incoming_row.get("page_count") or 0),
-             "supports_color":bool(incoming_row.get("supports_color")),
-             "is_active":True, "updated_at":now,
-             "version":int(old.get("version") or 0)+1,
-             "created_at":old.get("created_at") or now}
-        if row["page_count"] < 0:
-            raise DeviceError("Sayfa sayısı geçersiz", 422)
-        fresh[old_id]=row
-        public[code]={k:row[k] for k in (
-            "code","name","group_name","page_count","supports_color")}
-    for id,book in current.items():
-        if id not in fresh:
-            fresh[id]={**book,"is_active":False,"updated_at":now,
-                       "version":int(book.get("version") or 0)+1}
-    # No blanket parent PUT (which could bypass audit or erase children):
-    # write each permitted book location, then public catalogue.
-    for id,row in fresh.items():
-        client._request("PUT","books/"+id,row)
+    with tempfile.NamedTemporaryFile(
+            mode="w",encoding="utf-8",prefix="before_excel_",
+            suffix=".json",dir=backup_dir,delete=False) as snapshot:
+        json.dump({"saved_at":now,"workspace_id":WORKSPACE_ID,
+                   "books":current,"public_catalog":prev_public},
+                  snapshot,ensure_ascii=False)
+        backup_path=snapshot.name
+    os.chmod(backup_path,0o600)
+
+    grouped={}
+    for uid,old in current.items():
+        if not isinstance(old,dict):continue
+        code=str(old.get("code") or "").strip()
+        if code:grouped.setdefault(code,[]).append((uid,old))
+    updates={};public={}
+    for code,book in prepared.items():
+        candidates=grouped.get(code,[])
+        # Reuse the record with the matching book name if present, otherwise
+        # keep a stable existing UUID. All duplicates become inactive.
+        ordered=sorted(candidates,key=lambda x:(
+            str(x[1].get("name") or "").casefold()!=book["name"].casefold(),
+            x[1].get("is_active") is not True,str(x[0])))
+        chosen_id,previous=(ordered[0] if ordered else (str(uuid.uuid4()),{}))
+        pages=book["page_count"]
+        # Blank/unknown page count does not erase a valid previous page count
+        # when both code and title match. A renamed code needs Excel authority.
+        if pages==0 and previous.get("name")==book["name"]:
+            pages=max(0,int(previous.get("page_count") or 0))
+        book=dict(book,page_count=pages)
+        public[code]=dict(book)
+        data={**previous,**book,
+              "id":chosen_id,"workspace_id":WORKSPACE_ID,
+              "is_active":True,"updated_at":now,
+              "created_at":previous.get("created_at") or now,
+              "version":int(previous.get("version") or 0)+1}
+        if any(data.get(k)!=previous.get(k) for k in
+               ("code","name","group_name","page_count","supports_color","is_active")):
+            updates[chosen_id]=data
+        for duplicate_id,duplicate in ordered[1:]:
+            if duplicate.get("is_active") is not False:
+                updates[duplicate_id]={**duplicate,"is_active":False,
+                                      "updated_at":now,
+                                      "version":int(duplicate.get("version") or 0)+1}
+    for uid,old in current.items():
+        if not isinstance(old,dict):continue
+        if str(old.get("code") or "") not in prepared and old.get("is_active") is not False:
+            updates[uid]={**old,"is_active":False,"updated_at":now,
+                          "version":int(old.get("version") or 0)+1}
+
+    # A single PATCH avoids an hours-long 500-item update and is atomic for
+    # the books subtree. Some older rules reject parent PATCH while allowing
+    # child PUT; in that case retry only at individual permitted leaf paths.
+    if updates:
+        try:
+            client._request("PATCH","books",updates,timeout=45)
+        except DeviceError as error:
+            if error.status not in (400,403,405):
+                raise
+            for uid,data in updates.items():
+                client._request("PUT","books/"+uid,data)
+
+    actual=client._get("books") or {}
+    if not isinstance(actual,dict):
+        raise DeviceError("Katalog doğrulanamadı; eski yedek korundu.",409)
+    active={}
+    for row in actual.values():
+        if not isinstance(row,dict) or row.get("is_active") is not True:
+            continue
+        code=str(row.get("code") or "").strip()
+        if code in active:
+            raise DeviceError("Bulutta yinelenen aktif kitap kodu "+code+
+                              "; önceki katalog yedeği korundu.",409)
+        active[code]=row
+    if set(active)!=set(public):
+        raise DeviceError("Katalog sunucu doğrulaması başarısız: "+
+                          str(len(active))+" aktif / "+str(len(public))+
+                          " Excel kitabı. Önceki yedek korundu.",409)
+    for code,book in public.items():
+        remote=active[code]
+        if any(remote.get(k)!=book.get(k) for k in book):
+            raise DeviceError("Firebase kitap kodu "+code+
+                              " Excel'deki bilgiyle uyuşmuyor; yedek korundu.",409)
+
+    # RTDB can decode dense numeric-key maps as JSON arrays, so normalize
+    # readback by each book's explicit code instead of list indexes.
+    def as_code_map(raw):
+        rows=raw.values() if isinstance(raw,dict) else raw
+        return {str(row["code"]):row for row in (rows or [])
+                if isinstance(row,dict) and row.get("code") is not None}
+
     client._request("PUT","public_catalog",public)
-    client._catalog_cache=public
+    public_readback=as_code_map(client._get("public_catalog"))
+    if public_readback!=public:
+        raise DeviceError("Mobil katalog yazıldı ancak doğrulanamadı; "
+                          "revizyon artırılmadı, yedek saklandı.",409)
     client._bump("catalog")
-    return {"count":len(public)}
+    client._catalog_cache=public
+    return {"count":len(public),"updated":len(updates),
+            "verified":True,"backup":str(backup_path)}
 
 
 def _upsert_product(client,product):
