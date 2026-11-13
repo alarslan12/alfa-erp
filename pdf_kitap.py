@@ -9,6 +9,7 @@ import os
 import re
 import tempfile
 import unicodedata
+from difflib import SequenceMatcher
 
 PDF_PREFIXES = ('kitap', 'kod', 'book', 'pdf', 'alfa')
 _ALLOWED_SUFFIXES = ('kapak', 'cover', 'pdf', 'baski', 'kitap')
@@ -22,24 +23,55 @@ def normalize_title(value):
 
 
 def match_score(stem, code):
-    """0 is exact code, 1-2 explicitly coded, 3 is weak/ambiguous."""
+    """Match an explicitly placed catalog code, never an incidental volume number."""
     key = str(code).strip()
-    if not key.isdigit():
+    if not key.isdecimal():
         return None
-    pattern = rf'0*{int(key)}'
-    if re.fullmatch(pattern, stem, re.I):
+    num = int(key)
+    parts = [p for p in re.split(r'[\\s._()\\[\\]−–—-]+', stem.casefold()) if p]
+    if not parts:
+        return None
+    def is_code(token):
+        return token.isdecimal() and int(token) == num
+    if len(parts) == 1 and is_code(parts[0]):
         return 0
-    parts = re.findall(r'\d+', stem)
-    if len(parts) != 1 or int(parts[0]) != int(key):
-        return None
-    name = re.sub(r'[\s._()\[\]−\-]+', ' ', stem.lower()).strip()
-    words = name.split()
-    if words and words[0] in PDF_PREFIXES:
+    # Leading numeric ID is authoritative, e.g. 31-endodonti.pdf.
+    if is_code(parts[0]):
         return 1
-    if words and words[-1] in ('kitap', 'pdf', 'baski'):
+    # Explicit "kitap_31", "kod 31 - endodonti".
+    if len(parts) > 1 and parts[0] in PDF_PREFIXES and is_code(parts[1]):
+        return 1
+    # Numeric ID with explicit suffix, e.g. endodonti-31-kapak.
+    if len(parts) >= 2 and parts[-1] in _ALLOWED_SUFFIXES and is_code(parts[-2]):
         return 2
-    return 3
+    return None
 
+
+def _title_similarity(stem, title):
+    """Conservative typo tolerance, with safeguards against unrelated series."""
+    def words(value):
+        norm = unicodedata.normalize(
+            'NFKD', str(value).replace('İ', 'i').replace('ı', 'i')).casefold()
+        return [x for x in re.findall(r'[a-z0-9]+', norm)
+                if len(x) > 1 and x not in _ALLOWED_SUFFIXES]
+    source, wanted = words(stem), words(title)
+    if len(source) < 2 or len(wanted) < 2:
+        return 0.0
+    # Numbers (volumes, set numbers, edition years) must never disagree.
+    source_nums = {x for x in source if x.isdecimal()}
+    wanted_nums = {x for x in wanted if x.isdecimal()}
+    if source_nums != wanted_nums:
+        return 0.0
+    a, b = ''.join(source), ''.join(wanted)
+    if min(len(a), len(b)) < 12:
+        return 0.0
+    overlap = len(set(source) & set(wanted)) / max(len(set(source)), len(set(wanted)))
+    ratio = SequenceMatcher(None, a, b).ratio()
+    if ratio >= .92 and overlap >= .5:
+        return ratio
+    if ratio >= .85 and overlap >= .75:
+        return ratio
+    return 0.0
 
 class PdfKutuphane:
     def __init__(self, data_dir):
@@ -49,6 +81,7 @@ class PdfKutuphane:
         self._index = {}
         self._title_index = {}
         self._files = []
+        self._conflicted = set()
         self._scanned = False
         self._read_settings()
 
@@ -81,6 +114,7 @@ class PdfKutuphane:
         self._index = {}
         self._title_index = {}
         self._files = []
+        self._conflicted = set()
         self._scanned = True
         if self.folder is None or not self.folder.is_dir():
             return
@@ -99,8 +133,11 @@ class PdfKutuphane:
                 if score is None:
                     continue
                 prev = self._index.get(code)
-                if prev is None or (score, str(file)) < (prev[0], str(prev[1])):
+                if prev is None or score < prev[0]:
                     self._index[code] = (score, file)
+                    self._conflicted.discard(code)
+                elif score == prev[0] and file != prev[1]:
+                    self._conflicted.add(code)
 
     def _find_named(self, title):
         key = normalize_title(title)
@@ -130,6 +167,14 @@ class PdfKutuphane:
             return next(iter(matches))
         if len(matches) > 1:
             raise ValueError('Aynı kitap adıyla birden fazla PDF var: ' + str(title))
+        ranked = sorted(
+            ((score, file) for file in self._files
+             if (score := _title_similarity(file.stem, title)) > 0),
+            key=lambda item: item[0], reverse=True)
+        if ranked:
+            if len(ranked) > 1 and ranked[0][0] - ranked[1][0] < .06:
+                raise ValueError('Birden fazla benzer PDF adı var: ' + str(title))
+            return ranked[0][1]
         return None
 
     def find(self, code, title=None):
@@ -153,11 +198,9 @@ class PdfKutuphane:
             found = self._index.get(key)
         if found is None:
             return None
-        score, candidate=found
-        if title and score >= 3:
-            # Legacy heuristic "DUS Set 3.pdf" would claim code 3 even
-            # when that book belongs to another publisher. Fail closed.
-            return None
+        score, candidate = found
+        if key in self._conflicted:
+            raise ValueError('Aynı kitap koduyla birden fazla PDF var: ' + key)
         return candidate
 
     def resolve_many(self, codes):
