@@ -487,6 +487,11 @@ class AlfaMain(QMainWindow):
             self.orders.refresh()
             if self.bookpool and self.bookpool.isVisible():
                 self.bookpool.refresh()
+            # Cloud Excel imports can change the book-code/title mapping
+            # after the initial PDF-cover scan at desktop startup.
+            # Re-run the local title-aware scan, asynchronously in Settings.
+            if getattr(self.settings_page,'pdf',None) and self.settings_page.pdf.folder:
+                QTimer.singleShot(450,self.settings_page.generate_pdf_covers)
         if '__envanter__' in ids:
             self.inventory.refresh()
             self.general_catalog.refresh()
