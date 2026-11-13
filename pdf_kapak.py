@@ -16,7 +16,7 @@ from PySide6.QtPdf import QPdfDocument
 
 from pdf_kitap import PdfKutuphane
 
-CACHE_VERSION=6
+CACHE_VERSION=7
 MAX_PDFS=4000
 MAX_SOURCE_BYTES=850*1024*1024
 
@@ -188,8 +188,13 @@ def refresh_pdf_covers(data_dir,book_codes,progress=None):
     # Real errors are in 'errors'; PDF names needing attention in 'unmatched_pdf'.
     # One atomic write: Covers may continue showing old manifest until this
     # validated new manifest is fully available.
-    _atomic_json(manifest,{"version":CACHE_VERSION,"entries":current,
-                           "source_folder":str(pdf_folder)})
+    # Never replace a previous working cover index with an empty one if
+    # the new scan fails to match a single source PDF.
+    if current or not manifest.is_file():
+        _atomic_json(manifest,{"version":CACHE_VERSION,"entries":current,
+                               "source_folder":str(pdf_folder)})
+    else:
+        stats["preserved_previous_cache"]=True
     _atomic_json(data_dir/"alfa_pdf_kapak_tarama_raporu.json",{
         "summary":stats,"source_folder":str(pdf_folder),
         "hint":"Eşleşmeyen PDF örneklerini inceleyin; katalogda PDF bulunmaması hata değildir. 31-endodonti.pdf, kitap_31.pdf ve tam kitap adları desteklenir."

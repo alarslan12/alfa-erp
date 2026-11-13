@@ -6,6 +6,13 @@ https://github.com/alarslan12/alfa-erp/releases.
 """
 
 _RELEASES = [
+    ("2.0.23", "Kapak görünürlüğü ve sayfa verisi kurtarma", [
+        "Başarısız PDF taraması önceki kodlu JPEG kapakları gizlemez.",
+        "Boş tarama eski kapak manifestini silmez.",
+        "Excel/Firebase boş sayfaları, aynı kod ve ad için önceden bilinen sayfaları yerelde sıfırlamaz.",
+        "Yerel sayfa kurtarma kayıtları korunur; bulut verisi kendiliğinden değiştirilmez.",
+        "Excel önizlemesinde dolu ve boş sayfa sayıları gösterilir.",
+    ]),
     ("2.0.22", "PDF kodları ve eşleşme raporu düzeltmesi", [
         "31-endodonti.pdf ve kitap_31.pdf gibi açık kod içeren PDF'ler tanınır.",
         "Tam kitap adları arasında yalnız güvenli yazım benzerlikleri eşleştirilir.",

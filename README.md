@@ -1,4 +1,4 @@
-# ALFACOPYCENTER Suite v2.0.22
+# ALFACOPYCENTER Suite v2.0.23
 
 **Tek Windows kurulumu**, dört seçilebilir bileşen:
 
@@ -149,3 +149,7 @@ Otomatik JPEG kapakların eski boyut sınırı kaldırıldı. PDF adlarında tam
 ## v2.0.22: PDF kodu ve gerçek eşleşme raporu
 
 `31-endodonti.pdf` gibi açık kodlu PDF'ler eşleştirilir. Klasörde olmayan katalog kitapları PDF işleme hatası sayılmaz; eşleşmeyen PDF adları ayrı raporlanır. Güncellemeden sonra Ayarlar → Kitap PDF klasörü → Tara ve kapakları güncelle.
+
+## v2.0.23: Çalışan kapakları ve sayfa sayılarını koruma
+
+PDF taraması sıfır eşleşme bulsa da önceki doğrulanmış tarama kaynağına ait kodlu JPEG kapaklar kaybolmaz. Başarısız tarama önceki önbellek manifestini boş listeyle değiştirmez. Bulut katalogunda sayfa sayısı boş veya 0 ise, aynı kod ve aynı kitap adıyla önceden bilinen pozitif sayfa sayısı yerel katalogda korunur. Excel önizlemesi dolu/boş sayfa sayısını ayrı gösterir. Firebase kayıtlarına kendiliğinden yazma yapılmaz.

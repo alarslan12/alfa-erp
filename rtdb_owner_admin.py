@@ -101,7 +101,9 @@ def _catalog(client, incoming):
         pages=book["page_count"]
         # Blank/unknown page count does not erase a valid previous page count
         # when both code and title match. A renamed code needs Excel authority.
-        if pages==0 and previous.get("name")==book["name"]:
+        same_title=(' '.join(str(previous.get("name") or "").casefold().split())
+                    == ' '.join(book["name"].casefold().split()))
+        if pages==0 and same_title:
             pages=max(0,int(previous.get("page_count") or 0))
         book=dict(book,page_count=pages)
         public[code]=dict(book)

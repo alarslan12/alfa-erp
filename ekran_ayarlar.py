@@ -392,7 +392,11 @@ class SettingsPage(QWidget):
         try:
             self._excel_rows=preview_excel_catalog(source)
             self.excel_note.setText(
-                Path(source).name+" · "+str(len(self._excel_rows))+" kitap hazır.")
+                Path(source).name+" · "+str(len(self._excel_rows))+" kitap · "+
+                str(sum(int(x.get('page_count') or 0)>0 for x in self._excel_rows))+
+                " sayfa bilgisi dolu · "+
+                str(sum(int(x.get('page_count') or 0)==0 for x in self._excel_rows))+
+                " sayfa bilgisi boş.")
             self.excel_upload.setEnabled(True)
         except Exception as exc:
             self._excel_rows=[]

@@ -89,7 +89,15 @@ class ERPDatabase:
         self.sepet_kurtarilabilir = False
         self.hafiza_sepet = {}
         
+        # Remember last verified positive page counts; this is local-only.
+        self._page_recovery_file=Path(self.sepet_dosyasi).parent/'alfa_katalog_sayfa_kurtarma.json'
+        try:
+            entries=json.loads(self._page_recovery_file.read_text(encoding='utf-8'))
+            self._page_recovery=entries if isinstance(entries,dict) else {}
+        except (OSError,ValueError,TypeError):
+            self._page_recovery={}
         self.katalog_yukle()
+        self._remember_catalog_pages(self.kitaplar)
         self.sepet_hafiza_kontrol()
 
     @staticmethod
@@ -600,6 +608,30 @@ class ERPDatabase:
         if inventory_changed:changed.append('__envanter__')
         return reset_changes+changed
 
+    @staticmethod
+    def _same_book_title(left,right):
+        def norm(value):
+            return ' '.join(str(value or '').replace('İ','i').replace('ı','i')
+                            .casefold().split())
+        return bool(norm(left)) and norm(left)==norm(right)
+
+    def _remember_catalog_pages(self,books):
+        changed=False
+        for book in books:
+            if not isinstance(book,dict):
+                continue
+            code=str(book.get('kod') or '').strip()
+            name=str(book.get('isim') or '').strip()
+            try:pages=max(0,int(book.get('sayfa') or 0))
+            except (ValueError,TypeError,OverflowError):pages=0
+            if code and name and pages>0:
+                entry={'isim':name,'sayfa':pages}
+                if self._page_recovery.get(code)!=entry:
+                    self._page_recovery[code]=entry
+                    changed=True
+        if changed:
+            self._atomik_json_yaz(str(self._page_recovery_file),self._page_recovery)
+
     def apply_cloud_catalog(self,payload):
         revision=payload.get('catalog_revision')
         rows=payload.get('books')
@@ -611,8 +643,17 @@ class ERPDatabase:
             if not isinstance(row,dict):continue
             code=str(row.get('code') or '').strip()
             if not code:continue
-            book={'kod':code,'isim':str(row.get('name') or code),
-                 'sayfa':max(0,int(row.get('page_count') or 0)),
+            name=str(row.get('name') or code)
+            pages=max(0,int(row.get('page_count') or 0))
+            if pages==0:
+                for earlier in (self.katalog.get(code),self._page_recovery.get(code)):
+                    if (isinstance(earlier,dict) and
+                        self._same_book_title(earlier.get('isim'),name)):
+                        try:pages=max(0,int(earlier.get('sayfa') or 0))
+                        except (ValueError,TypeError,OverflowError):pages=0
+                        if pages:break
+            book={'kod':code,'isim':name,
+                 'sayfa':pages,
                  'renkli_opsiyon':bool(row.get('supports_color')),
                  'grup':str(row.get('group_name') or 'Tekil Kitaplar')}
             book['grup_temiz']=tr_kucult(book['grup'])
@@ -634,6 +675,7 @@ class ERPDatabase:
         self.gruplar.clear();self.gruplar.update(groups)
         self.archived_catalog=archived
         self.cloud_catalog_revision=revision
+        self._remember_catalog_pages(books)
         return True
 
     def bulut_bilinen_kayitlar(self):

@@ -1,5 +1,15 @@
 # ALFA ERP · Sürüm Geçmişi
 
+## [v2.0.23] — 2026-11-13
+
+- Önceden çalışan, koduyla adlandırılmış PDF JPEG kapakları boş tarama sonrası gizlenmez.
+- Tarama sıfır eşleşme bulduğunda önceki manifest korunur; JPEG dosyaları silinmez.
+- Bulut katalogundaki 0 sayfa, aynı kod/isimle bilinen pozitif sayfayı yerelde sıfırlamaz.
+- Excel boş sayfa değerleri, aynı kitap için sunucuda bilinen sayfa sayısını ezmez.
+- Personel/Yönetici Excel önizlemesinde dolu/boş sayfa sayıları ayrı gösterilir.
+- Firebase siparişleri, mevcut Katalog/Siparişler arayüzü ve manuel kapaklar korunur.
+
+
 ## [v2.0.22] — 2026-11-13
 
 - Sayısal kitap kodu bulunan PDF'lerin eşleşmesi iyileştirildi (31-endodonti.pdf, kitap_31.pdf vb.).

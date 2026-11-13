@@ -40,9 +40,15 @@ class Covers:
                     and isinstance(meta.get('entries'),dict)) else set()
             except (OSError,TypeError,ValueError,AttributeError):
                 active=set()
+            # A real PDF scan with no verified matches must not hide all
+            # previously generated, code-named JPEGs. Orphan caches without
+            # a recorded source remain invisible.
+            recovery=(not active and isinstance(meta,dict) and
+                      bool(meta.get('source_folder'))) if 'meta' in locals() else False
             for file in automated.iterdir():
                 if (file.is_file() and file.suffix.lower() in IMAGE_SUFFIXES
-                    and file.stem in active and file.stat().st_size>0):
+                    and file.stem.isdecimal() and file.stat().st_size>0
+                    and (file.stem in active or recovery)):
                     self.auto_index[normal(file.stem)]=file
         # Backward-compatible index for non-cover callers.
         self.index={**self.auto_index,**self.manual_index}

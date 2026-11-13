@@ -183,12 +183,17 @@ class PdfKutuphane:
         key = str(int(code)) if str(code).isdigit() else str(code)
         if not self._scanned:
             self.scan()
+        # Restore code-first matching from the working Suite for explicit
+        # filenames such as 31-endodonti.pdf and kitap_31.pdf.
+        found = self._index.get(key)
+        if found is not None and found[0] <= 2 and found[1].is_file():
+            if key in self._conflicted:
+                raise ValueError('Aynı kitap koduyla birden fazla PDF var: ' + key)
+            return found[1]
         if title:
             named = self._find_named(title)
             if named:
-                # Full book title beats an unrelated volume number.
                 return named
-        found = self._index.get(key)
         if found is None or not found[1].is_file():
             if found is not None:
                 self.scan()
