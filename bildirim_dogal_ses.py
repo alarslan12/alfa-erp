@@ -174,21 +174,19 @@ def play_windows_voice(mode):
         return False
 
 
-class _VoiceJob:
-    """Creates a Qt worker lazily; avoids importing GUI modules in unit tests."""
-    def __init__(self,directory,voice_id):
-        from PySide6.QtCore import QObject,QThread,Signal
-        class Job(QThread):
-            ready=Signal(str)
-            failed=Signal()
-            def run(self_inner):
-                try:
-                    path=generate_voice_clip(directory,voice_id)
-                    self_inner.ready.emit(str(path))
-                except Exception:
-                    self_inner.failed.emit()
-        self.thread=Job()
-        self.voice_id=voice_id
+def _start_voice_fetch(manager,directory,voice_id):
+    """Daemon Python thread: safe across GUI shutdown and setup upgrades."""
+    import threading
+    def job():
+        try:
+            path=generate_voice_clip(directory,voice_id)
+            manager.ready.emit(str(path))
+        except Exception:
+            manager.failed.emit()
+        finally:
+            manager.completed.emit(voice_id)
+    threading.Thread(target=job,daemon=True,
+                     name="ALFA-ElevenLabs-Voice").start()
 
 
 def play_elevenlabs(mode,directory):
@@ -208,32 +206,27 @@ def play_elevenlabs(mode,directory):
         if app is None or not load_api_key(directory):
             return False
         if _manager is None:
+            from PySide6.QtCore import Signal
             class Manager(QObject):
+                ready=Signal(str)
+                failed=Signal()
+                completed=Signal(str)
                 def __init__(self,parent):
                     super().__init__(parent)
-                    self.pending={}
+                    self.pending=set()
+                    self.ready.connect(self._play_ready)
+                    self.completed.connect(self._clear_pending)
                 def submit(self,voice,directory):
-                    if voice in self.pending:
-                        return
-                    job=_VoiceJob(directory,voice).thread
-                    self.pending[voice]=job
-                    job.ready.connect(self.ready)
-                    job.failed.connect(self.failed)
-                    job.finished.connect(self.finished)
-                    job.finished.connect(job.deleteLater)
-                    job.start()
+                    if voice in self.pending:return
+                    self.pending.add(voice)
+                    _start_voice_fetch(self,directory,voice)
                 @Slot(str)
-                def ready(self,path):
+                def _play_ready(self,path):
                     try:_play_wav(Path(path))
                     except Exception:pass
-                @Slot()
-                def failed(self):
-                    pass  # The immediate fallback chime already played.
-                @Slot()
-                def finished(self):
-                    for voice,job in list(self.pending.items()):
-                        if not job.isRunning():
-                            self.pending.pop(voice,None)
+                @Slot(str)
+                def _clear_pending(self,voice):
+                    self.pending.discard(voice)
             _manager=Manager(app)
         _manager.submit(voice_id,directory)
         return True
