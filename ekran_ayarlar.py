@@ -326,22 +326,24 @@ class SettingsPage(QWidget):
 
     def _covers_done(self,counts):
         result=(
-            f"PDF eşleşmesi: {counts.get('matched',0)} · "
+            f"PDF dosyası: {counts.get('pdf_found',0)} · "
+            f"Eşleşen PDF/kitap: {counts.get('matched',0)} · "
             f"Yeni/güncel kapak: {counts.get('created',0)} · "
             f"Önbellekten: {counts.get('unchanged',0)} · "
-            f"Elle eklenmiş kapak: {counts.get('manual',0)} · "
-            f"Eşleşmeyen: {counts.get('missing',0)} · "
-            f"Hata: {counts.get('errors',0)}")
-        if counts.get("missing_examples") or counts.get("error_examples"):
-            # Diagnostic details remain local to the operator's computer.
-            examples=(counts.get("missing_examples") or [])[:4]
-            self.pdf_status.setToolTip(
-                "Eşleşmeyen örnekler: "+", ".join(examples)+
-                "\nTarama raporu: "+str(self.pdf.data_dir/"alfa_pdf_kapak_tarama_raporu.json"))
-            if examples:
-                result += " · Örnek: "+", ".join(examples[:3])
-        else:
-            self.pdf_status.setToolTip("")
+            f"Elle eklenmiş: {counts.get('manual',0)} · "
+            f"Eşleşmeyen PDF: {counts.get('unmatched_pdf',0)} · "
+            f"Katalogda PDF'si olmayan: {counts.get('catalog_without_pdf',counts.get('missing',0))} · "
+            f"İşleme hatası: {counts.get('errors',0)}")
+        pdf_examples=(counts.get('unmatched_pdf_examples') or [])[:4]
+        errors=(counts.get('error_examples') or [])[:4]
+        self.pdf_status.setToolTip(
+            "Eşleşmeyen PDF örnekleri: "+(", ".join(pdf_examples) or "Yok")+
+            "\\nİşleme hataları: "+(", ".join(errors) or "Yok")+
+            "\\nRapor: "+str(self.pdf.data_dir/"alfa_pdf_kapak_tarama_raporu.json"))
+        if pdf_examples:
+            result += " · PDF örnek: "+", ".join(pdf_examples[:3])
+        if errors:
+            result += " · Hata örnek: "+", ".join(errors[:2])
         self.pdf_status.setText(result)
         main=self.window()
         covers=getattr(main,'covers',None)
