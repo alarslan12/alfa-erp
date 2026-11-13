@@ -42,6 +42,76 @@ class WindowsGuiTests(unittest.TestCase):
                     win.close()
                     app.processEvents()
 
+    def test_order_tabs_detach_and_return_without_losing_page(self):
+        os.environ['QT_QPA_PLATFORM']='offscreen'
+        with tempfile.TemporaryDirectory(prefix='alfa_tab_ui_') as data:
+            os.environ['ALFA_ERP_DATA_DIR']=data
+            from pathlib import Path
+            from PySide6.QtWidgets import QApplication
+            from PySide6.QtCore import QPoint, Qt
+            from database import ERPDatabase
+            from widgets import Covers
+            from editor_siparis import SiparisTakipSekmeleri
+            root=Path(__file__).resolve().parents[1]
+            app=QApplication.instance() or QApplication(['alfa-tab-ci'])
+            db=ERPDatabase(root/'KİTAPS.xlsx',data_dir=data)
+            code=next(iter(db.katalog))
+            created=db.yeni_siparis_olustur(
+                {'kod':'test-001','platform':'Manuel','ciro':50,'siparis_turu':''},
+                [{'kod':code,'tur':'SB','adet':2,'hazir':0,'koli':0}])
+            hub=SiparisTakipSekmeleri(db,Covers(db,root),lambda:None)
+            try:
+                hub.add_order(created['id'])
+                hub.show()
+                app.processEvents()
+                self.assertEqual(hub.tabs.count(),1)
+                page=hub.tabs.widget(0)
+                self.assertIsNotNone(page)
+                hub.detach_order(0,QPoint(30,30))
+                app.processEvents()
+                self.assertEqual(hub.tabs.count(),0)
+                self.assertIn(str(created['id']),hub.detached)
+                hub.reattach_order(created['id'])
+                app.processEvents()
+                self.assertEqual(hub.tabs.count(),1)
+                self.assertIs(hub.tabs.widget(0),page)
+                self.assertFalse(hub.detached)
+            finally:
+                hub.close()
+                app.processEvents()
+
+    def test_order_track_filter_chooses_unboxed_books(self):
+        os.environ['QT_QPA_PLATFORM']='offscreen'
+        with tempfile.TemporaryDirectory(prefix='alfa_unboxed_') as data:
+            os.environ['ALFA_ERP_DATA_DIR']=data
+            from pathlib import Path
+            from PySide6.QtWidgets import QApplication
+            from database import ERPDatabase
+            from widgets import Covers
+            from editor_siparis import SiparisEditor
+            root=Path(__file__).resolve().parents[1]
+            app=QApplication.instance() or QApplication(['alfa-filter-ci'])
+            db=ERPDatabase(root/'KİTAPS.xlsx',data_dir=data)
+            code=next(iter(db.katalog))
+            order=db.yeni_siparis_olustur(
+                {'kod':'test-002','platform':'Manuel','ciro':50,'siparis_turu':''},
+                [{'kod':code,'tur':'SB','adet':1,'hazir':0,'koli':0}])
+            db.siparis_durumunu_degistir(order,'aktif')
+            editor=SiparisEditor(db,Covers(db,root),order['id'],lambda:None,
+                                 mode='track',embedded=True)
+            try:
+                self.assertEqual(editor._visible_track_codes(),(code,))
+                editor.only_unboxed.setChecked(True)
+                app.processEvents()
+                self.assertEqual(editor._visible_track_codes(),(code,))
+                editor.only_unprepared.setChecked(True)
+                app.processEvents()
+                self.assertFalse(editor.only_unboxed.isChecked())
+                self.assertTrue(editor.only_unprepared.isChecked())
+            finally:
+                editor.close()
+                app.processEvents()
+
     def test_owner_edition_opens_without_backend_calls(self):
         os.environ['QT_QPA_PLATFORM']='offscreen'
         with tempfile.TemporaryDirectory(prefix='alfa_firebase_owner_') as data:
