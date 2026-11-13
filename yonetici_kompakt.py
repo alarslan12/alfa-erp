@@ -114,9 +114,25 @@ class OwnerSettingsPage(SettingsPage):
             QMessageBox.StandardButton.Yes|QMessageBox.StandardButton.No)!=QMessageBox.StandardButton.Yes:return
         self.upload_btn.setEnabled(False);self.catalog_note.setText('Buluta yükleniyor…')
         self._job(lambda:self._admin('admin_catalog',books=self.catalog_rows),
-             lambda r:(self.catalog_note.setText(f"Katalog güncellendi · {r.get('count')} kitap"),
-                       self.upload_btn.setEnabled(True)),
-             lambda err:(self.catalog_note.setText(err),self.upload_btn.setEnabled(True)))
+             self._catalog_uploaded,
+             lambda err:(self.catalog_note.setText(
+                 'Firebase katalog yüklenemedi: '+str(err)[:250]),
+                 self.upload_btn.setEnabled(True)))
+
+    def _catalog_uploaded(self,result):
+        count=int(result.get('count') or 0)
+        verified=bool(result.get('verified'))
+        self.catalog_note.setText(
+            (f'Firebase doğrulandı · {count} kitap, '+
+             str(result.get('updated',0))+' güncellenen kayıt')
+            if verified else 'Katalog sunucuda doğrulanamadı. Yeniden deneyin.')
+        self.upload_btn.setEnabled(True)
+        if verified:
+            main=self.window()
+            live=getattr(main,'live',None)
+            if live is not None:
+                live.force_pull=True
+                live.pull()
 
     def devices_page(self):
         page=QWidget();page.setObjectName('OwnerToolPage');col=QVBoxLayout(page)
