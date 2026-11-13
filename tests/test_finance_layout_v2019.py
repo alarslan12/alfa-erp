@@ -77,9 +77,11 @@ class CompensationFinanceTests(unittest.TestCase):
     def test_cover_rotation_reverses_previous_270_and_invalidates_cache(self):
         import pdf_kapak
         source=inspect.getsource(pdf_kapak.render_first_page)
-        self.assertIn("QTransform().rotate(90)",source)
-        self.assertNotIn("QTransform().rotate(270)",source)
-        self.assertGreaterEqual(pdf_kapak.CACHE_VERSION,3)
+        # Suite v2.0.20: PDF sources in the user's Meditus catalogue
+        # need the reverse direction of v2.0.19 (+90).
+        self.assertIn("QTransform().rotate(-90)",source)
+        self.assertNotIn("QTransform().rotate(90)",source)
+        self.assertGreaterEqual(pdf_kapak.CACHE_VERSION,4)
 
     def test_old_paid_day_report_excludes_compensation_revenue(self):
         from muhasebe_veri import html_report
