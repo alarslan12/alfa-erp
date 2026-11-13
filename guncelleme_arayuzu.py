@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QMessageBox,QProgressBar,QTextEdit,QFrame
 )
 
+from surum_gecmisi import release_history_markdown
 from alfa_guncelleme import (
     check_for_update,download_update,launch_update,UpdateError,
 )
@@ -87,7 +88,7 @@ class UpdateDialog(QDialog):
         root.addWidget(info)
         self.notes=QTextEdit()
         self.notes.setReadOnly(True)
-        self.notes.setPlaceholderText("Yayımlanan sürüm notları burada görünecek.")
+        self.notes.setMarkdown(release_history_markdown(self.version))
         root.addWidget(self.notes,1)
         self.progress=QProgressBar()
         self.progress.setRange(0,100)
@@ -148,12 +149,14 @@ class UpdateDialog(QDialog):
             if not result.get("available"):
                 self.message.setText("Güncelsin · Kurulu sürüm: "+self.version+
                                      " · Son yayımlanan: "+str(result.get("latest")))
-                self.notes.clear()
+                self.notes.setMarkdown(release_history_markdown(self.version))
                 return
             self.release=result
             self.message.setText("Yeni kararlı sürüm bulundu: "+str(result["version"]))
-            self.notes.setPlainText(result.get("notes") or
-                                    "Bu sürüm için ek not bulunmuyor.")
+            self.notes.setMarkdown(
+                "## Yeni sürüm · v"+str(result.get("version") or "")+"\n\n"+
+                (str(result.get("notes") or "") or "Bu sürüm için ek not bulunmuyor.")+
+                "\n\n---\n\n"+release_history_markdown(self.version))
             self.download.setEnabled(True)
         def failed(message):
             self.message.setText("Güncelleme kontrolü: "+message)

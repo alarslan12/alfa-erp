@@ -345,8 +345,7 @@ class AlfaMain(QMainWindow):
         except (OSError,ValueError,TypeError):
             before={}
         if before.get('version')==VERSION:return
-        # Only the requested first official v1.1 release creates a notice.
-        if VERSION!='1.1.1':return
+        # Show release history once for each new Suite install/upgrade.
         try:
             file.parent.mkdir(parents=True,exist_ok=True)
             file.write_text(json.dumps({'version':VERSION}),encoding='utf-8')
