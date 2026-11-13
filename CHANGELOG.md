@@ -1,49 +1,15 @@
 # ALFA ERP · Sürüm Geçmişi
 
-## [v2.0.23] — 2026-11-13
+## [v2.0.24] — 2026-11-13
 
-- Önceden çalışan, koduyla adlandırılmış PDF JPEG kapakları boş tarama sonrası gizlenmez.
-- Tarama sıfır eşleşme bulduğunda önceki manifest korunur; JPEG dosyaları silinmez.
-- Bulut katalogundaki 0 sayfa, aynı kod/isimle bilinen pozitif sayfayı yerelde sıfırlamaz.
-- Excel boş sayfa değerleri, aynı kitap için sunucuda bilinen sayfa sayısını ezmez.
-- Personel/Yönetici Excel önizlemesinde dolu/boş sayfa sayıları ayrı gösterilir.
-- Firebase siparişleri, mevcut Katalog/Siparişler arayüzü ve manuel kapaklar korunur.
-
-
-## [v2.0.22] — 2026-11-13
-
-- Sayısal kitap kodu bulunan PDF'lerin eşleşmesi iyileştirildi (31-endodonti.pdf, kitap_31.pdf vb.).
-- Seri numaraları başka kitap kodu olarak kullanılmaz; birden çok aynı kodlu PDF hata raporuna alınır.
-- Yüksek güvenilirlikli isim benzerliği desteği eklendi.
-- Eşleşmeyen PDF dosyası sayısıyla katalogda PDF bulunmayan kitap sayısı birbirinden ayrıldı.
-- Ayarlar ve JSON tanı raporu gerçek eşleşmeyen PDF adlarını listeler.
-- Otomatik kapak önbelleği v6 ile yeniden oluşturulur; yatay PDF ilk sayfası -90° döner.
-- Siparişler, Firebase, manuel kapaklar ve diğer Suite bileşenleri korunur.
+- v2.0.20–v2.0.23 kapak/Excel/PDF gerilemelerini geri alır; v2.0.19 çalışan koduna döner.
+- Kapak JPEG'leri tekrar görünür (eski manifest filtrelemesi kaldırılmıştır).
+- Firebase/Excel sayfa sayılarının daha önce değiştirilmesi otomatik geri alınmaz; veriler korunur.
+- Kullanıcı verileri, siparişler, envanter ve cihaz yetkileri silinmez.
+- Windows Suite sürüm numarası v2.0.24 olarak artırılır.
 
 
-## [v2.0.22] — 2026-11-13
-
-- Küçük fakat geçerli otomatik JPEG kapakların boyut eşiği nedeniyle gizlenmesi giderildi.
-- PDF dosya adlarının tam katalog ismiyle eşleştirilmesi sıkı tutulup kapak/baskı eki desteklendi.
-- PDF kapağı önbelleği v5'e çıkarıldı; önceki kayıtlardan kalan hatalı yön veya gizlenme sorunları yeniden taramayla aşılır.
-- Yatay PDF ilk sayfası -90° döndürülmeye devam eder; dikey ve elle aktarılan kapaklara dokunulmaz.
-- Kitap PDF klasörü → Tara ve kapakları güncelle üzerinden yeniden oluşturma mümkündür.
-- Sipariş, Firebase katalog verileri, çalışan Katalog/Siparişler ekranları ve mevcut arşiv korunur.
-- Personel Excel, çevrimdışı sürüm notları, Analitik PIN ve Yönetici cihaz/hata temizliği önceki sürümlerdeki hâliyle korunur.
-
-
-## [v2.0.22] — 2026-11-13
-
-- PDF kapak yönü: +90° yerine −90° düzeltildi; önbellek sürümü 4.
-- Kod 402 / TUSDATA PRETUS 3 gibi kitaplarda başlık ve kod birlikte eşleştirilir.
-- PDF içindeki cilt/seri sayısı başka kitaba kapak olarak yanlış bağlanmaz.
-- Aynı isimli veya eşleşmeyen PDF'ler raporlanır, rastgele seçilmez.
-- Doğrulanmamış eski otomatik JPEG dosyaları saklanır ama gösterilmez.
-- Firebase Excel katalog değişiminde yerel PDF yeniden taraması otomatik tetiklenir.
-- Siparişler, Firebase, manuel kapaklar, Suite ve Güncelleme Merkezi korunur.
-
-
-## [v2.0.19] — 2026-11-13
+## [v2.0.24] — 2026-11-13
 
 - Analitik'te en önemli dört rakam (Toplam Ciro, Kargo Sonrası
   Ciro, Ödenen Ciro, Ödenmeyen Ciro) belirgin ve açıklamalı tek finans

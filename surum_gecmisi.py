@@ -6,6 +6,13 @@ https://github.com/alarslan12/alfa-erp/releases.
 """
 
 _RELEASES = [
+    ("2.0.24", "Çalışan v2.0.19 koduna güvenli geri dönüş", [
+        "PDF kod eşleme, kapak görselleri ve katalog yükleme kodu v2.0.19'a geri alındı.",
+        "Önceki kapak JPEG'leri manifest doğrulaması yüzünden gizlenmez.",
+        "İşletim sistemindeki Excel/PDF dosyaları ve Firebase verileri silinmez.",
+        "Firebase'de daha önce sıfırlanmış sayfa değerleri ayrı yedekten kurtarılmalıdır.",
+        "Kurulumdan önce %LOCALAPPDATA%\\AlfaERP klasörünü yedekleyin.",
+    ]),
     ("2.0.23", "Kapak görünürlüğü ve sayfa verisi kurtarma", [
         "Başarısız PDF taraması önceki kodlu JPEG kapakları gizlemez.",
         "Boş tarama eski kapak manifestini silmez.",

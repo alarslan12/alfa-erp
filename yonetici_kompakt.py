@@ -102,10 +102,7 @@ class OwnerSettingsPage(SettingsPage):
             books=preview_excel_catalog(path)
             self.catalog_rows=books
             self.upload_btn.setEnabled(True)
-            with_pages=sum(int(x.get('page_count') or 0)>0 for x in books)
-            self.catalog_note.setText(
-                f'{Path(path).name} · {len(books)} kitap · '+
-                f'{with_pages} sayfa bilgisi dolu · {len(books)-with_pages} boş')
+            self.catalog_note.setText(f'{Path(path).name} · {len(books)} kitap hazır')
         except Exception as exc:
             self.upload_btn.setEnabled(False)
             self.catalog_rows=[]

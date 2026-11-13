@@ -234,7 +234,7 @@ class Service(QObject):
 
 def main():
     DATA.mkdir(parents=True,exist_ok=True)
-    install_reporter("2.0.20","staff",data_dir=DATA)
+    install_reporter("2.0.24","staff",data_dir=DATA)
     def _error_hook(error_type,error,tb):
         record_error(error_type,error,tb,source="tray")
     sys.excepthook=_error_hook

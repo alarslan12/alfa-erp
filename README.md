@@ -1,4 +1,4 @@
-# ALFACOPYCENTER Suite v2.0.23
+# ALFACOPYCENTER Suite v2.0.24
 
 **Tek Windows kurulumu**, dört seçilebilir bileşen:
 
@@ -10,7 +10,7 @@
 | ALFA Print Center | PrintSurveillance/AlfaPrintSurveillance.exe | Seçilebilir, varsayılan |
 | Arka plan yardımcıları | Bildirim, PrintAgent, PrintSupervisor | Seçilen bileşene bağlı |
 
-Kurulum: `ALFACOPYCENTER_Suite_Setup_V2_0_22.exe`. Aynı Inno Setup AppId
+Kurulum: `ALFACOPYCENTER_Suite_Setup_V2_0_24.exe`. Aynı Inno Setup AppId
 (`ALFACOPYCENTER.Suite`) ve kurulum yolu korundu:
 `%LOCALAPPDATA%\Programs\ALFACOPYCENTER`.
 
@@ -83,7 +83,7 @@ Owner Firebase UID yetkisi, yetkili proje operatörü tarafından Google Cloud
 Shell'de `tools/rtdb_authorize.py` ile onaylanır. Kurulum ve onaylama adımları
 `firebase/RTDB_KURULUM.md` dosyasındadır.
 
-## v2.0.22: Excel / Firebase katalog eşleştirme onarımı
+## v2.0.24: Excel / Firebase katalog eşleştirme onarımı
 
 Katalogda kitap kodları veya sayfa bilgileri yanlışsa doğru Excel'i
 Yönetici uygulamasındaki Excel kataloğu bölümünden buluta yeniden yükleyin.
@@ -96,7 +96,7 @@ Yetki reddi yaşanırsa Cloud Shell araçları ile salt-okunur karşılaştırma
 ve kontrollü düzeltme yapılabilir (firebase/RTDB_KURULUM.md).
 Yeni Suite kurulumu canlı Firebase katalogunu tek başına değiştirmez.
 
-## v2.0.22: Sipariş sekmeleri ve bildirim ajanı
+## v2.0.24: Sipariş sekmeleri ve bildirim ajanı
 
 Sipariş detayları sayısal kitap koduyla sıralanır. 'Hazırlanmayanlar'
 ve 'Kolilenmeyenler' filtreleri tek buton alanını paylaşır. Sekme çubuğunda
@@ -112,7 +112,7 @@ Windows kullanıcı oturumu açık ve Firebase cihazı onaylı olmalıdır.
 Yatay ilk PDF sayfaları 270° döndürülür. Kapaklar için Ayarlar →
 Tara ve kapakları güncelle kullanılabilir. Manuel kapaklara dokunulmaz.
 
-## Suite v2.0.22 — finans paneli ve telafi muhasebesi
+## Suite v2.0.24 — finans paneli ve telafi muhasebesi
 
 Analitik sayfasında en önemli dört ciro göstergesi kendi panelinde
 birbirine yakın ve açıklamalı görünür. Ödeme değerleri tamamlanma günü
@@ -128,28 +128,7 @@ görülmez; geçmiş sipariş verileri otomatik olarak değiştirilmez.
 Yatay ilk PDF kapaklar artık ters yöne değil +90° döndürülür; kapakları
 yenilemek için Ayarlar → Kapakları tara / güncelle kullanılabilir.
 
-## v2.0.22 — PDF kapakları: ters dönüş, eksik PRETUS ve kod eşleşmesi
 
-- Yatay PDF ilk sayfası −90° döndürülür; v2.0.19'un yanlış +90° önbelleği kullanılmaz.
-- Dikey PDF ve elle yüklenen kapaklar korunur.
-- Tarayıcı, PDF dosyalarını tam Türkçe kitap adı veya katalog koduyla eşleştirir.
-- Örnek: TUSDATA PRETUS 3.pdf, 402 kodlu TUSDATA PRETUS 3 kitabıyla eşleşir.
-- Başlıktaki 3, başka bir kitap kodu olarak kullanılmaz.
-- Birden fazla aynı isimli PDF belirsizse seçilmez ve raporlanır.
-- Eski otomatik JPEG dosyaları silinmez ancak doğrulanmamışsa katalogda gösterilmez.
-- Firebase kitap kataloğu revizyonunda kapaklar yerelde arka planda yeniden taranır.
-- Ayarlar → Kitap PDF klasörü → Tara ve kapakları güncelle seçeneğiyle tarama yapılır.
-- Eksik kapak örnekleri Ayarlar'da; tam rapor %LOCALAPPDATA%\AlfaERP\alfa_pdf_kapak_tarama_raporu.json konumundadır.
-- PDF isimlerini kitap kodu (402.pdf) veya tam kitap adıyla (TUSDATA PRETUS 3.pdf) kaydetmek en güvenli yöntemdir.
+## v2.0.24: Önceki çalışan sürüm kaynaklarına dönüş
 
-## v2.0.22: Eksik PDF kapaklarının görünürlüğü
-
-Otomatik JPEG kapakların eski boyut sınırı kaldırıldı. PDF adlarında tam katalog adı ve güvenli kapak/baskı ekleri desteklenir. Önbellek v5'e yükseltildi; güncelleme sonrasında Ayarlar → Kitap PDF klasörü → Tara ve kapakları güncelle çalıştırılmalıdır. Yatay kaynak PDF ilk sayfaları -90° döner. Manuel kapaklara ve kullanıcı verilerine dokunulmaz.
-
-## v2.0.22: PDF kodu ve gerçek eşleşme raporu
-
-`31-endodonti.pdf` gibi açık kodlu PDF'ler eşleştirilir. Klasörde olmayan katalog kitapları PDF işleme hatası sayılmaz; eşleşmeyen PDF adları ayrı raporlanır. Güncellemeden sonra Ayarlar → Kitap PDF klasörü → Tara ve kapakları güncelle.
-
-## v2.0.23: Çalışan kapakları ve sayfa sayılarını koruma
-
-PDF taraması sıfır eşleşme bulsa da önceki doğrulanmış tarama kaynağına ait kodlu JPEG kapaklar kaybolmaz. Başarısız tarama önceki önbellek manifestini boş listeyle değiştirmez. Bulut katalogunda sayfa sayısı boş veya 0 ise, aynı kod ve aynı kitap adıyla önceden bilinen pozitif sayfa sayısı yerel katalogda korunur. Excel önizlemesi dolu/boş sayfa sayısını ayrı gösterir. Firebase kayıtlarına kendiliğinden yazma yapılmaz.
+PDF/kapak/Excel/katalog kodları v2.0.19 sürümüne geri alındı. Yerel otomatik JPEG kapaklar manifest yüzünden gizlenmeyecek. Firebase verileri otomatik değiştirilmez. Kurulumdan önce `%LOCALAPPDATA%\AlfaERP` klasörünü ve Excel/PDF arşivini yedekleyin. Sayfa sayıları Firebase'de zaten sıfırlanmışsa eski Excel veya `catalog_backups` dosyalarıyla ayrıca geri yüklenmelidir.

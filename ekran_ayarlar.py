@@ -308,8 +308,7 @@ class SettingsPage(QWidget):
         if not self.pdf.folder:
             self.pdf_status.setText('Kapak oluşturmak için PDF klasörü seç.')
             return
-        codes=[{'kod':str(book.get('kod') or ''),'isim':str(book.get('isim') or '')}
-               for book in self.db.kitaplar]
+        codes=[str(book.get('kod') or '') for book in self.db.kitaplar]
         self.pdf_status.setText(
             f'{len(codes)} kitap kodu için PDF kapakları kontrol ediliyor…')
         worker=CoverWorker(self.pdf.data_dir,codes,self)
@@ -326,24 +325,12 @@ class SettingsPage(QWidget):
 
     def _covers_done(self,counts):
         result=(
-            f"PDF dosyası: {counts.get('pdf_found',0)} · "
-            f"Eşleşen PDF/kitap: {counts.get('matched',0)} · "
+            f"PDF eşleşmesi: {counts.get('matched',0)} · "
             f"Yeni/güncel kapak: {counts.get('created',0)} · "
             f"Önbellekten: {counts.get('unchanged',0)} · "
-            f"Elle eklenmiş: {counts.get('manual',0)} · "
-            f"Eşleşmeyen PDF: {counts.get('unmatched_pdf',0)} · "
-            f"Katalogda PDF'si olmayan: {counts.get('catalog_without_pdf',counts.get('missing',0))} · "
-            f"İşleme hatası: {counts.get('errors',0)}")
-        pdf_examples=(counts.get('unmatched_pdf_examples') or [])[:4]
-        errors=(counts.get('error_examples') or [])[:4]
-        self.pdf_status.setToolTip(
-            "Eşleşmeyen PDF örnekleri: "+(", ".join(pdf_examples) or "Yok")+
-            "\\nİşleme hataları: "+(", ".join(errors) or "Yok")+
-            "\\nRapor: "+str(self.pdf.data_dir/"alfa_pdf_kapak_tarama_raporu.json"))
-        if pdf_examples:
-            result += " · PDF örnek: "+", ".join(pdf_examples[:3])
-        if errors:
-            result += " · Hata örnek: "+", ".join(errors[:2])
+            f"Elle eklenmiş kapak: {counts.get('manual',0)} · "
+            f"Eşleşmeyen: {counts.get('missing',0)} · "
+            f"Hata: {counts.get('errors',0)}")
         self.pdf_status.setText(result)
         main=self.window()
         covers=getattr(main,'covers',None)
@@ -392,11 +379,7 @@ class SettingsPage(QWidget):
         try:
             self._excel_rows=preview_excel_catalog(source)
             self.excel_note.setText(
-                Path(source).name+" · "+str(len(self._excel_rows))+" kitap · "+
-                str(sum(int(x.get('page_count') or 0)>0 for x in self._excel_rows))+
-                " sayfa bilgisi dolu · "+
-                str(sum(int(x.get('page_count') or 0)==0 for x in self._excel_rows))+
-                " sayfa bilgisi boş.")
+                Path(source).name+" · "+str(len(self._excel_rows))+" kitap hazır.")
             self.excel_upload.setEnabled(True)
         except Exception as exc:
             self._excel_rows=[]
