@@ -17,6 +17,16 @@ def _owner(client):
         raise DeviceError("Bu işlem yalnızca yetkili Yönetici cihazında yapılabilir.", 403)
 
 
+def staff_catalog_import(client, incoming):
+    """Approved staff/owner may update books but not other admin settings."""
+    if not isinstance(client,Workstation) or not client.paired:
+        raise DeviceError("Önce Firebase cihaz yetkisini etkinleştir.",403)
+    member=client._get("members/"+client.uid)
+    if not isinstance(member,dict) or member.get("active") is not True or member.get("role") not in ("staff","owner"):
+        raise DeviceError("Excel yükleme için onaylı Personel/Yönetici yetkisi gerekli.",403)
+    return _catalog(client,incoming)
+
+
 def _catalog(client, incoming):
     if not isinstance(incoming,list) or not 1 <= len(incoming) <= 2000:
         raise DeviceError("Katalog 1-2000 kitap içermeli.", 422)

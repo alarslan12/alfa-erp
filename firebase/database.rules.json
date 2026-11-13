@@ -6,7 +6,7 @@
       "$workspace": {
         "public_catalog": {
           ".read": true,
-          ".write": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'owner' && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true"
+          ".write": "auth !== null && (root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'owner' || root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'staff') && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true"
         },
         "members": {
           "$uid": {
@@ -29,7 +29,7 @@
         "books": {
           ".read": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true",
           "$id": {
-            ".write": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'owner' && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true"
+            ".write": "auth !== null && (root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'owner' || root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'staff') && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true"
           }
         },
         "orders": {

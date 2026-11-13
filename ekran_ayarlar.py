@@ -4,7 +4,7 @@ from pathlib import Path
 from PySide6.QtCore import QThread, Signal, QTimer
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QFrame, QComboBox,
-    QFileDialog, QMessageBox, QStackedWidget, QLabel
+    QFileDialog, QMessageBox, QStackedWidget, QLabel, QPushButton
 )
 from ayar_yonetimi import theme_styles
 from tema import QSS
@@ -15,6 +15,7 @@ from guncelleme_arayuzu import (UpdateDialog,CheckWorker,should_check_today,mark
 from widgets import (
     button, text, refresh_cover_placeholders, refresh_all_cover_labels
 )
+from katalog_excel_aktar import preview_excel_catalog
 
 
 class CoverWorker(QThread):
@@ -44,6 +45,20 @@ class CoverWorker(QThread):
                 self.failed.emit(str(exc)[:260])
 
 
+class StaffExcelUploadJob(QThread):
+    completed=Signal(dict)
+    failed=Signal(str)
+    def __init__(self,client,books,parent=None):
+        super().__init__(parent)
+        self.client,self.books=client,books
+    def run(self):
+        try:
+            from rtdb_owner_admin import staff_catalog_import
+            self.completed.emit(staff_catalog_import(self.client,self.books))
+        except Exception as exc:
+            self.failed.emit(str(exc)[:270])
+
+
 class SettingsPage(QWidget):
     def __init__(self,db,config):
         super().__init__()
@@ -52,6 +67,8 @@ class SettingsPage(QWidget):
         self.pdf=PdfKutuphane(Path(db.siparis_dosyasi).parent)
         self._cover_worker=None
         self._update_check_worker=None
+        self._excel_job=None
+        self._excel_rows=[]
         root=QVBoxLayout(self)
         root.addWidget(text('ÇALIŞMA AYARLARI','SettingsTitle'))
         self.nav=[]
@@ -154,6 +171,17 @@ class SettingsPage(QWidget):
         col.addStretch()
         self.stack.addWidget(page)
 
+        # The owner already has a dedicated Excel tab. Only staff gets this
+        # compact import-only tab; Catalog / Orders remain visually unchanged.
+        app=QApplication.instance()
+        if app and str(app.property("alfa_edition") or "staff")=="staff":
+            import_tab=button('Excel Katalog','SettingsNav')
+            import_tab.setCheckable(True)
+            import_tab.clicked.connect(lambda _=False:self.show_tab(2))
+            nav.insertWidget(len(self.nav),import_tab)
+            self.nav.append(import_tab)
+            self.stack.addWidget(self._staff_excel_page())
+
         self.show_tab(0)
         # Only filesystem mtime checks on later app launches; no PDF pages
         # are rendered again unless changed or newly added.
@@ -250,6 +278,86 @@ class SettingsPage(QWidget):
     def _cover_finished(self,worker):
         if self._cover_worker is worker:
             self._cover_worker=None
+
+    def _staff_excel_page(self):
+        page=QWidget()
+        col=QVBoxLayout(page)
+        card=QFrame();card.setObjectName("SettingsCard")
+        layout=QVBoxLayout(card)
+        layout.addWidget(text("Excel kitap kataloğu","SettingsHeading"))
+        note=QLabel(
+            "Onaylı personel cihazı Excel kataloğunu ortak Firebase kitap "
+            "listesine aktarır. İşlem tüm bilgisayarların ve mobil kataloğun "
+            "kitaplarını günceller; siparişleri silmez. İnternet bağlantısı gerekir.")
+        note.setWordWrap(True)
+        layout.addWidget(note)
+        controls=QHBoxLayout()
+        pick=button("Excel seç (.xlsx)","Accent")
+        pick.clicked.connect(self._staff_select_excel)
+        controls.addWidget(pick)
+        self.excel_upload=button("Buluta aktar","Accent")
+        self.excel_upload.setEnabled(False)
+        self.excel_upload.clicked.connect(self._staff_send_excel)
+        controls.addWidget(self.excel_upload)
+        layout.addLayout(controls)
+        self.excel_note=QLabel("Excel henüz seçilmedi.")
+        self.excel_note.setWordWrap(True)
+        layout.addWidget(self.excel_note)
+        col.addWidget(card);col.addStretch()
+        return page
+
+    def _staff_select_excel(self):
+        source,_=QFileDialog.getOpenFileName(
+            self,"Excel kitap kataloğu seç",str(Path.home()),"Excel (*.xlsx)")
+        if not source:return
+        try:
+            self._excel_rows=preview_excel_catalog(source)
+            self.excel_note.setText(
+                Path(source).name+" · "+str(len(self._excel_rows))+" kitap hazır.")
+            self.excel_upload.setEnabled(True)
+        except Exception as exc:
+            self._excel_rows=[]
+            self.excel_upload.setEnabled(False)
+            self.excel_note.setText("Excel okunamadı: "+str(exc)[:250])
+
+    def _staff_send_excel(self):
+        if not self._excel_rows or self._excel_job is not None:return
+        if QMessageBox.question(
+            self,"Ortak Excel kataloğu",
+            str(len(self._excel_rows))+
+            " kitap Firebase'de güncellensin mi? Eski katalog satırları "
+            "pasifleştirilebilir. Siparişlere dokunulmaz.",
+            QMessageBox.StandardButton.Yes|
+            QMessageBox.StandardButton.No)!=QMessageBox.StandardButton.Yes:
+            return
+        client=getattr(self.window(),"device",None)
+        if client is None or not client.paired:
+            self.excel_note.setText("Önce cihazını Firebase'e yetkilendir.")
+            return
+        self.excel_upload.setEnabled(False)
+        self.excel_note.setText("Ortak Firebase kataloğu güncelleniyor…")
+        job=StaffExcelUploadJob(client,list(self._excel_rows),self)
+        self._excel_job=job
+        outcome={"error":None,"result":None}
+        job.completed.connect(lambda value:outcome.update(result=value))
+        job.failed.connect(lambda value:outcome.update(error=value))
+        def done():
+            job.wait()
+            self._excel_job=None
+            self.excel_upload.setEnabled(True)
+            if outcome["error"]:
+                self.excel_note.setText("Aktarım yapılamadı: "+outcome["error"])
+                return
+            count=(outcome["result"] or {}).get("count",0)
+            self.excel_note.setText(
+                str(count)+" kitap Firebase'e aktarıldı; katalog yenileniyor.")
+            live=getattr(self.window(),"live",None)
+            if live is not None:
+                live.force_pull=True
+                QTimer.singleShot(150,live.pull)
+        job.finished.connect(done)
+        job.finished.connect(job.deleteLater)
+        job.start()
 
     def _update_identity(self):
         app=QApplication.instance()
