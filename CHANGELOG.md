@@ -1,5 +1,21 @@
 # ALFA ERP · Sürüm Geçmişi
 
+## [v2.0.18] — 2026-11-13
+
+- Sipariş grupları sayısal kitap koduna göre, veriyi değiştirmeden sıralanır.
+- Sipariş takibi hazırlanmayanlar/kolilenmeyenler tek pillbox içinde ayrı filtrelenir.
+- Sipariş sekme çubuğu yatay taşmayı kaydırır; sekmeler ayrı pencereye
+  sürüklenebilir, geri sürüklenebilir veya 'Sekmeye geri al' ile kenetlenir.
+- Katalog kartı başlık yüksekliği kısaldı, iki satırlı ad korundu;
+  SB ve RNK sayaçları 27 piksele büyütüldü, ortadaki çizgi kaldırıldı.
+- Dolap kodlarında son dört rakam ayrı blokta gösterilir.
+- Sipariş bildirici Windows oturum açılışında zamanlanmış görev olarak
+  başlar; Personel penceresi kapalıyken de görev çalışmaya devam eder.
+- Doğal Windows sesleri ve isteğe bağlı şifreli ElevenLabs A/B uyarıları.
+- Yatay PDF ilk sayfası 270 derece döndürülerek kapak olarak kaydedilir.
+- Firebase, mevcut siparişler, ayrı yönetici yetkileri ve Suite bileşenleri korunur.
+
+
 ## [v2.0.17] — 2026-11-13
 
 - Firebase kitap kodları Excel'deki benzersiz kodla eşleşir;

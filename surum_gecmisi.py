@@ -6,6 +6,15 @@ https://github.com/alarslan12/alfa-erp/releases.
 """
 
 _RELEASES = [
+    ("2.0.18", "Sipariş görünümü, bildirim ajanı ve yatay kapaklar", [
+        "Sipariş detayları ve genel bakış kitapları sayısal kitap koduna göre sıralar.",
+        "Hazırlanmayanlar ve kolilenmeyenler aynı pillbox'ta ayrı filtrelenebilir.",
+        "Sipariş sekmeleri kaydırılabilir, dışarı sürüklenerek ayrı pencereye alınabilir ve geri eklenebilir.",
+        "Katalog başlık bandı iki satırı koruyarak kısaldı; SB/RNK sayaçları büyüdü ve aradaki çizgi kaldırıldı.",
+        "Dolap uzun kodunun son dört hanesi ayrı gruba dönüştürüldü.",
+        "Windows Zamanlanmış Görev ile ERP'den bağımsız Firebase sipariş bildirimi ve doğal ses seçenekleri.",
+        "Yatay PDF ilk sayfası 270 derece döndürülerek kapaklara oturtulur.",
+    ]),
     ("2.0.17", "Firebase kitap kodları, 0 sayfa ve Excel kurtarma", [
         "Buluttaki eski kod kaymaları Excel'deki kodlara göre, sunucu doğrulamalı olarak düzeltilir.",
         "Katalogun eski kopyası otomatik saklanır ve tam yazma doğrulanmadan revizyon artışı yapılmaz.",

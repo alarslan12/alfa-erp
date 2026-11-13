@@ -1,4 +1,4 @@
-# ALFACOPYCENTER Suite v2.0.17
+# ALFACOPYCENTER Suite v2.0.18
 
 **Tek Windows kurulumu**, dört seçilebilir bileşen:
 
@@ -10,7 +10,7 @@
 | ALFA Print Center | PrintSurveillance/AlfaPrintSurveillance.exe | Seçilebilir, varsayılan |
 | Arka plan yardımcıları | Bildirim, PrintAgent, PrintSupervisor | Seçilen bileşene bağlı |
 
-Kurulum: `ALFACOPYCENTER_Suite_Setup_V2_0_17.exe`. Aynı Inno Setup AppId
+Kurulum: `ALFACOPYCENTER_Suite_Setup_V2_0_18.exe`. Aynı Inno Setup AppId
 (`ALFACOPYCENTER.Suite`) ve kurulum yolu korundu:
 `%LOCALAPPDATA%\Programs\ALFACOPYCENTER`.
 
@@ -83,7 +83,7 @@ Owner Firebase UID yetkisi, yetkili proje operatörü tarafından Google Cloud
 Shell'de `tools/rtdb_authorize.py` ile onaylanır. Kurulum ve onaylama adımları
 `firebase/RTDB_KURULUM.md` dosyasındadır.
 
-## v2.0.17: Excel / Firebase katalog eşleştirme onarımı
+## v2.0.18: Excel / Firebase katalog eşleştirme onarımı
 
 Katalogda kitap kodları veya sayfa bilgileri yanlışsa doğru Excel'i
 Yönetici uygulamasındaki Excel kataloğu bölümünden buluta yeniden yükleyin.
@@ -95,3 +95,19 @@ Personel uygulamasında onaylı cihazlara Excel Katalog seçeneği de vardır.
 Yetki reddi yaşanırsa Cloud Shell araçları ile salt-okunur karşılaştırma
 ve kontrollü düzeltme yapılabilir (firebase/RTDB_KURULUM.md).
 Yeni Suite kurulumu canlı Firebase katalogunu tek başına değiştirmez.
+
+## v2.0.18: Sipariş sekmeleri ve bildirim ajanı
+
+Sipariş detayları sayısal kitap koduyla sıralanır. 'Hazırlanmayanlar'
+ve 'Kolilenmeyenler' filtreleri tek buton alanını paylaşır. Sekme çubuğunda
+sekme dışarı sürüklenerek ayrı pencere yapılır; pencerenin üstünden
+sekme çubuğuna geri sürüklenebilir ya da 'Sekmeye geri al' kullanılır.
+
+Ayarlar → Bildirim sesi içinde ücretsiz Windows konuşma sesleri ve
+isteğe bağlı ElevenLabs sesleri bulunur. Personel kurulunca zamanlanmış
+görev `ALFA_ERP_OrderNotifications` kullanıcının oturumu açıldığında
+bildirim ajanını başlatır. ERP kapatılsa da ajan sistem tepsisinde kalır.
+Windows kullanıcı oturumu açık ve Firebase cihazı onaylı olmalıdır.
+
+Yatay ilk PDF sayfaları 270° döndürülür. Kapaklar için Ayarlar →
+Tara ve kapakları güncelle kullanılabilir. Manuel kapaklara dokunulmaz.
