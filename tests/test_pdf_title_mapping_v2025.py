@@ -22,25 +22,25 @@ class TitleMappingTests(unittest.TestCase):
     def test_dusdata_33_matches_excel_title_not_number_33(self):
         expected=self.pdf('DUSDATA 33 Endodonti.pdf')
         self.lib.set_folder(self.folder)
-        self.assertEqual(self.lib.find('119',title='DUSDATA 33 Endodonti'),expected)
+        self.assertEqual(self.lib.find('119',title='DUSDATA 33 Endodonti'),expected.resolve())
         self.assertIsNone(self.lib.find('33'))
 
     def test_denttest_volume_not_conflated_with_catalog_code(self):
         expected=self.pdf('Denttest 12 - kapak.pdf')
         self.lib.set_folder(self.folder)
-        self.assertEqual(self.lib.find('131',title='DUSDATA DENTTEST 12'),expected)
+        self.assertEqual(self.lib.find('131',title='DUSDATA DENTTEST 12'),expected.resolve())
         self.assertIsNone(self.lib.find('12'))
         self.assertIsNone(self.lib.find('132',title='DUSDATA DENTTEST 13'))
 
     def test_adc_cerrahi_optional_on_pdf_cover(self):
         expected=self.pdf('DUSDATA 33 Cerrahi.pdf')
         self.lib.set_folder(self.folder)
-        self.assertEqual(self.lib.find('117',title='DUSDATA 33 ADÇ Cerrahi'),expected)
+        self.assertEqual(self.lib.find('117',title='DUSDATA 33 ADÇ Cerrahi'),expected.resolve())
 
     def test_explicit_numeric_filename_still_works(self):
         expected=self.pdf('kitap_31.pdf')
         self.lib.set_folder(self.folder)
-        self.assertEqual(self.lib.find('31',title='Başka Kitap'),expected)
+        self.assertEqual(self.lib.find('31',title='Başka Kitap'),expected.resolve())
 
     def test_duplicate_full_titles_do_not_pick_arbitrary_cover(self):
         self.pdf('DUSDATA 33 Ortodonti.pdf')
