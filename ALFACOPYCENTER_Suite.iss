@@ -115,8 +115,8 @@ begin
   Result := False;
   if OwnerPasswordPage = nil then Exit;
   Result := CompareText(
-    GetSHA256OfString('9a205c256c810c1e541b710dff00d541|' + OwnerPasswordPage.Values[0]),
-    'adeb0d2e05b7dad1911a6ac2c1b49eb64e22d1663c9336c99b6bdb197d9531a0') = 0;
+    GetSHA256OfString('a4ecb2ecc3dfffea67714300b885c976|' + OwnerPasswordPage.Values[0]),
+    'ab43d44863bf59ba4219ece29961fe8d691fbefd26c0b9d7db1dea3c498ee712') = 0;
 end;
 
 procedure InitializeWizard();

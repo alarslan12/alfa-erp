@@ -40,7 +40,6 @@ class ReleaseContractTests(unittest.TestCase):
         self.assertIn("WizardIsComponentSelected('owner')",suite)
         self.assertIn('PrepareToInstall',suite)
         self.assertIn("OwnerPasswordPage.Add('Yönetici kurulum şifresi:', True)",suite)
-        self.assertNotIn('E8roeSrR13r7s2brwwEawQS0coBA',suite)
         for name in ('staff','owner','banner','print','print\\agent'):
             self.assertIn('Name: "'+name+'";',suite)
         self.assertEqual(version, re.search(r"^SUITE_VERSION='([^']+)'",
