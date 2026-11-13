@@ -33,3 +33,46 @@ Dosya düzeyindeki testler, gerçek bir Firebase projesine bağlanan iki
 Windows cihazının uçtan uca testinin yerini tutmaz. Google hesabına
 bağlanmadan canlı Auth sağlayıcısının etkinliği, Rules sürümü veya gerçek
 sipariş senkronizasyonu uzaktan garanti edilemez.
+
+
+## Google Cloud Shell üzerinden owner yetkilendirmesi
+
+Suite kurulumunda Yönetici bileşenini seçerken yerel kurulum şifresi girilir.
+**Bu şifre Firebase owner yetkisi sağlamaz.** Owner rolünü yalnızca
+Firebase projesinin yetkili operatörü Google Cloud Shell'den verir.
+
+1. ALFA ERP Yönetici > Cihaz yetkisi > Cihazı kaydet / kimliği göster
+   ekranından yönetici bilgisayarının Firebase UID değerini al.
+2. https://console.cloud.google.com/cloudshell/editor?project=alfa-erp-8700c
+   adresinden Cloud Shell'i, projede yetkili Google hesabınla aç.
+3. Güncel Firebase koduna eriş:
+
+~~~bash
+gcloud config set project alfa-erp-8700c
+git clone --depth 1 --single-branch --branch firebase-rtdb-final https://github.com/alarslan12/alfa-erp.git alfa-erp-firebase
+cd alfa-erp-firebase
+python3 -m venv "$HOME/.venvs/alfa-erp-firebase"
+source "$HOME/.venvs/alfa-erp-firebase/bin/activate"
+python -m pip install firebase-admin
+gcloud auth application-default login
+~~~
+
+4. Sadece **Yönetici uygulamasında görünen UID** ile önce dry-run,
+   ardından gerçek onayı çalıştır:
+
+~~~bash
+python tools/rtdb_authorize.py --uid "BURAYA_YONETICI_UID" --role owner
+python tools/rtdb_authorize.py --uid "BURAYA_YONETICI_UID" --role owner --apply
+~~~
+
+5. ALFA ERP Yönetici'de Yönetici onayını kontrol et ve ardından
+   Bağlantıyı başlat düğmelerine bas.
+
+Araç, cihaz kimliğinin daha önce device_requests altında kaydedilmesini
+ve veritabanı meta/schema işaretinin rtdb-v1 olmasını bekler.
+Mevcut owner üyeliğini otomatik değiştirmez; yeni üye eklemesi yapılır.
+Cloud Shell'de depo önceden varsa tekrar klonlamak yerine branch'i
+güncelleyebilirsin.
+
+**Önemli:** Firebase Admin yetkisi yalnız proje operatöründe bulunmalı.
+Servis hesabı anahtarı, Setup, GitHub veya mesajlaşma platformuna eklenmez.
