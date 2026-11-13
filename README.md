@@ -1,4 +1,4 @@
-# ALFACOPYCENTER Suite v2.0.20
+# ALFACOPYCENTER Suite v2.0.21
 
 **Tek Windows kurulumu**, dört seçilebilir bileşen:
 
@@ -10,7 +10,7 @@
 | ALFA Print Center | PrintSurveillance/AlfaPrintSurveillance.exe | Seçilebilir, varsayılan |
 | Arka plan yardımcıları | Bildirim, PrintAgent, PrintSupervisor | Seçilen bileşene bağlı |
 
-Kurulum: `ALFACOPYCENTER_Suite_Setup_V2_0_20.exe`. Aynı Inno Setup AppId
+Kurulum: `ALFACOPYCENTER_Suite_Setup_V2_0_21.exe`. Aynı Inno Setup AppId
 (`ALFACOPYCENTER.Suite`) ve kurulum yolu korundu:
 `%LOCALAPPDATA%\Programs\ALFACOPYCENTER`.
 
@@ -83,7 +83,7 @@ Owner Firebase UID yetkisi, yetkili proje operatörü tarafından Google Cloud
 Shell'de `tools/rtdb_authorize.py` ile onaylanır. Kurulum ve onaylama adımları
 `firebase/RTDB_KURULUM.md` dosyasındadır.
 
-## v2.0.20: Excel / Firebase katalog eşleştirme onarımı
+## v2.0.21: Excel / Firebase katalog eşleştirme onarımı
 
 Katalogda kitap kodları veya sayfa bilgileri yanlışsa doğru Excel'i
 Yönetici uygulamasındaki Excel kataloğu bölümünden buluta yeniden yükleyin.
@@ -96,7 +96,7 @@ Yetki reddi yaşanırsa Cloud Shell araçları ile salt-okunur karşılaştırma
 ve kontrollü düzeltme yapılabilir (firebase/RTDB_KURULUM.md).
 Yeni Suite kurulumu canlı Firebase katalogunu tek başına değiştirmez.
 
-## v2.0.20: Sipariş sekmeleri ve bildirim ajanı
+## v2.0.21: Sipariş sekmeleri ve bildirim ajanı
 
 Sipariş detayları sayısal kitap koduyla sıralanır. 'Hazırlanmayanlar'
 ve 'Kolilenmeyenler' filtreleri tek buton alanını paylaşır. Sekme çubuğunda
@@ -112,7 +112,7 @@ Windows kullanıcı oturumu açık ve Firebase cihazı onaylı olmalıdır.
 Yatay ilk PDF sayfaları 270° döndürülür. Kapaklar için Ayarlar →
 Tara ve kapakları güncelle kullanılabilir. Manuel kapaklara dokunulmaz.
 
-## Suite v2.0.20 — finans paneli ve telafi muhasebesi
+## Suite v2.0.21 — finans paneli ve telafi muhasebesi
 
 Analitik sayfasında en önemli dört ciro göstergesi kendi panelinde
 birbirine yakın ve açıklamalı görünür. Ödeme değerleri tamamlanma günü
@@ -128,7 +128,7 @@ görülmez; geçmiş sipariş verileri otomatik olarak değiştirilmez.
 Yatay ilk PDF kapaklar artık ters yöne değil +90° döndürülür; kapakları
 yenilemek için Ayarlar → Kapakları tara / güncelle kullanılabilir.
 
-## v2.0.20 — PDF kapakları: ters dönüş, eksik PRETUS ve kod eşleşmesi
+## v2.0.21 — PDF kapakları: ters dönüş, eksik PRETUS ve kod eşleşmesi
 
 - Yatay PDF ilk sayfası −90° döndürülür; v2.0.19'un yanlış +90° önbelleği kullanılmaz.
 - Dikey PDF ve elle yüklenen kapaklar korunur.
@@ -141,3 +141,7 @@ yenilemek için Ayarlar → Kapakları tara / güncelle kullanılabilir.
 - Ayarlar → Kitap PDF klasörü → Tara ve kapakları güncelle seçeneğiyle tarama yapılır.
 - Eksik kapak örnekleri Ayarlar'da; tam rapor %LOCALAPPDATA%\AlfaERP\alfa_pdf_kapak_tarama_raporu.json konumundadır.
 - PDF isimlerini kitap kodu (402.pdf) veya tam kitap adıyla (TUSDATA PRETUS 3.pdf) kaydetmek en güvenli yöntemdir.
+
+## v2.0.21: Eksik PDF kapaklarının görünürlüğü
+
+Otomatik JPEG kapakların eski boyut sınırı kaldırıldı. PDF adlarında tam katalog adı ve güvenli kapak/baskı ekleri desteklenir. Önbellek v5'e yükseltildi; güncelleme sonrasında Ayarlar → Kitap PDF klasörü → Tara ve kapakları güncelle çalıştırılmalıdır. Yatay kaynak PDF ilk sayfaları -90° döner. Manuel kapaklara ve kullanıcı verilerine dokunulmaz.
