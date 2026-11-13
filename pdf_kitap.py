@@ -103,16 +103,33 @@ class PdfKutuphane:
                     self._index[code] = (score, file)
 
     def _find_named(self, title):
-        key=normalize_title(title)
-        if not key:return None
+        key = normalize_title(title)
+        if not key:
+            return None
         matches = set(self._title_index.get(key, ()))
         for suffix in _ALLOWED_SUFFIXES:
             matches.update(self._title_index.get(key + suffix, ()))
             matches.update(self._title_index.get(suffix + key, ()))
+        # Many scanner exports add a harmless explicit "kapak / baski /
+        # cover" suffix to the book title.  Keep this match strict:
+        # never infer a match from just a volume number or shared series.
+        for file in self._files:
+            raw = file.stem
+            stem = normalize_title(raw)
+            if stem in (key,):
+                matches.add(file)
+                continue
+            remainder = None
+            if stem.startswith(key):
+                remainder = stem[len(key):]
+            elif stem.endswith(key):
+                remainder = stem[:-len(key)]
+            if remainder and remainder in _ALLOWED_SUFFIXES:
+                matches.add(file)
         if len(matches) == 1:
             return next(iter(matches))
-        if len(matches)>1:
-            raise ValueError('Aynı kitap adıyla birden fazla PDF var: '+str(title))
+        if len(matches) > 1:
+            raise ValueError('Aynı kitap adıyla birden fazla PDF var: ' + str(title))
         return None
 
     def find(self, code, title=None):
