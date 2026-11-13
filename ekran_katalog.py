@@ -206,14 +206,24 @@ class SiparisBilgiDialog(QDialog):
         self.shipping=QLineEdit();self.shipping.setPlaceholderText('Kargo kodu veya açık adres');self.shipping.textChanged.connect(self.auto_platform)
         self.platform_value='Dolap'
         self.revenue=QDoubleSpinBox();self.revenue.setDecimals(2);self.revenue.setMaximum(999999999);self.revenue.setSuffix(' TL')
-        self.order_type=QComboBox();self.order_type.addItems(['Normal Sipariş','Özel Sipariş','Toplu Sipariş'])
+        self.order_type=QComboBox();self.order_type.addItems(['Normal Sipariş','Telafi Sipariş','Özel Sipariş','Toplu Sipariş'])
+        self.order_type.currentTextChanged.connect(self._update_order_kind)
         form.addRow('Kargo kodu / adres',self.shipping)
         form.addRow('Ciro',self.revenue);form.addRow('Sipariş türü',self.order_type)
+        self.revenue_label=form.labelForField(self.revenue)
         lay.addLayout(form)
         item_count=sum(int(q) for variants in cart.values() for q in variants.values())
         lay.addWidget(text(f'{item_count} adet kitap havuza kaydedilecek.','Muted'))
         row=QHBoxLayout();row.addStretch();cancel=button('Vazgeç');submit=button('Havuza kaydet','Accent')
         cancel.clicked.connect(self.reject);submit.clicked.connect(self.commit);row.addWidget(cancel);row.addWidget(submit);lay.addLayout(row)
+    def _update_order_kind(self,kind):
+        is_telafi='telafi' in str(kind).casefold()
+        if is_telafi:
+            self.revenue.setValue(0)
+        self.revenue.setVisible(not is_telafi)
+        if self.revenue_label:
+            self.revenue_label.setVisible(not is_telafi)
+
     def auto_platform(self,value):
         platform=otomatik_platform_bul(value)
         self.platform_value=platform
@@ -228,7 +238,8 @@ class SiparisBilgiDialog(QDialog):
             return
         try:
             self.db.yeni_siparis_olustur({'kod':code,'platform':self.platform_value,
-                'ciro':self.revenue.value(),'siparis_turu':self.order_type.currentText()},items)
+                'ciro':0 if 'telafi' in self.order_type.currentText().casefold()
+                else self.revenue.value(),'siparis_turu':self.order_type.currentText()},items)
         except Exception as exc:return error(self,str(exc))
         self.accept()
 

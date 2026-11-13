@@ -15,6 +15,12 @@ import hashlib
 from analitik_veri import read_date, num, shipping_group
 
 
+def accounting_revenue(order):
+    """A compensation shipment is not a sale, even for legacy records."""
+    return 0.0 if shipping_group(order) == "telafi" else num(order.get('ciro'))
+
+
+
 class PaymentDays:
     """Kullanıcı veri klasöründe atomik kayıt. Geçersiz dosyayı sessizce ezmez."""
     filename = 'alfa_muhasebe_gunleri.json'
@@ -131,7 +137,7 @@ def completed_summary(db, start, end):
             continue
         chosen.append(order)
         day = daily[completion.isoformat()]
-        gross = num(order.get('ciro'))
+        gross = accounting_revenue(order)
         group = shipping_group(order)
         ship = max(0.0,num(order.get('kargo_ucreti'))) if group in ('telafi','acik_adres') and order.get('kargo_ucreti') is not None else 0.0
         day['orders'] += 1; day['gross'] += gross; day['shipping'] += ship
@@ -205,7 +211,7 @@ def html_report(data, paid_days, review_days=None):
     def esc(val): return escape(str(val), quote=True)
     def money(v): return f'{v:,.2f} TL'
     metric=data['metrics']
-    paid_amount=sum(num(o.get('ciro')) for o in data['orders']
+    paid_amount=sum(accounting_revenue(o) for o in data['orders']
                     if str(o.get('tamamlanma_tarihi',''))[:10] in paid_days)
     rows=[('Tamamlanan sipariş',metric['orders']),('Toplam ciro',money(metric['gross'])),
           ('Ödenen ciro',money(paid_amount)),
@@ -229,7 +235,7 @@ def html_report(data, paid_days, review_days=None):
     ))+'</tr>' for d in data['daily'] if d['orders'])
     orders=''.join('<tr>' + ''.join(f'<td>{esc(v)}</td>' for v in (
         o.get('id',''), str(o.get('tamamlanma_tarihi',''))[:16].replace('T',' '),
-        o.get('platform',''),money(num(o.get('ciro'))),
+        o.get('platform',''),money(accounting_revenue(o)),
         money(num(o.get('kargo_ucreti'))) if o.get('kargo_ucreti') is not None else '—',
         o.get('kargo_turu') or '—'
     ))+'</tr>' for o in data['orders'])

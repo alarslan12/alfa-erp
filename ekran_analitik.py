@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import QUrl
 from widgets import button, text, scrollable
-from muhasebe_veri import PaymentDays, accounting_days, completed_summary, html_report, completion_fingerprints
+from muhasebe_veri import PaymentDays, accounting_days, completed_summary, html_report, completion_fingerprints, accounting_revenue
 from takvim import MONTHS, WEEK
 
 NAVY='#10243a'
@@ -526,7 +526,7 @@ class AnalitikView(QWidget):
                 clear_layout(item.layout())
         title=text('TAMAMLANAN SİPARİŞLER · MUHASEBE ÖZETİ','AnalyticsSection')
         self.result_layout.addWidget(title)
-        paid_revenue=sum(float(o.get('ciro') or 0) for o in self.latest['orders']
+        paid_revenue=sum(accounting_revenue(o) for o in self.latest['orders']
                          if str(o.get('tamamlanma_tarihi',''))[:10] in self._paid_days)
         unpaid_revenue=m['gross']-paid_revenue
         paid_days_count=sum(1 for d in self.latest['daily'] if d['orders'] and d['date'] in self._paid_days)
@@ -714,7 +714,7 @@ class AnalitikView(QWidget):
             total=self.db.siparis_ozeti(o)
             orders.append([f"#{o.get('id','')}",str(o.get('tamamlanma_tarihi',''))[:16].replace('T',' '),
                 str(o.get('platform') or 'Manuel'),total['adet'],total['sayfa'],
-                money(float(o.get('ciro') or 0))])
+                money(accounting_revenue(o))])
         self.result_layout.addWidget(self.table(['No','Tamamlanma','Platform','Kitap','Sayfa','Ciro'],orders,205))
         if len(self.latest['orders'])>80:
             self.result_layout.addWidget(text('İlk 80 sipariş gösteriliyor; HTML raporu tüm siparişleri içerir.','AccountingHelp'))

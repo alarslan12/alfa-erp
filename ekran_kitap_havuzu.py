@@ -9,6 +9,7 @@ from pathlib import Path
 from pdf_kitap import PdfKutuphane
 from widgets import button, text, cover_label, scrollable, clear_layout
 from utils import metin_eslesiyor_mu
+from temali_combo import AlfaTemaliCombo
 
 
 class SiparisKitapHavuzu(QDialog):
@@ -66,11 +67,11 @@ class SiparisKitapHavuzu(QDialog):
         active_tag.setAlignment(Qt.AlignmentFlag.AlignCenter)
         active_tag.setFixedSize(160, 36)
         filters.addWidget(active_tag)
-        self.group = QComboBox();self.group.setObjectName('OrderFilter')
+        self.group = AlfaTemaliCombo();self.group.setObjectName('OrderFilter')
         self.group.setFixedSize(175,36)
         self.group.setToolTip('Kitap alt grubuna göre süz')
         filters.addWidget(self.group)
-        self.progress_filter = QComboBox();self.progress_filter.setObjectName('OrderFilter')
+        self.progress_filter = AlfaTemaliCombo();self.progress_filter.setObjectName('OrderFilter')
         for label,key in (
             ('Tüm ilerlemeler','all'),('Baskı bekleyenler','unready'),
             ('Hazırlananlar','progress'),('Kolileme bekleyenler','unboxed'),
@@ -79,7 +80,7 @@ class SiparisKitapHavuzu(QDialog):
             self.progress_filter.addItem(label,key)
         self.progress_filter.setFixedSize(165,36)
         filters.addWidget(self.progress_filter)
-        self.sort = QComboBox();self.sort.setObjectName('OrderFilter')
+        self.sort = AlfaTemaliCombo();self.sort.setObjectName('OrderFilter')
         for name,key in (('Kalan baskı ↓','remaining'),('Toplam adet ↓','total'),
                          ('Kitap adı A–Z','name'),('Kod ↑','code')):
             self.sort.addItem(name,key)

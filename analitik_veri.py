@@ -83,7 +83,7 @@ def build_dashboard(db, *, days=30, status='all', platform='all', order_kind='al
     for o in selected:
         stage = db.siparis_durumu(o)
         stats['order_'+stage] += 1
-        gross = num(o.get('ciro'))
+        gross = 0.0 if shipping_group(o) == 'telafi' else num(o.get('ciro'))
         stats['gross'] += gross
         created = read_date(o.get('tarih'))
         if stage != 'tamamlandi' and created and (today-created).days >= 7:
