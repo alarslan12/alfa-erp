@@ -245,8 +245,8 @@ class SiparisBilgiDialog(QDialog):
 
 class KatalogView(QWidget):
     order_created = Signal()
-    def __init__(self,db,covers):
-        super().__init__();self.db=db;self.covers=covers
+    def __init__(self,db,covers,config=None):
+        super().__init__();self.db=db;self.covers=covers;self.config=config
         raw=db.sepeti_oku();self.cart={str(k):{'SB':max(0,int(v.get('SB',0))), 'RNK':max(0,int(v.get('RNK',0)))} for k,v in raw.items() if isinstance(v,dict) and str(k) in db.katalog}
         self.page=0;self.last_filter=[];self._last_columns=0
         self._cart_timer=QTimer(self);self._cart_timer.setSingleShot(True)
@@ -319,8 +319,8 @@ class KatalogView(QWidget):
         rows=[book for book in self.db.kitaplar if metin_eslesiyor_mu(q,book)]
         # Display-only preference shared by Personel and Yönetici; it never
         # deletes books or alters Firebase / existing order lines.
-        settings=getattr(self.window(),'config',None)
-        if settings is not None and not settings.get('show_books_without_pages',True):
+        settings=self.config or getattr(self.window(),'config',None)
+        if settings is None or not settings.get('show_books_without_pages',False):
             rows=[book for book in rows if int(book.get('sayfa') or 0)>0]
         # Both the initial Excel and Firebase-origin catalog use stable
         # numerical order; data/code values are not rewritten.

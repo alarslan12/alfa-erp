@@ -166,7 +166,7 @@ class AlfaMain(QMainWindow):
         self.body.addWidget(self.stack,1)
         root.addWidget(content,1)
         # Katalog: exclusively printed books and checkout.
-        self.catalog=KatalogView(self.db,self.covers)
+        self.catalog=KatalogView(self.db,self.covers,config=self.config)
         self.title_line.insertWidget(1,self.catalog.toolbar,1)
         self.orders=SiparisView(self.db,self.covers,self.open_book_pool,admin_mode=OWNER_EDITION)
         self.analytics=AnalitikView(self.db,lambda sid:self.orders.open_editor(sid,'track'))

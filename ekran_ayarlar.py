@@ -101,9 +101,10 @@ class SettingsPage(QWidget):
             theme_row.addWidget(action)
             self.themes.append((key,action))
         controls.addLayout(theme_row)
-        self.show_unknown_pages=QCheckBox('Sayfa sayısı boş kitapları katalogda göster')
+        self.show_unknown_pages=QCheckBox('Sayfa sayısı olmayan kitapları katalogda göster')
+        self.show_unknown_pages.setToolTip('Varsayılan: gizli. Bu seçenek yalnızca katalog görünümünü değiştirir; Firebase kitaplarını silmez.')
         self.show_unknown_pages.setChecked(
-            bool(self.config.get('show_books_without_pages', True)))
+            bool(self.config.get('show_books_without_pages', False)))
         self.show_unknown_pages.toggled.connect(self._set_unknown_page_visibility)
         controls.addWidget(self.show_unknown_pages)
         col.addWidget(card)
@@ -337,12 +338,21 @@ class SettingsPage(QWidget):
 
     def _covers_done(self,counts):
         result=(
-            f"PDF eşleşmesi: {counts.get('matched',0)} · "
+            f"PDF klasörü: {counts.get('pdf_found',0)} dosya · "
+            f"Eşleşen kitap: {counts.get('matched',0)} · "
             f"Yeni/güncel kapak: {counts.get('created',0)} · "
             f"Önbellekten: {counts.get('unchanged',0)} · "
             f"Elle eklenmiş kapak: {counts.get('manual',0)} · "
-            f"Eşleşmeyen: {counts.get('missing',0)} · "
-            f"Hata: {counts.get('errors',0)}")
+            f"Eşleşmeyen PDF: {counts.get('unmatched_pdf',0)} · "
+            f"Katalogda PDF bulunmayan: {counts.get('missing',0)} · "
+            f"PDF işleme hatası: {counts.get('errors',0)}")
+        examples=counts.get('unmatched_pdf_examples') or []
+        if examples:
+            result += " · Örnek: "+", ".join(examples[:3])
+        self.pdf_status.setToolTip(
+            "Eşleşmeyen PDF'ler: "+(", ".join(examples) or "Yok")+
+            "\nİşleme sorunları: "+(", ".join(counts.get('error_examples') or []) or "Yok")+
+            "\nTam rapor: "+str(self.pdf.data_dir/"alfa_pdf_eslestirme_raporu.json"))
         self.pdf_status.setText(result)
         main=self.window()
         covers=getattr(main,'covers',None)

@@ -8,7 +8,8 @@ import zipfile
 
 DEFAULTS = {'tema': 'koyu', 'ozel_katalog': None, 'bildirim_sesi': 'klasik',
             'elevenlabs_voice_a': '', 'elevenlabs_voice_b': '',
-            'show_books_without_pages': True}
+            'show_books_without_pages': False,
+            'hide_blank_pages_migrated_v2026': False}
 BACKUP_NAMES = ('alfa_siparisler.json', 'alfa_sepet_hafiza.json', 'alfa_siparis_sayac.json',
                 'alfa_islem_gunlugu.jsonl', 'alfa_pdf_ayarlari.json',
                 'alfa_ayarlar.json', 'alfa_katalog_ozel.xlsx',
@@ -27,6 +28,13 @@ class UserSettings:
                     self.values.update({k:v for k,v in stored.items() if k in DEFAULTS})
             except (OSError,ValueError,TypeError):
                 pass
+        # One-time preference migration: users requested blank-page books
+        # hidden by default, including when previous release stored True.
+        # After migrating, later manual checkbox decisions remain respected.
+        if not self.values.get('hide_blank_pages_migrated_v2026'):
+            self.values['show_books_without_pages']=False
+            self.values['hide_blank_pages_migrated_v2026']=True
+            self.save()
 
     def get(self,key,default=None):
         return self.values.get(key,default)
