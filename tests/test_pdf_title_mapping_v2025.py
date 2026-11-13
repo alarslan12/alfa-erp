@@ -50,6 +50,34 @@ class TitleMappingTests(unittest.TestCase):
         self.lib.set_folder(self.folder)
         self.assertIsNone(self.lib.find('120',title='DUSDATA 33 Ortodonti'))
 
+    def test_tusdata_konu_ignores_word_order_and_cilt_decoration(self):
+        expected=self.pdf('Dahiliye Cilt 1 TUS DATA Konu.pdf')
+        self.lib.set_folder(self.folder)
+        self.assertEqual(
+            self.lib.find('365',title='TUSDATA Konu Dahiliye 1'),
+            expected.resolve())
+        self.assertIsNone(self.lib.find('366',title='TUSDATA Konu Dahiliye 2'))
+
+    def test_tusdata_konu_roman_volume_and_tr_characters(self):
+        expected=self.pdf('TUSDATA KONU KÜÇÜK STAJLAR CİLT II.pdf')
+        self.lib.set_folder(self.folder)
+        self.assertEqual(
+            self.lib.find('374',title='TUSDATA Konu Küçük Stajlar 2'),
+            expected.resolve())
+        self.assertIsNone(
+            self.lib.find('375',title='TUSDATA Konu Küçük Stajlar 3'))
+
+    def test_other_tusdata_series_not_mixed_with_konu(self):
+        self.pdf('TUSDATA Prime Dahiliye 2.pdf')
+        self.lib.set_folder(self.folder)
+        self.assertIsNone(self.lib.find('366',title='TUSDATA Konu Dahiliye 2'))
+
+    def test_ambiguous_tusdata_konu_filenames_fail_closed(self):
+        self.pdf('TUSDATA Konu Dahiliye 1 Cilt.pdf')
+        self.pdf('Dahiliye 1 - TUSDATA Konu.pdf')
+        self.lib.set_folder(self.folder)
+        self.assertIsNone(self.lib.find('365',title='TUSDATA Konu Dahiliye 1'))
+
 
 if __name__=='__main__':
     unittest.main()

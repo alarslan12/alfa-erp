@@ -12,6 +12,37 @@ import unicodedata
 
 PDF_PREFIXES = ('kitap', 'kod', 'book', 'pdf', 'alfa')
 _COVER_SUFFIXES = ('kapak', 'cover', 'baski', 'pdf')
+_TOPIC_DECORATIONS = frozenset(('cilt','cildi','kitap','kitabi','kapagi','kapak','cover','baski','pdf'))
+
+
+def _topic_signature(value):
+    """Exact multiset for TUSDATA Konu names; order and 'cilt' may differ.
+
+    Course, publisher, series and *each volume number* must all agree.
+    Do not fall back to fuzzy similarity that could swap adjacent volumes.
+    """
+    source = _title_words(value)
+    words = []
+    index = 0
+    roman = {'i':'1', 'ii':'2', 'iii':'3', 'iv':'4'}
+    while index < len(source):
+        token = source[index]
+        if token in ('tus', 'dus') and index+1 < len(source) and source[index+1] == 'data':
+            token += 'data'
+            index += 1
+        elif token in roman and index > 0 and source[index-1] in ('cilt','cildi'):
+            token = roman[token]
+        if token in ('konulari','konular'):
+            token = 'konu'
+        if token.isdecimal():
+            token = str(int(token))
+        if token not in _TOPIC_DECORATIONS:
+            words.append(token)
+        index += 1
+    if len(words) < 3 or 'tusdata' not in words or 'konu' not in words:
+        return None
+    return tuple(sorted(words))
+
 
 
 def _title_words(value):
@@ -68,6 +99,8 @@ class PdfKutuphane:
         self.folder = None
         self._index = {}
         self._name_index = {}
+        self._topic_index = {}
+        self._files = []
         self._scanned = False
         self._read_settings()
 
@@ -99,12 +132,18 @@ class PdfKutuphane:
     def scan(self):
         self._index = {}
         self._name_index = {}
+        self._topic_index = {}
+        self._files = []
         self._scanned = True
         if self.folder is None or not self.folder.is_dir():
             return
         # Klasör içinde alt klasörler de desteklenir.
         for file in sorted(self.folder.rglob('*')):
             if file.is_file() and file.suffix.lower() == '.pdf':
+                self._files.append(file)
+                topic_key = _topic_signature(file.stem)
+                if topic_key is not None:
+                    self._topic_index.setdefault(topic_key, set()).add(file)
                 for name_key in _title_keys(file.stem):
                     self._name_index.setdefault(name_key, set()).add(file)
                 for part in re.findall(r'\d+', file.stem):
@@ -136,6 +175,13 @@ class PdfKutuphane:
                 return next(iter(matches))
             if len(matches) > 1:
                 return None
+            topic_key = _topic_signature(title)
+            if topic_key is not None:
+                topic_matches = self._topic_index.get(topic_key, set())
+                if len(topic_matches) == 1:
+                    return next(iter(topic_matches))
+                if len(topic_matches) > 1:
+                    return None
         found = self._index.get(key)
         if found is not None and not found[1].is_file():
             self.scan()

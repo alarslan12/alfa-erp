@@ -113,7 +113,10 @@ def refresh_pdf_covers(data_dir,book_codes,progress=None):
     if len(codes)>MAX_PDFS:
         raise ValueError("PDF kapak taraması güvenlik sınırını aşıyor")
     stats={"matched":0,"created":0,"unchanged":0,
-           "manual":0,"missing":0,"errors":0}
+           "manual":0,"missing":0,"errors":0,
+           "pdf_found":len(pdf._files),"unmatched_pdf":0,
+           "unmatched_pdf_examples":[],"error_examples":[]}
+    matched_sources=set()
     manual=data_dir/"kapaklar"
     pdf_folder=pdf.folder
     for index,code in enumerate(codes,1):
@@ -123,6 +126,7 @@ def refresh_pdf_covers(data_dir,book_codes,progress=None):
             if progress:progress(index,len(codes))
             continue
         stats["matched"]+=1
+        matched_sources.add(src.resolve())
         try:
             stat=src.stat()
             # Canonical relative location differentiates same code/name in
@@ -150,13 +154,26 @@ def refresh_pdf_covers(data_dir,book_codes,progress=None):
                 render_first_page(src,target)
                 current[code]=signature
                 stats["created"]+=1
-        except (OSError,ValueError,RuntimeError,PermissionError):
+        except (OSError,ValueError,RuntimeError,PermissionError) as exc:
             stats["errors"]+=1
+            if len(stats["error_examples"])<20:
+                stats["error_examples"].append(f"#{code}: {str(exc)[:120]}")
             if recorded.get(code) and (folder/(code+".jpg")).exists():
                 current[code]=recorded[code]
         if progress:progress(index,len(codes))
     _atomic_json(manifest,{"version":CACHE_VERSION,"entries":current,
                            "source_folder":str(pdf_folder)})
+    # Diagnostic only: report real unmatched PDF filenames separately
+    # from catalog books for which no PDF exists.
+    unmatched=[str(file.relative_to(pdf_folder)) for file in pdf._files
+               if file.resolve() not in matched_sources]
+    stats["unmatched_pdf"]=len(unmatched)
+    stats["unmatched_pdf_examples"]=unmatched[:30]
+    try:
+        _atomic_json(data_dir/"alfa_pdf_eslestirme_raporu.json",
+                     {"source_folder":str(pdf_folder),"summary":stats})
+    except OSError:
+        pass  # Reporting must never disable otherwise working covers.
     # Don't delete old generated JPEGs automatically. Some PDFs may have
     # been moved temporarily, and manual overrides remain untouched.
     return stats
