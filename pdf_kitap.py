@@ -49,6 +49,7 @@ class PdfKutuphane:
         self._index = {}
         self._title_index = {}
         self._files = []
+        self._scanned = False
         self._read_settings()
 
     def _read_settings(self):
@@ -80,6 +81,7 @@ class PdfKutuphane:
         self._index = {}
         self._title_index = {}
         self._files = []
+        self._scanned = True
         if self.folder is None or not self.folder.is_dir():
             return
         # Nested folders are supported, but exact duplicate titles are
@@ -117,7 +119,7 @@ class PdfKutuphane:
         if self.folder is None or not self.folder.is_dir():
             return None
         key = str(int(code)) if str(code).isdigit() else str(code)
-        if not self._files or self._index is None:
+        if not self._scanned:
             self.scan()
         if title:
             named = self._find_named(title)
@@ -126,7 +128,8 @@ class PdfKutuphane:
                 return named
         found = self._index.get(key)
         if found is None or not found[1].is_file():
-            self.scan()
+            if found is not None:
+                self.scan()
             if title:
                 named = self._find_named(title)
                 if named:return named

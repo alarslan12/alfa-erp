@@ -308,7 +308,8 @@ class SettingsPage(QWidget):
         if not self.pdf.folder:
             self.pdf_status.setText('Kapak oluşturmak için PDF klasörü seç.')
             return
-        codes=[str(book.get('kod') or '') for book in self.db.kitaplar]
+        codes=[{'kod':str(book.get('kod') or ''),'isim':str(book.get('isim') or '')}
+               for book in self.db.kitaplar]
         self.pdf_status.setText(
             f'{len(codes)} kitap kodu için PDF kapakları kontrol ediliyor…')
         worker=CoverWorker(self.pdf.data_dir,codes,self)
@@ -331,6 +332,16 @@ class SettingsPage(QWidget):
             f"Elle eklenmiş kapak: {counts.get('manual',0)} · "
             f"Eşleşmeyen: {counts.get('missing',0)} · "
             f"Hata: {counts.get('errors',0)}")
+        if counts.get("missing_examples") or counts.get("error_examples"):
+            # Diagnostic details remain local to the operator's computer.
+            examples=(counts.get("missing_examples") or [])[:4]
+            self.pdf_status.setToolTip(
+                "Eşleşmeyen örnekler: "+", ".join(examples)+
+                "\nTarama raporu: "+str(self.pdf.data_dir/"alfa_pdf_kapak_tarama_raporu.json"))
+            if examples:
+                result += " · Örnek: "+", ".join(examples[:3])
+        else:
+            self.pdf_status.setToolTip("")
         self.pdf_status.setText(result)
         main=self.window()
         covers=getattr(main,'covers',None)

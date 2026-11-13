@@ -1,6 +1,6 @@
 """Tekrarlanan masaüstü bileşenleri, kapak eşleme ve düzen yardımcıları."""
 from pathlib import Path
-import shutil, re, unicodedata
+import shutil, re, unicodedata, json
 from PySide6.QtCore import Qt, QSize
 from PySide6.QtGui import QPixmap, QPainter, QColor, QFont, QLinearGradient
 from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QHBoxLayout, QFrame, QScrollArea, QPushButton, QMessageBox, QApplication
@@ -28,8 +28,21 @@ class Covers:
                     self.manual_index[normal(file.stem)]=file
         automated=self.user/'pdf_otomatik'
         if automated.is_dir():
+            # Only advertise images verified by the latest scan manifest.
+            # Old (wrong-direction or wrong-book) JPGs stay recoverable on
+            # disk, but cannot reappear in the live book catalogue.
+            from pdf_kapak import CACHE_VERSION
+            manifest=automated/'alfa_pdf_kapak_onbellek.json'
+            try:
+                meta=json.loads(manifest.read_text(encoding='utf-8'))
+                active=set(meta.get('entries',{})) if (
+                    meta.get('version')==CACHE_VERSION
+                    and isinstance(meta.get('entries'),dict)) else set()
+            except (OSError,TypeError,ValueError,AttributeError):
+                active=set()
             for file in automated.iterdir():
-                if file.is_file() and file.suffix.lower() in IMAGE_SUFFIXES:
+                if (file.is_file() and file.suffix.lower() in IMAGE_SUFFIXES
+                    and file.stem in active and file.stat().st_size>1500):
                     self.auto_index[normal(file.stem)]=file
         # Backward-compatible index for non-cover callers.
         self.index={**self.auto_index,**self.manual_index}
