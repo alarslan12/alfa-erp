@@ -1130,6 +1130,13 @@ class SiparisTakipSekmeleri(QDialog):
                 self.move(frame.topLeft())
                 self._positioned_once = True
 
+    def closeEvent(self,event):
+        # A detached editor must not retain a pointer to a closing host.
+        # Dock live pages before this popup is destroyed.
+        for sid in list(self.detached):
+            self.reattach_order(sid)
+        super().closeEvent(event)
+
     def add_order(self, sid):
         sid = str(sid)
         if sid in self.pages:
