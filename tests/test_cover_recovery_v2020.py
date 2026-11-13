@@ -37,15 +37,15 @@ class PdfCatalogMatchTests(unittest.TestCase):
     def test_pretus_title_finds_code_402_without_confusing_volume_three(self):
         original=self.new_book("TUSDATA PRETUS 3.pdf")
         library=self.library()
-        self.assertEqual(library.find("402",title="TUSDATA PRETUS 3"),original)
+        self.assertTrue(library.find("402",title="TUSDATA PRETUS 3").samefile(original))
         self.assertIsNone(library.find("3",title="Başka yayınevi anatomi"))
         self.assertIsNone(library.find("403",title="TUSDATA PRETUS 4"))
 
     def test_unicode_turkish_and_nested_paths_resolve_exact_title(self):
         original=self.new_book("alt kategori/TUSDATA Meditus Küçük Stajlar - Kapak.pdf")
         library=self.library()
-        self.assertEqual(
-            library.find("393",title="TUSDATA Meditus KÜÇÜK STAJLAR"),original)
+        self.assertTrue(
+            library.find("393",title="TUSDATA Meditus KÜÇÜK STAJLAR").samefile(original))
 
     def test_duplicate_titles_do_not_pick_wrong_cover(self):
         self.new_book("a/TUSDATA PRETUS 3.pdf")
@@ -73,7 +73,7 @@ class PdfCatalogMatchTests(unittest.TestCase):
             result=refresh_pdf_covers(self.data,[
                 {"kod":"402","isim":"TUSDATA PRETUS 3"},
                 {"kod":"403","isim":"TUSDATA PRETUS 4"}])
-        self.assertEqual(result["created"],1)
+        self.assertEqual(result["created"],1,str(result))
         self.assertEqual(result["missing"],1)
         self.assertTrue(any("#403" in x for x in result["missing_examples"]))
         auto=self.data/"kapaklar"/"pdf_otomatik"
