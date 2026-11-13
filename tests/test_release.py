@@ -49,6 +49,25 @@ class ReleaseContractTests(unittest.TestCase):
         self.assertFalse((ROOT/'alfa_personel.iss').exists())
         self.assertFalse((ROOT/'alfa_yonetici.iss').exists())
 
+    def test_excel_import_keeps_named_books_without_page_count(self):
+        import tempfile
+        from openpyxl import Workbook
+        from katalog_excel_aktar import preview_excel_catalog
+        with tempfile.TemporaryDirectory() as temp:
+            path=Path(temp)/"books.xlsx"
+            book=Workbook()
+            ws=book.active
+            ws.append(["Kitap Kodu","Kitap Adı","Sayfa Sayısı","Grup"])
+            ws.append([101,"Klinik Kitap",None,"TTS Klinik"])
+            ws.append([102,None,None,"TTS Klinik"])
+            ws.append([103,"Temel Kitap",240,"TTS Temel"])
+            book.save(path)
+            imported=preview_excel_catalog(path)
+            self.assertEqual(len(imported),2)
+            values={v["code"]:v for v in imported}
+            self.assertEqual(values["101"]["page_count"],0)
+            self.assertEqual(values["103"]["page_count"],240)
+
     def test_history_and_staff_excel_contracts(self):
         from surum_gecmisi import release_history_markdown
         notes=release_history_markdown("2.0.15")

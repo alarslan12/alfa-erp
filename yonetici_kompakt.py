@@ -94,18 +94,19 @@ class OwnerSettingsPage(SettingsPage):
         return page
 
     def pick_catalog(self):
-        path,_=QFileDialog.getOpenFileName(self,'Katalog Excel seç',str(Path.home()),'Excel (*.xlsx)')
+        path,_=QFileDialog.getOpenFileName(
+            self,'Katalog Excel seç',str(Path.home()),'Excel (*.xlsx)')
         if not path:return
         try:
-            with tempfile.TemporaryDirectory(prefix='alfa_catalog_') as tmp:
-                parsed=ERPDatabase(path,data_dir=tmp)
-                books=[{'code':str(b['kod']),'name':str(b['isim']),
-                        'group_name':str(b['grup']),'page_count':int(b['sayfa']),
-                        'supports_color':bool(b['renkli_opsiyon'])} for b in parsed.kitaplar]
-            if not books or len(books)>2000:raise ValueError('Excel 1–2000 kitap içermeli.')
-            self.catalog_rows=books;self.upload_btn.setEnabled(True)
+            from katalog_excel_aktar import preview_excel_catalog
+            books=preview_excel_catalog(path)
+            self.catalog_rows=books
+            self.upload_btn.setEnabled(True)
             self.catalog_note.setText(f'{Path(path).name} · {len(books)} kitap hazır')
-        except Exception as exc:self.catalog_note.setText(str(exc))
+        except Exception as exc:
+            self.upload_btn.setEnabled(False)
+            self.catalog_rows=[]
+            self.catalog_note.setText(str(exc)[:250])
 
     def upload_catalog(self):
         if QMessageBox.question(self,'Katalog güncelleme',

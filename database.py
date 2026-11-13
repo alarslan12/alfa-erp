@@ -14,7 +14,8 @@ from islem_gunlugu import AuditLog
 from decimal import Decimal, InvalidOperation
 
 class ERPDatabase:
-    def __init__(self, excel_dosyasi=None, data_dir=None):
+    def __init__(self, excel_dosyasi=None, data_dir=None, allow_missing_pages=False):
+        self.allow_missing_pages=bool(allow_missing_pages)
         self.excel_dosyasi = str(excel_dosyasi or (Path(__file__).resolve().parent / "KİTAPS.xlsx"))
         self.katalog = {}
         self.gruplar = {}
@@ -1105,15 +1106,16 @@ class ERPDatabase:
             for r in range(baslik_satiri + 1, ws.max_row + 1):
                 kod_ham = ws.cell(row=r, column=kod_col).value if kod_col else None
                 sayfa_ham = ws.cell(row=r, column=sayfa_col).value if sayfa_col else None
-                if kod_ham is None or sayfa_ham is None:
+                if kod_ham is None or (sayfa_ham is None and not self.allow_missing_pages):
                     continue
-
                 try:
                     sayfa = int(float(sayfa_ham))
                     if sayfa <= 0:
-                        continue
+                        if not self.allow_missing_pages:continue
+                        sayfa=0
                 except (ValueError, TypeError):
-                    continue
+                    if not self.allow_missing_pages:continue
+                    sayfa=0
 
                 try:
                     kod_str = str(int(float(kod_ham))) if str(kod_ham).strip().replace(".", "", 1).isdigit() else str(kod_ham).strip()
@@ -1121,6 +1123,8 @@ class ERPDatabase:
                     kod_str = str(kod_ham).strip()
 
                 isim = hucre_oku(r, isim_col) if isim_col else f"Kitap #{kod_str}"
+                if self.allow_missing_pages and (not isim_col or not str(isim).strip() or not kod_str):
+                    continue
                 renkli_val = tr_kucult(hucre_oku(r, renkli_col)) if renkli_col else ""
                 renkli_opsiyon = (renkli_val == "x") or ("partial" in renkli_val) or (renkli_val == "evet")
 

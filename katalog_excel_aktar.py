@@ -10,7 +10,7 @@ def preview_excel_catalog(path):
     if source.stat().st_size>35*1024*1024:
         raise ValueError("Excel dosyası 35 MB sınırını aşıyor.")
     with tempfile.TemporaryDirectory(prefix="alfa_excel_preview_") as safe_dir:
-        parsed=ERPDatabase(str(source),data_dir=safe_dir)
+        parsed=ERPDatabase(str(source),data_dir=safe_dir,allow_missing_pages=True)
         rows=[{
             "code":str(book["kod"]),
             "name":str(book["isim"]),
