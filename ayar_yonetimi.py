@@ -6,7 +6,8 @@ import tempfile
 import shutil
 import zipfile
 
-DEFAULTS = {'tema': 'koyu', 'ozel_katalog': None, 'bildirim_sesi': 'klasik'}
+DEFAULTS = {'tema': 'koyu', 'ozel_katalog': None, 'bildirim_sesi': 'klasik',
+            'elevenlabs_voice_a': '', 'elevenlabs_voice_b': ''}
 BACKUP_NAMES = ('alfa_siparisler.json', 'alfa_sepet_hafiza.json', 'alfa_siparis_sayac.json',
                 'alfa_islem_gunlugu.jsonl', 'alfa_pdf_ayarlari.json',
                 'alfa_ayarlar.json', 'alfa_katalog_ozel.xlsx',
