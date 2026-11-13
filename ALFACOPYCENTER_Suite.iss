@@ -49,6 +49,7 @@ Name: "printautostart"; Description: "Windows oturumu açılınca yazdırma izle
 [Files]
 Source: "dist\AlfaERP\*"; DestDir: "{app}\Staff"; Flags: recursesubdirs createallsubdirs ignoreversion; Components: staff
 Source: "dist\AlfaBildirim\*"; DestDir: "{app}\Notifications"; Flags: recursesubdirs createallsubdirs ignoreversion; Components: staff
+Source: "tools\Install-OrderNotifications.ps1"; DestDir: "{app}\Notifications"; Flags: ignoreversion; Components: staff
 Source: "dist\AlfaERPYonetici\*"; DestDir: "{app}\Owner"; Flags: recursesubdirs createallsubdirs ignoreversion; Components: owner
 Source: "dist\AlfaBannerStudio\*"; DestDir: "{app}\BannerStudio"; Flags: recursesubdirs createallsubdirs ignoreversion; Components: banner
 Source: "dist\AlfaPrintSurveillance\*"; DestDir: "{app}\PrintSurveillance"; Flags: recursesubdirs createallsubdirs ignoreversion; Components: print
@@ -73,12 +74,16 @@ Name: "{userstartup}\ALFA ERP Sipariş Bildirimi"; Filename: "{app}\Notification
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "ALFA_ERP_Print_Monitor"; ValueData: """{app}\PrintSupervisor\AlfaPrintSupervisor.exe"" --data-dir ""{localappdata}\AlfaERP"""; Flags: uninsdeletevalue; Components: print\agent; Tasks: printautostart
 
 [Run]
+Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File ""{app}\Notifications\Install-OrderNotifications.ps1"" -ExePath ""{app}\Notifications\AlfaBildirim.exe"""; Flags: runhidden waituntilterminated; Components: staff
 Filename: "{app}\Staff\AlfaERP.exe"; Description: "Personel ERP'yi aç"; Flags: nowait postinstall skipifsilent; Components: staff; Check: NotUpdate
 Filename: "{app}\Owner\AlfaERPYonetici.exe"; Description: "Yönetici ERP'yi aç"; Flags: nowait postinstall skipifsilent; Components: owner; Check: NotUpdate
 Filename: "{app}\BannerStudio\AlfaBannerStudio.exe"; Description: "Banner Studio'yu aç"; Flags: nowait postinstall skipifsilent unchecked; Components: banner; Check: NotUpdate
 Filename: "{app}\PrintSurveillance\AlfaPrintSurveillance.exe"; Description: "Yazdırma Kontrol Merkezi'ni aç"; Flags: nowait postinstall skipifsilent unchecked; Components: print; Check: NotUpdate
 Filename: "{app}\PrintSupervisor\AlfaPrintSupervisor.exe"; Parameters: "--data-dir ""{localappdata}\AlfaERP"""; Flags: nowait postinstall skipifsilent; Components: print\agent; Tasks: printautostart; Check: NotUpdate
 Filename: "{app}\Notifications\AlfaBildirim.exe"; Flags: nowait postinstall skipifsilent; Components: staff; Check: NotUpdate
+
+[UninstallRun]
+Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File ""{app}\Notifications\Install-OrderNotifications.ps1"" -ExePath ""{app}\Notifications\AlfaBildirim.exe"" -Remove"; Flags: runhidden waituntilterminated; Check: FileExists(ExpandConstant('{app}\Notifications\Install-OrderNotifications.ps1'))
 
 [Code]
 // This is a LOCAL installation gate, never a Firebase owner credential.
