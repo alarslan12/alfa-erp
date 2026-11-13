@@ -16,7 +16,7 @@ from PySide6.QtPdf import QPdfDocument
 
 from pdf_kitap import PdfKutuphane
 
-CACHE_VERSION=4
+CACHE_VERSION=5
 MAX_PDFS=4000
 MAX_SOURCE_BYTES=850*1024*1024
 
@@ -147,7 +147,7 @@ def refresh_pdf_covers(data_dir,book_codes,progress=None):
                 # cache state. No need to render a redundant image.
                 continue
             if (recorded.get(code)==signature and target.exists()
-                and target.stat().st_size>1500):
+                and target.stat().st_size>0):
                 stats["unchanged"]+=1
                 current[code]=signature
             elif stat.st_size>MAX_SOURCE_BYTES:
