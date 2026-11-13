@@ -82,3 +82,16 @@ Suite kurulumunda **Yönetici** bileşeni seçildiğinde güçlü bir yerel kuru
 Owner Firebase UID yetkisi, yetkili proje operatörü tarafından Google Cloud
 Shell'de `tools/rtdb_authorize.py` ile onaylanır. Kurulum ve onaylama adımları
 `firebase/RTDB_KURULUM.md` dosyasındadır.
+
+## v2.0.17: Excel / Firebase katalog eşleştirme onarımı
+
+Katalogda kitap kodları veya sayfa bilgileri yanlışsa doğru Excel'i
+Yönetici uygulamasındaki Excel kataloğu bölümünden buluta yeniden yükleyin.
+Kaynak kodu kitapları satır sırasına göre numaralandırmaz: Excel'deki kod
+esas alınır. Firebase'deki eski kitap verileri yükleme öncesi otomatik
+yedeklenir; yazılan kitaplar ve mobil katalog sunucudan doğrulanır.
+Personel uygulamasında onaylı cihazlara Excel Katalog seçeneği de vardır.
+
+Yetki reddi yaşanırsa Cloud Shell araçları ile salt-okunur karşılaştırma
+ve kontrollü düzeltme yapılabilir (firebase/RTDB_KURULUM.md).
+Yeni Suite kurulumu canlı Firebase katalogunu tek başına değiştirmez.

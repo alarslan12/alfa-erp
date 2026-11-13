@@ -100,3 +100,37 @@ Bu adım canlı Firebase Security Rules'u değiştirir. Mevcut kuralları
 Firebase Console'dan yedekleyip farkı kontrol etmeden çalıştırmayın.
 Yalnız yetkili staff UID'leri kitap kataloğuna yazabilir. Anonim mobil
 ziyaretçiler için katalog yazma yetkisi açılmaz.
+
+## v2.0.17 kitap kodu ve sayfa bilgilerinin kurtarılması
+
+Firebase kataloguna yanlış 508/509/510 isimleri kaydedilmişse önce
+Yönetici → Excel kataloğu → Buluta güncelle yoluyla doğru .xlsx dosyasını
+seçin. Sunucu verilerinin yedeği alınır ve güncelleme doğrulanır.
+
+Yönetici yüklemesi izin hatası verirse Google Cloud Shell'de:
+
+~~~bash
+cd ~/alfa-erp
+git checkout firebase-rtdb-final
+git pull --ff-only origin firebase-rtdb-final
+source .venv/bin/activate
+python -m pip install firebase-admin openpyxl
+gcloud config set project alfa-erp-8700c
+gcloud auth application-default login
+~~~
+
+Excel dosyanızı Cloud Shell Files → Upload ile klasöre yükleyin.
+Aşağıdaki dosya adını yüklediğiniz Excel ile değiştirmeyi unutmayın.
+
+~~~bash
+# Önce yalnızca farkları gösterir; canlı veri değişmez.
+python tools/firebase_catalog_repair.py --excel 'kitaplar_sablonu.xlsx'
+
+# Farklar doğruysa açık onayla uygular; önce yedek alır.
+python tools/firebase_catalog_repair.py --excel 'kitaplar_sablonu.xlsx' --apply --confirm-project alfa-erp-8700c
+~~~
+
+Doğru kaynak Excel örneği: 346 TIPDEMY SST Patoloji (386 sayfa),
+508 TIPDEMY Patoloji HT (118), 509 TIPDEMY Patoloji Konu (353),
+510 TIPDEMY Protetik SST (192). Bu işlem siparişleri silmez;
+eski siparişlerdeki fiziksel kitap tercihini gerektiğinde ayrıca doğrulayın.

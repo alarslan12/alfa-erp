@@ -1,5 +1,22 @@
 # ALFA ERP · Sürüm Geçmişi
 
+## [v2.0.17] — 2026-11-13
+
+- Firebase kitap kodları Excel'deki benzersiz kodla eşleşir;
+  eski 508/509/510 TIPDEMY kaymaları giderilebilecek şekilde düzeltildi.
+- Buluta katalog yazmadan önce yedek, yazdıktan sonra aktif kitap
+  ve mobil katalog readback doğrulaması yapılıyor.
+- Sayfa sayıları yeni Personel/Yönetici siparişlerinde Firebase anlık
+  görüntülerine ekleniyor. Eski 0 sayfalı görüntüler doğru katalog
+  üzerinden toparlanıyor.
+- Firebase katalog revizyonu sonrası mobil sipariş kataloğu önbelleği
+  ve sipariş sayfa toplamları tazeleniyor.
+- Cloud Shell kuru çalışma/fark kontrolü, operatör onaylı veri onarma.
+- v2.0.16 Analitik PIN NativeCrash riskine karşı Qt iş parçacığı
+  düzeltmesi ve dört bileşenli Suite korunuyor.
+- Sipariş, cihaz yetkisi ve arşivler silinmiyor.
+
+
 ## [v2.0.16] — 2026-11-13
 
 - Personel PIN doğrulama iş parçacığı tamamlandığında arayüze

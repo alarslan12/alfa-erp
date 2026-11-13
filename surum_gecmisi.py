@@ -6,6 +6,14 @@ https://github.com/alarslan12/alfa-erp/releases.
 """
 
 _RELEASES = [
+    ("2.0.17", "Firebase kitap kodları, 0 sayfa ve Excel kurtarma", [
+        "Buluttaki eski kod kaymaları Excel'deki kodlara göre, sunucu doğrulamalı olarak düzeltilir.",
+        "Katalogun eski kopyası otomatik saklanır ve tam yazma doğrulanmadan revizyon artışı yapılmaz.",
+        "Yeni siparişlerde kitap adı ve sayfa anlık görüntüsü Firebase'e doğru gönderilir.",
+        "Eski 0 sayfa kaydı katalogda doğru sayfa biliniyorsa ekranda düzeltilir.",
+        "Mobil katalog önbelleği ve sipariş sayfa toplamları katalog değişiminde güncellenir.",
+        "Cloud Shell üzerinden salt-okunur fark kontrolü ve kontrollü kurtarma eklendi.",
+    ]),
     ("2.0.16", "Analitik PIN açılış güvenliği", [
         "Personel ve Yönetici PIN kontrolü artık GUI iş parçacığına yönlendirilen Qt slotları ile sonuçlanır.",
         "İş parçacığı bitişinde pencereyi doğrudan sonlandırma/iş parçacığı bekleme yarışı giderildi.",
