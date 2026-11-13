@@ -382,8 +382,11 @@ class Workstation:
             rows[key] = {**prior,
                 "id": item_id, "order_id": order_id, "workspace_id": WORKSPACE_ID,
                 "book_code": code,
-                "book_name_snapshot": str(entry.get("isim") or code),
-                "page_count_snapshot": int(entry.get("sayfa") or 0),
+                "book_name_snapshot": str(entry.get("isim") or
+                    prior.get("book_name_snapshot") or code),
+                "page_count_snapshot": max(0,int(
+                    entry.get("sayfa_birim") or entry.get("sayfa") or
+                    prior.get("page_count_snapshot") or 0)),
                 "print_type": kind, "quantity": qty,
                 "prepared_count": min(qty, int(prior.get("prepared_count") or 0)),
                 "boxed_count": min(qty, int(prior.get("boxed_count") or 0)),

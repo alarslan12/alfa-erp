@@ -33,9 +33,13 @@ def convert_mobile_order(row, items, catalog):
         boxed = int(item.get('boxed_count', 0))
         if not 0 <= boxed <= ready <= count or not count:
             raise ValueError('Geçersiz mobil hazırlık/koli sayısı: ' + code)
+        stored=max(0,int(item.get('page_count_snapshot') or 0))
+        # An old desktop commit omitted the book's pages and saved 0 even
+        # for known books. Recover only invalid/zero snapshots for display.
+        if not stored:
+            stored=max(0,int(catalog[code].get('sayfa') or 0))
         book_list.append({'kod': code, 'tur': kind, 'adet': count,
-                          'hazir': ready, 'koli': boxed,
-                          'sayfa_birim': max(0,int(item.get('page_count_snapshot') or 0))})
+                          'hazir': ready, 'koli': boxed,'sayfa_birim':stored})
     if len({(i['kod'],i['tur']) for i in book_list}) != len(book_list):
         raise ValueError('Bulut siparişinde yinelenen kitap türü.')
     output = {

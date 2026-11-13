@@ -786,13 +786,27 @@ class ERPDatabase:
             if cloud_id:self._deleted_cloud_ids.discard(cloud_id)
             raise
 
+    def _book_page_count(self, item):
+        """Fallback for v2.0.15 snapshots stored as 0 despite a known book page count."""
+        code=str(item.get("kod") or "").strip()
+        try:
+            saved=max(0,int(item.get("sayfa_birim") if item.get("sayfa_birim") is not None else item.get("sayfa") or 0))
+        except (TypeError,ValueError):
+            saved=0
+        if saved:
+            return saved  # Keep a valid historical snapshot, even after catalog changes.
+        try:
+            return max(0,int(self.katalog.get(code,{}).get("sayfa") or 0))
+        except (TypeError,ValueError):
+            return 0
+
     def siparis_ozeti(self, siparis):
         """Kitap adedi, SB/RNK adedi ve toplam basılacak sayfa."""
         sb = rnk = sayfa = hazir = koli = 0
         for item in siparis.get("kitaplar", []):
             try:
                 adet = max(0, int(item.get("adet", 0)))
-                kitap_sayfa = max(0, int(item.get("sayfa_birim") if item.get("sayfa_birim") is not None else self.katalog.get(str(item.get("kod", "")), {}).get("sayfa", 0)))
+                kitap_sayfa = self._book_page_count(item)
                 hazir += min(adet, max(0, int(item.get("hazir", 0))))
                 koli += min(adet, max(0, int(item.get("koli", 0))))
             except (ValueError, TypeError):
@@ -839,7 +853,11 @@ class ERPDatabase:
                 raise ValueError("Geçersiz kitap / hazırlık / koli adedi")
             key = (kod, tur)
             if key not in birlesmis:
-                birlesmis[key] = {"kod": kod, "tur": tur, "adet": 0, "hazir": 0, "koli": 0}
+                info=self.katalog[kod]
+                pages=max(0,int(info.get("sayfa") or 0))
+                birlesmis[key] = {"kod": kod, "tur": tur, "adet": 0, "hazir": 0,
+                                  "koli": 0,"isim":str(info.get("isim") or kod),
+                                  "sayfa":pages,"sayfa_birim":pages}
             for fld, val in (("adet", adet), ("hazir", hazir), ("koli", koli)):
                 birlesmis[key][fld] += val
         temiz = list(birlesmis.values())
@@ -937,7 +955,7 @@ class ERPDatabase:
             bilgi = self.katalog.get(kod, {})
             grup = gruplar.setdefault(kod, {
                 "kod": kod, "isim": bilgi.get("isim", kod), "kitap_grubu": bilgi.get("grup", ""),
-                "sayfa_birim": max(0, int(item.get("sayfa_birim") if item.get("sayfa_birim") is not None else bilgi.get("sayfa", 0) or 0)),
+                "sayfa_birim": self._book_page_count(item),
                 "adet": 0, "hazir": 0, "koli": 0,
                 "sb": 0, "sb_hazir": 0, "sb_koli": 0,
                 "rnk": 0, "rnk_hazir": 0, "rnk_koli": 0,
@@ -1232,7 +1250,11 @@ class ERPDatabase:
                 raise ValueError("Önce hazırla, sonra kolile. Adet 1-100000 aralığında olmalı.")
             key = (code,kind)
             if key not in total:
-                total[key] = {'kod':code, 'tur':kind, 'adet':0, 'hazir':0, 'koli':0}
+                catalog_book=self.katalog[code]
+                pages=max(0,int(catalog_book.get("sayfa") or 0))
+                total[key] = {'kod':code, 'tur':kind, 'adet':0, 'hazir':0,
+                              'koli':0, 'isim':str(catalog_book.get("isim") or code),
+                              'sayfa':pages,'sayfa_birim':pages}
             for name,num in [('adet',n),('hazir',ready),('koli',box)]:
                 total[key][name] += num
         return list(total.values())
