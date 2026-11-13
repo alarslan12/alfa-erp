@@ -57,6 +57,7 @@ class PdfCatalogMatchTests(unittest.TestCase):
     def test_scan_report_has_unmatched_real_catalog_names(self):
         from pdf_kapak import refresh_pdf_covers,CACHE_VERSION
         self.new_book("TUSDATA PRETUS 3.pdf")
+        self.library()  # Persist the user-selected PDF source folder first.
         class FakePdf:
             def load(self, path):pass
             def pageCount(self):return 1
