@@ -173,6 +173,32 @@ class StatPill(QFrame):
         layout.addWidget(val)
 
 
+class RevenuePill(QFrame):
+    """Prominent, accessible revenue/receivables metric with context."""
+    def __init__(self, title, value, accent, meaning):
+        super().__init__()
+        self.setObjectName("AnalyticsRevenuePill")
+        self.setFixedHeight(108)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        layout=QVBoxLayout(self)
+        layout.setContentsMargins(14,12,12,9)
+        layout.setSpacing(4)
+        heading=QLabel(title)
+        heading.setObjectName("AnalyticsRevenuePillTitle")
+        layout.addWidget(heading)
+        total=QLabel(str(value))
+        total.setObjectName("AnalyticsRevenuePillAmount")
+        total.setStyleSheet(f"color:{accent};")
+        total.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        total.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        layout.addWidget(total,1)
+        note=QLabel(meaning)
+        note.setObjectName("AnalyticsRevenuePillHint")
+        note.setWordWrap(True)
+        note.setToolTip(meaning)
+        layout.addWidget(note)
+
+
 class AnalitikView(QWidget):
     """Selected completion day/range -> completed orders only, with payment tracking."""
     def __init__(self, db, on_open_order=None):
@@ -321,12 +347,18 @@ class AnalitikView(QWidget):
         width=self.results_scroll.viewport().width()
         return 2 if width<600 else 3 if width<880 else 4 if width<1170 else 5
 
+    def _revenue_columns(self):
+        width=self.results_scroll.viewport().width()
+        return 1 if width<520 else 2 if width<970 else 4
+
     def _adapt_width(self):
         # A viewport resize can arrive during navigation/teardown while
         # pending Qt layout deletions are still being processed.
         if not self.isVisible() or getattr(self,'_report_building',False):
             return
-        if self._last_metric_columns != self._metric_columns():
+        if self._last_metric_columns != (
+            self._metric_columns(), self._revenue_columns()
+        ):
             self.show_report()
 
     def _toggle_range(self,enabled):
@@ -500,22 +532,68 @@ class AnalitikView(QWidget):
         paid_days_count=sum(1 for d in self.latest['daily'] if d['orders'] and d['date'] in self._paid_days)
         total_work_days=max(0,int(m.get('working_days',0)))
         payment_ratio=(100*paid_days_count/total_work_days) if total_work_days else 0.0
-        # Birbiriyle ilişkili değerler aynı başlık altında, ardışık
-        # küçük rozetlerde yer alır; ekran genişliğine göre sütun sayısı değişir.
+        # The four amounts people look for first have their OWN visual group.
+        # Paid/unpaid describe completed-day accounting flags, NOT an
+        # individual customer's payment transaction.
+        finance=QFrame()
+        finance.setObjectName("AnalyticsRevenueGroup")
+        hero=QVBoxLayout(finance)
+        hero.setContentsMargins(14,13,14,14)
+        hero.setSpacing(9)
+        heading=QLabel("CİRO VE TAHSİLAT DURUMU")
+        heading.setObjectName("AnalyticsRevenueGroupTitle")
+        hero.addWidget(heading)
+        explanation=QLabel(
+            "Tamamlanan siparişlerin satış tutarları ve seçili dönemin ödeme durumu"
+        )
+        explanation.setObjectName("AnalyticsRevenueGroupSubtitle")
+        explanation.setWordWrap(True)
+        hero.addWidget(explanation)
+        revenue=[
+            ("Toplam ciro",money(m["gross"]),MINT,
+             "Tamamlanan siparişlerin satış tutarı"),
+            ("Kargo sonrası ciro",money(m["after_shipping"]),"#65d4fc",
+             "Cirodan kayıtlı kargo gideri çıkarılmış"),
+            ("Ödenen ciro",money(paid_revenue),"#bba1ff",
+             "Ödendi işaretli günlere ait ciro"),
+            ("Ödenmeyen ciro",money(unpaid_revenue),"#f7c77c",
+             "Henüz ödendi işaretlenmemiş günler"),
+        ]
+        revenue_columns=self._revenue_columns()
+        cards=QGridLayout()
+        cards.setHorizontalSpacing(10)
+        cards.setVerticalSpacing(10)
+        for i,(label,value,accent,meaning) in enumerate(revenue):
+            cards.addWidget(RevenuePill(label,value,accent,meaning),
+                            i//revenue_columns,i%revenue_columns)
+        for column in range(revenue_columns):
+            cards.setColumnStretch(column,1)
+        hero.addLayout(cards)
+        note=QLabel(
+            "Kargo sonrası ciro = Toplam ciro − Telafi ve açık adres kargo "
+            "giderleri. Bu tutar net kâr değildir; baskı, işçilik ve "
+            "komisyon giderleri ayrıca düşülmemiştir."
+        )
+        note.setObjectName("AnalyticsRevenueFormula")
+        note.setWordWrap(True)
+        hero.addWidget(note)
+        self.result_layout.addWidget(finance)
+
+        # Secondary figures intentionally use the existing, quieter StatPill
+        # design. Similar averages live together, away from key money figures.
         groups=[
-            ('FİNANS · CİRO', 'finance', [
-                ('Toplam ciro', money(m['gross']), MINT),
-                ('Kargo sonrası', money(m['after_shipping']), MINT),
-                ('Ort. sipariş', money(m['avg_order']), PURPLE),
-                ('Sayfa başına ciro', money(m['per_page']), MINT),
-                ('Ödenen ciro', money(paid_revenue), '#77bdfd'),
-                ('Ödenmeyen ciro', money(unpaid_revenue), '#f0c177'),
-            ]),
             ('KARGO GİDERLERİ', 'shipping', [
-                ('Kargo gideri', money(m['shipping_total']), AMBER),
-                ('Telafi kargo', money(m['shipping_telafi']), '#ff9d92'),
-                ('Açık adres kargo', money(m['shipping_acik_adres']), AMBER),
+                ('Toplam kargo gideri', money(m['shipping_total']), AMBER),
+                ('Telafi siparişi kargosu', money(m['shipping_telafi']), '#ff9d92'),
+                ('Açık adres kargosu', money(m['shipping_acik_adres']), AMBER),
                 ('Kargo / ciro oranı', f"%{m.get('shipping_ratio',0):.1f}", '#f0ba84'),
+            ]),
+            ('ORTALAMALAR · BİRİM VERİMLİLİK', 'averages', [
+                ('Ort. sipariş tutarı', money(m['avg_order']), PURPLE),
+                ('Sayfa başına ciro', money(m['per_page']), MINT),
+                ('Kitap / sipariş', f"{m['avg_books']:.1f}", PURPLE),
+                ('Sayfa / sipariş', f"{m['avg_pages']:.1f}", AMBER),
+                ('Kitap başı ort. sayfa', f"{m.get('avg_pages_book',0):.1f}", '#9fd9b8'),
             ]),
             ('SİPARİŞ · İŞ GÜNÜ', 'orders', [
                 ('Tamamlanan', integer(m['orders']), BLUE),
@@ -527,9 +605,6 @@ class AnalitikView(QWidget):
             ('KİTAP · SAYFA', 'books', [
                 ('Toplam kitap', integer(m['books']), BLUE),
                 ('Toplam sayfa', integer(m['pages']), MINT),
-                ('Kitap / sipariş', f"{m['avg_books']:.1f}", PURPLE),
-                ('Sayfa / sipariş', f"{m['avg_pages']:.1f}", AMBER),
-                ('Kitap başı ort. sayfa', f"{m.get('avg_pages_book',0):.1f}", '#9fd9b8'),
                 ('Kitap çeşidi', integer(m['unique_books']), '#a4c8ff'),
             ]),
             ('BASKI TÜRLERİ · SB / RNK', 'printing', [
@@ -541,7 +616,7 @@ class AnalitikView(QWidget):
             ]),
         ]
         columns=self._metric_columns()
-        self._last_metric_columns=columns
+        self._last_metric_columns=(columns,revenue_columns)
         for group_title, group_kind, entries in groups:
             section=QFrame()
             section.setObjectName('AnalyticsMetricGroup')
@@ -559,8 +634,8 @@ class AnalitikView(QWidget):
             badges.setVerticalSpacing(8)
             for i,(label,value,color) in enumerate(entries):
                 badges.addWidget(StatPill(label,value,color),i//columns,i%columns)
-            for c in range(columns):
-                badges.setColumnStretch(c,1)
+            for column in range(columns):
+                badges.setColumnStretch(column,1)
             v.addLayout(badges)
             self.result_layout.addWidget(section)
         daily=self.latest['daily']

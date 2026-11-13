@@ -1644,3 +1644,40 @@ QTabBar#OrderTrackTabBar::tab {
     margin:2px 3px 2px 0;
 }
 """
+
+
+QSS += """
+/* Suite v2.0.19 · Finance hero, separate from small operational statistics. */
+QFrame#AnalyticsRevenueGroup {
+  background:#152a40; border:1px solid #4b7798; border-radius:12px;
+}
+QLabel#AnalyticsRevenueGroupTitle {
+  color:#d1edff; background:transparent; font-size:14px;
+  font-weight:900; letter-spacing:.5px;
+}
+QLabel#AnalyticsRevenueGroupSubtitle {
+  color:#a9c7db; background:transparent; font-size:11px;
+}
+QFrame#AnalyticsRevenuePill {
+  background:#1c344e; border:1px solid #5982a6; border-radius:9px;
+}
+QFrame#AnalyticsRevenuePill:hover {
+  background:#23425f; border-color:#8cc5f0;
+}
+QLabel#AnalyticsRevenuePillTitle {
+  color:#dcefff; background:transparent; font-size:12px; font-weight:850;
+}
+QLabel#AnalyticsRevenuePillAmount {
+  background:transparent; font-size:22px; font-weight:900;
+}
+QLabel#AnalyticsRevenuePillHint {
+  color:#b1c9db; background:transparent; font-size:10px;
+}
+QLabel#AnalyticsRevenueFormula {
+  color:#a9cfe1; background:#123047; border:1px solid #315b72;
+  border-radius:7px; padding:8px 10px; font-size:11px;
+}
+QLabel#AnalyticsGroupTitle[groupKind="averages"] {
+  color:#c6afff;
+}
+"""
