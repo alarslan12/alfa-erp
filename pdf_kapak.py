@@ -11,12 +11,12 @@ import os
 from pathlib import Path
 import tempfile
 from PySide6.QtCore import QSize, Qt
-from PySide6.QtGui import QImage, QPainter
+from PySide6.QtGui import QImage, QPainter, QTransform
 from PySide6.QtPdf import QPdfDocument
 
 from pdf_kitap import PdfKutuphane
 
-CACHE_VERSION=1
+CACHE_VERSION=2
 MAX_PDFS=4000
 MAX_SOURCE_BYTES=850*1024*1024
 
@@ -43,11 +43,21 @@ def render_first_page(source,target):
         width=max(1,float(points.width()))
         height=max(1,float(points.height()))
         # Preserve page aspect ratio, and bound memory/thumbnail size.
-        factor=min(480/width,690/height)
+        landscape=width>height
+        # Size for the FINAL upright picture (rotated dimensions swapped).
+        fit_w,fit_h=(height,width) if landscape else (width,height)
+        factor=min(480/fit_w,690/fit_h)
         size=QSize(max(1,int(width*factor)),max(1,int(height*factor)))
         picture=pdf.render(0,size)
         if picture.isNull():
             raise ValueError("PDF kapağı oluşturulamadı")
+        if landscape:
+            # A landscape first page is physically a rotated portrait cover.
+            # Turn clockwise 270 degrees; never crop or stretch the content.
+            picture=picture.transformed(
+                QTransform().rotate(270),
+                Qt.TransformationMode.SmoothTransformation)
+            size=picture.size()
         # PDFium page backgrounds can be transparent; JPEG lacks alpha.
         # Paint on white before encoding or text-only covers become black.
         opaque=QImage(size,QImage.Format.Format_RGB32)

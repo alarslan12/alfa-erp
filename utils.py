@@ -63,18 +63,14 @@ def format_kargo_kodu(kod_str, platform="Dolap"):
     if not temiz:
         return s_metin
 
-    # Sadece saf rakam girildiğinde kademeli boşluklandırma:
-    # 9 hane -> xxx xxx xxx
-    # 12 hane -> xxx xxx xxx xxx
-    # 13 hane -> xxx xxx xxx xxxx (3 - 3 - 3 - 4)
-    if len(temiz) <= 3:
-        return temiz
-    elif len(temiz) <= 6:
-        return f"{temiz[:3]} {temiz[3:]}"
-    elif len(temiz) <= 9:
-        return f"{temiz[:3]} {temiz[3:6]} {temiz[6:]}"
-    else:
-        return f"{temiz[:3]} {temiz[3:6]} {temiz[6:9]} {temiz[9:]}"
+    # Dolap: last FOUR digits must be their own block, even for long
+    # 16-digit codes. 2624140909632909 -> 262 414 090 963 2909.
+    # Keep Gardrops (9 digits) and other short references unchanged.
+    if len(temiz)>=13 and platform!="Gardrops":
+        prefix=temiz[:-4]
+        blocks=[prefix[i:i+3] for i in range(0,len(prefix),3)]
+        return " ".join([*blocks,temiz[-4:]])
+    return " ".join(temiz[i:i+3] for i in range(0,len(temiz),3))
 
 def metin_eslesiyor_mu(arama, kitap_veri):
     if not arama or not str(arama).strip():
