@@ -1,6 +1,17 @@
 # ALFA ERP · Sürüm Geçmişi
 
-## [v2.0.21] — 2026-11-13
+## [v2.0.22] — 2026-11-13
+
+- Sayısal kitap kodu bulunan PDF'lerin eşleşmesi iyileştirildi (31-endodonti.pdf, kitap_31.pdf vb.).
+- Seri numaraları başka kitap kodu olarak kullanılmaz; birden çok aynı kodlu PDF hata raporuna alınır.
+- Yüksek güvenilirlikli isim benzerliği desteği eklendi.
+- Eşleşmeyen PDF dosyası sayısıyla katalogda PDF bulunmayan kitap sayısı birbirinden ayrıldı.
+- Ayarlar ve JSON tanı raporu gerçek eşleşmeyen PDF adlarını listeler.
+- Otomatik kapak önbelleği v6 ile yeniden oluşturulur; yatay PDF ilk sayfası -90° döner.
+- Siparişler, Firebase, manuel kapaklar ve diğer Suite bileşenleri korunur.
+
+
+## [v2.0.22] — 2026-11-13
 
 - Küçük fakat geçerli otomatik JPEG kapakların boyut eşiği nedeniyle gizlenmesi giderildi.
 - PDF dosya adlarının tam katalog ismiyle eşleştirilmesi sıkı tutulup kapak/baskı eki desteklendi.
@@ -11,7 +22,7 @@
 - Personel Excel, çevrimdışı sürüm notları, Analitik PIN ve Yönetici cihaz/hata temizliği önceki sürümlerdeki hâliyle korunur.
 
 
-## [v2.0.21] — 2026-11-13
+## [v2.0.22] — 2026-11-13
 
 - PDF kapak yönü: +90° yerine −90° düzeltildi; önbellek sürümü 4.
 - Kod 402 / TUSDATA PRETUS 3 gibi kitaplarda başlık ve kod birlikte eşleştirilir.
