@@ -973,6 +973,12 @@ class ERPDatabase:
                 grup["sb_hazir"] += hazir
                 grup["sb_koli"] += koli
         liste = list(gruplar.values())
+        # Numeric book-code order applies consistently to order details,
+        # overview, active tracking and archive. Never change saved order lines.
+        def book_sort_key(group):
+            code = str(group.get("kod") or "").strip()
+            return (0, int(code), code) if code.isdecimal() else (1, code.casefold(), code)
+        liste.sort(key=book_sort_key)
         for g in liste:
             g["sayfa_toplam"] = g["sayfa_birim"] * g["adet"]
             g["hazir_sayfa"] = g["sayfa_birim"] * max(0, g["adet"] - g["hazir"])

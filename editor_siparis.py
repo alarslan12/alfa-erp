@@ -307,12 +307,25 @@ class SiparisEditor(QDialog):
         self.select_all.setMinimumHeight(46)
         self.select_all.setToolTip('Görünen kitapları toplu işlem için seç veya seçimi kaldır')
         self.select_all.toggled.connect(self.select_everything)
-        self.only_unprepared = button('◯  Hazırlanmayanları göster', 'TrackUnpreparedToggle')
+        # One pillbox split into two independent-looking, mutually exclusive
+        # filters; no additional top-level toolbar item or width inflation.
+        self.pending_filters = QFrame()
+        self.pending_filters.setObjectName('TrackPendingFilters')
+        pending_row = QHBoxLayout(self.pending_filters)
+        pending_row.setContentsMargins(0, 0, 0, 0)
+        pending_row.setSpacing(0)
+        self.only_unprepared = button('◯  Hazırlanmayanlar', 'TrackUnpreparedToggle')
         self.only_unprepared.setCheckable(True)
         self.only_unprepared.setMinimumHeight(46)
-        self.only_unprepared.setToolTip(
-            'Hazır adedi sipariş adedinden az olan kitapları göster; tekrar basarak tümünü aç')
+        self.only_unprepared.setToolTip('Henüz hazırlanması tamamlanmayan kitaplar')
         self.only_unprepared.toggled.connect(self.toggle_unprepared)
+        self.only_unboxed = button('◯  Kolilenmeyenler', 'TrackUnboxedToggle')
+        self.only_unboxed.setCheckable(True)
+        self.only_unboxed.setMinimumHeight(46)
+        self.only_unboxed.setToolTip('Henüz tamamı kolilenmeyen kitaplar')
+        self.only_unboxed.toggled.connect(self.toggle_unboxed)
+        pending_row.addWidget(self.only_unprepared, 1)
+        pending_row.addWidget(self.only_unboxed, 1)
 
         segments=[]
         for title,positive,negative,operation,role in (
@@ -348,7 +361,7 @@ class SiparisEditor(QDialog):
         pdf_bulk.setMinimumHeight(46)
         pdf_bulk.setToolTip('Seçili kitapların koduna göre PDF dosyalarını açar')
         pdf_bulk.clicked.connect(self.open_selected_pdfs)
-        self._bulk_widgets=[self.select_all,self.only_unprepared,*segments,pdf_bulk]
+        self._bulk_widgets=[self.select_all,self.pending_filters,*segments,pdf_bulk]
         self.body_lay.addWidget(toolbar)
 
         self.code_checks = {}
@@ -372,7 +385,7 @@ class SiparisEditor(QDialog):
         for group in self.db.siparis_gruplari(order):
             card = self.make_track_card(group, status)
             self._track_cards.append(card)
-        self._filter_empty_label = text('Hazırlanmamış kitap bulunmuyor. Tümünü görmek için filtreyi kapatın.', 'TrackFilterEmpty')
+        self._filter_empty_label = text('Bu filtreye uygun kitap bulunmuyor. Tümünü görmek için filtreyi kapatın.', 'TrackFilterEmpty')
         self._filter_empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._filter_empty_label.setMinimumHeight(96)
         self._filter_empty_label.setVisible(False)
@@ -511,18 +524,42 @@ class SiparisEditor(QDialog):
             for item in order.get('kitaplar',[])
         )
 
+    def _needs_boxing(self, code):
+        order = self.current()
+        if not order:
+            return False
+        return any(
+            str(item.get('kod')) == str(code)
+            and int(item.get('adet', 0)) > int(item.get('koli', 0))
+            for item in order.get('kitaplar', [])
+        )
+
     def toggle_unprepared(self, enabled):
+        if enabled and self.only_unboxed.isChecked():
+            self.only_unboxed.blockSignals(True)
+            self.only_unboxed.setChecked(False)
+            self.only_unboxed.blockSignals(False)
+            self.only_unboxed.setText('◯  Kolilenmeyenler')
         self.only_unprepared.setText(
-            '●  Yalnızca hazırlanmayanlar' if enabled else '◯  Hazırlanmayanları göster')
-        self.only_unprepared.setToolTip(
-            'Tüm kitapları tekrar göster' if enabled else
-            'Henüz tamamı hazırlanmamış kitapları filtrele')
+            '●  Hazırlanmayanlar' if enabled else '◯  Hazırlanmayanlar')
+        self.reflow_track()
+
+    def toggle_unboxed(self, enabled):
+        if enabled and self.only_unprepared.isChecked():
+            self.only_unprepared.blockSignals(True)
+            self.only_unprepared.setChecked(False)
+            self.only_unprepared.blockSignals(False)
+            self.only_unprepared.setText('◯  Hazırlanmayanlar')
+        self.only_unboxed.setText(
+            '●  Kolilenmeyenler' if enabled else '◯  Kolilenmeyenler')
         self.reflow_track()
 
     def _visible_track_codes(self):
-        if not getattr(self,'only_unprepared',None) or not self.only_unprepared.isChecked():
-            return tuple(self.track_cards_by_code)
-        return tuple(code for code in self.track_cards_by_code if self._needs_preparation(code))
+        if getattr(self, 'only_unprepared', None) and self.only_unprepared.isChecked():
+            return tuple(c for c in self.track_cards_by_code if self._needs_preparation(c))
+        if getattr(self, 'only_unboxed', None) and self.only_unboxed.isChecked():
+            return tuple(c for c in self.track_cards_by_code if self._needs_boxing(c))
+        return tuple(self.track_cards_by_code)
 
     def _sync_select_all(self):
         if not getattr(self,'select_all',None) or not getattr(self,'code_checks',None):
