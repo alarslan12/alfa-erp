@@ -1,19 +1,19 @@
-; ALFACOPYCENTER Suite v2.0.13
+; ALFACOPYCENTER Suite v2.0.14
 ; Unified installer for ERP Staff, ERP Owner, Banner Studio, Print Surveillance.
 ; No cloud database deletion, no spooler driver/service modification.
 #define CompanyName "ALFACOPYCENTER"
-#define SuiteVersion "2.0.13"
+#define SuiteVersion "2.0.14"
 
 [Setup]
 AppId=ALFACOPYCENTER.Suite
 AppName={#CompanyName} Uygulama Paketi
 AppVerName={#CompanyName} Suite {#SuiteVersion}
 AppVersion={#SuiteVersion}
-VersionInfoVersion=2.0.13.0
+VersionInfoVersion=2.0.14.0
 DefaultDirName={localappdata}\Programs\ALFACOPYCENTER
 DefaultGroupName={#CompanyName}
 OutputDir=output
-OutputBaseFilename=ALFACOPYCENTER_Suite_Setup_V2_0_13
+OutputBaseFilename=ALFACOPYCENTER_Suite_Setup_V2_0_14
 Compression=lzma2
 SolidCompression=yes
 PrivilegesRequired=lowest
@@ -81,8 +81,12 @@ Filename: "{app}\PrintSupervisor\AlfaPrintSupervisor.exe"; Parameters: "--data-d
 Filename: "{app}\Notifications\AlfaBildirim.exe"; Flags: nowait postinstall skipifsilent; Components: staff; Check: NotUpdate
 
 [Code]
-// Edition selection is installation preference, NOT cloud authorization.
-// Firebase Auth and RTDB rules verify every owner operation.
+// This is a LOCAL installation gate, never a Firebase owner credential.
+// Only salted SHA-256 is in the public installer. Actual administration
+// still requires an approved Firebase owner UID and enforced RTDB Rules.
+var
+  OwnerPasswordPage: TInputQueryWizardPage;
+
 function HasCommand(Flag: String): Boolean;
 var
   I: Integer;
@@ -106,10 +110,26 @@ begin
   Result := FileExists(ExpandConstant('{localappdata}\Programs\ALFACOPYCENTER\Brand\ALFACOPYCENTER.png'));
 end;
 
+function OwnerPasswordValid(): Boolean;
+begin
+  Result := False;
+  if OwnerPasswordPage = nil then Exit;
+  Result := CompareText(
+    GetSHA256OfString('9a205c256c810c1e541b710dff00d541|' + OwnerPasswordPage.Values[0]),
+    'adeb0d2e05b7dad1911a6ac2c1b49eb64e22d1663c9336c99b6bdb197d9531a0') = 0;
+end;
+
 procedure InitializeWizard();
 begin
-  // Existing suite keeps its previous selected components across upgrades.
-  // Only first-time migration from pre-Suite ERP uses the requested edition.
+  OwnerPasswordPage := CreateInputQueryPage(wpSelectComponents,
+    'Yönetici kurulumu',
+    'Yönetici bileşenini kurmak için yerel kurulum şifresi gerekli',
+    'Bu şifre yalnızca Yönetici bileşeninin kurulumunu korur. ' +
+    'Firebase owner yetkisi ayrıca Cloud Shell üzerinden verilmelidir.');
+  OwnerPasswordPage.Add('Yönetici kurulum şifresi:', True);
+
+  // Inno remembers selected components from existing Suite installs.
+  // Only first-time migration selects the requested edition.
   if ExistingSuite() then Exit;
   if HasCommand('/ALFAOWNER') then
     WizardSelectComponents('owner')
@@ -121,9 +141,29 @@ begin
     WizardSelectComponents('print,print\agent');
 end;
 
+function ShouldSkipPage(PageID: Integer): Boolean;
+begin
+  Result := (PageID = OwnerPasswordPage.ID) and
+            (not WizardIsComponentSelected('owner'));
+end;
+
+function NextButtonClick(CurPageID: Integer): Boolean;
+begin
+  Result := True;
+  if (CurPageID = OwnerPasswordPage.ID) and WizardIsComponentSelected('owner') then
+  begin
+    Result := OwnerPasswordValid();
+    if not Result then
+      MsgBox('Yönetici kurulum şifresi yanlış. Kuruluma devam edilemez.', mbError, MB_OK);
+  end;
+end;
+
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
   Result := '';
-  // Never overwrite any locally cached order, cover, design or print history.
-  // Such data lives outside the installer directory.
+  // Second gate also runs for /SILENT and /VERYSILENT, so the
+  // password page cannot be skipped to install the owner component.
+  if WizardIsComponentSelected('owner') and not OwnerPasswordValid() then
+    Result := 'Yönetici bileşeni seçildi. Doğru yerel kurulum şifresi gerekli.';
+  // Customer data is always stored outside the installation folder.
 end;

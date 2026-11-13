@@ -1,4 +1,4 @@
-# ALFACOPYCENTER Suite v2.0.13
+# ALFACOPYCENTER Suite v2.0.14
 
 **Tek Windows kurulumu**, dört seçilebilir bileşen:
 
@@ -10,7 +10,7 @@
 | ALFA Print Center | PrintSurveillance/AlfaPrintSurveillance.exe | Seçilebilir, varsayılan |
 | Arka plan yardımcıları | Bildirim, PrintAgent, PrintSupervisor | Seçilen bileşene bağlı |
 
-Kurulum: `ALFACOPYCENTER_Suite_Setup_V2_0_13.exe`. Aynı Inno Setup AppId
+Kurulum: `ALFACOPYCENTER_Suite_Setup_V2_0_14.exe`. Aynı Inno Setup AppId
 (`ALFACOPYCENTER.Suite`) ve kurulum yolu korundu:
 `%LOCALAPPDATA%\Programs\ALFACOPYCENTER`.
 
@@ -70,3 +70,15 @@ fiziksel çıktı güvenilirliği ayrı operatör doğrulaması gerektirir.
 
 [Suite yayınları](https://github.com/alarslan12/alfa-erp/releases) ·
 [Firebase kurulum rehberi](firebase/RTDB_KURULUM.md)
+
+## Yönetici kurulumu ve Cloud Shell
+
+Suite kurulumunda **Yönetici** bileşeni seçildiğinde güçlü bir yerel kurulum
+şifresi sorulur. Uygulama kaynak kodunda veya kuruluma eklenen dosyalarda
+şifrenin kendisi bulunmaz; yalnız rastgele tuzla oluşturulmuş doğrulama
+özeti vardır. Parola yalnız kurulum engelidir; Firebase owner yetkisini
+**asla** kendi başına vermez.
+
+Owner Firebase UID yetkisi, yetkili proje operatörü tarafından Google Cloud
+Shell'de `tools/rtdb_authorize.py` ile onaylanır. Kurulum ve onaylama adımları
+`firebase/RTDB_KURULUM.md` dosyasındadır.
