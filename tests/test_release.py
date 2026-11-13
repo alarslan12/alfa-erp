@@ -49,6 +49,22 @@ class ReleaseContractTests(unittest.TestCase):
         self.assertFalse((ROOT/'alfa_personel.iss').exists())
         self.assertFalse((ROOT/'alfa_yonetici.iss').exists())
 
+    def test_history_and_staff_excel_contracts(self):
+        from surum_gecmisi import release_history_markdown
+        notes=release_history_markdown("2.0.15")
+        for release in ("2.0.15","2.0.14","2.0.13","2.0.12","2.0.11",
+                        "2.0.10","2.0.9","1.1.1","1.1.0","1.0.0"):
+            self.assertIn("v"+release,notes)
+        staff=(ROOT/"ekran_ayarlar.py").read_text("utf-8")
+        self.assertIn("def _staff_send_excel",staff)
+        self.assertIn("Excel Katalog",staff)
+        rules=__import__("json").loads(
+            (ROOT/"firebase/database.rules.json").read_text("utf-8"))["rules"]["alfa"]["$workspace"]
+        self.assertIn("staff",rules["books"]["$id"][".write"])
+        self.assertIn("staff",rules["public_catalog"][".write"])
+        self.assertIn("!newData.exists()",rules["members"]["$uid"][".write"])
+        self.assertIn("!newData.exists()",rules["error_acks"]["$id"][".write"])
+
     def test_no_embedded_secret_ticket(self):
         self.assertFalse((ROOT/'kurulum_bilgisi.json').exists())
         ignore=(ROOT/'.gitignore').read_text('utf-8')

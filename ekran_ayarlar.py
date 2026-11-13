@@ -174,7 +174,7 @@ class SettingsPage(QWidget):
         # The owner already has a dedicated Excel tab. Only staff gets this
         # compact import-only tab; Catalog / Orders remain visually unchanged.
         app=QApplication.instance()
-        if app and str(app.property("alfa_edition") or "staff")=="staff":
+        if type(self) is SettingsPage:
             import_tab=button('Excel Katalog','SettingsNav')
             import_tab.setCheckable(True)
             import_tab.clicked.connect(lambda _=False:self.show_tab(2))

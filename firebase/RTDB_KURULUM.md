@@ -76,3 +76,27 @@ güncelleyebilirsin.
 
 **Önemli:** Firebase Admin yetkisi yalnız proje operatöründe bulunmalı.
 Servis hesabı anahtarı, Setup, GitHub veya mesajlaşma platformuna eklenmez.
+
+
+## v2.0.15 katalog yükleme ve kayıt temizleme kuralları
+
+Yeni Personel Excel yükleme, Yönetici hata temizleme ve pasif cihaz kaydı
+silme işlemleri için güncel Firebase Realtime Database Rules yayınlanmalıdır.
+GitHub'da kaynak kodun güncellenmesi tek başına Firebase Rules'u değiştirmez.
+
+Yetkili Google Cloud Shell'de doğru projeyi ve Rules farkını inceleyerek:
+
+~~~bash
+gcloud config set project alfa-erp-8700c
+cd ~/alfa-erp
+git checkout firebase-rtdb-final
+git pull --ff-only origin firebase-rtdb-final
+cd firebase
+firebase deploy --only database --project alfa-erp-8700c
+~~~
+
+Cloud Shell'de firebase komutu yoksa Firebase CLI kurulumu gerekebilir.
+Bu adım canlı Firebase Security Rules'u değiştirir. Mevcut kuralları
+Firebase Console'dan yedekleyip farkı kontrol etmeden çalıştırmayın.
+Yalnız yetkili staff UID'leri kitap kataloğuna yazabilir. Anonim mobil
+ziyaretçiler için katalog yazma yetkisi açılmaz.

@@ -1,5 +1,22 @@
 # ALFA ERP · Sürüm Geçmişi
 
+## [v2.0.15] — 2026-11-13
+
+- **Duyurular / Güncelleme Merkezi:** Personel ve Yönetici sürümlerinin
+  önceki v1.x ve v2.x revizyon notları internet olmadan da okunabiliyor.
+- **Personel Excel:** Ayarlar → Excel Katalog; onaylı Firebase staff/owner
+  cihazından ortak kitap kataloğuna kullanıcı onaylı Excel güncellemesi.
+- **Yönetici cihazları:** Aktif cihazlar önde, pasifler gizli; iptal edilen
+  cihazların eski üyeliklerini kalıcı temizleme (owner onayı gerekir).
+- **Yönetici Hata Merkezi:** Seçili hata raporunu silme ve yalnız incelenmiş
+  raporları toplu temizleme; her iki işlem onaylıdır.
+- **Firebase Security Rules:** Onaylı staff için kitap katalog güncellemesi,
+  owner için iptal edilen cihaz ve hata onay kayıtlarını silme izni.
+  GitHub değişikliği tek başına canlı Rules deploy etmez.
+- Mevcut Suite Setup, owner kurulum parolası, sipariş kuyruğu,
+  sipariş/katalog ekran görünümü, Banner/Print arşivleri korunur.
+
+
 ## [v1.1.1] — 2026-11-06
 
 Güncelleme Merkezi güvenilirlik düzeltmesi · Tek Windows kurulum paketi.

@@ -23,7 +23,7 @@ from guncelleme_arayuzu import CheckWorker,should_check_today,mark_checked
 from duyuru_merkezi import AnnouncementsDialog,ManualReportDialog
 
 ROOT=Path(__file__).resolve().parent
-VERSION='2.0.14'
+VERSION='2.0.15'
 OWNER_EDITION=(ROOT/'YONETICI_SURUMU.flag').exists()
 
 
@@ -401,7 +401,7 @@ class AlfaMain(QMainWindow):
         self.nav[1].setChecked(index==1)
         self.nav[2].setChecked(index==2)
         self.nav[3].setChecked(index==3)
-        self.settings_btn.setChecked(OWNER_EDITION and index==4)
+        self.settings_btn.setChecked(index==4)
         self.orders_subbar.setVisible(index==1)
         self.title_widget.setVisible(index==0)
         self.catalog.toolbar.setVisible(index==0)
