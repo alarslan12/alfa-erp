@@ -22,6 +22,8 @@ def local_time(value):
 class ErrorInbox(QWidget):
     refresh_requested=Signal()
     review_requested=Signal(str)
+    remove_requested=Signal(str)
+    purge_reviewed_requested=Signal(list)
 
     def __init__(self,parent=None):
         super().__init__(parent)
@@ -68,7 +70,14 @@ class ErrorInbox(QWidget):
         review=QPushButton("Seçili rapor · İncelendi")
         review.setObjectName("OwnerPrimary")
         review.clicked.connect(self.mark_reviewed)
-        bottom.addWidget(detail);bottom.addWidget(review);bottom.addStretch()
+        remove=QPushButton("Seçili raporu sil")
+        remove.setObjectName("OwnerDanger")
+        remove.clicked.connect(self.delete_selected)
+        purge=QPushButton("İncelenenleri temizle")
+        purge.setObjectName("OwnerDanger")
+        purge.clicked.connect(self.purge_reviewed)
+        bottom.addWidget(detail);bottom.addWidget(review)
+        bottom.addWidget(remove);bottom.addWidget(purge);bottom.addStretch()
         root.addLayout(bottom)
         self._by_id={}
         self._acks={}
@@ -152,3 +161,30 @@ class ErrorInbox(QWidget):
             return
         if report_id in self._acks:return
         self.review_requested.emit(report_id)
+
+    def delete_selected(self):
+        report_id,entry=self._selected()
+        if entry is None:
+            QMessageBox.information(self,"Hata Merkezi","Önce hata kaydı seç.")
+            return
+        if QMessageBox.question(
+            self,"Hata raporunu kalıcı sil",
+            "Seçili hata raporu Firebase'den kalıcı olarak silinsin mi?\n"+
+            str(entry.get("type") or "Hata")[:70],
+            QMessageBox.StandardButton.Yes|QMessageBox.StandardButton.No
+        )==QMessageBox.StandardButton.Yes:
+            self.remove_requested.emit(report_id)
+
+    def purge_reviewed(self):
+        ids=[key for key in self._by_id if key in self._acks]
+        if not ids:
+            QMessageBox.information(self,"Hata Merkezi",
+                                    "Görünen kayıtlar içinde incelenmiş hata yok.")
+            return
+        if QMessageBox.question(
+            self,"İncelenen hataları temizle",
+            str(len(ids))+" incelenmiş hata raporu ve onay kaydı "
+            "Firebase'den silinsin mi? İncelenmemiş raporlara dokunulmaz.",
+            QMessageBox.StandardButton.Yes|QMessageBox.StandardButton.No
+        )==QMessageBox.StandardButton.Yes:
+            self.purge_reviewed_requested.emit(ids)

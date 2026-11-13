@@ -271,6 +271,49 @@ def admin_request(cloud,action,timeout=None,**kwargs):
             raise DeviceError("Cihaz bulunamadı", 404)
         client._request("PUT","members/"+uid,{**old,"active":False})
         return {"revoked":True}
+    if action=="admin_prune_devices":
+        members=client._get("members") or {}
+        if not isinstance(members,dict):
+            raise DeviceError("Cihaz kayıtları okunamadı",422)
+        candidates=[uid for uid,record in members.items()
+                    if isinstance(record,dict) and record.get("active") is False
+                    and uid!=client.uid][:80]
+        removed=0
+        for uid in candidates:
+            record=client._get("members/"+uid)
+            if not isinstance(record,dict) or record.get("active") is not False:
+                continue
+            client._request("DELETE","members/"+uid)
+            try:
+                client._request("DELETE","device_requests/"+uid)
+            except DeviceError:
+                pass
+            removed+=1
+        return {"removed":removed}
+    if action=="admin_delete_error":
+        key=str(kwargs.get("id") or "")
+        if not key or len(key)>90 or any(c in key for c in ".#$[]/"):
+            raise DeviceError("Hata raporu kimliği geçersiz",422)
+        if client._get("error_acks/"+key) is not None:
+            client._request("DELETE","error_acks/"+key)
+        client._request("DELETE","error_reports/"+key)
+        return {"deleted":1}
+    if action=="admin_purge_reviewed_errors":
+        ids=kwargs.get("ids")
+        if not isinstance(ids,list) or len(ids)>70:
+            raise DeviceError("En fazla 70 hata kaydı temizlenebilir",422)
+        reviewed=client.read_error_acks()
+        removed=0
+        for raw in list(dict.fromkeys(ids)):
+            key=str(raw)
+            if not key or len(key)>90 or any(c in key for c in ".#$[]/"):
+                continue
+            if key not in reviewed:
+                continue
+            client._request("DELETE","error_acks/"+key)
+            client._request("DELETE","error_reports/"+key)
+            removed+=1
+        return {"removed":removed}
     if action=="admin_audit":
         # Archived legacy records are intentionally NOT readable by
         # staff/owner RTDB rules. Fetching it used to return HTTP 401, falsely

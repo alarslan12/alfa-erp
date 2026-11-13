@@ -4,7 +4,7 @@ ROOT=Path(__file__).resolve().parent
 import tempfile,uuid,time,webbrowser
 from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QLabel,QLineEdit,
     QPushButton,QFileDialog,QMessageBox,QTableWidget,QTableWidgetItem,QAbstractItemView,
-    QFrame,QHeaderView,QDialog,QTextEdit)
+    QFrame,QHeaderView,QDialog,QTextEdit,QCheckBox)
 from PySide6.QtCore import Qt,QThread,Signal
 from ekran_ayarlar import SettingsPage
 from database import ERPDatabase
@@ -36,6 +36,7 @@ class OwnerSettingsPage(SettingsPage):
         self._error_first_snapshot=False
         self._error_known=set()
         self._error_refresh_again=False
+        self._all_device_rows=[]
         # Settings remain one built-in owner page; no separate admin app.
         nav=self.layout().itemAt(1).layout()
         for title,page in [('Excel kataloğu',self.catalog_page()),
@@ -128,6 +129,10 @@ class OwnerSettingsPage(SettingsPage):
         package=QPushButton('Kurulum yönergesi')
         package.clicked.connect(self.export_staff_package)
         top.addWidget(new);top.addWidget(reload);top.addWidget(package);col.addLayout(top)
+        self.show_inactive=QCheckBox("Pasif cihazları göster")
+        self.show_inactive.setChecked(False)
+        self.show_inactive.toggled.connect(self._render_devices)
+        col.addWidget(self.show_inactive)
         self.code_note=QLineEdit();self.code_note.setObjectName('OwnerCode')
         self.code_note.setReadOnly(True)
         self.code_note.setPlaceholderText('Firebase cihaz kimliği (UID) ile yetkilendirme')
@@ -149,7 +154,11 @@ class OwnerSettingsPage(SettingsPage):
         col.addWidget(self.device_table)
         revoke=QPushButton('Seçili cihaz erişimini iptal et')
         revoke.setObjectName('OwnerDanger');revoke.clicked.connect(self.revoke)
-        col.addWidget(revoke);return page
+        clean=QPushButton("Pasif cihaz kayıtlarını temizle")
+        clean.setObjectName('OwnerDanger')
+        clean.clicked.connect(self.prune_devices)
+        col.addWidget(revoke);col.addWidget(clean)
+        return page
 
     def export_staff_package(self):
         QMessageBox.information(self,'Firebase personel kurulumu',
@@ -168,23 +177,66 @@ class OwnerSettingsPage(SettingsPage):
         self.refresh_devices()
 
     def refresh_devices(self):
-        def display(d):
-            rows=d.get('devices',[]);self.device_table.setRowCount(len(rows))
-            for i,r in enumerate(rows):
-                for j,val in enumerate([r.get('device_name',''),
-                    'Aktif' if r.get('active') else 'İptal',str(r.get('last_seen_at') or '—')[:19]]):
-                    self.device_table.setItem(i,j,QTableWidgetItem(str(val)))
-                self.device_table.item(i,0).setData(Qt.ItemDataRole.UserRole,r['id'])
-        self._job(lambda:self._admin('admin_devices'),display)
+        def show(payload):
+            self._all_device_rows=payload.get("devices") or []
+            self._render_devices()
+        self._job(lambda:self._admin('admin_devices'),show)
+
+    def _render_devices(self,*_):
+        data=self._all_device_rows
+        active=[r for r in data if r.get("active")]
+        inactive=[r for r in data if not r.get("active")]
+        visible=active+(inactive if self.show_inactive.isChecked() else [])
+        self.device_table.setRowCount(len(visible))
+        for i,r in enumerate(visible):
+            for col,value in enumerate([
+                r.get("device_name") or r.get("id") or "",
+                ("Yönetici" if r.get("device_role")=="owner" else "Personel")+
+                (" · Aktif" if r.get("active") else " · İptal"),
+                str(r.get("last_seen_at") or "—")[:19]]):
+                self.device_table.setItem(i,col,QTableWidgetItem(str(value)))
+            self.device_table.item(i,0).setData(Qt.ItemDataRole.UserRole,r["id"])
+        self.code_note.setText(
+            str(len(active))+" aktif cihaz · "+str(len(inactive))+
+            " pasif kayıt"+(" (gizli)" if inactive and not self.show_inactive.isChecked() else ""))
 
     def revoke(self):
         row=self.device_table.currentRow()
         if row<0:return
-        if QMessageBox.question(self,'Cihaz erişimi','Seçili bilgisayar devre dışı bırakılsın mı?',
-            QMessageBox.StandardButton.Yes|QMessageBox.StandardButton.No)!=QMessageBox.StandardButton.Yes:return
-        id=self.device_table.item(row,0).data(Qt.ItemDataRole.UserRole)
-        self._job(lambda:self._admin('admin_revoke',id=id),
-                  lambda _r:self.refresh_devices())
+        uid=self.device_table.item(row,0).data(Qt.ItemDataRole.UserRole)
+        target=next((x for x in self._all_device_rows if x.get("id")==uid),None)
+        if not target or not target.get("active"):
+            QMessageBox.information(self,"Cihaz yetkisi","Bu cihaz zaten pasif.")
+            return
+        if uid==getattr(getattr(self.window(),"device",None),"uid",None):
+            QMessageBox.warning(self,"Cihaz yetkisi","Kendi Yönetici cihazın iptal edilemez.")
+            return
+        if QMessageBox.question(
+            self,"Cihaz erişimini iptal et",
+            str(target.get("device_name") or uid)+" cihazının Firebase erişimi iptal edilsin mi?",
+            QMessageBox.StandardButton.Yes|QMessageBox.StandardButton.No
+        )!=QMessageBox.StandardButton.Yes:return
+        self._job(lambda:self._admin("admin_revoke",id=uid),
+                  lambda _result:self.refresh_devices())
+
+    def prune_devices(self):
+        inactive=[r for r in self._all_device_rows if not r.get("active")]
+        if not inactive:
+            QMessageBox.information(self,"Cihaz kayıtları",
+                                    "Temizlenecek pasif cihaz kaydı yok.")
+            return
+        if QMessageBox.question(
+            self,"Pasif cihazları kalıcı temizle",
+            str(min(len(inactive),80))+" pasif cihazın Firebase üyeliği silinsin mi?\n"
+            "Kayıtlar listeden kaldırılır. İptal edilen cihaz tekrar "
+            "erişebilmek için yeniden owner/personel onayı gerektirir. "
+            "Mevcut aktif cihazlara dokunulmaz.",
+            QMessageBox.StandardButton.Yes|QMessageBox.StandardButton.No
+        )!=QMessageBox.StandardButton.Yes:return
+        self._job(lambda:self._admin("admin_prune_devices"),
+                  lambda result:(self.refresh_devices(),
+                       QMessageBox.information(self,"Cihaz kayıtları",
+                           str(result.get("removed",0))+" pasif kayıt temizlendi.")))
 
     def audit_page(self):
         page=QWidget();page.setObjectName('OwnerToolPage')
@@ -270,6 +322,8 @@ class OwnerSettingsPage(SettingsPage):
         self.error_inbox.refresh_requested.connect(
             lambda:self.refresh_error_reports(force=True))
         self.error_inbox.review_requested.connect(self.review_error_report)
+        self.error_inbox.remove_requested.connect(self.delete_error_report)
+        self.error_inbox.purge_reviewed_requested.connect(self.purge_reviewed_errors)
         return self.error_inbox
 
     def enable_error_stream(self,client):
@@ -344,6 +398,19 @@ class OwnerSettingsPage(SettingsPage):
         self._job(
             lambda:client.review_error_report(report_id),
             lambda _response:self.refresh_error_reports(force=True))
+
+    def delete_error_report(self,report_id):
+        self._job(
+            lambda:self._admin("admin_delete_error",id=report_id),
+            lambda _result:self.refresh_error_reports(force=True))
+
+    def purge_reviewed_errors(self,ids):
+        self._job(
+            lambda:self._admin("admin_purge_reviewed_errors",ids=ids),
+            lambda result:(self.refresh_error_reports(force=True),
+                QMessageBox.information(
+                    self,"Hata Merkezi",
+                    str(result.get("removed",0))+" incelenmiş rapor temizlendi.")))
 
     def health_page(self):
         """Lightweight on-demand diagnostics. No Firebase polling added."""

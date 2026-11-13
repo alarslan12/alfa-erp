@@ -11,7 +11,7 @@
         "members": {
           "$uid": {
             ".read": "auth !== null && (auth.uid === $uid || (root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'owner' && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true))",
-            ".write": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'owner' && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true && newData.hasChildren(['role','active']) && (newData.child('role').val() === 'owner' || newData.child('role').val() === 'staff') && newData.child('active').isBoolean()"
+            ".write": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'owner' && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true && ((!newData.exists() && data.exists() && auth.uid !== $uid) || (newData.hasChildren(['role','active']) && (newData.child('role').val() === 'owner' || newData.child('role').val() === 'staff') && newData.child('active').isBoolean()))"
           },
           ".read": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'owner' && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true"
         },
@@ -54,7 +54,7 @@
         "device_requests": {
           "$uid": {
             ".read": "auth !== null && (auth.uid === $uid || root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'owner')",
-            ".write": "auth !== null && auth.uid === $uid && !data.exists() && newData.hasChildren(['name','created_at']) && newData.child('name').isString() && newData.child('name').val().length <= 120"
+            ".write": "(auth !== null && auth.uid === $uid && !data.exists() && newData.hasChildren(['name','created_at']) && newData.child('name').isString() && newData.child('name').val().length <= 120) || (auth !== null && auth.uid !== $uid && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'owner' && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true && !newData.exists() && data.exists())"
           },
           ".read": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'owner' && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true"
         },
@@ -172,7 +172,7 @@
         "error_acks": {
           ".read": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'owner' && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true",
           "$id": {
-            ".write": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'owner' && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true && newData.hasChildren(['reviewed_by','reviewed_at']) && newData.child('reviewed_by').val() === auth.uid",
+            ".write": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'owner' && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true && ((!newData.exists() && data.exists()) || (newData.hasChildren(['reviewed_by','reviewed_at']) && newData.child('reviewed_by').val() === auth.uid))",
             ".validate": "newData.child('reviewed_at').isString() && newData.child('reviewed_at').val().length <= 40"
           }
         }
