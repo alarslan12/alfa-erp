@@ -1,6 +1,17 @@
 # ALFA ERP · Sürüm Geçmişi
 
-## [v2.0.20] — 2026-11-13
+## [v2.0.21] — 2026-11-13
+
+- Küçük fakat geçerli otomatik JPEG kapakların boyut eşiği nedeniyle gizlenmesi giderildi.
+- PDF dosya adlarının tam katalog ismiyle eşleştirilmesi sıkı tutulup kapak/baskı eki desteklendi.
+- PDF kapağı önbelleği v5'e çıkarıldı; önceki kayıtlardan kalan hatalı yön veya gizlenme sorunları yeniden taramayla aşılır.
+- Yatay PDF ilk sayfası -90° döndürülmeye devam eder; dikey ve elle aktarılan kapaklara dokunulmaz.
+- Kitap PDF klasörü → Tara ve kapakları güncelle üzerinden yeniden oluşturma mümkündür.
+- Sipariş, Firebase katalog verileri, çalışan Katalog/Siparişler ekranları ve mevcut arşiv korunur.
+- Personel Excel, çevrimdışı sürüm notları, Analitik PIN ve Yönetici cihaz/hata temizliği önceki sürümlerdeki hâliyle korunur.
+
+
+## [v2.0.21] — 2026-11-13
 
 - PDF kapak yönü: +90° yerine −90° düzeltildi; önbellek sürümü 4.
 - Kod 402 / TUSDATA PRETUS 3 gibi kitaplarda başlık ve kod birlikte eşleştirilir.
