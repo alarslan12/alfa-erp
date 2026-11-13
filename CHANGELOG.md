@@ -1,5 +1,16 @@
 # ALFA ERP · Sürüm Geçmişi
 
+## [v2.0.20] — 2026-11-13
+
+- PDF kapak yönü: +90° yerine −90° düzeltildi; önbellek sürümü 4.
+- Kod 402 / TUSDATA PRETUS 3 gibi kitaplarda başlık ve kod birlikte eşleştirilir.
+- PDF içindeki cilt/seri sayısı başka kitaba kapak olarak yanlış bağlanmaz.
+- Aynı isimli veya eşleşmeyen PDF'ler raporlanır, rastgele seçilmez.
+- Doğrulanmamış eski otomatik JPEG dosyaları saklanır ama gösterilmez.
+- Firebase Excel katalog değişiminde yerel PDF yeniden taraması otomatik tetiklenir.
+- Siparişler, Firebase, manuel kapaklar, Suite ve Güncelleme Merkezi korunur.
+
+
 ## [v2.0.19] — 2026-11-13
 
 - Analitik'te en önemli dört rakam (Toplam Ciro, Kargo Sonrası

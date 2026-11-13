@@ -6,6 +6,16 @@ https://github.com/alarslan12/alfa-erp/releases.
 """
 
 _RELEASES = [
+    ("2.0.20", "PDF kapak taraması ve kitap eşleşmesi onarımı", [
+        "Yatay ilk PDF sayfaları -90 derece döndürülür ve ters yönlü önbellek yenilenir.",
+        "PRETUS 3 kitabının 402 kodu ile PDF'nin tam adı eşleşebilir.",
+        "PDF adındaki seri sayıları yanlış kitap kodu olarak kullanılmaz.",
+        "Belirsiz veya yinelenen PDF kaynakları raporlanır, yanlış görsel atanmaz.",
+        "Eski otomatik kapaklar diskte korunur; doğrulanmamışsa katalogda kullanılmaz.",
+        "Firebase Excel kitap katalog revizyonunda yerel PDF kapakları yeniden taranır.",
+        "Ayarlar ekranında eksik kapak örnekleri ve yerel JSON tanı raporu bulunur.",
+    ]),
+
     ("2.0.19", "Analitik ciro odağı ve telafi muhasebesi", [
         "Toplam, kargo sonrası, ödenen ve ödenmeyen ciro dört belirgin açıklamalı kartta toplandı.",
         "Ortalama sipariş, sayfa başı ciro ve kitap başı ortalamalar ayrı verimlilik grubuna taşındı.",
