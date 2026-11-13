@@ -16,7 +16,7 @@ from PySide6.QtPdf import QPdfDocument
 
 from pdf_kitap import PdfKutuphane
 
-CACHE_VERSION=5
+CACHE_VERSION=6
 MAX_PDFS=4000
 MAX_SOURCE_BYTES=850*1024*1024
 
@@ -117,7 +117,10 @@ def refresh_pdf_covers(data_dir,book_codes,progress=None):
     current={}
     codes=sorted(books,key=int)
     stats={"matched":0,"created":0,"unchanged":0,"manual":0,
-           "missing":0,"errors":0,"missing_examples":[],"error_examples":[]}
+           "missing":0,"errors":0,"missing_examples":[],"error_examples":[],
+           "pdf_found":len(pdf._files),"unmatched_pdf":0,
+           "unmatched_pdf_examples":[],"catalog_without_pdf":0}
+    used_sources={}
     manual=data_dir/"kapaklar"
     # One directory scan, not one scan per book (thousands of images can exist).
     manual_codes={
@@ -135,6 +138,14 @@ def refresh_pdf_covers(data_dir,book_codes,progress=None):
                 if len(stats["missing_examples"])<25:
                     stats["missing_examples"].append(f"#{code} {title}"[:135])
                 continue
+            # A source cannot silently become two unrelated catalog covers.
+            source_key=str(src.resolve()).casefold()
+            previous=used_sources.get(source_key)
+            if previous is not None and previous!=code:
+                raise ValueError(
+                    "PDF başka kitap koduyla da eşleşti: #"+previous+
+                    " (dosya: "+src.name+")")
+            used_sources[source_key]=code
             stats["matched"]+=1
             stat=src.stat()
             signature=[str(pdf_folder.resolve()),str(src.relative_to(pdf_folder)),
@@ -165,12 +176,22 @@ def refresh_pdf_covers(data_dir,book_codes,progress=None):
         finally:
             if progress:
                 progress(index,len(codes))
+    matched_sources=set(used_sources)
+    unmatched_sources=[
+        str(path.relative_to(pdf_folder)) for path in pdf._files
+        if str(path.resolve()).casefold() not in matched_sources
+    ]
+    stats["unmatched_pdf"]=len(unmatched_sources)
+    stats["unmatched_pdf_examples"]=unmatched_sources[:25]
+    stats["catalog_without_pdf"]=stats["missing"]
+    # 'missing' is a catalog coverage statistic, not a PDF import error.
+    # Real errors are in 'errors'; PDF names needing attention in 'unmatched_pdf'.
     # One atomic write: Covers may continue showing old manifest until this
     # validated new manifest is fully available.
     _atomic_json(manifest,{"version":CACHE_VERSION,"entries":current,
                            "source_folder":str(pdf_folder)})
     _atomic_json(data_dir/"alfa_pdf_kapak_tarama_raporu.json",{
         "summary":stats,"source_folder":str(pdf_folder),
-        "hint":"Eksik kapaklarda PDF dosya adını tam kitap adı veya kitap kodu yapın."
+        "hint":"Eşleşmeyen PDF örneklerini inceleyin; katalogda PDF bulunmaması hata değildir. 31-endodonti.pdf, kitap_31.pdf ve tam kitap adları desteklenir."
     })
     return stats
