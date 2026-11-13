@@ -110,6 +110,7 @@ class Workstation:
         self._checkout_dirty = True
         self._checkout_last_checked = 0.0
         self._catalog_cache = None
+        self._last_catalog_revision = None
         self.token = self._identity.get("refresh_token") if self._identity else None
 
     @property
@@ -263,6 +264,13 @@ class Workstation:
             "inventory_revision": int(rev.get("inventory") or 1),
         }
         known = known or {}
+        # The checkout worker may otherwise hold old numeric-code titles
+        # indefinitely even after an Excel replacement. Refresh from the
+        # public catalog before adopting any pending mobile checkout.
+        if self._last_catalog_revision != pulse["catalog_revision"]:
+            self._catalog_cache = None
+            self._checkout_dirty = True
+            self._last_catalog_revision = pulse["catalog_revision"]
         # Mobile requests are promoted to the SAME orders pool, even when
         # different workstations detect them concurrently. Order IDs and
         # conditional writes prevent duplicate order creation.

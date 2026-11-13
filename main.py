@@ -482,6 +482,11 @@ class AlfaMain(QMainWindow):
         if '__katalog__' in ids:
             self.catalog.refresh_grid()
             self.catalog.update_cart()
+            # Historical 0-page order snapshots are recovered from the
+            # authoritative catalog. Repaint order totals immediately.
+            self.orders.refresh()
+            if self.bookpool and self.bookpool.isVisible():
+                self.bookpool.refresh()
         if '__envanter__' in ids:
             self.inventory.refresh()
             self.general_catalog.refresh()

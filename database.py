@@ -620,7 +620,6 @@ class ERPDatabase:
                 archived[code]=book
                 continue
             mapping[code]=book;books.append(book)
-            groups.setdefault(book['grup'],[]).append(code)
         if not mapping:
             raise ValueError('Bulut katalog boş, yerel katalog korunuyor.')
         # The RTDB UUID-key iteration order is NOT the book code order.
@@ -628,6 +627,8 @@ class ERPDatabase:
             code=str(book.get('kod') or '').strip()
             return (0,int(code),code) if code.isdecimal() else (1,code.casefold(),code)
         books.sort(key=sort_code)
+        for book in books:
+            groups.setdefault(book['grup'],[]).append(book['kod'])
         self.katalog.clear();self.katalog.update(mapping)
         self.kitaplar.clear();self.kitaplar.extend(books)
         self.gruplar.clear();self.gruplar.update(groups)
