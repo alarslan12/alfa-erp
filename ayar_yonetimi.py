@@ -7,7 +7,8 @@ import shutil
 import zipfile
 
 DEFAULTS = {'tema': 'koyu', 'ozel_katalog': None, 'bildirim_sesi': 'klasik',
-            'elevenlabs_voice_a': '', 'elevenlabs_voice_b': ''}
+            'elevenlabs_voice_a': '', 'elevenlabs_voice_b': '',
+            'show_books_without_pages': True}
 BACKUP_NAMES = ('alfa_siparisler.json', 'alfa_sepet_hafiza.json', 'alfa_siparis_sayac.json',
                 'alfa_islem_gunlugu.jsonl', 'alfa_pdf_ayarlari.json',
                 'alfa_ayarlar.json', 'alfa_katalog_ozel.xlsx',

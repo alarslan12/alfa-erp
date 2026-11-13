@@ -102,7 +102,14 @@ def refresh_pdf_covers(data_dir,book_codes,progress=None):
     if not isinstance(recorded,dict):
         recorded={}
     current={}
-    codes=sorted({str(int(x)) for x in book_codes if str(x).isdigit()},key=int)
+    # Compatible with old list[str] callers and the newer code+title records.
+    book_titles={}
+    for book in book_codes:
+        code=(book.get('kod') or book.get('code') or '') if isinstance(book,dict) else book
+        title=(book.get('isim') or book.get('name') or '') if isinstance(book,dict) else ''
+        if str(code).isdecimal():
+            book_titles[str(int(code))]=str(title)
+    codes=sorted(book_titles,key=int)
     if len(codes)>MAX_PDFS:
         raise ValueError("PDF kapak taraması güvenlik sınırını aşıyor")
     stats={"matched":0,"created":0,"unchanged":0,
@@ -110,7 +117,7 @@ def refresh_pdf_covers(data_dir,book_codes,progress=None):
     manual=data_dir/"kapaklar"
     pdf_folder=pdf.folder
     for index,code in enumerate(codes,1):
-        src=pdf.find(code)
+        src=pdf.find(code,title=book_titles[code])
         if not src:
             stats["missing"]+=1
             if progress:progress(index,len(codes))

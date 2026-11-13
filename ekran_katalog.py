@@ -317,6 +317,11 @@ class KatalogView(QWidget):
     def filtered(self):
         q=self.search.text()
         rows=[book for book in self.db.kitaplar if metin_eslesiyor_mu(q,book)]
+        # Display-only preference shared by Personel and Yönetici; it never
+        # deletes books or alters Firebase / existing order lines.
+        settings=getattr(self.window(),'config',None)
+        if settings is not None and not settings.get('show_books_without_pages',True):
+            rows=[book for book in rows if int(book.get('sayfa') or 0)>0]
         # Both the initial Excel and Firebase-origin catalog use stable
         # numerical order; data/code values are not rewritten.
         def book_key(book):

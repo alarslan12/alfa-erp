@@ -8,29 +8,57 @@ import json
 import os
 import re
 import tempfile
+import unicodedata
 
 PDF_PREFIXES = ('kitap', 'kod', 'book', 'pdf', 'alfa')
+_COVER_SUFFIXES = ('kapak', 'cover', 'baski', 'pdf')
+
+
+def _title_words(value):
+    raw = unicodedata.normalize(
+        'NFKD', str(value or '').replace('İ', 'I').replace('ı', 'i'))
+    folded = ''.join(ch for ch in raw.casefold()
+                     if not unicodedata.combining(ch))
+    return re.findall(r'[a-z0-9]+', folded)
+
+
+def _title_keys(value):
+    """Only exact book-name variants; never guess from volume alone."""
+    words = _title_words(value)
+    while words and words[-1] in _COVER_SUFFIXES:
+        words.pop()
+    if not words:
+        return set()
+    variants = [words]
+    # Excel: DUSDATA DENTTEST 12; a PDF may say only DENTTEST 12.
+    if len(words) >= 3 and words[:2] == ['dusdata', 'denttest']:
+        variants.append(words[1:])
+    keys = set()
+    for parts in variants:
+        keys.add(''.join(parts))
+        # "ADÇ Cerrahi" can be printed as just "Cerrahi" on the cover.
+        if len(parts) >= 4 and 'adc' in parts:
+            keys.add(''.join(word for word in parts if word != 'adc'))
+    return keys
 
 
 def match_score(stem, code):
-    """Dosya adını kodla eşleştir; 0 yanlış, düşük skor daha kesin."""
+    """Only explicitly placed numeric catalog codes, not series/volume IDs."""
     key = str(code).strip()
-    if not key.isdigit():
+    if not key.isdecimal():
         return None
-    pattern = rf'0*{int(key)}'
-    if re.fullmatch(pattern, stem, re.I):
+    number = int(key)
+    if re.fullmatch(rf'0*{number}', stem, re.I):
         return 0
-    # Dosyada kod tek bir belirgin sayısal parça olarak bulunmalı.
-    parts = re.findall(r'\d+', stem)
-    if len(parts) != 1 or int(parts[0]) != int(key):
-        return None
-    name = re.sub(r'[\s._()\[\]−\-]+', ' ', stem.lower()).strip()
-    words = name.split()
-    if words and words[0] in PDF_PREFIXES:
+    # 31-endodonti.pdf, 031 Endodonti.pdf are explicit book codes.
+    if re.match(rf'^\\s*0*{number}(?=$|[^0-9])', stem, re.I):
         return 1
-    if words and words[-1] in ('kitap', 'pdf', 'baski'):
-        return 2
-    return 3
+    # kitap_31.pdf, kod-31-endodonti.pdf are explicit book codes.
+    if re.match(
+            rf'^\\s*(?:kitap|kod|book|pdf|alfa)[\\s._-]*0*{number}(?=$|[^0-9])',
+            stem, re.I):
+        return 1
+    return None
 
 
 class PdfKutuphane:
@@ -39,6 +67,8 @@ class PdfKutuphane:
         self.settings_file = self.data_dir / 'alfa_pdf_ayarlari.json'
         self.folder = None
         self._index = {}
+        self._name_index = {}
+        self._scanned = False
         self._read_settings()
 
     def _read_settings(self):
@@ -68,11 +98,15 @@ class PdfKutuphane:
 
     def scan(self):
         self._index = {}
+        self._name_index = {}
+        self._scanned = True
         if self.folder is None or not self.folder.is_dir():
             return
         # Klasör içinde alt klasörler de desteklenir.
         for file in sorted(self.folder.rglob('*')):
             if file.is_file() and file.suffix.lower() == '.pdf':
+                for name_key in _title_keys(file.stem):
+                    self._name_index.setdefault(name_key, set()).add(file)
                 for part in re.findall(r'\d+', file.stem):
                     code = str(int(part))
                     score = match_score(file.stem, code)
@@ -82,12 +116,28 @@ class PdfKutuphane:
                     if prev is None or (score, str(file)) < (prev[0], str(prev[1])):
                         self._index[code] = score, file
 
-    def find(self, code):
+    def find(self, code, title=None):
         if self.folder is None or not self.folder.is_dir():
             return None
         key = str(int(code)) if str(code).isdigit() else str(code)
+        if not self._scanned:
+            self.scan()
+        # Prefer one unambiguous *full title*, not arbitrary fuzzy matches.
+        if title:
+            names = _title_keys(title)
+            exact_key = ''.join(_title_words(title))
+            direct = self._name_index.get(exact_key, set())
+            if len(direct) == 1:
+                return next(iter(direct))
+            if len(direct) > 1:
+                return None
+            matches = set().union(*(self._name_index.get(k, set()) for k in names))
+            if len(matches) == 1:
+                return next(iter(matches))
+            if len(matches) > 1:
+                return None
         found = self._index.get(key)
-        if found is None or not found[1].is_file():
+        if found is not None and not found[1].is_file():
             self.scan()
             found = self._index.get(key)
         return found[1] if found else None

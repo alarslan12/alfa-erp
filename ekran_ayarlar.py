@@ -4,7 +4,7 @@ from pathlib import Path
 from PySide6.QtCore import QThread, Signal, QTimer
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QFrame, QComboBox,
-    QFileDialog, QMessageBox, QStackedWidget, QLabel, QPushButton, QLineEdit
+    QFileDialog, QMessageBox, QStackedWidget, QLabel, QPushButton, QLineEdit, QCheckBox
 )
 from ayar_yonetimi import theme_styles
 from tema import QSS
@@ -101,6 +101,11 @@ class SettingsPage(QWidget):
             theme_row.addWidget(action)
             self.themes.append((key,action))
         controls.addLayout(theme_row)
+        self.show_unknown_pages=QCheckBox('Sayfa sayısı boş kitapları katalogda göster')
+        self.show_unknown_pages.setChecked(
+            bool(self.config.get('show_books_without_pages', True)))
+        self.show_unknown_pages.toggled.connect(self._set_unknown_page_visibility)
+        controls.addWidget(self.show_unknown_pages)
         col.addWidget(card)
 
         sound_card=QFrame();sound_card.setObjectName('SettingsCard')
@@ -232,6 +237,12 @@ class SettingsPage(QWidget):
         # One background release check at most once per 24h. No periodic timer.
         QTimer.singleShot(11000,self.check_updates_on_startup)
 
+    def _set_unknown_page_visibility(self,checked):
+        self.config.set('show_books_without_pages',bool(checked))
+        catalog=getattr(self.window(),'catalog',None)
+        if catalog is not None:
+            catalog.reset_results()
+
     def show_tab(self,index):
         self.current_tab=index
         self.stack.setCurrentIndex(index)
@@ -308,7 +319,8 @@ class SettingsPage(QWidget):
         if not self.pdf.folder:
             self.pdf_status.setText('Kapak oluşturmak için PDF klasörü seç.')
             return
-        codes=[str(book.get('kod') or '') for book in self.db.kitaplar]
+        codes=[{'kod':str(book.get('kod') or ''),
+                'isim':str(book.get('isim') or '')} for book in self.db.kitaplar]
         self.pdf_status.setText(
             f'{len(codes)} kitap kodu için PDF kapakları kontrol ediliyor…')
         worker=CoverWorker(self.pdf.data_dir,codes,self)
