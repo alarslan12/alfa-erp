@@ -1,4 +1,4 @@
-# ALFACOPYCENTER Suite v2.0.27
+# ALFACOPYCENTER Suite v2.0.28
 
 **Tek Windows kurulumu**, dört seçilebilir bileşen:
 
@@ -10,7 +10,7 @@
 | ALFA Print Center | PrintSurveillance/AlfaPrintSurveillance.exe | Seçilebilir, varsayılan |
 | Arka plan yardımcıları | Bildirim, PrintAgent, PrintSupervisor | Seçilen bileşene bağlı |
 
-Kurulum: `ALFACOPYCENTER_Suite_Setup_V2_0_27.exe`. Aynı Inno Setup AppId
+Kurulum: `ALFACOPYCENTER_Suite_Setup_V2_0_28.exe`. Aynı Inno Setup AppId
 (`ALFACOPYCENTER.Suite`) ve kurulum yolu korundu:
 `%LOCALAPPDATA%\Programs\ALFACOPYCENTER`.
 
@@ -144,3 +144,7 @@ TUSDATA Konu kapakları sırası değişmiş veya `Cilt 1` eklenmiş PDF dosya a
 ## v2.0.27 — Sipariş etiketi ve seri araması
 
 Aktif sipariş ve havuz kapaklarında toplam nüsha, SB/RNK adetleri görünür. Katalogda TUSDATA 24, 24 TUSDATA, TUS 24 gibi aramalar tam sayı eşleşmesi ve seri adını kullanır. Personel ve Yönetici ortak kodu güncellenmiştir. Firebase ve PDF eşleştirme korunur.
+
+## v2.0.28 — Sade sipariş etiketleri
+
+Kapaklarda yalnızca mevcut SB/RNK adetleri sağ üstte gösterilir; siyah toplam rozeti kaldırıldı. Diğer işleyiş korunur.

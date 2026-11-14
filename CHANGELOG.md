@@ -1,5 +1,12 @@
 # ALFA ERP · Sürüm Geçmişi
 
+## [v2.0.28] — 2026-11-14
+
+- Sipariş kapaklarında siyah toplam adet rozeti kaldırıldı; yalnızca SB/RNK etiketleri gösterilir.
+- Personel ve Yönetici ortak kart bileşeni güncellendi.
+- Katalog araması ve diğer işlevler korunur.
+
+
 ## [v2.0.27] — 2026-11-14
 
 - Aktif sipariş ve havuz kapaklarında toplam adet ve SB/RNK etiketleri geri getirildi.

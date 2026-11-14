@@ -6,6 +6,12 @@ https://github.com/alarslan12/alfa-erp/releases.
 """
 
 _RELEASES = [
+    ("2.0.28", "Sipariş kapaklarında sade SB/RNK etiketleri", [
+        "Siyah toplam adet rozeti kaldırıldı; yalnızca SB ve RNK adetleri kapak üzerinde gösterilir.",
+        "Etiketler sağ üstte yer alır; tek nüsha etiketleri korunur.",
+        "Personel ve Yönetici ortak kart düzeltmesini içerir.",
+        "Katalog araması, PDF eşleştirme ve Firebase verileri korunur.",
+    ]),
     ("2.0.27", "Sipariş kapak etiketleri ve hassas katalog araması", [
         "Aktif sipariş ve sipariş havuzu kapaklarında toplam adet, SB ve RNK miktarları gösterilir.",
         "Tek nüsha ve küçük kapaklarda etiketler gizlenmez; dar alanda alt alta yerleşir.",

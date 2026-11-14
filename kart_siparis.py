@@ -121,9 +121,8 @@ class ProgressCover(QLabel):
 
 
 def order_cover_badges(group):
-    """Always show total copies and each ordered print variant."""
-    total = int(group.get('adet', 0))
-    badges = [('total', f'{total}×')]
+    """Show only nonzero print-variant quantities."""
+    badges = []
     for kind, key in (('SB', 'sb'), ('RNK', 'rnk')):
         qty = int(group.get(key, 0))
         if qty > 0:
@@ -132,7 +131,7 @@ def order_cover_badges(group):
 
 
 class OrderMiniCover(ProgressCover):
-    """Kitap kapağında her zaman toplam adet ve SB/RNK miktarları."""
+    """Kitap kapağında yalnızca SB/RNK miktarları."""
     def __init__(self, book, covers, group, w, h, active=False):
         self.book_name = book.get('isim', '')
         self.book_code = book.get('kod', '')
@@ -155,19 +154,20 @@ class OrderMiniCover(ProgressCover):
         rect = self.rect().adjusted(1, 1, -1, -1)
         if rect.width() <= 0 or rect.height() <= 0:
             return
+        badges = order_cover_badges(self.group)
+        if not badges:
+            return
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
         colors = {
-            'total': (QColor(12, 24, 37, 238), QColor('#ffffff')),
             'sb': (QColor(68, 52, 118, 240), QColor('#f1e9ff')),
             'rnk': (QColor(153, 80, 53, 240), QColor('#fff2e9')),
         }
-        badges = order_cover_badges(self.group)
         font = QFont('Segoe UI')
         font.setWeight(QFont.Weight.Bold)
         gap = 1
-        # Fit three lines even for the smallest existing thumbnail size.
-        font_px = min(12, max(5, (rect.height() - 2 * gap) // 3 - 2))
+        # Fit only existing print variants, stacked at the top right.
+        font_px = min(12, max(5, (rect.height() - gap) // len(badges) - 2))
         while True:
             font.setPixelSize(font_px)
             painter.setFont(font)
@@ -181,20 +181,10 @@ class OrderMiniCover(ProgressCover):
                 break
             font_px -= 1
 
-        # Keep the original top-left total / top-right print labels when
-        # there is enough width; otherwise stack them without overlap.
-        side_by_side = (len(widths) > 1 and
-                        widths[0] + max(widths[1:]) + gap <= rect.width())
         for index, ((key, label), width) in enumerate(zip(badges, widths)):
             width = min(width, rect.width())
-            if index == 0:
-                x, y = rect.x(), rect.y()
-            elif side_by_side:
-                x = rect.right() - width + 1
-                y = rect.y() + (index - 1) * (height + gap)
-            else:
-                x = rect.x()
-                y = rect.y() + index * (height + gap)
+            x = rect.right() - width + 1
+            y = rect.y() + index * (height + gap)
             area = QRect(x, y, width, height)
             bg, fg = colors[key]
             painter.setPen(Qt.PenStyle.NoPen)
