@@ -1,4 +1,4 @@
-# ALFACOPYCENTER Suite v2.0.33 (ön izleme)
+# ALFACOPYCENTER Suite v2.0.34 (ön izleme)
 
 **Tek Windows kurulumu**, dört seçilebilir bileşen:
 
@@ -10,7 +10,7 @@
 | ALFA Print Center | PrintSurveillance/AlfaPrintSurveillance.exe | Seçilebilir, varsayılan |
 | Arka plan yardımcıları | Bildirim, PrintAgent, PrintSupervisor | Seçilen bileşene bağlı |
 
-Kurulum: `ALFACOPYCENTER_Suite_Setup_V2_0_33.exe`. Aynı Inno Setup AppId
+Kurulum: `ALFACOPYCENTER_Suite_Setup_V2_0_34.exe`. Aynı Inno Setup AppId
 (`ALFACOPYCENTER.Suite`) ve kurulum yolu korundu:
 `%LOCALAPPDATA%\Programs\ALFACOPYCENTER`.
 
@@ -193,3 +193,12 @@ Kapaklarda yalnızca mevcut SB/RNK adetleri sağ üstte gösterilir; siyah topla
 - Popup'a ait QThread kaldırıldı ve takip ekranında eski widget referansları temizlendi. Bildirilen kapanma hatasının kesin kaynağına ait crash trace sağlanmamıştı.
 - ÖNEMLİ: v2.0.32 yeşil kolileme görselleri ve not/yenileme sistemi korunur. Firebase kuralları değişmedi; yeni istemcilerde yerel okundu onayı optimistiktir. Çevrimdışı eski revizyonla yapılan işlemler sunucuda reddedilebilir. Tüm cihazlar aynı sürüme yükseltilmeden kilit garantisi yoktur.
 - v2.0.30 kararlı kanalda kalır. Bu paket önce ön sürüm olarak yayımlanır.
+
+
+# ALFACOPYCENTER Suite v2.0.34 — Aktif sipariş üretim özeti (ön izleme)
+
+- Aktif siparişlerin üst kısmında altı kompakt, tema uyumlu gösterge: aktif sipariş sayısı, toplam kitap/SB/RNK, kalan kitap, basılacak kitap/sayfa, kolilemeye hazır kitap, toplam ciro/sayfa.
+- Kalan kitap = toplam - kolilenen; basılacak kitap = toplam - hazır; kolilemeye hazır = hazır - kolilenen.
+- Kalan sayfa sayısı sipariş satırındaki gerçek nüsha ve sayfa bilgisiyle hesaplanır. Eksik sayfa bilgisi varsa belirtilir.
+- Üretim toplamları filtrelerden bağımsız tüm aktif siparişleri kapsar. Filtrelenmiş sipariş sayısı ayrı gösterilir. İşlem ve seçim düğmeleri ayrı bir satırda kalır. Dar ekranda göstergeler iki satıra yerleşir.
+- Mevcut sipariş hazırlama/kolileme, not sistemi, katalog, Firebase kuralları ve canlı veriler değiştirilmez. v2.0.33 özellikleri korunur; v2.0.30 kararlı kanalda kalır.

@@ -6,6 +6,12 @@ https://github.com/alarslan12/alfa-erp/releases.
 """
 
 _RELEASES = [
+    ("2.0.34", "Aktif sipariş üretim özeti", [
+        "Aktif siparişler üstünde altı kompakt gösterge: sipariş, kitap, kalan, basılacak, kolilemeye hazır ve ciro.",
+        "SB/RNK adetleri, basılacak sayfa ve kolileme ilerlemesi gösterilir.",
+        "Filtrelerden bağımsız tüm aktif siparişler hesaplanır; dar ekranda iki satıra uyarlanır.",
+        "Mevcut sipariş işlemleri, not sistemi ve Firebase kuralları korunur.",
+    ]),
     ("2.0.33", "Not alanı ve yerel okundu onayı", [
         "Not alanının tema renkleri, yeni sipariş notu başlığı ve sade popup düzeltildi.",
         "Okundu onayı kalıcı yerel kuyruğa yazılır; bulut yanıtı beklenmez.",

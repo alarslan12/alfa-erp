@@ -1691,3 +1691,18 @@ QPlainTextEdit#OrderNoteInput {
 }
 QPlainTextEdit#OrderNoteInput:focus {border:1px solid #79b8ec;}
 """
+
+QSS += """
+/* Active orders: compact read-only production metrics. */
+QWidget#ProductionSummary {background:transparent;border:0;}
+QFrame#ProductionMetric {background:#182e46;border:1px solid #41617f;border-radius:8px;}
+QFrame#ProductionMetric[productionTone="remaining"] {background:#3a2d28;border:1px solid #b98142;border-left:3px solid #ffc46b;}
+QFrame#ProductionMetric[productionTone="print"] {background:#262b46;border:1px solid #7266a5;border-left:3px solid #bca5ff;}
+QFrame#ProductionMetric[productionTone="packing"] {background:#183a35;border:1px solid #3c8e74;border-left:3px solid #6bd7a5;}
+QLabel#ProductionMetricCaption {background:transparent;color:#c6d8eb;font-size:11px;font-weight:750;border:0;padding:0;}
+QLabel#ProductionMetricValue {background:transparent;color:#f1f7ff;font-size:20px;font-weight:900;border:0;padding:0;}
+QLabel#ProductionMetricValue[productionTone="remaining"] {color:#ffd18c;}
+QLabel#ProductionMetricValue[productionTone="print"] {color:#d4c2ff;}
+QLabel#ProductionMetricValue[productionTone="packing"] {color:#96efbe;}
+QLabel#ProductionMetricDetail {background:transparent;color:#b9cadd;font-size:10px;border:0;padding:0;}
+"""

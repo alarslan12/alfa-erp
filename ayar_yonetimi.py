@@ -150,6 +150,8 @@ def theme_styles(name):
         QPushButton#InventoryModeTab:checked {background:#195c9a;border:2px solid #ffe28e;color:#ffffff;}
         QPushButton#TrackUnpreparedToggle:checked {background:#927038; color:#fff; border-color:#f5d183;}
         QPlainTextEdit#OrderNoteInput {background:#060b11;color:#fff;border:1px solid #a3d4ff;placeholder-text-color:#b7ccdf;}
+        QFrame#ProductionMetric {background:#101b2b;border:1px solid #85a9ce;}
+        QLabel#ProductionMetricCaption,QLabel#ProductionMetricDetail {color:#e6f0ff;}
         '''
     if name=='acik':
         return '''
@@ -696,6 +698,15 @@ def theme_styles(name):
         QPushButton#StaffThemeSwitch {background:#e2d9ca;color:#2b4560;border:1px solid #b9a48a;}
         QPlainTextEdit#OrderNoteInput {background:#fffaf3;color:#23384f;border:1px solid #b5a18a;placeholder-text-color:#687887;selection-background-color:#bad8e9;selection-color:#203c52;}
         QPlainTextEdit#OrderNoteInput:focus {border-color:#688eae;}
+        QFrame#ProductionMetric {background:#fffaf3;border:1px solid #c6b8a4;}
+        QFrame#ProductionMetric[productionTone="remaining"] {background:#fff0d7;border:1px solid #ce9a56;border-left:3px solid #bf7e26;}
+        QFrame#ProductionMetric[productionTone="print"] {background:#f2eafb;border:1px solid #b49bcf;border-left:3px solid #8b6aba;}
+        QFrame#ProductionMetric[productionTone="packing"] {background:#e5f3e9;border:1px solid #87b59a;border-left:3px solid #449264;}
+        QLabel#ProductionMetricCaption,QLabel#ProductionMetricDetail {color:#4a6074;}
+        QLabel#ProductionMetricValue {color:#253d56;}
+        QLabel#ProductionMetricValue[productionTone="remaining"] {color:#935709;}
+        QLabel#ProductionMetricValue[productionTone="print"] {color:#67449d;}
+        QLabel#ProductionMetricValue[productionTone="packing"] {color:#246e47;}
         '''
     # Koyu tema tamamen temel QSS üzerinden uygulanır; eski açık tema
     # bloğunun bu yoldan kazara yüklenmesini önlüyoruz.

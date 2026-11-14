@@ -2,7 +2,7 @@
 from datetime import datetime
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QComboBox, QCheckBox,
-    QFrame, QToolButton, QListView, QAbstractItemView, QSizePolicy, QDialog
+    QFrame, QToolButton, QListView, QAbstractItemView, QSizePolicy, QDialog, QGridLayout
 )
 from PySide6.QtCore import Qt, QTimer
 from widgets import text, button, scrollable, error, confirm
@@ -16,6 +16,7 @@ from siparis_arsivi import ayir_tamamlananlar
 from temali_combo import AlfaTemaliCombo
 from siparis_uyari import pending_notice, revision
 from siparis_uyari_ui import OrderNoticeDialog
+from siparis_uretim_ozeti import production_summary, count_text, money_text
 
 
 class SiparisView(QWidget):
@@ -109,6 +110,43 @@ class SiparisView(QWidget):
         filters.addWidget(self.filter_segment)
         outer.addLayout(filters)
 
+        # Production totals are independent of search/date filters. The
+        # existing action row stays below; other order tabs remain unchanged.
+        self.production_panel = QWidget()
+        self.production_panel.setObjectName('ProductionSummary')
+        self.production_grid = QGridLayout(self.production_panel)
+        self.production_grid.setContentsMargins(0,0,0,0)
+        self.production_grid.setSpacing(6)
+        self.production_cards = []
+        self.production_values = {}
+        self._production_columns = None
+        for key, heading, tone, tip in (
+            ('orders','Aktif sipariş','neutral','Filtrelerden bağımsız tüm aktif siparişler'),
+            ('books','Toplam kitap','neutral','Aktif siparişlerdeki tüm SB ve RNK kitap nüshaları'),
+            ('remaining','Kalan kitap','remaining','Henüz kolilenmemiş tüm kitaplar; baskı bekleyenler dahil'),
+            ('print_waiting','Basılacak kitap','print','Henüz hazır olarak işaretlenmemiş kitap nüshaları'),
+            ('pack_ready','Kolilemeye hazır','packing','Hazırlanmış, henüz kolilenmemiş kitap nüshaları'),
+            ('revenue','Toplam ciro','neutral','Tüm aktif siparişlerin kayıtlı cirosu; kâr değildir'),
+        ):
+            tile=QFrame()
+            tile.setObjectName('ProductionMetric')
+            tile.setProperty('productionTone',tone)
+            tile.setToolTip(tip)
+            tile.setSizePolicy(QSizePolicy.Policy.Expanding,QSizePolicy.Policy.Fixed)
+            lay=QVBoxLayout(tile)
+            lay.setContentsMargins(9,6,9,6)
+            lay.setSpacing(1)
+            cap=text(heading,'ProductionMetricCaption')
+            value=text('0','ProductionMetricValue')
+            value.setProperty('productionTone',tone)
+            detail=text('','ProductionMetricDetail',wrap=True)
+            lay.addWidget(cap);lay.addWidget(value);lay.addWidget(detail)
+            self.production_cards.append(tile)
+            self.production_values[key]=(value,detail)
+        outer.addWidget(self.production_panel)
+        self._layout_production_summary(6)
+        self.production_panel.hide()
+
         summary = QHBoxLayout()
         summary.setSpacing(9)
         self.metrics = text('', 'OrderMetrics')
@@ -183,18 +221,57 @@ class SiparisView(QWidget):
 
     def _adapt_cards(self):
         width=self.rows_scroll.viewport().width()
+        self._layout_production_summary(6 if width>=1050 else 3)
         compact=width<1080
         for card in self._row_cache.values():
             card.set_compact_mode(compact)
         # Preserve every function when the window is narrow; use shorter labels
         # instead of generating a window-wide horizontal scrollbar.
         self.all_cb.setText('Seç' if compact else 'Görünen siparişleri seç')
+        if self.status=='aktif':
+            self._refresh_production_summary(len(self.filtered()))
+            if compact and not (self.search.text().strip() or self.day.currentData() or self.from_date or self.to_date):
+                self.metrics.setText('Tüm aktif siparişler')
         self.pool_btn.setText('▤  Kitap havuzu' if compact else '▤  Siparişlere genel bakış')
         self.print_btn.setText('▣  Kargo fişi' if compact else '▣  Seçilenlerin kargo fişi')
         # Dar pencere boyutlarında metin kısalır; iki buton yine aynı
         # geometri ve hizada kalır. Kartları yeniden üretmeye gerek yok.
         for action in (self.pool_btn, self.print_btn):
             action.setMinimumWidth(112 if compact else 178)
+
+    def _layout_production_summary(self, columns):
+        if self._production_columns==columns:return
+        self._production_columns=columns
+        while self.production_grid.count():
+            self.production_grid.takeAt(0)
+        for col in range(6):
+            self.production_grid.setColumnStretch(col,1 if col<columns else 0)
+        for i,tile in enumerate(self.production_cards):
+            self.production_grid.addWidget(tile,i//columns,i%columns)
+
+    def _refresh_production_summary(self, visible_count):
+        active_orders=self.current()
+        totals=production_summary(active_orders,self.db._book_page_count)
+        n=count_text
+        details={
+            'orders': 'Tüm aktif siparişler',
+            'books': f"SB {n(totals['sb'])}  ·  RNK {n(totals['rnk'])}",
+            'remaining': f"{n(totals['boxed'])}/{n(totals['books'])} kolilendi · %{totals['packed_percent']}",
+            'print_waiting': f"{n(totals['print_pages'])} sayfa" + (' + eksik' if totals['unknown_print'] else ''),
+            'pack_ready': f"{n(totals['ready'])} hazır · {n(totals['boxed'])} kolili",
+            'revenue': f"{n(totals['pages'])} toplam sayfa" + (' + eksik' if totals['unknown_pages'] else ''),
+        }
+        for key,(value,detail) in self.production_values.items():
+            value.setText(money_text(totals[key]) if key=='revenue' else n(totals[key]))
+            detail.setText(details[key])
+        self.production_values['print_waiting'][1].setToolTip(
+            f"Basılacak SB: {n(totals['print_sb'])} · RNK: {n(totals['print_rnk'])}"
+            + (f" · Sayfa bilgisi eksik: {n(totals['unknown_print'])} nüsha" if totals['unknown_print'] else ''))
+        self.production_values['revenue'][1].setToolTip(
+            f"Toplam bilinen sayfa: {n(totals['pages'])}"
+            + (f" · Sayfa bilgisi eksik: {n(totals['unknown_pages'])} nüsha" if totals['unknown_pages'] else ''))
+        self.metrics.setText(f"{n(visible_count)} / {n(totals['orders'])} sipariş gösteriliyor"
+                             if visible_count!=totals['orders'] else 'Üretim özeti · Tüm aktif siparişler')
 
     def current(self):
         return [o for o in self.db.siparisler if self.db.siparis_durumu(o) == self.status]
@@ -421,6 +498,10 @@ class SiparisView(QWidget):
         else:
             self.archive_more.setVisible(False)
         active = self.status == 'aktif'
+        self.production_panel.setVisible(active)
+        if active:
+            self._layout_production_summary(6 if self.rows_scroll.viewport().width()>=1050 else 3)
+            self._refresh_production_summary(len(orders))
         for widget in (self.all_cb, self.selected_label, self.print_btn, self.pool_btn):
             widget.setVisible(active)
         self._update_selected(orders)

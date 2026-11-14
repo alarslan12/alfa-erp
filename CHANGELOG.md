@@ -1,5 +1,12 @@
 # ALFA ERP · Sürüm Geçmişi
 
+## [v2.0.34] — 2026-11-14 (ön izleme)
+
+- Aktif siparişlerde kalan kitap, basılacak kitap/sayfa ve kolilemeye hazır kitap göstergeleri.
+- Toplam adet, SB/RNK, koli ilerlemesi, sayfa ve ciro düzenli, uyarlanabilir kartlarda.
+- Üretim toplamları tüm aktif siparişleri kapsar; filtre sonucu ayrıca gösterilir.
+- Önceki işlevler ve Firebase kuralları korunur.
+
 ## [v2.0.33] — 2026-11-14 (ön izleme)
 
 - Not alanı tema uyumu; ilk not ile gerçek sipariş güncellemesi ayrımı.
