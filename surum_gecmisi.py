@@ -6,6 +6,12 @@ https://github.com/alarslan12/alfa-erp/releases.
 """
 
 _RELEASES = [
+    ("2.0.33", "Not alanı ve yerel okundu onayı", [
+        "Not alanının tema renkleri, yeni sipariş notu başlığı ve sade popup düzeltildi.",
+        "Okundu onayı kalıcı yerel kuyruğa yazılır; bulut yanıtı beklenmez.",
+        "Uyarıya basınca popup kapanır; detaya basınca onaydan sonra detay açılır.",
+        "Yeşil kolileme kartları ve Firebase kuralları korunur.",
+    ]),
     ("2.0.32", "Kolilenen kitapların yeşil görünümü", [
         "Tamamen kolilenen kitap kartlarına hafif şeffaf yeşil zemin, yeşil kenar ve hover eklendi.",
         "Sipariş detayları, genel bakış ve sipariş kapaklarında aynı koli durumu kullanılır.",

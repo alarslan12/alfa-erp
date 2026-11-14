@@ -1,5 +1,11 @@
 # ALFA ERP · Sürüm Geçmişi
 
+## [v2.0.33] — 2026-11-14 (ön izleme)
+
+- Not alanı tema uyumu; ilk not ile gerçek sipariş güncellemesi ayrımı.
+- Kalıcı yerel okundu kuyruğu, revizyon doğrulaması ve ayrı tıklama akışları.
+- Popup'a bağlı ağ işçisi kaldırıldı. Yeşil koli kartları ve Firebase kuralları korundu.
+
 ## [v2.0.32] — 2026-11-14 (ön izleme)
 
 - Yalnız tüm kopyaları kolilenmiş kitaplara yarı şeffaf yeşil kart ve yeşil hover.

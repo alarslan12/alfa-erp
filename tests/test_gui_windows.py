@@ -112,6 +112,49 @@ class WindowsGuiTests(unittest.TestCase):
                 editor.close()
                 app.processEvents()
 
+    def test_initial_note_popup_immediate_local_ack_and_click_routing(self):
+        os.environ['QT_QPA_PLATFORM']='offscreen'
+        with tempfile.TemporaryDirectory(prefix='alfa_notice_ui_') as data:
+            from pathlib import Path
+            from PySide6.QtWidgets import QApplication, QDialog, QLabel
+            from database import ERPDatabase
+            from widgets import Covers
+            from ekran_siparis import SiparisView
+            from siparis_uyari_ui import OrderNoticeDialog
+            from siparis_uyari import pending_notice
+            app=QApplication.instance() or QApplication(['alfa-notice-ci'])
+            root=Path(__file__).resolve().parents[1]
+            db=ERPDatabase(root/'KİTAPS.xlsx',data_dir=data)
+            code=next(iter(db.katalog))
+            def order(note):
+                return db.yeni_siparis_olustur(
+                    {'kod':'CI','platform':'Manuel','ciro':50,'siparis_turu':'','order_note':note},
+                    [{'kod':code,'tur':'SB','adet':1,'hazir':0,'koli':0}])
+            covers=Covers(db,root)
+            first=order('23 numaralı kitap')
+            second=order('Ayrı paket')
+            view=SiparisView(db,covers,admin_mode=True)
+            def review(dialog):
+                labels=[w.text() for w in dialog.findChildren(QLabel)]
+                self.assertFalse(any(s.startswith('Önce:') or s.startswith('Yeni:') for s in labels))
+                dialog.checked.setChecked(True)
+                dialog._confirm()
+                return dialog.result()
+            try:
+                with patch.object(OrderNoticeDialog,'exec',review):
+                    view.open_editor(first['id'],'notice')
+                    app.processEvents()
+                    self.assertFalse(pending_notice(first))
+                    self.assertNotIn('track_hub',view.windows)
+                    view.open_editor(second['id'],'track')
+                    app.processEvents()
+                    self.assertFalse(pending_notice(second))
+                    self.assertIn('track_hub',view.windows)
+            finally:
+                for w in list(view.windows.values()):w.close()
+                view.close()
+                app.processEvents()
+
     def test_owner_edition_opens_without_backend_calls(self):
         os.environ['QT_QPA_PLATFORM']='offscreen'
         with tempfile.TemporaryDirectory(prefix='alfa_firebase_owner_') as data:

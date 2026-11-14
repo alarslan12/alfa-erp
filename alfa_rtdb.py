@@ -498,6 +498,8 @@ class Workstation:
                     entry["order_note"] = note
                     entry["order_notice"] = make_notice(None, entry, revision(local))
                     result["notice_state"] = {"order_note":note, "order_notice":entry["order_notice"]}
+                elif local.get("order_notice"):
+                    result["notice_state"] = {"order_note":"","order_notice":None}
                 return entry, result
             results.append(self._atomic_order(order_id, create, allow_create=True))
         return results

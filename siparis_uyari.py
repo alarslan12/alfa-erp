@@ -29,11 +29,13 @@ def pending_notice(order):
 def initial_note_notice(order):
     """Recognize old v31/32 initial-note records without rewriting cloud data."""
     notice = order.get("order_notice") or {}
+    if not isinstance(notice,dict):return False
     if notice.get("kind") == "initial_note":
         return True
     changes = notice.get("changes") or {}
-    return (not notice.get("kind") and isinstance(changes,dict) and len(changes)==1
-            and next(iter(changes.values())).get("label")=="Yeni sipariş notu")
+    if notice.get("kind") or not isinstance(changes,dict) or len(changes)!=1:return False
+    first=next(iter(changes.values()))
+    return isinstance(first,dict) and first.get("label")=="Yeni sipariş notu"
 
 
 def _val(row, local, remote):

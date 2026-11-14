@@ -4,7 +4,7 @@ import tempfile
 import unittest
 import uuid
 from pathlib import Path
-from siparis_uyari import make_notice, pending_notice, revision, acknowledge
+from siparis_uyari import make_notice, pending_notice, revision, acknowledge, initial_note_notice
 from alfa_rtdb import Workstation, DeviceError
 from database import ERPDatabase
 
@@ -24,6 +24,7 @@ class FakeStation:
     _apply_events=Workstation._apply_events
     _apply_progress_events=Workstation._apply_progress_events
     acknowledge_order_notice=Workstation.acknowledge_order_notice
+    acknowledge_notices=Workstation.acknowledge_notices
     _make_items=staticmethod(Workstation._make_items)
 
     def __init__(self):
@@ -44,6 +45,75 @@ class FakeStation:
         raise AssertionError("Unexpected fake GET")
 
 class NoticeTests(unittest.TestCase):
+    def test_initial_note_and_update_are_distinct(self):
+        order=local("23 numaralı kitap")
+        order["order_notice"]=make_notice(None,order)
+        self.assertTrue(initial_note_notice(order))
+        legacy=copy.deepcopy(order)
+        legacy["order_notice"].pop("kind")
+        self.assertTrue(initial_note_notice(legacy))
+        edited=copy.deepcopy(order)
+        edited["order_note"]="24 numaralı kitap"
+        edited["order_notice"]=make_notice(order,edited)
+        self.assertFalse(initial_note_notice(edited))
+        self.assertIsNone(make_notice(None,local()))
+
+    def test_offline_ack_then_start_progress_and_complete_before_initial_sync(self):
+        with tempfile.TemporaryDirectory() as directory:
+            db=ERPDatabase(ROOT/"KİTAPS.xlsx",data_dir=directory)
+            code=next(iter(db.katalog))
+            station=FakeStation()
+            class NoNetwork:
+                uid="ci-device"
+            db.cloud_api=NoNetwork()
+            order=db.yeni_siparis_olustur(local("Ayrı koli",book=code),local(book=code)["kitaplar"])
+            expected=revision(order)
+            db.queue_notice_ack(order,expected)
+            self.assertFalse(pending_notice(order))
+            db.siparis_durumunu_degistir(order,"aktif")
+            db.siparis_ilerleme_degistir(order,code,"SB",2,2)
+            db.siparis_durumunu_degistir(order,"tamamlandi")
+            db=ERPDatabase(ROOT/"KİTAPS.xlsx",data_dir=directory)
+            order=db.siparisler[0]
+            self.assertFalse(pending_notice(order))
+            kinds=[]
+            for _ in range(8):
+                batch=db.next_outbox_batch()
+                if not batch:break
+                kind=batch["kind"];kinds.append(kind)
+                if kind=="commit":
+                    self.assertEqual(batch["edits"][0]["order"]["durum"],"havuz")
+                    result=station.commit(batch["edits"])
+                elif kind=="notice_ack":
+                    self.assertTrue(batch["events"][0]["order_id"])
+                    result=station.acknowledge_notices(batch["events"])
+                elif kind=="status":result=station.transition(batch["events"])
+                else:result=station.progress(batch["events"])
+                db.confirm_outbox(batch,result)
+                self.assertFalse(pending_notice(order))
+            self.assertEqual(kinds,["commit","notice_ack","status","progress","status"])
+            self.assertEqual(db.pending_count,0)
+            remote=station.rows[order["bulut_id"]]
+            self.assertEqual(remote["status"],"tamamlandi")
+            self.assertFalse(pending_notice(remote))
+
+    def test_old_ack_rejection_restores_warning(self):
+        with tempfile.TemporaryDirectory() as directory:
+            db=ERPDatabase(ROOT/"KİTAPS.xlsx",data_dir=directory)
+            code=next(iter(db.katalog))
+            local_order=local("Ayrı koli",book=code)
+            order=db.yeni_siparis_olustur(local_order,local_order["kitaplar"])
+            order["bulut_id"]=str(uuid.uuid4());order["bulut_version"]=1
+            db.siparisleri_kaydet()
+            db.cloud_api=object()
+            db.queue_notice_ack(order,revision(order))
+            batch=db.next_outbox_batch()
+            self.assertEqual(batch["kind"],"notice_ack")
+            db.quarantine_batch(batch,"revision mismatch")
+            self.assertTrue(pending_notice(order))
+            self.assertEqual(db.pending_count,0)
+            self.assertEqual(order["bulut_version"],0)
+
     def test_optional_creation_and_semantic_diffs(self):
         before=local()
         self.assertIsNone(make_notice(None,before))
