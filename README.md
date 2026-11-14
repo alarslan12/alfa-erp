@@ -1,4 +1,4 @@
-# ALFACOPYCENTER Suite v2.0.34 (ön izleme)
+# ALFACOPYCENTER Suite v2.0.35 (ön izleme)
 
 **Tek Windows kurulumu**, dört seçilebilir bileşen:
 
@@ -10,7 +10,7 @@
 | ALFA Print Center | PrintSurveillance/AlfaPrintSurveillance.exe | Seçilebilir, varsayılan |
 | Arka plan yardımcıları | Bildirim, PrintAgent, PrintSupervisor | Seçilen bileşene bağlı |
 
-Kurulum: `ALFACOPYCENTER_Suite_Setup_V2_0_34.exe`. Aynı Inno Setup AppId
+Kurulum: `ALFACOPYCENTER_Suite_Setup_V2_0_35.exe`. Aynı Inno Setup AppId
 (`ALFACOPYCENTER.Suite`) ve kurulum yolu korundu:
 `%LOCALAPPDATA%\Programs\ALFACOPYCENTER`.
 
@@ -202,3 +202,13 @@ Kapaklarda yalnızca mevcut SB/RNK adetleri sağ üstte gösterilir; siyah topla
 - Kalan sayfa sayısı sipariş satırındaki gerçek nüsha ve sayfa bilgisiyle hesaplanır. Eksik sayfa bilgisi varsa belirtilir.
 - Üretim toplamları filtrelerden bağımsız tüm aktif siparişleri kapsar. Filtrelenmiş sipariş sayısı ayrı gösterilir. İşlem ve seçim düğmeleri ayrı bir satırda kalır. Dar ekranda göstergeler iki satıra yerleşir.
 - Mevcut sipariş hazırlama/kolileme, not sistemi, katalog, Firebase kuralları ve canlı veriler değiştirilmez. v2.0.33 özellikleri korunur; v2.0.30 kararlı kanalda kalır.
+
+
+# ALFACOPYCENTER Suite v2.0.35 — Yüksek görünürlük / renk körlüğü modu (ön izleme)
+
+- Personel ve Yönetici > Ayarlar > Görünüm altında isteğe bağlı Renk körlüğü modu. Cihazın mevcut tema ayarından bağımsız, yerelde kalıcıdır.
+- Tam kolili kitapların kartları ve kapakları yoğun cyan/mavi tint, 3 px belirgin kenar, güçlü hover ve mevcut tik ile ayrılır. Kolileme geri alınınca normal kart geri gelir.
+- Tamamlanan sipariş kartları, durum rozetleri, koli ilerleme çubuğu ve paketleme göstergeleri cyan; hazırlama çubuğu sarı.
+- Okunmamış not ve güncelleme uyarılarında yüksek kontrastlı parlak sarı, sürekli görünür çerçeve ve yavaş renk geçişi. Eski/çıkarılan değerler sarı, yeni/eklenen değerler cyan; metinsel açıklamalar korunur.
+- Mod kapatıldığında önceki renkler geri gelir. Açık, koyu ve kontrast temasının üzerinde uygulanır; mevcut kartları yeniden oluşturmaz.
+- Sipariş verileri, Firebase güvenlik kuralları, katalog ve v2.0.34 üretim özeti korunur. Kararlı kanal v2.0.30 olarak kalır; yeni sürüm ön izleme.

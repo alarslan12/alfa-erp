@@ -22,3 +22,32 @@ class ColorblindModeTests(unittest.TestCase):
             for token in ('#00dfff','#ffed00','OrderDoneTag','BoxProgress','OrderReviewNew','ProductionMetric','OrderRow[orderStatus="tamamlandi"]'):
                 self.assertIn(token,qss)
             self.assertNotIn('#36a86e',qss)
+
+    def test_existing_packed_card_recolors_in_place(self):
+        import os
+        os.environ.setdefault('QT_QPA_PLATFORM','offscreen')
+        from PySide6.QtWidgets import QApplication,QFrame
+        from kart_siparis import set_boxed_card_style,refresh_accessible_order_widgets
+        app=QApplication.instance() or QApplication(['alfa-colorblind-ci'])
+        before=app.property('alfa_colorblind')
+        before_theme=app.property('alfa_theme')
+        card=QFrame(); card.setObjectName('TrackBookCard')
+        try:
+            app.setProperty('alfa_theme','koyu')
+            app.setProperty('alfa_colorblind',False)
+            set_boxed_card_style(card,{'adet':2,'koli':2})
+            self.assertIn('#36a86e',card.styleSheet())
+            app.setProperty('alfa_colorblind',True)
+            refresh_accessible_order_widgets()
+            self.assertIn('#00dfff',card.styleSheet())
+            set_boxed_card_style(card,{'adet':2,'koli':1})
+            self.assertEqual(card.styleSheet(),'')
+            set_boxed_card_style(card,{'adet':2,'koli':2})
+            app.setProperty('alfa_colorblind',False)
+            refresh_accessible_order_widgets()
+            self.assertIn('#36a86e',card.styleSheet())
+        finally:
+            card.close()
+            app.setProperty('alfa_colorblind',before)
+            app.setProperty('alfa_theme',before_theme)
+            refresh_accessible_order_widgets()

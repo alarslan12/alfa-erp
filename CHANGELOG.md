@@ -1,5 +1,11 @@
 # ALFA ERP · Sürüm Geçmişi
 
+## [v2.0.35] — Renk körlüğü modu (ön izleme)
+
+- Personel ve Yönetici için temadan bağımsız yüksek görünürlük ayarı.
+- Kolileme/tamamlanma cyan, uyarılar ve hazırlama sarı; güçlü kenar ve hover.
+- Önceki işlevler ve Firebase kuralları korunur.
+
 ## [v2.0.34] — 2026-11-14 (ön izleme)
 
 - Aktif siparişlerde kalan kitap, basılacak kitap/sayfa ve kolilemeye hazır kitap göstergeleri.

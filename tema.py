@@ -1706,3 +1706,7 @@ QLabel#ProductionMetricValue[productionTone="print"] {color:#d4c2ff;}
 QLabel#ProductionMetricValue[productionTone="packing"] {color:#96efbe;}
 QLabel#ProductionMetricDetail {background:transparent;color:#b9cadd;font-size:10px;border:0;padding:0;}
 """
+
+QSS += """
+QPushButton#OrderNoticeInline {font-size:14px;font-weight:850;background:#ad5a00;color:white;padding:10px;}
+"""

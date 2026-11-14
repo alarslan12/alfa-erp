@@ -6,6 +6,12 @@ https://github.com/alarslan12/alfa-erp/releases.
 """
 
 _RELEASES = [
+    ("2.0.35", "Renk körlüğü modu", [
+        "Personel ve Yönetici ayarlarına kalıcı ve temadan bağımsız renk körlüğü modu.",
+        "Kolilenen kitap ve tamamlanan siparişlerde yoğun elektrik mavisi, güçlü kenar ve hover.",
+        "Okunmamış not ve güncelleme uyarılarında parlak sarı; durumlar metinle de ayrılır.",
+        "Üretim özeti, sipariş işlevleri ve Firebase kuralları korunur.",
+    ]),
     ("2.0.34", "Aktif sipariş üretim özeti", [
         "Aktif siparişler üstünde altı kompakt gösterge: sipariş, kitap, kalan, basılacak, kolilemeye hazır ve ciro.",
         "SB/RNK adetleri, basılacak sayfa ve kolileme ilerlemesi gösterilir.",
