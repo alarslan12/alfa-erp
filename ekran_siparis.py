@@ -456,6 +456,10 @@ class SiparisView(QWidget):
                 self._row_cache[sid].set_selected(sid in self.selected)
         self._update_selected()
 
+    def stop_label_job(self):
+        if self._label_job is not None and self._label_job.isRunning():
+            self._label_job.wait()
+
     def open_shipping_label(self, sid):
         from pathlib import Path
         from firebase_pair_ui import Task

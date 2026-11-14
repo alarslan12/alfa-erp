@@ -105,6 +105,7 @@ def download_label(client, order_id, reference, filename):
     save_pdf_atomic(filename, raw)
     # An owner can inspect/download the file, but this does not substitute
     # for the staff's acknowledgement. Record only after an atomic local save.
+    acknowledged = label_ready(before)
     if role == 'staff' and before.get('status') in ('havuz','aktif'):
         def mutate(row):
             if (not isinstance(row, dict) or row.get('deleted_at')
@@ -121,4 +122,5 @@ def download_label(client, order_id, reference, filename):
             _audit(row, client, 'shipping_label_downloaded', revision)
             return row, True
         client._atomic_order(order_id, mutate)
-    return {'acknowledged': role == 'staff'}
+        acknowledged = True
+    return {'acknowledged': acknowledged}
