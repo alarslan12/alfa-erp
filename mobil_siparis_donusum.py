@@ -54,6 +54,10 @@ def convert_mobile_order(row, items, catalog):
         'bulut_siparis_no': int(row.get('order_number') or 0),
         'bulut_version': int(row.get('version') or 1),
     }
+    # Only small metadata travels with ordinary order synchronization.
+    for key in ('shipping_label', 'shipping_label_receipt'):
+        if isinstance(row.get(key), dict):
+            output[key] = dict(row[key])
     if row.get('shipping_fee') is not None:
         output['kargo_ucreti'] = float(row['shipping_fee'])
     if status in ('aktif', 'tamamlandi'):

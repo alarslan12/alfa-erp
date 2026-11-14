@@ -2,7 +2,7 @@
 from datetime import datetime
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QComboBox, QCheckBox,
-    QFrame, QToolButton, QListView, QAbstractItemView, QSizePolicy
+    QFrame, QToolButton, QListView, QAbstractItemView, QSizePolicy, QFileDialog, QMessageBox
 )
 from PySide6.QtCore import Qt, QTimer
 from widgets import text, button, scrollable, error, confirm
@@ -12,6 +12,7 @@ from editor_siparis import SiparisEditor
 from takvim import TarihPopup
 from kargo_fisi import dosyaya_yaz, tarayicida_ac
 from kargo_ucreti import request_shipping_cost
+from kargo_etiketi import requires_label, label_ready
 from siparis_arsivi import ayir_tamamlananlar
 from temali_combo import AlfaTemaliCombo
 
@@ -30,6 +31,7 @@ class SiparisView(QWidget):
         self.on_open_pool = on_open_pool
         self._row_cache = {}
         self._row_signatures = {}
+        self._label_job = None
         self._empty_row = None
         self._recent_sid = None
         # Tamamlananlar: yalnızca son 5 günlük kartları otomatik oluştur.
@@ -316,7 +318,10 @@ class SiparisView(QWidget):
         return (self.db.siparis_durumu(order), str(order.get('kod','')),
                 str(order.get('platform','')), str(order.get('tarih','')),
                 str(order.get('tamamlanma_tarihi','')),
-                str(order.get('ciro',0)), books)
+                str(order.get('ciro',0)), str(order.get('siparis_turu','')),
+                str(order.get('bulut_id') or ''),
+                ((order.get('shipping_label') or {}).get('revision'),
+                 (order.get('shipping_label_receipt') or {}).get('revision')), books)
 
     def refresh_rows(self, *_, reset_position=False):
         old_pos = self.rows_scroll.verticalScrollBar().value()
@@ -356,7 +361,7 @@ class SiparisView(QWidget):
                     self.db, order, self.covers, self.open_editor,
                     self.change_order, self.check_order,
                     selected=sid in self.selected, on_delete=self.delete_order if self.admin_mode else None,
-                    allow_edit=self.admin_mode,
+                    allow_edit=self.admin_mode, on_label=self.open_shipping_label,
                 )
                 self._row_signatures[sid] = signature
             else:
@@ -451,11 +456,89 @@ class SiparisView(QWidget):
                 self._row_cache[sid].set_selected(sid in self.selected)
         self._update_selected()
 
+    def open_shipping_label(self, sid):
+        from pathlib import Path
+        from firebase_pair_ui import Task
+        from rtdb_kargo_etiketi import upload_label, download_label
+        if self._label_job is not None:
+            return
+        order = next((x for x in self.db.siparisler if str(x.get('id')) == str(sid)), None)
+        if not order or not requires_label(order):
+            return
+        client = self.db.cloud_api
+        order_id = order.get('bulut_id')
+        if not client or not order_id:
+            return error(self, 'Önce siparişin buluta eşitlenmesini bekle.')
+        if self.db.pending_count:
+            return error(self, 'Bekleyen bulut işlemleri eşitlendikten sonra fiş işlemini yap.')
+        label = order.get('shipping_label') or {}
+        can_upload = self.admin_mode and self.db.siparis_durumu(order) != 'tamamlandi'
+        upload = can_upload and not label
+        if can_upload and label:
+            prompt = QMessageBox(self)
+            prompt.setWindowTitle('Kargo fişi')
+            prompt.setText(f"#{sid} · {label.get('filename','PDF')}\n"
+                           + ('Personel indirdi.' if label_ready(order) else 'Personel indirmeyi bekliyor.'))
+            replace = prompt.addButton('Yeni PDF yükle', QMessageBox.ButtonRole.ActionRole)
+            get = prompt.addButton('PDF indir', QMessageBox.ButtonRole.ActionRole)
+            prompt.addButton(QMessageBox.StandardButton.Cancel)
+            prompt.exec()
+            if prompt.clickedButton() not in (replace, get):
+                return
+            upload = prompt.clickedButton() == replace
+        if upload:
+            if label and not confirm(self, 'Yeni fiş yüklenirse personelin önceki indirme onayı sıfırlanacak. Devam edilsin mi?'):
+                return
+            filename, _ = QFileDialog.getOpenFileName(self, 'Kargonomi kargo fişini seç', '', 'PDF (*.pdf)')
+            if not filename:
+                return
+            fn = upload_label
+        else:
+            if not label:
+                return error(self, 'Yönetici henüz bu sipariş için fiş yüklemedi.')
+            folder = Path.home() / 'Downloads'
+            if not folder.is_dir():
+                folder = Path.home()
+            suggested = str(folder / f'Kargo_fisi_{sid}.pdf')
+            filename, _ = QFileDialog.getSaveFileName(self, 'Kargo fişini kaydet', suggested, 'PDF (*.pdf)')
+            if not filename:
+                return
+            if not filename.lower().endswith('.pdf'):
+                filename += '.pdf'
+            fn = download_label
+        reference = str(order.get('kod') or '')
+        self._label_job = Task(lambda: fn(client, order_id, reference, filename), self)
+        job = self._label_job
+        # Disable only this view during a single file transfer, not the app's
+        # synchronization or notification workers.
+        self.setEnabled(False)
+
+        def done():
+            self._label_job = None
+            self.setEnabled(True)
+            message = job.failure
+            live = getattr(self.window(), 'live', None)
+            if live:
+                live.force_pull = True
+                live.pull()
+            if message:
+                error(self, message)
+            else:
+                note = ('Fiş yüklendi. Personelin indirmesi bekleniyor.' if upload else
+                        'PDF kaydedildi. ' + ('Personel indirme onayı eşitleniyor.'
+                        if not self.admin_mode else 'Yönetici indirmesi personel onayı yerine geçmez.'))
+                QMessageBox.information(self, 'Kargo fişi', note)
+            job.deleteLater()
+        job.finished.connect(done, Qt.ConnectionType.QueuedConnection)
+        job.start()
+
     def change_order(self, order, new_status):
         action = {'aktif':'aktife alınsın','tamamlandi':'tamamlansın',
                   'havuz':'havuza geri alınsın'}.get(new_status, 'değiştirilsin')
         shipping_fee = None
         if new_status == 'tamamlandi':
+            if not label_ready(order):
+                return error(self, 'Açık adres kargo fişi personel tarafından indirilmeden sipariş tamamlanamaz.')
             category = self.db.kargo_kategorisi(order)
             if category:
                 label = 'Telafi siparişi' if category == 'telafi' else 'Normal açık adres siparişi'

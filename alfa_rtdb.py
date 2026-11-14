@@ -424,6 +424,10 @@ class Workstation:
                 def edit_existing(previous):
                     if int(previous.get("version") or 0) != expected:
                         raise DeviceError("Sipariş başka cihazda değişti", 409)
+                    if (str(previous.get("shipping_reference") or "") != str(local.get("kod") or "") or
+                            str(previous.get("platform") or "") != str(local.get("platform") or "")):
+                        previous.pop("shipping_label", None)
+                        previous.pop("shipping_label_receipt", None)
                     previous["platform"] = str(local.get("platform") or "")
                     previous["shipping_reference"] = str(local.get("kod") or "")
                     previous["order_type"] = str(local.get("siparis_turu") or "")
@@ -591,6 +595,9 @@ class Workstation:
                     if str(row.get("status")) != src:
                         raise DeviceError("Sipariş durumu başka cihazda değişti; yenile",409)
                     if dst=="tamamlandi":
+                        from kargo_etiketi import label_ready
+                        if not label_ready(row):
+                            raise DeviceError("Açık adres kargo fişi personel tarafından indirilmeden sipariş tamamlanamaz.",422)
                         items=(row.get("items") or {}).values()
                         if not all(int(x.get("boxed_count") or 0)>=int(x.get("quantity") or 0)
                                    for x in items):
