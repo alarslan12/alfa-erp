@@ -446,8 +446,8 @@ class Workstation:
                     result = {"local_id":local_id,"uuid":order_id,
                               "version":previous["version"],
                               "order_number":previous["order_number"]}
-                    if "order_notice" in previous:
-                        result["notice_state"] = {"order_notice":previous["order_notice"],
+                    if "order_notice" in previous or "order_notice" in local:
+                        result["notice_state"] = {"order_notice":previous.get("order_notice"),
                                                   "order_note":previous.get("order_note","")}
                     return previous, result
                 results.append(self._atomic_order(order_id, edit_existing))
@@ -464,9 +464,13 @@ class Workstation:
                 if previous is not None:
                     if previous.get("client_request_id") != request_id:
                         raise DeviceError("Sipariş kimliği çakıştı", 409)
-                    return None, {"local_id":local_id, "uuid":order_id,
-                                  "version":int(previous["version"]),
-                                  "order_number":int(previous["order_number"])}
+                    result = {"local_id":local_id, "uuid":order_id,
+                              "version":int(previous["version"]),
+                              "order_number":int(previous["order_number"])}
+                    if "order_notice" in previous or "order_notice" in local:
+                        result["notice_state"] = {"order_notice":previous.get("order_notice"),
+                                                  "order_note":previous.get("order_note","")}
+                    return None, result
                 number = self._reserve_order_number()
                 now = datetime.now(timezone.utc).isoformat()
                 entry = {"id":order_id,"workspace_id":WORKSPACE_ID,
@@ -507,10 +511,11 @@ class Workstation:
                 notice = acknowledge(row, expected, self.uid)
             except ValueError as exc:
                 raise DeviceError(str(exc),409) from None
+            base_version = int(row.get("version") or 1)
             if not pending_notice(row):
-                return None, notice
+                return None, {"notice":notice,"base_version":base_version,"version":base_version}
             row["order_notice"] = notice
-            row["version"] = int(row.get("version") or 1) + 1
+            row["version"] = base_version + 1
             row["updated_at"] = datetime.now(timezone.utc).isoformat()
             event_id = str(uuid.uuid4())
             row.setdefault("event_log",{})[event_id] = {
@@ -518,7 +523,7 @@ class Workstation:
                 "device_id":self.uid, "device_name":socket.gethostname()[:120],
                 "order_ids":[order_id], "created_at":row["updated_at"],
                 "details":{"revision":expected}}
-            return row, notice
+            return row, {"notice":notice,"base_version":base_version,"version":row["version"]}
         return self._atomic_order(order_id, mutate)
 
     def _apply_progress_events(self, events):
@@ -562,6 +567,8 @@ class Workstation:
                     op_id=str(event["op_id"])
                     if op_id in processed:
                         continue
+                    if str(event.get("notice_revision") or "") != revision(row):
+                        raise DeviceError("Sipariş içeriği değişti; ilerlemeyi yeniden kontrol edin",409)
                     key=(str(event.get("book_code")),str(event.get("print_type")))
                     match=by_key.get(key)
                     if match is None:
@@ -637,8 +644,11 @@ class Workstation:
                                      "version":int(row.get("version") or 0)}
                     if str(row.get("status")) != src:
                         raise DeviceError("Sipariş durumu başka cihazda değişti; yenile",409)
-                    if dst in ("aktif","tamamlandi") and pending_notice(row):
-                        raise DeviceError("Sipariş güncellemesi okunup onaylanmalı",422)
+                    if dst in ("aktif","tamamlandi"):
+                        if pending_notice(row):
+                            raise DeviceError("Sipariş güncellemesi okunup onaylanmalı",422)
+                        if str(event.get("notice_revision") or "") != revision(row):
+                            raise DeviceError("Sipariş içeriği değişti; güncel siparişi tekrar kontrol edin",409)
                     if dst=="tamamlandi":
                         items=(row.get("items") or {}).values()
                         if not all(int(x.get("boxed_count") or 0)>=int(x.get("quantity") or 0)

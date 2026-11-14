@@ -238,6 +238,7 @@ class ERPDatabase:
                                 'sequence':self._next_revision,'op_id':str(uuid.uuid4()),
                                 'local_id':sid,'order_id':row['bulut_id'],
                                 'book_code':key[0],'print_type':key[1],
+                                'notice_revision':revision(prior),
                                 'delta_ready':dr,'delta_boxed':dk,
                                 'base_ready':old_ready,'base_boxed':old_boxed,
                                 'target_ready':target_ready,'target_boxed':target_boxed})
@@ -246,7 +247,7 @@ class ERPDatabase:
                         self._status_events.append({'kind':'status',
                             'sequence':self._next_revision,'op_id':str(uuid.uuid4()),
                             'local_id':sid,'order_id':row['bulut_id'],
-                            'from_status':a,'to_status':b,
+                            'from_status':a,'to_status':b,'notice_revision':revision(prior),
                             'shipping_fee':row.get('kargo_ucreti') if b=='tamamlandi' else None})
                     if status_changed and next_status=='aktif':
                         enqueue_status(previous_status,next_status)
@@ -892,16 +893,25 @@ class ERPDatabase:
             siparis.update(onceki)
             raise
 
-    def apply_notice_ack(self, siparis, expected, notice):
+    def apply_notice_ack(self, siparis, expected, notice, base_version=None, version=None):
         if siparis not in self.siparisler or revision(siparis) != expected:
             raise ValueError('Sipariş yeniden değişti; güncel uyarıyı açın.')
         previous = siparis.get('order_notice')
+        previous_version = siparis.get('bulut_version')
+        if notice.get('ack_revision') != expected:
+            raise ValueError('Okundu onayı doğrulanamadı.')
         siparis['order_notice'] = notice
+        if version is not None and previous_version == base_version:
+            siparis['bulut_version'] = version
         self._cloud_applying = True
         try:
             self.siparisleri_kaydet()
         except Exception:
             siparis['order_notice'] = previous
+            if previous_version is None:
+                siparis.pop('bulut_version',None)
+            else:
+                siparis['bulut_version'] = previous_version
             raise
         finally:
             self._cloud_applying = False

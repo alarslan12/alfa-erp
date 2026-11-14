@@ -134,8 +134,9 @@ class SiparisEditor(QDialog):
         self.header_lay.addWidget(close)
 
         if self.mode != 'edit' and order.get('order_note'):
-            note=plain('Sipariş notu: '+str(order['order_note']))
-            note.setStyleSheet('font-weight:750;background:#fff0cc;color:#754900;padding:8px;border-radius:6px;')
+            note=QPlainTextEdit('Sipariş notu: '+str(order['order_note']))
+            note.setReadOnly(True);note.setFixedHeight(66)
+            note.setStyleSheet('font-weight:750;background:#fff0cc;color:#754900;padding:5px;border-radius:6px;')
             self.body_lay.addWidget(note)
         if self.mode != 'edit' and pending_notice(order):
             warning=button('⚠ Siparişle ilgili güncelleme var · okumak için tıkla')
@@ -782,6 +783,7 @@ class SiparisEditor(QDialog):
 
     def build_edit(self):
         order = self.current()
+        self._edit_content_signature=self.db._order_content_signature(order)
         status = self.db.siparis_durumu(order)
         editable = status in ('havuz', 'aktif')
         header = text('GÖNDERİ VE SİPARİŞ BİLGİLERİ', 'OrderEditSection')
@@ -985,6 +987,9 @@ class SiparisEditor(QDialog):
             return error(self,'Seçilen baskı türü bu kitap için kullanılamıyor.')
 
     def save_edit(self):
+        current=self.current()
+        if not current or self.db._order_content_signature(current)!=self._edit_content_signature:
+            return error(self,'Sipariş başka cihazda değişti; düzenleme penceresini kapatıp güncel veriyi açın.')
         old = {(str(i['kod']), str(i.get('tur', 'SB')).upper()): i for i in self.current().get('kitaplar', [])}
         items = []
         for (code, kind), spin in self.qty_inputs.items():

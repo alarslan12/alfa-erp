@@ -405,7 +405,7 @@ class SiparisKarti(QFrame):
             pool_info.setToolTip('Sipariş henüz aktife alınmadı')
             right.addWidget(pool_info)
         if self._notice_pending:
-            self._notice_btn=button('⚠ Siparişle ilgili\\ngüncelleme var')
+            self._notice_btn=button('⚠ Siparişle ilgili\ngüncelleme var')
             self._notice_btn.setFixedHeight(38)
             self._notice_btn.setToolTip('Değişiklikleri okumak ve onaylamak için tıklayın')
             self._notice_btn.clicked.connect(lambda:on_open(siparis['id'],'track'))
@@ -414,7 +414,6 @@ class SiparisKarti(QFrame):
             self._notice_timer.setInterval(700)
             self._notice_timer.timeout.connect(self._pulse_notice)
             self._pulse_notice()
-            self._notice_timer.start()
         detail = button('Sipariş detayı', 'DetailAction')
         detail.setToolTip('Hazırlama, kolileme ve kitap PDF ekranını aç')
         detail.clicked.connect(lambda: on_open(siparis['id'], 'track'))
@@ -492,6 +491,16 @@ class SiparisKarti(QFrame):
         root.addWidget(box)
         self._right_box = box
         self.set_selected(selected)
+
+    def showEvent(self,event):
+        super().showEvent(event)
+        if self._notice_pending:
+            self._notice_timer.start()
+
+    def hideEvent(self,event):
+        if self._notice_pending:
+            self._notice_timer.stop()
+        super().hideEvent(event)
 
     def _pulse_notice(self):
         if not self._notice_pending:

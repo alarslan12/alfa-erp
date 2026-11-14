@@ -1,4 +1,5 @@
 """Modal order update review and transient cover preview."""
+import copy
 from PySide6.QtCore import Qt, QPoint, Slot
 from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import (QApplication, QDialog, QFrame, QVBoxLayout,
@@ -65,6 +66,7 @@ class OrderNoticeDialog(QDialog):
         super().__init__(parent)
         self.db, self.order = db, order
         self.expected = revision(order)
+        self.rendered_changes = copy.deepcopy((order.get("order_notice") or {}).get("changes") or {})
         self.worker = None
         self.setWindowTitle("ALFA ERP · Sipariş güncellemesi")
         self.setWindowModality(Qt.WindowModality.ApplicationModal)
@@ -104,13 +106,13 @@ class OrderNoticeDialog(QDialog):
                 new = plain("Yeni: "+str(item.get("new") or "—"))
                 new.setStyleSheet("font-weight:800;font-size:14px;color:#126d45;background:#d9f5e8;padding:9px;border-radius:5px;")
                 lay.addWidget(new)
-        lay.addStretch()
-        scroll.setWidget(body)
-        root.addWidget(scroll, 1)
         if order.get("order_note"):
             note = plain("Güncel sipariş notu: "+str(order["order_note"]))
             note.setStyleSheet("font-weight:750;color:#794a00;background:#fff1cc;padding:9px;border-radius:6px;")
-            root.addWidget(note)
+            lay.addWidget(note)
+        lay.addStretch()
+        scroll.setWidget(body)
+        root.addWidget(scroll, 1)
         self.checked = QCheckBox("Okudum, anladım.")
         root.addWidget(self.checked)
         self.status = plain("")
@@ -130,7 +132,8 @@ class OrderNoticeDialog(QDialog):
         if self.worker is not None or not self.checked.isChecked():
             return
         try:
-            if revision(self.order)!=self.expected or self.order not in self.db.siparisler:
+            if (revision(self.order)!=self.expected or self.order not in self.db.siparisler or
+                self.rendered_changes != (self.order.get("order_notice") or {}).get("changes")):
                 raise ValueError("Sipariş değişti. Pencereyi kapatıp yeni uyarıyı açın.")
             if not self.db.cloud_required and self.db.cloud_api is None:
                 self.db.apply_notice_ack(self.order, self.expected, acknowledge(self.order,self.expected))
@@ -157,9 +160,14 @@ class OrderNoticeDialog(QDialog):
         try:
             if worker.failure:
                 raise ValueError(worker.failure)
-            if not isinstance(worker.result,dict) or worker.result.get("ack_revision")!=self.expected:
+            result=worker.result
+            if not isinstance(result,dict) or not isinstance(result.get("notice"),dict):
                 raise ValueError("Bulut onayı doğrulanamadı.")
-            self.db.apply_notice_ack(self.order,self.expected,worker.result)
+            notice=result["notice"]
+            if notice.get("ack_revision")!=self.expected:
+                raise ValueError("Bulut onayı doğrulanamadı.")
+            self.db.apply_notice_ack(self.order,self.expected,notice,
+                                     result.get("base_version"),result.get("version"))
             self.accept()
         except Exception as exc:
             self.status.setText(str(exc)+" · Uyarı kaldırılmadı.")
