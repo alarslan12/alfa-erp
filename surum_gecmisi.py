@@ -6,6 +6,13 @@ https://github.com/alarslan12/alfa-erp/releases.
 """
 
 _RELEASES = [
+    ("2.0.29", "Açık adres siparişlerinde zorunlu kargo fişi", [
+        "Yönetici Kargonomi PDF fişini ilgili açık adres siparişine yükler.",
+        "Personel PDF'yi indirip kaydeder; SHA-256 doğrulanınca indirme onayı kaydedilir.",
+        "Fiş değişince önceki onay geçersiz olur; güncel onay olmadan açık adres siparişi tamamlanamaz.",
+        "Yeni Firebase RTDB güvenlik kuralları yayımlanmalıdır. PDF sınırı 512 KB.",
+        "Diğer platformlar, katalog ve kapaklar korunur.",
+    ]),
     ("2.0.28", "Sipariş kapaklarında sade SB/RNK etiketleri", [
         "Siyah toplam adet rozeti kaldırıldı; yalnızca SB ve RNK adetleri kapak üzerinde gösterilir.",
         "Etiketler sağ üstte yer alır; tek nüsha etiketleri korunur.",

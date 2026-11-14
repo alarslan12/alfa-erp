@@ -1,5 +1,13 @@
 # ALFA ERP · Sürüm Geçmişi
 
+## [v2.0.29] — 2026-11-14
+
+- Açık adres siparişlerine özel Yönetici PDF yükleme, Personel indirme/onay.
+- SHA-256 doğrulaması, fiş değiştiğinde onay sıfırlama, sunucu tamamlanma kontrolü.
+- Firebase emülatör yetki testleri ve gerçek cihazda ayrıca doğrulama.
+- Yeni RTDB Rules dosyası canlı projede yayımlanmalıdır.
+
+
 ## [v2.0.28] — 2026-11-14
 
 - Sipariş kapaklarında siyah toplam adet rozeti kaldırıldı; yalnızca SB/RNK etiketleri gösterilir.
