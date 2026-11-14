@@ -411,6 +411,11 @@ class ERPDatabase:
                 continue
             remote=cloud.get(str(row['bulut_id']))
             if not remote or remote.get('deleted_at'):continue
+            # Never mistake a note-only or revision-only edit for legacy
+            # progress/status recovery: such a migration would lose the note.
+            if (str(row.get('order_note') or '') != str(remote.get('order_note') or '') or
+                    revision(row)!=revision(remote)):
+                continue
             if (str(row.get('kod',''))!=str(remote.get('shipping_reference') or '') or
                 str(row.get('platform',''))!=str(remote.get('platform') or '') or
                 str(row.get('siparis_turu',''))!=str(remote.get('order_type') or '') or
@@ -450,18 +455,18 @@ class ERPDatabase:
                 self._next_revision+=1
                 self._status_events.append({'kind':'status','sequence':self._next_revision,
                      'op_id':str(uuid.uuid4()),'local_id':sid,'order_id':row['bulut_id'],
-                     'from_status':from_status,'to_status':to_status,'shipping_fee':None})
+                     'from_status':from_status,'to_status':to_status,'notice_revision':revision(remote),'shipping_fee':None})
             for key,dr,dk in deltas:
                 self._next_revision+=1
                 self._progress_events.append({'kind':'progress','sequence':self._next_revision,
                      'op_id':str(uuid.uuid4()),'local_id':sid,'order_id':row['bulut_id'],
-                     'book_code':key[0],'print_type':key[1],
+                     'book_code':key[0],'print_type':key[1],'notice_revision':revision(remote),
                      'delta_ready':dr,'delta_boxed':dk})
             for from_status,to_status in suffix:
                 self._next_revision+=1
                 self._status_events.append({'kind':'status','sequence':self._next_revision,
                      'op_id':str(uuid.uuid4()),'local_id':sid,'order_id':row['bulut_id'],
-                     'from_status':from_status,'to_status':to_status,
+                     'from_status':from_status,'to_status':to_status,'notice_revision':revision(remote),
                      'shipping_fee':row.get('kargo_ucreti')})
             changed=True
         if changed:self._write_outbox()

@@ -17,6 +17,8 @@ BASE_REQUIRED = {
     'widgets.py': {'fallback_cover_pixmap', 'refresh_cover_placeholders', 'cover_label'},
     'kart_siparis.py': {'ProgressCover', 'SiparisKarti'},
     'editor_siparis.py': {'SiparisTakipSekmeleri', 'SiparisEditor'},
+    'siparis_uyari.py': {'make_notice','pending_notice','acknowledge'},
+    'siparis_uyari_ui.py': {'OrderNoticeDialog','ChangedBook'},
 }
 ADMIN_REQUIRED = {
     'rtdb_owner_admin.py': {'admin_request'},

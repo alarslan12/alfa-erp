@@ -252,6 +252,10 @@ class Sync(QObject):
             self.push_task=None
             try:
                 self.db.confirm_outbox(batch,results)
+                notice_ids=[r.get('local_id') for r in results
+                            if isinstance(r,dict) and 'notice_state' in r and r.get('local_id') is not None]
+                if notice_ids:
+                    self.changed.emit(notice_ids)
                 self.isolate_batch=False
                 self._consecutive_push_failures=0
                 self.retry_after=0

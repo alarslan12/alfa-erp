@@ -6,6 +6,13 @@ https://github.com/alarslan12/alfa-erp/releases.
 """
 
 _RELEASES = [
+    ("2.0.31", "Sipariş notu ve revizyon onayı (ön izleme)", [
+        "Yeni siparişlerde opsiyonel not; Yönetici için mevcut not düzenleme.",
+        "Kargo, kitap/adet, sipariş türü, platform, ciro ve not değişikliklerinin karşılaştırması.",
+        "Kartta ışıklı güncelleme uyarısı; Okudum, anladım onayı ve kapak hover önizlemesi.",
+        "Revizyon başına bulut onayı; eski kuyruk işlemleri kontrollü.",
+        "Firebase güvenlik kuralları değişmedi; v2.0.30 kararlı sürüm olarak kalır.",
+    ]),
     ("2.0.30", "Stabilite ve performans optimizasyonu", [
         "v2.0.28 çalışan sürümü esas alındı; iptal edilen v2.0.29 kargo fişi dahil değildir.",
         "Güncelleme indirme blokları büyütüldü, arayüz ilerleme olayları sınırlandırıldı.",

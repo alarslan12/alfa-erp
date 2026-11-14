@@ -1,5 +1,12 @@
 # ALFA ERP · Sürüm Geçmişi
 
+## [v2.0.31] — 2026-11-14 (ön izleme)
+
+- Opsiyonel sipariş notları, Yönetici düzenleme alanı ve revizyon bazlı okundu bildirimi.
+- Kart uyarısı; kitap değişiklikleri eski/yeni adetleriyle, kapak hover önizlemesiyle sunulur.
+- Hazırlama/kolileme ve onay işlemleri okunmamış revizyonlarda uygulama düzeyinde kilitlenir.
+- Firebase güvenlik kuralları değiştirilmedi. v2.0.30 kararlı kullanımda kalır.
+
 ## [v2.0.30] — 2026-11-14
 
 - v2.0.28 tabanına dönüş; v2.0.29 kargo fişi iptal.
