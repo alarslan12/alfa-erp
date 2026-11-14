@@ -12,7 +12,7 @@ from widgets import text, button, cover_label, scrollable, clear_layout, error, 
 from kart_siparis import ProgressCover, set_boxed_card_style
 from pdf_kitap import PdfKutuphane
 from ilerleme_kontrol import sonraki_ilerleme, buton_durumlari
-from siparis_uyari import pending_notice, revision
+from siparis_uyari import pending_notice, revision, initial_note_notice
 from siparis_uyari_ui import plain
 
 
@@ -108,6 +108,15 @@ class SiparisEditor(QDialog):
         return next((x for x in self.db.siparisler if str(x.get('id')) == str(self.sid)), None)
 
     def build_ui(self):
+        # Reset references to widgets before scheduling their destruction.
+        self.track_scroll=None
+        self.track_variant_widgets={}
+        self.track_covers={}
+        self.track_cards_by_code={}
+        self.code_checks={}
+        self._track_cards=[]
+        self._bulk_action_rows=[]
+        self.header_summary=None
         clear_layout(self.header_lay)
         clear_layout(self.body_lay)
         order = self.current()
@@ -139,14 +148,18 @@ class SiparisEditor(QDialog):
             note.setStyleSheet('font-weight:750;background:#fff0cc;color:#754900;padding:5px;border-radius:6px;')
             self.body_lay.addWidget(note)
         if self.mode != 'edit' and pending_notice(order):
-            warning=button('⚠ Siparişle ilgili güncelleme var · okumak için tıkla')
+            warning=button('⚠ Siparişin notunu incele' if initial_note_notice(order)
+                           else '⚠ Siparişle ilgili güncelleme var · okumak için tıkla')
             warning.setStyleSheet('font-size:14px;font-weight:850;background:#ad5a00;color:white;padding:10px;')
             def read_notice():
                 from siparis_uyari_ui import OrderNoticeDialog
                 current=self.current()
                 if current and pending_notice(current):
-                    if OrderNoticeDialog(self.db,self.covers,current,self).exec()!=QDialog.DialogCode.Accepted:return
-                self.build_ui();self.on_updated()
+                    dialog=OrderNoticeDialog(self.db,self.covers,current,self,open_detail=True)
+                    accepted=dialog.exec()==QDialog.DialogCode.Accepted
+                    dialog.deleteLater()
+                    if not accepted:return
+                QTimer.singleShot(0,self.on_updated)
             warning.clicked.connect(read_notice)
             self.body_lay.addWidget(warning)
             self.body_lay.addStretch()
@@ -532,7 +545,7 @@ class SiparisEditor(QDialog):
 
     def _layout_bulk_toolbar(self):
         """Beş aracı daima tek satırda ve eşit hücrelerde göster."""
-        if not hasattr(self, '_bulk_action_rows'):
+        if not getattr(self, '_bulk_action_rows',None):
             return
         layout = self._bulk_action_rows[0]
         if layout.count() == len(self._bulk_widgets):
@@ -860,6 +873,7 @@ class SiparisEditor(QDialog):
         self.kind.setEnabled(editable)
         self._sync_compensation_kind(self.kind.currentText())
         self.note_edit=QPlainTextEdit(str(order.get('order_note') or ''))
+        self.note_edit.setObjectName('OrderNoteInput')
         self.note_edit.setPlaceholderText('İsteğe bağlı operatör notu (boş bırakılabilir)')
         self.note_edit.setFixedHeight(72)
         self.note_edit.setEnabled(editable)

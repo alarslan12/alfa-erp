@@ -526,6 +526,17 @@ class Workstation:
             return row, {"notice":notice,"base_version":base_version,"version":row["version"]}
         return self._atomic_order(order_id, mutate)
 
+    def acknowledge_notices(self, events):
+        results=[]
+        for event in events:
+            order_id=str(event.get("order_id") or "")
+            if not order_id:
+                raise DeviceError("Sipariş bulut kimliği bulunamadı",409)
+            receipt=self.acknowledge_order_notice(order_id,str(event["notice_revision"]))
+            results.append({**receipt,"op_id":event["op_id"],"order_id":order_id,
+                            "local_id":event["local_id"]})
+        return results
+
     def _apply_progress_events(self, events):
         """Commit every consecutive progress change for ONE order in ONE CAS.
 
@@ -538,7 +549,8 @@ class Workstation:
         results=[]
         groups=[]
         for event in events:
-            order_id=str(event["order_id"])
+            order_id=str(event.get("order_id") or "")
+            if not order_id:raise DeviceError("Sipariş bulut kimliği bulunamadı",409)
             if not groups or groups[-1][0]!=order_id:
                 groups.append((order_id,[]))
             groups[-1][1].append(event)
@@ -623,7 +635,8 @@ class Workstation:
             return self._apply_progress_events(events)
         results=[]
         for event in events:
-            order_id=str(event["order_id"])
+            order_id=str(event.get("order_id") or "")
+            if not order_id:raise DeviceError("Sipariş bulut kimliği bulunamadı",409)
             op_id=str(event["op_id"])
             def mutate(row):
                 processed = row.setdefault("ops", {})

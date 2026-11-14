@@ -72,6 +72,8 @@ class Push(QThread):
                 result = self.client.transition(self.batch['events'])
             elif self.batch['kind'] == 'progress':
                 result = self.client.progress(self.batch['events'])
+            elif self.batch['kind'] == 'notice_ack':
+                result = self.client.acknowledge_notices(self.batch['events'])
             else:
                 result = self.client.commit(self.batch['edits'])
             self.done.emit(result)
@@ -253,7 +255,7 @@ class Sync(QObject):
             try:
                 self.db.confirm_outbox(batch,results)
                 notice_ids=[r.get('local_id') for r in results
-                            if isinstance(r,dict) and 'notice_state' in r and r.get('local_id') is not None]
+                            if isinstance(r,dict) and ('notice_state' in r or 'notice' in r) and r.get('local_id') is not None]
                 if notice_ids:
                     self.changed.emit(notice_ids)
                 self.isolate_batch=False
@@ -287,6 +289,8 @@ class Sync(QObject):
                 # A stale version/invalid operation is not a network outage.
                 # Quarantine a SINGLE poison entry; keep all other work flowing.
                 self.db.quarantine_batch(batch,message)
+                if batch['kind']=='notice_ack':
+                    self.changed.emit([e['local_id'] for e in batch['events']])
                 from alfa_hatalar import record_operational_error
                 record_operational_error("RejectedWrite",status)
                 self.retry_after=time.monotonic()+0.25

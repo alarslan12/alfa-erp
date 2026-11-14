@@ -524,9 +524,14 @@ class SiparisView(QWidget):
         if mode=='track':
             order=next((o for o in self.db.siparisler if str(o['id'])==str(sid)),None)
             if order and pending_notice(order):
-                if OrderNoticeDialog(self.db,self.covers,order,self).exec()!=QDialog.DialogCode.Accepted:
-                    return
-                self._after_editor_updated()
+                dialog=OrderNoticeDialog(self.db,self.covers,order,self,open_detail=tab!='notice')
+                accepted=dialog.exec()==QDialog.DialogCode.Accepted
+                dialog.deleteLater()
+                if not accepted:return
+                # Refresh after the card's clicked signal has unwound.
+                QTimer.singleShot(0,self._after_editor_updated)
+            if tab=='notice':
+                return
         self.mark_recent(sid)
         if mode == 'track':
             from editor_siparis import SiparisTakipSekmeleri

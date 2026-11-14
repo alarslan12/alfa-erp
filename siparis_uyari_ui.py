@@ -1,12 +1,11 @@
 """Modal order update review and transient cover preview."""
 import copy
-from PySide6.QtCore import Qt, QPoint, Slot
+from PySide6.QtCore import Qt, QPoint
 from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import (QApplication, QDialog, QFrame, QVBoxLayout,
     QHBoxLayout, QLabel, QCheckBox, QPushButton, QScrollArea, QWidget)
 from widgets import cover_label
-from siparis_uyari import revision, pending_notice, acknowledge
-from firebase_pair_ui import Task
+from siparis_uyari import revision, initial_note_notice
 
 def plain(value, parent=None):
     w = QLabel(str(value), parent)
@@ -62,30 +61,32 @@ class ChangedBook(QLabel):
         super().hideEvent(event)
 
 class OrderNoticeDialog(QDialog):
-    def __init__(self, db, covers, order, parent=None):
+    def __init__(self, db, covers, order, parent=None, open_detail=False):
         super().__init__(parent)
         self.db, self.order = db, order
         self.expected = revision(order)
         self.rendered_changes = copy.deepcopy((order.get("order_notice") or {}).get("changes") or {})
-        self.worker = None
-        self.setWindowTitle("ALFA ERP · Sipariş güncellemesi")
+        initial = initial_note_notice(order)
+        self.setWindowTitle("ALFA ERP · Sipariş notu" if initial else "ALFA ERP · Sipariş güncellemesi")
         self.setWindowModality(Qt.WindowModality.ApplicationModal)
-        self.resize(650, 550)
-        self.setMinimumSize(440, 380)
+        self.resize(510, 330) if initial else self.resize(650, 550)
+        self.setMinimumSize(420, 290)
         root = QVBoxLayout(self)
         root.setContentsMargins(18,18,18,18)
         root.setSpacing(10)
-        heading = plain("⚠  SİPARİŞ #"+str(order.get("bulut_siparis_no") or order["id"])+" · GÜNCELLEME VAR")
+        heading = plain("⚠  SİPARİŞ #"+str(order.get("bulut_siparis_no") or order["id"])+
+                        (" · SİPARİŞ NOTU" if initial else " · GÜNCELLEME VAR"))
         heading.setStyleSheet("font-size:17px;font-weight:900;color:#ad6b00;background:#ffefcb;padding:12px;border-radius:8px;")
         root.addWidget(heading)
-        root.addWidget(plain("Aşağıdaki değişiklikleri kontrol edin. Kitap kodlarının üzerine gelerek kapaklarını görebilirsiniz."))
+        root.addWidget(plain("Siparişe eklenen notu okuyup onaylayın." if initial else
+                            "Aşağıdaki değişiklikleri kontrol edin. Kitap kodlarının üzerine gelerek kapaklarını görebilirsiniz."))
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         body = QWidget()
         lay = QVBoxLayout(body)
         lay.setSpacing(9)
         changes = (order.get("order_notice") or {}).get("changes") or {}
-        for key in sorted(changes):
+        for key in ([] if initial else sorted(changes)):
             item = changes[key]
             if not isinstance(item,dict):
                 continue
@@ -106,8 +107,10 @@ class OrderNoticeDialog(QDialog):
                 new = plain("Yeni: "+str(item.get("new") or "—"))
                 new.setStyleSheet("font-weight:800;font-size:14px;color:#126d45;background:#d9f5e8;padding:9px;border-radius:5px;")
                 lay.addWidget(new)
-        if order.get("order_note"):
-            note = plain("Güncel sipariş notu: "+str(order["order_note"]))
+        if order.get("order_note") and (initial or not any(
+                isinstance(item,dict) and item.get("label") in ("Sipariş notu","Yeni sipariş notu")
+                for item in changes.values())):
+            note = plain(str(order["order_note"]) if initial else "Güncel sipariş notu: "+str(order["order_note"]))
             note.setStyleSheet("font-weight:750;color:#794a00;background:#fff1cc;padding:9px;border-radius:6px;")
             lay.addWidget(note)
         lay.addStretch()
@@ -118,9 +121,9 @@ class OrderNoticeDialog(QDialog):
         self.status = plain("")
         root.addWidget(self.status)
         row = QHBoxLayout()
-        self.back = QPushButton("Detayı açmadan dön")
+        self.back = QPushButton("Vazgeç")
         self.back.clicked.connect(self.reject)
-        self.ok = QPushButton("Onayla ve siparişi aç")
+        self.ok = QPushButton("Onayla ve siparişi aç" if open_detail else "Onayla ve kapat")
         self.ok.setEnabled(False)
         self.ok.setStyleSheet("QPushButton {font-weight:800;padding:9px;background:#b45f05;color:white;} QPushButton:disabled {background:#888;color:#eee;}")
         self.checked.toggled.connect(self.ok.setEnabled)
@@ -129,64 +132,16 @@ class OrderNoticeDialog(QDialog):
         root.addLayout(row)
 
     def _confirm(self):
-        if self.worker is not None or not self.checked.isChecked():
+        if not self.checked.isChecked():
             return
         try:
             if (revision(self.order)!=self.expected or self.order not in self.db.siparisler or
                 self.rendered_changes != (self.order.get("order_notice") or {}).get("changes")):
                 raise ValueError("Sipariş değişti. Pencereyi kapatıp yeni uyarıyı açın.")
-            if not self.db.cloud_required and self.db.cloud_api is None:
-                self.db.apply_notice_ack(self.order, self.expected, acknowledge(self.order,self.expected))
-                self.accept()
-                return
-            sid=str(self.order["id"])
-            if (not self.db.cloud_api or not self.order.get("bulut_id") or
-                sid in self.db._pending or any(str(e.get("local_id"))==sid for e in self.db._progress_events+self.db._status_events)):
-                raise ValueError("Önce bu siparişin bulut eşitlemesi tamamlanmalı.")
-            api=self.db.cloud_api
-            order_id=self.order["bulut_id"]
-            self.worker=Task(lambda:api.acknowledge_order_notice(order_id,self.expected),self)
-            self.ok.setEnabled(False); self.back.setEnabled(False); self.checked.setEnabled(False)
-            self.status.setText("Bulut onayı doğrulanıyor…")
-            self.worker.finished.connect(self._finished)
-            self.worker.start()
+            self.db.queue_notice_ack(self.order,self.expected)
         except Exception as exc:
             self.status.setText(str(exc))
-
-    @Slot()
-    def _finished(self):
-        worker=self.worker
-        self.worker=None
-        try:
-            if worker.failure:
-                raise ValueError(worker.failure)
-            result=worker.result
-            if not isinstance(result,dict) or not isinstance(result.get("notice"),dict):
-                raise ValueError("Bulut onayı doğrulanamadı.")
-            notice=result["notice"]
-            if notice.get("ack_revision")!=self.expected:
-                raise ValueError("Bulut onayı doğrulanamadı.")
-            self.db.apply_notice_ack(self.order,self.expected,notice,
-                                     result.get("base_version"),result.get("version"))
-            self.accept()
-        except Exception as exc:
-            self.status.setText(str(exc)+" · Uyarı kaldırılmadı.")
-            self.checked.setEnabled(True);self.back.setEnabled(True)
-            self.ok.setEnabled(self.checked.isChecked())
-        finally:
-            worker.deleteLater()
-            parent=self.parentWidget()
-            live=getattr(parent.window(),"live",None) if parent else None
-            if live:
-                live.force_pull=True
-                live.pull()
-
-    def reject(self):
-        if self.worker is None:
-            super().reject()
-
-    def closeEvent(self,event):
-        if self.worker is not None:
-            event.ignore()
-        else:
-            super().closeEvent(event)
+            return
+        # No dialog-owned thread, nested network operation or callback after
+        # accept. The regular Sync worker sends the durable receipt later.
+        self.accept()

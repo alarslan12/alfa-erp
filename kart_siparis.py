@@ -10,7 +10,7 @@ from PySide6.QtWidgets import (
     QCheckBox, QApplication, QToolButton, QMenu, QGridLayout, QSizePolicy
 )
 from widgets import text, cover_label, button, fallback_cover_pixmap
-from siparis_uyari import pending_notice
+from siparis_uyari import pending_notice, initial_note_notice
 
 
 def readable_date(value):
@@ -463,10 +463,11 @@ class SiparisKarti(QFrame):
             pool_info.setToolTip('Sipariş henüz aktife alınmadı')
             right.addWidget(pool_info)
         if self._notice_pending:
-            self._notice_btn=button('⚠ Siparişle ilgili\ngüncelleme var')
+            self._notice_btn=button('⚠ Siparişin notunu\nincele' if initial_note_notice(siparis)
+                                    else '⚠ Siparişle ilgili\ngüncelleme var')
             self._notice_btn.setFixedHeight(38)
             self._notice_btn.setToolTip('Değişiklikleri okumak ve onaylamak için tıklayın')
-            self._notice_btn.clicked.connect(lambda:on_open(siparis['id'],'track'))
+            self._notice_btn.clicked.connect(lambda:on_open(siparis['id'],'notice'))
             right.addWidget(self._notice_btn)
             self._notice_timer=QTimer(self)
             self._notice_timer.setInterval(700)

@@ -149,6 +149,7 @@ def theme_styles(name):
         QPushButton#InventoryModeTab {background:#142741;color:#ffffff;border:1px solid #a3d4ff;}
         QPushButton#InventoryModeTab:checked {background:#195c9a;border:2px solid #ffe28e;color:#ffffff;}
         QPushButton#TrackUnpreparedToggle:checked {background:#927038; color:#fff; border-color:#f5d183;}
+        QPlainTextEdit#OrderNoteInput {background:#060b11;color:#fff;border:1px solid #a3d4ff;placeholder-text-color:#b7ccdf;}
         '''
     if name=='acik':
         return '''
@@ -693,6 +694,8 @@ def theme_styles(name):
         QLabel#Muted {color:#526b80;}
         QPushButton#StaffThemeSwitch:checked {background:#c3dbe9;color:#1d475f;border:1px solid #78a5c4;}
         QPushButton#StaffThemeSwitch {background:#e2d9ca;color:#2b4560;border:1px solid #b9a48a;}
+        QPlainTextEdit#OrderNoteInput {background:#fffaf3;color:#23384f;border:1px solid #b5a18a;placeholder-text-color:#687887;selection-background-color:#bad8e9;selection-color:#203c52;}
+        QPlainTextEdit#OrderNoteInput:focus {border-color:#688eae;}
         '''
     # Koyu tema tamamen temel QSS üzerinden uygulanır; eski açık tema
     # bloğunun bu yoldan kazara yüklenmesini önlüyoruz.

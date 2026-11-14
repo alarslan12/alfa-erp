@@ -26,6 +26,16 @@ def pending_notice(order):
     data = order.get("order_notice") or {}
     return bool(revision(order) and data.get("ack_revision") != revision(order))
 
+def initial_note_notice(order):
+    """Recognize old v31/32 initial-note records without rewriting cloud data."""
+    notice = order.get("order_notice") or {}
+    if notice.get("kind") == "initial_note":
+        return True
+    changes = notice.get("changes") or {}
+    return (not notice.get("kind") and isinstance(changes,dict) and len(changes)==1
+            and next(iter(changes.values())).get("label")=="Yeni sipariş notu")
+
+
 def _val(row, local, remote):
     result = row.get(local, row.get(remote))
     if local == "ciro":
@@ -88,7 +98,8 @@ def make_notice(before, after, requested_revision=None):
         candidate = ""
     if not candidate or (before and candidate == revision(before)):
         candidate = str(uuid.uuid4())
-    return {"revision":candidate, "created_at":datetime.now(timezone.utc).isoformat(),
+    return {"revision":candidate, "kind":"initial_note" if before is None else "update",
+            "created_at":datetime.now(timezone.utc).isoformat(),
             "changes":{f"c{i:06d}": change for i,change in enumerate(changes)}}
 
 def acknowledge(order, expected, actor="local"):

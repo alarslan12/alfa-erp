@@ -82,6 +82,12 @@ class ERPDatabase:
         self.inventory_sales=[]
         self.inventory_revision=None
         self.siparisleri_yukle()
+        # A durable queued receipt survives a crash between the two local writes.
+        for event in self._status_events:
+            if event.get('kind')!='notice_ack':continue
+            order=next((o for o in self.siparisler if str(o['id'])==str(event['local_id'])),None)
+            if order and revision(order)==event.get('notice_revision') and pending_notice(order):
+                order['order_notice']=acknowledge(order,revision(order),event.get('actor','local'))
         self.sayac_dosyasi = os.path.join(os.path.dirname(self.sepet_dosyasi), "alfa_siparis_sayac.json")
         self._son_id = max((int(x["id"]) for x in self.siparisler if str(x.get("id", "")).isdigit()), default=0)
         if os.path.exists(self.sayac_dosyasi):
@@ -195,6 +201,9 @@ class ERPDatabase:
                 if not prior.get('bulut_id') and sid in self._pending:
                     # The creation never reached Firebase: cancel it locally.
                     self._pending.pop(sid,None)
+                    self._status_events[:]=[e for e in self._status_events if str(e.get('local_id'))!=sid]
+                    self._progress_events[:]=[e for e in self._progress_events if str(e.get('local_id'))!=sid]
+                    self._write_outbox()
                     continue
                 if not prior.get('bulut_id'):
                     raise ValueError('Eski yerel sipariş buluta eşitlenmeden silinemez.')
@@ -210,7 +219,13 @@ class ERPDatabase:
             # immutable snapshots and metadata that differ from local models.
             # A button click changing only status/counts must NEVER become a
             # heavy full-order edit (stale version => 409 / apparent rollback).
-            if prior and row.get('bulut_id') and sid not in self._pending:
+            # A locally reviewed note may precede the original create/edit
+            # receipt. Queue subsequent progress/status separately, never
+            # overwrite the pending structural save or skip its receipt.
+            has_ack=any(e.get('kind')=='notice_ack' and str(e.get('local_id'))==sid
+                        and e.get('notice_revision')==revision(prior or {})
+                        for e in self._status_events)
+            if prior and ((row.get('bulut_id') and sid not in self._pending) or has_ack):
                 same_content=self._order_content_signature(prior)==self._order_content_signature(row)
                 previous_status=self.siparis_durumu(prior)
                 next_status=self.siparis_durumu(row)
@@ -236,7 +251,7 @@ class ERPDatabase:
                             self._next_revision+=1
                             updates.append({'kind':'progress',
                                 'sequence':self._next_revision,'op_id':str(uuid.uuid4()),
-                                'local_id':sid,'order_id':row['bulut_id'],
+                                'local_id':sid,'order_id':row.get('bulut_id'),
                                 'book_code':key[0],'print_type':key[1],
                                 'notice_revision':revision(prior),
                                 'delta_ready':dr,'delta_boxed':dk,
@@ -246,7 +261,7 @@ class ERPDatabase:
                         self._next_revision+=1
                         self._status_events.append({'kind':'status',
                             'sequence':self._next_revision,'op_id':str(uuid.uuid4()),
-                            'local_id':sid,'order_id':row['bulut_id'],
+                            'local_id':sid,'order_id':row.get('bulut_id'),
                             'from_status':a,'to_status':b,'notice_revision':revision(prior),
                             'shipping_fee':row.get('kargo_ucreti') if b=='tamamlandi' else None})
                     if status_changed and next_status=='aktif':
@@ -302,6 +317,15 @@ class ERPDatabase:
                         key=lambda e:int(e.get('sequence',0)))
         if combined:
             first=combined[0];kind=first.get('kind','progress')
+            if kind=='notice_ack':
+                sid=str(first['local_id'])
+                # An initial note/edit must reach the server before its exact
+                # revision can be acknowledged. No network wait in the UI.
+                if sid in self._pending:
+                    return self._commit_batch({sid:self._pending[sid]},current)
+                event=copy.deepcopy(first)
+                event['order_id']=(current.get(sid) or {}).get('bulut_id') or event.get('order_id') or ''
+                return {'kind':'notice_ack','events':[event]}
             selected=[]
             for event in combined:
                 if event.get('kind','progress')!=kind:break
@@ -314,7 +338,9 @@ class ERPDatabase:
                         break
                 elif len(selected)>=max_events:
                     break
-                selected.append(copy.deepcopy(event))
+                evt=copy.deepcopy(event)
+                evt['order_id']=(current.get(str(evt.get('local_id'))) or {}).get('bulut_id') or evt.get('order_id') or ''
+                selected.append(evt)
             return {'kind':kind,'events':selected}
         if self._pending:
             return self._commit_batch(dict(list(self._pending.items())[:max_events]),current)
@@ -330,21 +356,36 @@ class ERPDatabase:
                 continue
             row=current.get(sid)
             if row is None:continue
+            order_copy=copy.deepcopy(row)
+            if not row.get('bulut_id') and any(str(e.get('local_id'))==sid and
+                    e.get('kind')=='notice_ack' for e in self._status_events):
+                # All later actions have their own durable events. A new order
+                # starts in Havuz on the server, then replays them in order.
+                order_copy['durum']='havuz'
             edits.append({'local_id':sid,'uuid':row.get('bulut_id'),
                 'version':int(row.get('bulut_version') or 0),
-                'request_id':row.get('bulut_istem_id'),'order':copy.deepcopy(row)})
+                'request_id':row.get('bulut_istem_id'),'order':order_copy})
         return {'kind':'commit','edits':edits,'revisions':revisions} if edits else None
 
     def confirm_outbox(self,batch,results):
         by_id={str(x.get('id')):x for x in self.siparisler}
-        if batch['kind'] in ('status','progress'):
+        if batch['kind'] in ('status','progress','notice_ack'):
             acknowledged={str(r['op_id']) for r in results}
-            target=self._status_events if batch['kind']=='status' else self._progress_events
+            target=self._progress_events if batch['kind']=='progress' else self._status_events
             target[:]=[e for e in target if str(e['op_id']) not in acknowledged]
             for r in results:
                 for row in self.siparisler:
                     if str(row.get('bulut_id'))==str(r.get('order_id')):
-                        row['bulut_version']=max(int(row.get('bulut_version') or 0),int(r['version']))
+                        if batch['kind']=='notice_ack':
+                            notice=r.get('notice') or {}
+                            if revision(row)==notice.get('revision'):
+                                row['order_notice']=notice
+                            if int(row.get('bulut_version') or 0)==int(r.get('base_version') or 0):
+                                row['bulut_version']=int(r['version'])
+                            else:
+                                row['bulut_version']=0
+                        else:
+                            row['bulut_version']=max(int(row.get('bulut_version') or 0),int(r['version']))
                         break
         else:
             for result in results:
@@ -356,7 +397,17 @@ class ERPDatabase:
                 if state is not None:
                     if state['revision']==batch['revisions'].get(sid):
                         if row is not None and isinstance(result.get('notice_state'),dict):
+                            state_notice=result['notice_state'].get('order_notice') or {}
+                            local_notice=row.get('order_notice') or {}
                             row.update(result['notice_state'])
+                            if (state_notice.get('revision')==local_notice.get('revision') and
+                                    local_notice.get('ack_revision')==local_notice.get('revision') and
+                                    any(e.get('kind')=='notice_ack' and str(e.get('local_id'))==sid and
+                                        e.get('notice_revision')==local_notice.get('revision')
+                                        for e in self._status_events)):
+                                if state_notice.get('ack_revision')!=state_notice.get('revision'):
+                                    row['order_notice']={**state_notice,**{k:local_notice[k] for k in
+                                        ('ack_revision','ack_by','ack_at') if k in local_notice}}
                         self._pending.pop(sid,None)
                     elif state.get('delete'):
                         state['version']=int(result['version'])
@@ -370,8 +421,8 @@ class ERPDatabase:
         """Never re-post a permanent 409 forever. Preserve evidence for recovery."""
         self._conflicts.append({'at':datetime.now().astimezone().isoformat(),
             'reason':str(message)[:240],'batch':copy.deepcopy(batch)})
-        if batch['kind'] in ('status','progress'):
-            target=self._status_events if batch['kind']=='status' else self._progress_events
+        if batch['kind'] in ('status','progress','notice_ack'):
+            target=self._progress_events if batch['kind']=='progress' else self._status_events
             ids={str(x['op_id']) for x in batch['events']}
             target[:]=[e for e in target if str(e['op_id']) not in ids]
         else:
@@ -385,6 +436,11 @@ class ERPDatabase:
         for row in self.siparisler:
             if str(row.get('id')) in ids and row.get('bulut_id'):
                 row['bulut_version']=0
+            if batch['kind']=='notice_ack' and str(row.get('id')) in ids:
+                # Rejected old receipts never dismiss a newer remote revision.
+                notice=row.get('order_notice') or {}
+                if any(e.get('notice_revision')==revision(row) for e in batch['events']):
+                    for key in ('ack_revision','ack_at','ack_by'):notice.pop(key,None)
         self._write_outbox()
         self._cloud_applying=True
         try:self.siparisleri_kaydet()
@@ -837,6 +893,9 @@ class ERPDatabase:
             raise ValueError("Tamamlanan sipariş önce aktife geri alınmalıdır")
         if siparis not in self.siparisler:
             raise ValueError("Sipariş bulunamadı")
+        if any(e.get('kind')=='notice_ack' and str(e.get('local_id'))==str(siparis['id'])
+               for e in self._status_events):
+            raise ValueError('Bu siparişin önceki okundu kaydı eşitlenirken yeniden düzenlenemez.')
         if not yeni_kitaplar:
             raise ValueError("Sipariş en az bir kitap içermelidir")
         if not all(str(x.get("kod", "")) in self.katalog for x in yeni_kitaplar):
@@ -896,6 +955,45 @@ class ERPDatabase:
         except Exception:
             siparis.clear()
             siparis.update(onceki)
+            raise
+
+    def queue_notice_ack(self, siparis, expected):
+        """Persist receipt before closing the dialog; existing worker sends it."""
+        if siparis not in self.siparisler or revision(siparis)!=expected:
+            raise ValueError('Sipariş yeniden değişti; güncel uyarıyı açın.')
+        if not pending_notice(siparis):return
+        if not (self.cloud_api or self.cloud_required):
+            self.apply_notice_ack(siparis,expected,acknowledge(siparis,expected))
+            return
+        sid=str(siparis['id'])
+        if not siparis.get('bulut_id') and sid not in self._pending:
+            raise ValueError('Sipariş önce bulutla eşleştirilmelidir.')
+        actor=str(getattr(self.cloud_api,'uid',None) or 'local')
+        receipt=acknowledge(siparis,expected,actor)
+        previous_revision=self._next_revision
+        previous_started=self._pending_started
+        self._next_revision+=1
+        event={'kind':'notice_ack','sequence':self._next_revision,'op_id':str(uuid.uuid4()),
+               'local_id':sid,'order_id':siparis.get('bulut_id'),
+               'notice_revision':expected,'actor':actor}
+        self._status_events.append(event)
+        if not self._pending_started:self._pending_started=time.monotonic()
+        try:
+            self._write_outbox()
+        except Exception:
+            self._status_events.remove(event)
+            self._next_revision=previous_revision
+            self._pending_started=previous_started
+            raise
+        # Queue is authoritative even if cache write fails. Do not report an
+        # accepted receipt until local cache also succeeds.
+        try:
+            self.apply_notice_ack(siparis,expected,receipt)
+        except Exception:
+            self._status_events.remove(event)
+            self._next_revision=previous_revision
+            self._pending_started=previous_started
+            self._write_outbox()
             raise
 
     def apply_notice_ack(self, siparis, expected, notice, base_version=None, version=None):

@@ -1681,3 +1681,13 @@ QLabel#AnalyticsGroupTitle[groupKind="averages"] {
   color:#c6afff;
 }
 """
+
+QSS += """
+QPlainTextEdit#OrderNoteInput {
+    background:#14253a; color:#eef5ff; border:1px solid #4d7194;
+    border-radius:8px; padding:7px; font-size:12px;
+    selection-background-color:#397aa7; selection-color:#ffffff;
+    placeholder-text-color:#9cb1c7;
+}
+QPlainTextEdit#OrderNoteInput:focus {border:1px solid #79b8ec;}
+"""
