@@ -120,8 +120,19 @@ class ProgressCover(QLabel):
         painter.end()
 
 
+def order_cover_badges(group):
+    """Always show total copies and each ordered print variant."""
+    total = int(group.get('adet', 0))
+    badges = [('total', f'{total}×')]
+    for kind, key in (('SB', 'sb'), ('RNK', 'rnk')):
+        qty = int(group.get(key, 0))
+        if qty > 0:
+            badges.append((key, f'{kind} {qty}'))
+    return badges
+
+
 class OrderMiniCover(ProgressCover):
-    """Kitap kapağı üzerinde adet ve anlamlıysa SB/RNK etiketleri."""
+    """Kitap kapağında her zaman toplam adet ve SB/RNK miktarları."""
     def __init__(self, book, covers, group, w, h, active=False):
         self.book_name = book.get('isim', '')
         self.book_code = book.get('kod', '')
@@ -139,41 +150,58 @@ class OrderMiniCover(ProgressCover):
 
     def paintEvent(self, event):
         super().paintEvent(event)
-        rect = self.content_rect()
+        # Use the entire thumbnail's bounds; a narrow portrait image in a
+        # wider label must not cause quantity badges to disappear.
+        rect = self.rect().adjusted(1, 1, -1, -1)
+        if rect.width() <= 0 or rect.height() <= 0:
+            return
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.setFont(QFont('Segoe UI', 8, QFont.Weight.Bold))
-        total = int(self.group.get('adet', 0))
-        if total > 1 and rect.width() >= 35:
-            number = str(total)
-            width = max(18, 11 + len(number) * 8)
-            painter.setBrush(QColor(12, 24, 37, 228))
-            painter.drawRoundedRect(rect.x() + 2, rect.y() + 2, width, 18, 4, 4)
-            painter.setPen(QColor('#ffffff'))
-            painter.drawText(QRect(rect.x() + 2, rect.y() + 2, width, 18), Qt.AlignmentFlag.AlignCenter, number)
+        colors = {
+            'total': (QColor(12, 24, 37, 238), QColor('#ffffff')),
+            'sb': (QColor(68, 52, 118, 240), QColor('#f1e9ff')),
+            'rnk': (QColor(153, 80, 53, 240), QColor('#fff2e9')),
+        }
+        badges = order_cover_badges(self.group)
+        font = QFont('Segoe UI')
+        font.setWeight(QFont.Weight.Bold)
+        gap = 1
+        # Fit three lines even for the smallest existing thumbnail size.
+        font_px = min(12, max(5, (rect.height() - 2 * gap) // 3 - 2))
+        while True:
+            font.setPixelSize(font_px)
+            painter.setFont(font)
+            metrics = painter.fontMetrics()
+            padding = 4 if font_px >= 9 else 2
+            widths = [metrics.horizontalAdvance(label) + padding
+                      for _, label in badges]
+            height = metrics.height() + 2
+            if (max(widths) <= rect.width() and
+                    len(badges) * height + (len(badges) - 1) * gap <= rect.height()) or font_px <= 3:
+                break
+            font_px -= 1
+
+        # Keep the original top-left total / top-right print labels when
+        # there is enough width; otherwise stack them without overlap.
+        side_by_side = (len(widths) > 1 and
+                        widths[0] + max(widths[1:]) + gap <= rect.width())
+        for index, ((key, label), width) in enumerate(zip(badges, widths)):
+            width = min(width, rect.width())
+            if index == 0:
+                x, y = rect.x(), rect.y()
+            elif side_by_side:
+                x = rect.right() - width + 1
+                y = rect.y() + (index - 1) * (height + gap)
+            else:
+                x = rect.x()
+                y = rect.y() + index * (height + gap)
+            area = QRect(x, y, width, height)
+            bg, fg = colors[key]
             painter.setPen(Qt.PenStyle.NoPen)
-        # Tek kitapta SB1/RNK1 yazma; yalnızca anlamlı olduğunda göster.
-        top = rect.y() + 2
-        both_types = int(self.group.get('sb', 0)) > 0 and int(self.group.get('rnk', 0)) > 0
-        for kind, bg, fg, key in (
-            ('SB', QColor(68, 52, 118, 222), QColor('#f1e9ff'), 'sb'),
-            ('RNK', QColor(153, 80, 53, 228), QColor('#fff2e9'), 'rnk'),
-        ):
-            qty = int(self.group.get(key, 0))
-            if not qty:
-                continue
-            if rect.width() < 50 or (total == 1 and qty == 1 and not both_types):
-                continue
-            label = f'{kind}{qty}'
-            width = max(26, 13 + len(label) * 6)
-            x = rect.right() - width - 1
             painter.setBrush(bg)
-            painter.drawRoundedRect(x, top, width, 17, 4, 4)
+            painter.drawRoundedRect(area, 3, 3)
             painter.setPen(fg)
-            painter.drawText(QRect(x, top, width, 17), Qt.AlignmentFlag.AlignCenter, label)
-            painter.setPen(Qt.PenStyle.NoPen)
-            top += 19
+            painter.drawText(area, Qt.AlignmentFlag.AlignCenter, label)
         painter.end()
 
 

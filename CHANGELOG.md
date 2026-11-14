@@ -1,5 +1,14 @@
 # ALFA ERP · Sürüm Geçmişi
 
+## [v2.0.27] — 2026-11-14
+
+- Aktif sipariş ve havuz kapaklarında toplam adet ve SB/RNK etiketleri geri getirildi.
+- Tek nüsha ve dar kapaklarda etiketler uyarlanır.
+- Katalogda seri numarası ve kitap kodu ayrıştırılır; TUSDATA 24, 24 TUSDATA ve TUS 24 aramaları desteklenir.
+- Personel ve Yönetici ortak kodu güncellendi.
+- PDF, kapak önbelleği ve Firebase işleyişi korunur.
+
+
 ## [v2.0.26] — 2026-11-14
 
 - TUSDATA Konu kitaplarının PDF adlarında kelime sırası ve Cilt 1/II farkları desteklendi.

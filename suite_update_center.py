@@ -28,9 +28,9 @@ class PrintSuiteUpdateDialog(UpdateDialog):
     def __init__(self,parent=None):
         data=Path(os.environ.get('ALFA_ERP_DATA_DIR') or
                   Path(os.environ.get('LOCALAPPDATA') or Path.home())/'AlfaERP')
-        super().__init__('2.0.26','print',data,parent)
+        super().__init__('2.0.27','print',data,parent)
         self.setWindowTitle('ALFACOPYCENTER Suite · Güncelleme Merkezi')
-        self.message.setText('Print Center · Suite 2.0.26')
+        self.message.setText('Print Center · Suite 2.0.27')
 
     def install_now(self):
         if not self.verified:

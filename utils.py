@@ -75,17 +75,47 @@ def format_kargo_kodu(kod_str, platform="Dolap"):
 def metin_eslesiyor_mu(arama, kitap_veri):
     if not arama or not str(arama).strip():
         return True
-    a_temiz = tr_kucult(arama.strip())
-    arama_kelimeleri = [k for k in a_temiz.split() if k]
-    if not arama_kelimeleri:
-        return True
-
+    query = tr_kucult(str(arama).strip())
     if isinstance(kitap_veri, dict):
-        hedef_metin = tr_kucult(
-            f"{kitap_veri.get('kod', '')} {kitap_veri.get('isim', '')} "
+        code = tr_kucult(kitap_veri.get('kod', ''))
+        description = tr_kucult(
+            f"{kitap_veri.get('isim', '')} "
             f"{kitap_veri.get('grup', '')} {kitap_veri.get('grup_temiz', '')}"
         )
     else:
-        hedef_metin = tr_kucult(str(kitap_veri))
+        code = ''
+        description = tr_kucult(kitap_veri)
 
-    return all(kelime in hedef_metin for kelime in arama_kelimeleri)
+    def tokens(value):
+        # Also recognize joined series notation, e.g. TUSDATA24.
+        value = re.sub(r'\b(tus|dus)\s+data\b', r'\1data', value)
+        return re.findall(r'[a-z]+|[0-9]+', value)
+
+    terms = tokens(query)
+    if not terms:
+        return False
+    numbers = [term for term in terms if term.isdecimal()]
+    letters = [term for term in terms if not term.isdecimal()]
+    if not numbers:
+        # Preserve existing partial-word search for ordinary text.
+        return all(word in (code + ' ' + description)
+                   for word in query.split())
+
+    words = tokens(description)
+    series_numbers = {str(int(word)) for word in words if word.isdecimal()}
+    wanted_numbers = {str(int(word)) for word in numbers}
+    if not letters:
+        # A direct code search is exact: 24 must not match code 424.
+        if len(numbers) == 1 and code.isdecimal() and int(code) == int(numbers[0]):
+            return True
+        return wanted_numbers.issubset(series_numbers)
+
+    # Mixed name/number queries must match the real book title/category,
+    # never a fragment of an unrelated catalog code or publisher name.
+    word_set = {word for word in words if not word.isdecimal()}
+    aliases = {'tus': 'tusdata', 'dus': 'dusdata'}
+    return wanted_numbers.issubset(series_numbers) and all(
+        aliases[term] in word_set if term in aliases else
+        any(word.startswith(term) for word in word_set)
+        for term in letters
+    )

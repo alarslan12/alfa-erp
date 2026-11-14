@@ -1,19 +1,19 @@
-; ALFACOPYCENTER Suite v2.0.26
+; ALFACOPYCENTER Suite v2.0.27
 ; Unified installer for ERP Staff, ERP Owner, Banner Studio, Print Surveillance.
 ; No cloud database deletion, no spooler driver/service modification.
 #define CompanyName "ALFACOPYCENTER"
-#define SuiteVersion "2.0.26"
+#define SuiteVersion "2.0.27"
 
 [Setup]
 AppId=ALFACOPYCENTER.Suite
 AppName={#CompanyName} Uygulama Paketi
 AppVerName={#CompanyName} Suite {#SuiteVersion}
 AppVersion={#SuiteVersion}
-VersionInfoVersion=2.0.26.0
+VersionInfoVersion=2.0.27.0
 DefaultDirName={localappdata}\Programs\ALFACOPYCENTER
 DefaultGroupName={#CompanyName}
 OutputDir=output
-OutputBaseFilename=ALFACOPYCENTER_Suite_Setup_V2_0_26
+OutputBaseFilename=ALFACOPYCENTER_Suite_Setup_V2_0_27
 Compression=lzma2
 SolidCompression=yes
 PrivilegesRequired=lowest

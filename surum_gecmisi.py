@@ -6,6 +6,13 @@ https://github.com/alarslan12/alfa-erp/releases.
 """
 
 _RELEASES = [
+    ("2.0.27", "Sipariş kapak etiketleri ve hassas katalog araması", [
+        "Aktif sipariş ve sipariş havuzu kapaklarında toplam adet, SB ve RNK miktarları gösterilir.",
+        "Tek nüsha ve küçük kapaklarda etiketler gizlenmez; dar alanda alt alta yerleşir.",
+        "TUSDATA 24, 24 TUSDATA, TUS 24 gibi seri aramaları gerçek sayı ve kelimelerle eşleşir; 424 kodlu ilgisiz kitaplar çıkmaz.",
+        "Personel ve Yönetici ortak düzeltmeleri içerir.",
+        "PDF eşleştirme, kapak önbelleği ve Firebase verileri değiştirilmedi.",
+    ]),
     ("2.0.26", "TUSDATA Konu kapakları ve boş sayfalı kitap görünürlüğü", [
         "TUSDATA Konu derslerinin PDF adındaki kelime sırası, Cilt 1/II yazımı ve işaret farklılıkları tanınır.",
         "Kitap serisi, dersi ve cilt numarası birebir doğrulanır; başka serinin kapağı atanmaz.",
