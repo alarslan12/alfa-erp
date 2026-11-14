@@ -1,4 +1,4 @@
-# ALFACOPYCENTER Suite v2.0.31 (ön izleme)
+# ALFACOPYCENTER Suite v2.0.32 (ön izleme)
 
 **Tek Windows kurulumu**, dört seçilebilir bileşen:
 
@@ -10,7 +10,7 @@
 | ALFA Print Center | PrintSurveillance/AlfaPrintSurveillance.exe | Seçilebilir, varsayılan |
 | Arka plan yardımcıları | Bildirim, PrintAgent, PrintSupervisor | Seçilen bileşene bağlı |
 
-Kurulum: `ALFACOPYCENTER_Suite_Setup_V2_0_31.exe`. Aynı Inno Setup AppId
+Kurulum: `ALFACOPYCENTER_Suite_Setup_V2_0_32.exe`. Aynı Inno Setup AppId
 (`ALFACOPYCENTER.Suite`) ve kurulum yolu korundu:
 `%LOCALAPPDATA%\Programs\ALFACOPYCENTER`.
 
@@ -171,3 +171,13 @@ Kapaklarda yalnızca mevcut SB/RNK adetleri sağ üstte gösterilir; siyah topla
 - Aktife alma, hazırlama/kolileme ve tamamlama mevcut revizyon okunana kadar yeni istemcide engellenir. Eski kuyruk revizyonu buluta yazılmadan reddedilir; çevrimdışı önbellek anlık olarak eski görünebilir.
 - Firebase kuralları değiştirilmedi. Uygulama düzeyi kontroller, eski sürümler veya doğrudan yetkili Firebase istekleri için sunucu kuralı garantisi değildir. Üretimde her cihazda yeni istemci ve gerekiyorsa ayrıca güvenlik kuralı doğrulaması gereklidir.
 - v2.0.30 kararlı kanalda kalır; bu paket ön sürümdür. Canlı veritabanı, cihaz kayıtları veya mevcut siparişler dağıtım sırasında değiştirilmez.
+
+
+# ALFACOPYCENTER Suite v2.0.32 — Kolilenen kitapların görsel ayrımı (ön izleme)
+
+- Yalnız bütün SB ve RNK kopyaları kolilenmiş kitapların kartı hafif şeffaf yeşil, kenarı yeşil ve hover sırasında daha belirgin yeşil olur.
+- Sipariş detayları, aktif sipariş kapakları, siparişlere genel bakış ve arşivdeki gerçekten kolilenmiş kitaplar aynı görsel durumu kullanır.
+- Hazır ama tamamen kolilenmemiş kitaplar tam yeşile dönmez. Koli geri alınınca normal görünüm anında geri gelir.
+- Halihazırda açık takip pencereleri, cihaz eşitlemesi ve genel bakıştaki koli değişikliklerinde mevcut kartları günceller.
+- SB/RNK adet rozetleri, sipariş güncelleme uyarıları, mevcut filtreler, PDF erişimi ve veri işlemleri korunur.
+- v2.0.31 sipariş notu ve revizyon onayı özelliklerini içerir. Firebase kuralları ve canlı veriler değiştirilmez; v2.0.30 kararlı kanalda kalır.

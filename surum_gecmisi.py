@@ -6,6 +6,12 @@ https://github.com/alarslan12/alfa-erp/releases.
 """
 
 _RELEASES = [
+    ("2.0.32", "Kolilenen kitapların yeşil görünümü", [
+        "Tamamen kolilenen kitap kartlarına hafif şeffaf yeşil zemin, yeşil kenar ve hover eklendi.",
+        "Sipariş detayları, genel bakış ve sipariş kapaklarında aynı koli durumu kullanılır.",
+        "Koli geri alındığında renk normale döner; SB/RNK adet etiketleri korunur.",
+        "v2.0.31 not sistemi korunur; Firebase kuralları değişmedi.",
+    ]),
     ("2.0.31", "Sipariş notu ve revizyon onayı (ön izleme)", [
         "Yeni siparişlerde opsiyonel not; Yönetici için mevcut not düzenleme.",
         "Kargo, kitap/adet, sipariş türü, platform, ciro ve not değişikliklerinin karşılaştırması.",

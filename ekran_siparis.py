@@ -261,13 +261,21 @@ class SiparisView(QWidget):
         self.day.setCurrentIndex(max(0, self.day.findData(selected_date)))
         self.day.blockSignals(False)
         self.refresh_rows()
+        self.refresh_open_track_progress()
+
+    def refresh_open_track_progress(self):
         hub=self.windows.get('track_hub')
         if hub is not None:
             try:
                 for page in list(hub.pages.values()):
                     order=page.current()
-                    if order and getattr(page,'_rendered_notice',None)!=(revision(order),pending_notice(order)):
+                    if not order:continue
+                    status=self.db.siparis_durumu(order)
+                    if (getattr(page,'_rendered_notice',None)!=(revision(order),pending_notice(order)) or
+                            getattr(page,'_rendered_status',None)!=status):
                         page.build_ui()
+                    elif status=='aktif' and not pending_notice(order):
+                        page.refresh_progress_labels()
             except RuntimeError:
                 pass
 

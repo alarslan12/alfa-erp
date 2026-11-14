@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
     QMessageBox, QFileDialog, QTabWidget, QTabBar, QPushButton, QSizePolicy, QApplication, QPlainTextEdit
 )
 from widgets import text, button, cover_label, scrollable, clear_layout, error, confirm
-from kart_siparis import ProgressCover
+from kart_siparis import ProgressCover, set_boxed_card_style
 from pdf_kitap import PdfKutuphane
 from ilerleme_kontrol import sonraki_ilerleme, buton_durumlari
 from siparis_uyari import pending_notice, revision
@@ -228,7 +228,8 @@ class SiparisEditor(QDialog):
             book = self.db.katalog.get(code, {'kod':code,'isim':group['isim']})
             card = QFrame(); card.setObjectName('OrderArchiveCard')
             row = QHBoxLayout(card); row.setContentsMargins(9,8,9,8); row.setSpacing(10)
-            row.addWidget(cover_label(book,self.covers,86,121))
+            set_boxed_card_style(card,group,True)
+            row.addWidget(ProgressCover(book,self.covers,group,86,121,active=True,show_partial=False))
             info = QVBoxLayout(); info.setSpacing(4)
             name = text(group['isim'],'TrackBookName',wrap=True)
             info.addWidget(name)
@@ -291,7 +292,10 @@ class SiparisEditor(QDialog):
         groups = {str(g['kod']): g for g in self.db.siparis_gruplari(order)}
         for code, cover in self.track_covers.items():
             if code in groups:
-                cover.set_progress(groups[code], active=self.db.siparis_durumu(order) in ('aktif', 'tamamlandi'))
+                cover.set_progress(groups[code], active=active)
+                card=self.track_cards_by_code.get(code)
+                if card is not None:
+                    set_boxed_card_style(card,groups[code],active)
         summary = self.db.siparis_ozeti(order)
         if self.header_summary:
             self.header_summary.setText(
@@ -433,6 +437,7 @@ class SiparisEditor(QDialog):
         card.setMinimumWidth(292)
         card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         card.setProperty('trackRecent', code == self._recent_code)
+        set_boxed_card_style(card, group, status in ('aktif','tamamlandi'))
         self.track_cards_by_code[code] = card
         root = QHBoxLayout(card)
         root.setContentsMargins(8, 8, 8, 8)

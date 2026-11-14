@@ -1,5 +1,11 @@
 # ALFA ERP · Sürüm Geçmişi
 
+## [v2.0.32] — 2026-11-14 (ön izleme)
+
+- Yalnız tüm kopyaları kolilenmiş kitaplara yarı şeffaf yeşil kart ve yeşil hover.
+- Genel bakış ve açık detay kartları koli güncellemelerine göre yenilenir.
+- v2.0.31 işlevleri ve Firebase kuralları korunur.
+
 ## [v2.0.31] — 2026-11-14 (ön izleme)
 
 - Opsiyonel sipariş notları, Yönetici düzenleme alanı ve revizyon bazlı okundu bildirimi.

@@ -29,9 +29,47 @@ def _scaled_cover(path, stamp, w, h):
                       Qt.TransformationMode.SmoothTransformation)
 
 
+def fully_boxed(group, active=True):
+    """All copies (SB + RNK), not merely prepared or order completed."""
+    total = int(group.get('adet', 0) or 0)
+    return bool(active and total > 0 and int(group.get('koli', 0) or 0) >= total)
+
+
+def pool_cover_group(row):
+    return {'adet': int(row.get('sb', 0)) + int(row.get('rnk', 0)),
+            'hazir': int(row.get('sb_ready', 0)) + int(row.get('rnk_ready', 0)),
+            'koli': int(row.get('sb_boxed', 0)) + int(row.get('rnk_boxed', 0))}
+
+
+def set_boxed_card_style(card, group, active=True):
+    """Local QSS takes precedence over theme hover/recent/selection colors.
+    Only fully boxed book cards get the tint; other cards keep their style.
+    """
+    packed = fully_boxed(group, active)
+    if card.property('bookFullyBoxed') == packed:
+        return
+    card.setProperty('bookFullyBoxed', packed)
+    if packed:
+        selector = 'QFrame#' + card.objectName()
+        card.setStyleSheet(
+            selector + ' {background:rgba(36,181,111,36);border:1px solid #36a86e;border-radius:9px;}' +
+            selector + ':hover {background:rgba(36,181,111,61);border:2px solid #51d68b;}' +
+            selector + '[trackSelected="true"] {border:2px solid #68cd96;}' +
+            selector + '[trackSelected="true"]:hover {border:2px solid #8be8b2;}' +
+            selector + ' QFrame#TrackVariantSB,' + selector + ' QFrame#TrackVariantRNK,' +
+            selector + ' QFrame#PoolVariantSB,' + selector + ' QFrame#PoolVariantRNK,' +
+            selector + ' QFrame#PoolOrderLinks {background:rgba(36,181,111,22);border-color:#42996c;}'
+        )
+    else:
+        card.setStyleSheet('')
+    card.style().unpolish(card)
+    card.style().polish(card)
+    card.update()
+
+
 class ProgressCover(QLabel):
     """İlerlemeyi doğrudan kapağın görünen alanı üstünde gösterir."""
-    def __init__(self, book, covers, group, w=80, h=110, active=False):
+    def __init__(self, book, covers, group, w=80, h=110, active=False, show_partial=True):
         super().__init__()
         self.book = book
         self.covers_ref = covers
@@ -44,6 +82,9 @@ class ProgressCover(QLabel):
         self.setStyleSheet('QLabel#OrderPreviewCover { background:transparent; border:0; padding:0; }')
         self.ready = 0
         self.boxed = 0
+        self.fully_boxed = False
+        self.show_partial = bool(show_partial)
+        self.setAttribute(Qt.WidgetAttribute.WA_Hover, True)
         self.set_thumb_size(w, h)
         self.set_progress(group, active)
 
@@ -89,28 +130,45 @@ class ProgressCover(QLabel):
         count = max(1, int(group.get('adet', 0)))
         self.ready = min(1, max(0, int(group.get('hazir', 0)) / count)) if active else 0
         self.boxed = min(1, max(0, int(group.get('koli', 0)) / count)) if active else 0
+        self.fully_boxed = fully_boxed(group, active)
         self.setToolTip(
             f"Hazır: {group.get('hazir',0)}/{group.get('adet',0)}\n"
             f"Kolilendi: {group.get('koli',0)}/{group.get('adet',0)}"
         )
         self.update()
 
+    def enterEvent(self, event):
+        super().enterEvent(event)
+        if self.fully_boxed:self.update()
+
+    def leaveEvent(self, event):
+        super().leaveEvent(event)
+        if self.fully_boxed:self.update()
+
     def paintEvent(self, event):
         super().paintEvent(event)
-        if not self.ready and not self.boxed:
+        if not self.fully_boxed and (not self.show_partial or (not self.ready and not self.boxed)):
             return
         painter = QPainter(self)
         rect = self.content_rect()
         x, y, w, h = rect.x(), rect.y(), rect.width(), rect.height()
-        if self.ready:
+        if self.fully_boxed:
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+            hover = self.underMouse()
+            # Keep the original cover readable, tint the entire thumbnail.
+            area = self.rect().adjusted(1, 1, -1, -1)
+            painter.setBrush(QColor(35, 195, 112, 100 if hover else 66))
+            painter.setPen(QPen(QColor('#83f0ad' if hover else '#40b978'), 2))
+            painter.drawRoundedRect(area, 4, 4)
+        elif self.ready:
             ready_h = round(h * self.ready)
             painter.fillRect(QRect(x, y + h - ready_h, w, ready_h), QColor(47, 137, 230, 32))
             painter.fillRect(x, y + h - 3, round(w * self.ready), 3, QColor(78, 156, 233, 150))
-        if self.boxed:
+        if self.boxed and not self.fully_boxed:
             boxed_h = round(h * self.boxed)
             painter.fillRect(QRect(x, y + h - boxed_h, w, boxed_h), QColor(56, 210, 143, 46))
             painter.fillRect(x, y + h - 3, round(w * self.boxed), 3, QColor(95, 209, 160, 175))
-        if self.boxed >= 1 and w >= 34 and h >= 44:
+        if self.fully_boxed and w >= 34 and h >= 44:
             tick = QRect(rect.center().x() - 13, rect.center().y() - 13, 26, 26)
             painter.setPen(QPen(QColor('#b8f5d7'), 1.4))
             painter.setBrush(QColor(19, 94, 65, 205))

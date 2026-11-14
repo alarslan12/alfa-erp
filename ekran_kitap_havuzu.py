@@ -10,6 +10,7 @@ from pdf_kitap import PdfKutuphane
 from widgets import button, text, cover_label, scrollable, clear_layout
 from utils import metin_eslesiyor_mu
 from temali_combo import AlfaTemaliCombo
+from kart_siparis import ProgressCover, pool_cover_group, set_boxed_card_style
 
 
 class SiparisKitapHavuzu(QDialog):
@@ -328,6 +329,7 @@ class SiparisKitapHavuzu(QDialog):
         orders=getattr(main,'orders',None)
         if orders is not None:
             orders.refresh_rows()
+            orders.refresh_open_track_progress()
 
     def _update_after_progress(self, code):
         """Single book counters update in place. Do not recreate cards or jump scroll."""
@@ -355,6 +357,9 @@ class SiparisKitapHavuzu(QDialog):
                             current['eligible'].get((kind,field,delta),False))
             card = state['card']
             card.setProperty('poolRecent',True)
+            progress=pool_cover_group(current)
+            state['cover'].set_progress(progress,active=True)
+            set_boxed_card_style(card,progress)
             card.style().unpolish(card)
             card.style().polish(card)
             card.update()
@@ -377,6 +382,8 @@ class SiparisKitapHavuzu(QDialog):
         state = {'card':frame,'variants':{}}
         self._card_states[str(row['kod'])] = state
         frame.setProperty('poolRecent', str(row['kod']) == self._recent_code)
+        progress=pool_cover_group(row)
+        set_boxed_card_style(frame,progress)
         outer = QVBoxLayout(frame)
         outer.setContentsMargins(11, 10, 11, 10)
         outer.setSpacing(9)
@@ -385,8 +392,8 @@ class SiparisKitapHavuzu(QDialog):
         top.setSpacing(11)
         left = QVBoxLayout()
         left.setSpacing(4)
-        cover = cover_label(row['book'], self.covers, 112, 155)
-        cover.setStyleSheet('background: transparent; border: 0; border-radius: 0; padding: 0;')
+        cover = ProgressCover(row['book'],self.covers,progress,112,155,active=True,show_partial=False)
+        state['cover']=cover
         left.addWidget(cover, 0, Qt.AlignmentFlag.AlignHCenter)
         title = text(row['name'], 'PoolBookName', wrap=True)
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
