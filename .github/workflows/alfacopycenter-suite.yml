@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   promote-v2035:
-    if: github.event_name == 'push' && github.event.head_commit.message == 'release: promote verified v2.0.35 to stable'
+    if: github.event_name == 'push' && github.event.head_commit.message == 'Promote verified v2.0.35 to stable'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -45,7 +45,7 @@ jobs:
           test "$(gh api "repos/$REPO/releases/latest" --jq '.tag_name')" = "$TAG"
           test "$(gh api "repos/$REPO/releases/tags/$TAG" --jq '.prerelease')" = false
   windows-suite:
-    if: github.event_name != 'push' || github.event.head_commit.message != 'release: promote verified v2.0.35 to stable'
+    if: github.event_name != 'push' || github.event.head_commit.message != 'Promote verified v2.0.35 to stable'
     runs-on: windows-2022
     timeout-minutes: 100
     env:
