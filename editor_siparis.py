@@ -6,12 +6,14 @@ from PySide6.QtGui import QDesktopServices, QColor, QDrag
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QWidget, QFrame, QLabel, QScrollArea,
     QCheckBox, QSpinBox, QDoubleSpinBox, QLineEdit, QComboBox, QFormLayout, QGridLayout, QAbstractSpinBox,
-    QMessageBox, QFileDialog, QTabWidget, QTabBar, QPushButton, QSizePolicy, QApplication
+    QMessageBox, QFileDialog, QTabWidget, QTabBar, QPushButton, QSizePolicy, QApplication, QPlainTextEdit
 )
 from widgets import text, button, cover_label, scrollable, clear_layout, error, confirm
 from kart_siparis import ProgressCover
 from pdf_kitap import PdfKutuphane
 from ilerleme_kontrol import sonraki_ilerleme, buton_durumlari
+from siparis_uyari import pending_notice, revision
+from siparis_uyari_ui import plain
 
 
 def ciro_metinini_sayiya_cevir(raw):
@@ -114,6 +116,7 @@ class SiparisEditor(QDialog):
             return
 
         self._rendered_status = self.db.siparis_durumu(order)
+        self._rendered_notice = (revision(order),pending_notice(order))
         if self.mode == 'edit':
             self.header_lay.addWidget(text(f'Sipariş #{self.sid} · Düzenleme', 'PageTitle'))
             self.header_lay.addWidget(text('Kargo, platform, ciro ve kitap adetlerini güncelle.', 'Muted'))
@@ -130,6 +133,23 @@ class SiparisEditor(QDialog):
         close.clicked.connect(lambda: self.track_host.close_order_tab(self.sid) if self.embedded and hasattr(self, 'track_host') else self.close())
         self.header_lay.addWidget(close)
 
+        if self.mode != 'edit' and order.get('order_note'):
+            note=plain('Sipariş notu: '+str(order['order_note']))
+            note.setStyleSheet('font-weight:750;background:#fff0cc;color:#754900;padding:8px;border-radius:6px;')
+            self.body_lay.addWidget(note)
+        if self.mode != 'edit' and pending_notice(order):
+            warning=button('⚠ Siparişle ilgili güncelleme var · okumak için tıkla')
+            warning.setStyleSheet('font-size:14px;font-weight:850;background:#ad5a00;color:white;padding:10px;')
+            def read_notice():
+                from siparis_uyari_ui import OrderNoticeDialog
+                current=self.current()
+                if current and pending_notice(current):
+                    if OrderNoticeDialog(self.db,self.covers,current,self).exec()!=QDialog.DialogCode.Accepted:return
+                self.build_ui();self.on_updated()
+            warning.clicked.connect(read_notice)
+            self.body_lay.addWidget(warning)
+            self.body_lay.addStretch()
+            return
         if self.mode == 'edit':
             self.build_edit()
         elif self.db.siparis_durumu(order) == 'tamamlandi':
@@ -725,6 +745,8 @@ class SiparisEditor(QDialog):
         order = self.current()
         if not order or self.db.siparis_durumu(order) != 'aktif':
             return error(self, 'Bu işlem yalnızca aktif siparişte yapılabilir.')
+        if pending_notice(order):
+            return error(self,'Önce sipariş güncellemesini okuyup onaylayın.')
         chosen = [item for item in order.get('kitaplar', [])
                   if str(item.get('kod')) in codes]
         originals = [(item, int(item.get('hazir',0)), int(item.get('koli',0)))
@@ -830,6 +852,12 @@ class SiparisEditor(QDialog):
         self.revenue.setEnabled(editable)
         self.kind.setEnabled(editable)
         self._sync_compensation_kind(self.kind.currentText())
+        self.note_edit=QPlainTextEdit(str(order.get('order_note') or ''))
+        self.note_edit.setPlaceholderText('İsteğe bağlı operatör notu (boş bırakılabilir)')
+        self.note_edit.setFixedHeight(72)
+        self.note_edit.setEnabled(editable)
+        info_grid.addWidget(text('SİPARİŞ NOTU (OPSİYONEL)', 'Tiny'),4,0,1,2)
+        info_grid.addWidget(self.note_edit,5,0,1,2)
         self.body_lay.addWidget(info_panel)
 
         top = QHBoxLayout()
@@ -975,7 +1003,7 @@ class SiparisEditor(QDialog):
                 {'kod': format_kargo_kodu(self.shipping.text()), 'platform': self.platform_value,
                  'ciro': 0.0 if 'telafi' in self.kind.currentText().casefold()
                          else ciro_metinini_sayiya_cevir(self.revenue.text()),
-                 'siparis_turu': self.kind.currentText()},
+                 'siparis_turu': self.kind.currentText(), 'order_note':self.note_edit.toPlainText()},
                 items,
             )
         except Exception as exc:
@@ -1162,6 +1190,10 @@ class SiparisTakipSekmeleri(QDialog):
     def add_order(self, sid):
         sid = str(sid)
         if sid in self.pages:
+            page=self.pages[sid]
+            current=page.current()
+            if current and getattr(page,'_rendered_notice',None)!=(revision(current),pending_notice(current)):
+                page.build_ui()
             if sid in self.detached:
                 self.detached[sid].showNormal()
                 self.detached[sid].raise_()

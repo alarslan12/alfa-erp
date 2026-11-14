@@ -12,6 +12,7 @@ import openpyxl
 from utils import tr_kucult
 from islem_gunlugu import AuditLog
 from decimal import Decimal, InvalidOperation
+from siparis_uyari import clean_note, pending_notice, make_notice, revision, acknowledge
 
 class ERPDatabase:
     def __init__(self, excel_dosyasi=None, data_dir=None, allow_missing_pages=False):
@@ -182,7 +183,8 @@ class ERPDatabase:
                 str(order.get('kod') or ''),
                 str(order.get('siparis_turu') or ''),
                 round(float(order.get('ciro') or 0),2),
-                str(order.get('tarih') or ''), items)
+                str(order.get('tarih') or ''), str(order.get('order_note') or ''),
+                revision(order), items)
 
     def _queue_changes(self,before):
         """No HTTP here: record current local state and a durable outbox only."""
@@ -352,6 +354,8 @@ class ERPDatabase:
                 state=self._pending.get(sid)
                 if state is not None:
                     if state['revision']==batch['revisions'].get(sid):
+                        if row is not None and isinstance(result.get('notice_state'),dict):
+                            row.update(result['notice_state'])
                         self._pending.pop(sid,None)
                     elif state.get('delete'):
                         state['version']=int(result['version'])
@@ -731,6 +735,8 @@ class ERPDatabase:
         eski = self.siparis_durumu(siparis)
         if (eski, yeni_durum) not in (("havuz", "aktif"), ("aktif", "tamamlandi"), ("aktif", "havuz"), ("tamamlandi", "aktif")):
             raise ValueError("İzin verilmeyen sipariş geçişi")
+        if yeni_durum in ('aktif','tamamlandi') and pending_notice(siparis):
+            raise ValueError('Sipariş güncellemesi okunup onaylanmadan işlem yapılamaz.')
         if yeni_durum == "tamamlandi" and not self.kolileme_tamam(siparis):
             raise ValueError("Bütün kitaplar kolilenmeden sipariş tamamlanamaz")
         if siparis not in self.siparisler:
@@ -865,6 +871,7 @@ class ERPDatabase:
             for fld, val in (("adet", adet), ("hazir", hazir), ("koli", koli)):
                 birlesmis[key][fld] += val
         temiz = list(birlesmis.values())
+        note = clean_note(alanlar.get("order_note", siparis.get("order_note")))
         onceki = dict(siparis)
         siparis.update({
             "platform": str(alanlar.get("platform", "")).strip(),
@@ -874,14 +881,35 @@ class ERPDatabase:
             "kitaplar": temiz,
         })
         try:
+            if note or "order_note" in siparis:
+                siparis["order_note"] = note
+            notice = make_notice(onceki, siparis)
+            if notice:
+                siparis["order_notice"] = notice
             self.siparisleri_kaydet()
         except Exception:
             siparis.clear()
             siparis.update(onceki)
             raise
 
+    def apply_notice_ack(self, siparis, expected, notice):
+        if siparis not in self.siparisler or revision(siparis) != expected:
+            raise ValueError('Sipariş yeniden değişti; güncel uyarıyı açın.')
+        previous = siparis.get('order_notice')
+        siparis['order_notice'] = notice
+        self._cloud_applying = True
+        try:
+            self.siparisleri_kaydet()
+        except Exception:
+            siparis['order_notice'] = previous
+            raise
+        finally:
+            self._cloud_applying = False
+
     def siparis_ilerleme_degistir(self, siparis, kod, tur, hazir, koli):
         """Tek kitap varyantı için basıldı/kolilendi sayısını güvenle kaydeder."""
+        if pending_notice(siparis):
+            raise ValueError('Önce sipariş güncellemesini okuyup onaylayın.')
         if self.siparis_durumu(siparis) not in ("havuz", "aktif"):
             raise ValueError("Bu siparişin ilerlemesi değiştirilemez")
         if siparis not in self.siparisler:
@@ -907,6 +935,8 @@ class ERPDatabase:
         Kolilemede daha önce hazırlanmış olmayan kopya otomatik hazırlanmaz;
         işlem reddedilir ve sipariş olduğu gibi kalır.
         """
+        if pending_notice(siparis):
+            raise ValueError('Önce sipariş güncellemesini okuyup onaylayın.')
         if self.siparis_durumu(siparis) != 'aktif':
             raise ValueError('İlerleme yalnızca aktif siparişte yapılabilir.')
         if siparis not in self.siparisler:
@@ -1229,6 +1259,10 @@ class ERPDatabase:
                 "kod": str(alanlar["kod"]).strip()[:500], "ciro": ciro,
                 "siparis_turu": str(alanlar.get("siparis_turu", ""))[:100],
                 "durum": "havuz", "kitaplar": temiz}
+        note = clean_note(alanlar.get("order_note"))
+        if note:
+            yeni["order_note"] = note
+            yeni["order_notice"] = make_notice(None, yeni)
         self.siparisler.append(yeni)
         try:
             self.siparisleri_kaydet()

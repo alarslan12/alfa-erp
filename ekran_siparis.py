@@ -2,7 +2,7 @@
 from datetime import datetime
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QComboBox, QCheckBox,
-    QFrame, QToolButton, QListView, QAbstractItemView, QSizePolicy
+    QFrame, QToolButton, QListView, QAbstractItemView, QSizePolicy, QDialog
 )
 from PySide6.QtCore import Qt, QTimer
 from widgets import text, button, scrollable, error, confirm
@@ -14,6 +14,8 @@ from kargo_fisi import dosyaya_yaz, tarayicida_ac
 from kargo_ucreti import request_shipping_cost
 from siparis_arsivi import ayir_tamamlananlar
 from temali_combo import AlfaTemaliCombo
+from siparis_uyari import pending_notice, revision
+from siparis_uyari_ui import OrderNoticeDialog
 
 
 class SiparisView(QWidget):
@@ -259,6 +261,15 @@ class SiparisView(QWidget):
         self.day.setCurrentIndex(max(0, self.day.findData(selected_date)))
         self.day.blockSignals(False)
         self.refresh_rows()
+        hub=self.windows.get('track_hub')
+        if hub is not None:
+            try:
+                for page in list(hub.pages.values()):
+                    order=page.current()
+                    if order and getattr(page,'_rendered_notice',None)!=(revision(order),pending_notice(order)):
+                        page.build_ui()
+            except RuntimeError:
+                pass
 
     def on_day_changed(self, *_):
         if self.day.currentData() is not None:
@@ -316,7 +327,8 @@ class SiparisView(QWidget):
         return (self.db.siparis_durumu(order), str(order.get('kod','')),
                 str(order.get('platform','')), str(order.get('tarih','')),
                 str(order.get('tamamlanma_tarihi','')),
-                str(order.get('ciro',0)), books)
+                str(order.get('ciro',0)), str(order.get('siparis_turu','')),
+                revision(order), pending_notice(order), books)
 
     def refresh_rows(self, *_, reset_position=False):
         old_pos = self.rows_scroll.verticalScrollBar().value()
@@ -452,6 +464,8 @@ class SiparisView(QWidget):
         self._update_selected()
 
     def change_order(self, order, new_status):
+        if new_status in ('aktif','tamamlandi') and pending_notice(order):
+            return error(self,'Önce sipariş güncellemesini okuyup onaylayın.')
         action = {'aktif':'aktife alınsın','tamamlandi':'tamamlansın',
                   'havuz':'havuza geri alınsın'}.get(new_status, 'değiştirilsin')
         shipping_fee = None
@@ -499,6 +513,12 @@ class SiparisView(QWidget):
         if tab == 'edit' and not self.admin_mode:
             return error(self, 'Bu işlem Yönetici Paneli üzerinden yapılır.')
         mode = 'edit' if tab == 'edit' else 'track'
+        if mode=='track':
+            order=next((o for o in self.db.siparisler if str(o['id'])==str(sid)),None)
+            if order and pending_notice(order):
+                if OrderNoticeDialog(self.db,self.covers,order,self).exec()!=QDialog.DialogCode.Accepted:
+                    return
+                self._after_editor_updated()
         self.mark_recent(sid)
         if mode == 'track':
             from editor_siparis import SiparisTakipSekmeleri

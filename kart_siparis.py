@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QCheckBox, QApplication, QToolButton, QMenu, QGridLayout, QSizePolicy
 )
 from widgets import text, cover_label, button, fallback_cover_pixmap
+from siparis_uyari import pending_notice
 
 
 def readable_date(value):
@@ -289,7 +290,9 @@ class SiparisKarti(QFrame):
         self.setMinimumHeight(174)
         status = db.siparis_durumu(siparis)
         self._status = status
-        self.setFixedHeight(202 if status == 'tamamlandi' else 186)
+        self._notice_pending = status!='tamamlandi' and pending_notice(siparis)
+        self._pulse_on = True
+        self.setFixedHeight((202 if status == 'tamamlandi' else 186)+(43 if self._notice_pending else 0))
         self.setProperty('orderStatus', status)
         root = QHBoxLayout(self)
         root.setContentsMargins(10, 8, 10, 8)
@@ -401,6 +404,17 @@ class SiparisKarti(QFrame):
             pool_info = text('SİPARİŞ HAVUZU', 'OrderPoolInfo')
             pool_info.setToolTip('Sipariş henüz aktife alınmadı')
             right.addWidget(pool_info)
+        if self._notice_pending:
+            self._notice_btn=button('⚠ Siparişle ilgili\\ngüncelleme var')
+            self._notice_btn.setFixedHeight(38)
+            self._notice_btn.setToolTip('Değişiklikleri okumak ve onaylamak için tıklayın')
+            self._notice_btn.clicked.connect(lambda:on_open(siparis['id'],'track'))
+            right.addWidget(self._notice_btn)
+            self._notice_timer=QTimer(self)
+            self._notice_timer.setInterval(700)
+            self._notice_timer.timeout.connect(self._pulse_notice)
+            self._pulse_notice()
+            self._notice_timer.start()
         detail = button('Sipariş detayı', 'DetailAction')
         detail.setToolTip('Hazırlama, kolileme ve kitap PDF ekranını aç')
         detail.clicked.connect(lambda: on_open(siparis['id'], 'track'))
@@ -411,6 +425,8 @@ class SiparisKarti(QFrame):
             primary = button('Aktife al', 'Success')
             primary.clicked.connect(lambda: on_status(siparis, 'aktif'))
             primary.setFixedHeight(40)
+            primary.setEnabled(not self._notice_pending)
+            if self._notice_pending:primary.setToolTip('Önce sipariş güncellemesini okuyun')
             primary.setMinimumWidth(0)
             row.addWidget(primary, 1)
             if on_delete:
@@ -422,7 +438,7 @@ class SiparisKarti(QFrame):
                 row.addWidget(delete_direct, 0)
         elif status == 'aktif':
             self._complete_btn = button('Tamamla', 'Success')
-            self._complete_btn.setEnabled(db.kolileme_tamam(siparis))
+            self._complete_btn.setEnabled(db.kolileme_tamam(siparis) and not self._notice_pending)
             self._complete_btn.setToolTip('Bütün kitaplar kolilendiğinde kullanılabilir')
             self._complete_btn.clicked.connect(lambda: on_status(siparis, 'tamamlandi'))
             self._complete_btn.setFixedHeight(36)
@@ -464,7 +480,7 @@ class SiparisKarti(QFrame):
                 delete.triggered.connect(lambda: on_delete(siparis))
                 menu.addSeparator(); menu.addAction(delete)
         more.setMenu(menu)
-        if status != 'havuz':
+        if status != 'havuz' or allow_edit:
             row.addWidget(more)
         right.addLayout(row)
         if status == 'havuz':
@@ -477,6 +493,30 @@ class SiparisKarti(QFrame):
         self._right_box = box
         self.set_selected(selected)
 
+    def _pulse_notice(self):
+        if not self._notice_pending:
+            return
+        self._pulse_on=not self._pulse_on
+        bg,fg=('#ffcb40','#362000') if self._pulse_on else ('#a74a00','#ffffff')
+        self._notice_btn.setStyleSheet(f'QPushButton {{background:{bg};color:{fg};font-size:11px;font-weight:900;border:2px solid #ffaa17;border-radius:6px;padding:1px;}}')
+        if self.isVisible():
+            self.update()
+
+    def paintEvent(self,event):
+        super().paintEvent(event)
+        if not self._notice_pending:
+            return
+        painter=QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        color=QColor('#ffc328' if self._pulse_on else '#ff8b21')
+        for width,alpha,inset in ((7,65,4),(4,140,3),(2,255,2)):
+            color.setAlpha(alpha)
+            pen=QPen(color,width)
+            painter.setPen(pen)
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawRoundedRect(self.rect().adjusted(inset,inset,-inset,-inset),11,11)
+        painter.end()
+
     def set_compact_mode(self, compact):
         compact = bool(compact)
         if getattr(self, '_compact', None) == compact:
@@ -487,7 +527,7 @@ class SiparisKarti(QFrame):
         # Dense orders need a third row on smaller screens; only the affected
         # row grows, not the whole application's font/theme.
         total = len(self.covers_area._cards)
-        self.setFixedHeight(226 if compact and total >= 18 else (202 if self._status=='tamamlandi' else 186))
+        self.setFixedHeight((226 if compact and total >= 18 else (202 if self._status=='tamamlandi' else 186))+(43 if self._notice_pending else 0))
         self.covers_area._pending_reflow.start(0)
 
     def set_selected(self, selected):
@@ -512,4 +552,4 @@ class SiparisKarti(QFrame):
             bar.setValue(summary[key])
         self.covers_area.update_groups(db, order)
         if hasattr(self, '_complete_btn'):
-            self._complete_btn.setEnabled(db.kolileme_tamam(order))
+            self._complete_btn.setEnabled(db.kolileme_tamam(order) and not pending_notice(order))

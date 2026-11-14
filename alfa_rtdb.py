@@ -17,6 +17,7 @@ import urllib.request
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
+from siparis_uyari import clean_note, pending_notice, make_notice, revision, acknowledge
 
 API_KEY = "AIzaSyAnp5yiDLGE6nCb-Lrl8DeZx5dDaYuopCM"
 DB_URL = "https://alfa-erp-8700c-default-rtdb.europe-west1.firebasedatabase.app"
@@ -424,16 +425,31 @@ class Workstation:
                 def edit_existing(previous):
                     if int(previous.get("version") or 0) != expected:
                         raise DeviceError("Sipariş başka cihazda değişti", 409)
+                    before = copy.deepcopy(previous)
+                    note = clean_note(local.get("order_note", previous.get("order_note")))
+                    if note != clean_note(previous.get("order_note")):
+                        member = self._get("members/" + self.uid) or {}
+                        if member.get("role") != "owner" or member.get("active") is not True:
+                            raise DeviceError("Sipariş notunu yalnızca Yönetici düzenleyebilir", 403)
+                    if note or "order_note" in previous:
+                        previous["order_note"] = note
                     previous["platform"] = str(local.get("platform") or "")
                     previous["shipping_reference"] = str(local.get("kod") or "")
                     previous["order_type"] = str(local.get("siparis_turu") or "")
                     previous["gross_amount"] = float(local.get("ciro") or 0)
                     previous["items"] = self._make_items(
                         order_id, local.get("kitaplar") or [], previous.get("items") or {})
+                    notice = make_notice(before, previous, revision(local))
+                    if notice:
+                        previous["order_notice"] = notice
                     previous["version"] = expected + 1
-                    return previous, {"local_id":local_id,"uuid":order_id,
-                                      "version":previous["version"],
-                                      "order_number":previous["order_number"]}
+                    result = {"local_id":local_id,"uuid":order_id,
+                              "version":previous["version"],
+                              "order_number":previous["order_number"]}
+                    if "order_notice" in previous:
+                        result["notice_state"] = {"order_notice":previous["order_notice"],
+                                                  "order_note":previous.get("order_note","")}
+                    return previous, result
                 results.append(self._atomic_order(order_id, edit_existing))
                 continue
             if not request_id:
@@ -471,10 +487,39 @@ class Workstation:
                             "device_name":socket.gethostname()[:120],"order_ids":[order_id],
                             "created_at":now,"details":{}}},
                          "items":self._make_items(order_id,local.get("kitaplar") or [])}
-                return entry, {"local_id":local_id, "uuid":order_id,
-                               "version":1, "order_number":number}
+                note = clean_note(local.get("order_note"))
+                result = {"local_id":local_id, "uuid":order_id,
+                          "version":1, "order_number":number}
+                if note:
+                    entry["order_note"] = note
+                    entry["order_notice"] = make_notice(None, entry, revision(local))
+                    result["notice_state"] = {"order_note":note, "order_notice":entry["order_notice"]}
+                return entry, result
             results.append(self._atomic_order(order_id, create, allow_create=True))
         return results
+
+    def acknowledge_order_notice(self, order_id, expected):
+        """Atomic exact-revision acknowledgment; never clear a newer notice."""
+        def mutate(row):
+            if row.get("deleted_at"):
+                raise DeviceError("Sipariş artık mevcut değil",409)
+            try:
+                notice = acknowledge(row, expected, self.uid)
+            except ValueError as exc:
+                raise DeviceError(str(exc),409) from None
+            if not pending_notice(row):
+                return None, notice
+            row["order_notice"] = notice
+            row["version"] = int(row.get("version") or 1) + 1
+            row["updated_at"] = datetime.now(timezone.utc).isoformat()
+            event_id = str(uuid.uuid4())
+            row.setdefault("event_log",{})[event_id] = {
+                "id":event_id, "action":"order_notice_acknowledged",
+                "device_id":self.uid, "device_name":socket.gethostname()[:120],
+                "order_ids":[order_id], "created_at":row["updated_at"],
+                "details":{"revision":expected}}
+            return row, notice
+        return self._atomic_order(order_id, mutate)
 
     def _apply_progress_events(self, events):
         """Commit every consecutive progress change for ONE order in ONE CAS.
@@ -503,6 +548,8 @@ class Workstation:
                                   "order_id":order_id,
                                   "version":int(processed[str(event["op_id"])])}
                                  for event in group]
+                if pending_notice(row):
+                    raise DeviceError("Sipariş güncellemesi okunup onaylanmalı",422)
                 if row.get("status")!="aktif":
                     raise DeviceError("İşlem için sipariş aktif olmalı",409)
                 items=row.get("items") or {}
@@ -590,6 +637,8 @@ class Workstation:
                                      "version":int(row.get("version") or 0)}
                     if str(row.get("status")) != src:
                         raise DeviceError("Sipariş durumu başka cihazda değişti; yenile",409)
+                    if dst in ("aktif","tamamlandi") and pending_notice(row):
+                        raise DeviceError("Sipariş güncellemesi okunup onaylanmalı",422)
                     if dst=="tamamlandi":
                         items=(row.get("items") or {}).values()
                         if not all(int(x.get("boxed_count") or 0)>=int(x.get("quantity") or 0)

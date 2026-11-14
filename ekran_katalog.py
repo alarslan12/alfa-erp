@@ -1,6 +1,6 @@
 """ALFA ERP Qt kitap kataloğu: 4 sütun, filtre, toplu işlem ve canlı sepet."""
 from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QFrame,QGridLayout,QLineEdit,QComboBox,QSpinBox,
- QScrollArea,QLabel,QCheckBox,QDialog,QFormLayout,QDoubleSpinBox,QFileDialog,QMessageBox,QSizePolicy,QButtonGroup,QPushButton,QGraphicsOpacityEffect,QApplication)
+ QScrollArea,QLabel,QCheckBox,QDialog,QFormLayout,QDoubleSpinBox,QFileDialog,QMessageBox,QSizePolicy,QButtonGroup,QPushButton,QGraphicsOpacityEffect,QApplication,QPlainTextEdit)
 from PySide6.QtCore import Qt, Signal, QTimer, QEvent, QPropertyAnimation, QRect, QEasingCurve
 from utils import metin_eslesiyor_mu, otomatik_platform_bul,format_kargo_kodu
 from datetime import datetime
@@ -210,6 +210,8 @@ class SiparisBilgiDialog(QDialog):
         self.order_type.currentTextChanged.connect(self._update_order_kind)
         form.addRow('Kargo kodu / adres',self.shipping)
         form.addRow('Ciro',self.revenue);form.addRow('Sipariş türü',self.order_type)
+        self.note=QPlainTextEdit();self.note.setPlaceholderText('İsteğe bağlı sipariş notu');self.note.setFixedHeight(75)
+        form.addRow('Not (opsiyonel)',self.note)
         self.revenue_label=form.labelForField(self.revenue)
         lay.addLayout(form)
         item_count=sum(int(q) for variants in cart.values() for q in variants.values())
@@ -239,7 +241,7 @@ class SiparisBilgiDialog(QDialog):
         try:
             self.db.yeni_siparis_olustur({'kod':code,'platform':self.platform_value,
                 'ciro':0 if 'telafi' in self.order_type.currentText().casefold()
-                else self.revenue.value(),'siparis_turu':self.order_type.currentText()},items)
+                else self.revenue.value(),'siparis_turu':self.order_type.currentText(),'order_note':self.note.toPlainText()},items)
         except Exception as exc:return error(self,str(exc))
         self.accept()
 
@@ -309,6 +311,12 @@ class KatalogView(QWidget):
         side_l.addWidget(self.telafi_notice)
         self.telafi_notice.hide()
         self.special_btn.toggled.connect(self._compensation_changed)
+        self.note_toggle=button('+ Not ekle (isteğe bağlı)')
+        self.note_toggle.setCheckable(True)
+        self.note=QPlainTextEdit();self.note.setPlaceholderText('Siparişle ilgili operatör notu...')
+        self.note.setFixedHeight(74);self.note.hide()
+        self.note_toggle.toggled.connect(self.note.setVisible)
+        side_l.addWidget(self.note_toggle);side_l.addWidget(self.note)
         self.order_btn=button('🚀  Siparişi Sisteme Kaydet','Success')
         self.order_btn.clicked.connect(self.make_order);side_l.addWidget(self.order_btn)
         root.addWidget(self.side)
@@ -480,13 +488,15 @@ class KatalogView(QWidget):
         info={'kod':format_kargo_kodu(self.shipping.text(),self.platform_value),
               'platform':self.platform_value,
               'ciro':0.0 if self.special_btn.isChecked() else self.revenue.value(),
-              'siparis_turu':'Telafi Sipariş' if self.special_btn.isChecked() else 'Normal Sipariş'}
+              'siparis_turu':'Telafi Sipariş' if self.special_btn.isChecked() else 'Normal Sipariş',
+              'order_note':self.note.toPlainText()}
         if info['kod'] and not _ask_before_duplicate_shipping_code(self,self.db,info['kod']):
             return
         try:self.db.yeni_siparis_olustur(info,items)
         except Exception as exc:return error(self,str(exc))
         self.cart.clear();self.db.sepeti_yaz(self.cart)
         self.shipping.clear();self.revenue.clear();self.normal_btn.setChecked(True)
+        self.note.clear();self.note_toggle.setChecked(False)
         self.update_cart();self.refresh_grid();self.order_created.emit()
     def import_one_cover(self,book):
         path,_=QFileDialog.getOpenFileName(self,'Kitap kapağı seç','','Görseller (*.png *.jpg *.jpeg *.webp *.bmp)')

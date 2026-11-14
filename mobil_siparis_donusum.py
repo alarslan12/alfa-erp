@@ -54,6 +54,10 @@ def convert_mobile_order(row, items, catalog):
         'bulut_siparis_no': int(row.get('order_number') or 0),
         'bulut_version': int(row.get('version') or 1),
     }
+    if 'order_note' in row:
+        output['order_note'] = str(row.get('order_note') or '')
+    if isinstance(row.get('order_notice'),dict):
+        output['order_notice'] = row['order_notice']
     if row.get('shipping_fee') is not None:
         output['kargo_ucreti'] = float(row['shipping_fee'])
     if status in ('aktif', 'tamamlandi'):
