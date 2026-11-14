@@ -52,6 +52,12 @@ class SuiteUpdaterTests(unittest.TestCase):
         result=self.check('2.0.12',[newer,release('2.0.13')])
         self.assertEqual(result['latest'],'v2.0.13')
 
+    def test_cancelled_shipping_label_release_is_skipped(self):
+        result=self.check('2.0.28',[release('2.0.29'),release('2.0.28')])
+        self.assertFalse(result['available'])
+        result=self.check('2.0.28',[release('2.0.29'),release('2.0.30')])
+        self.assertEqual(result['latest'],'v2.0.30')
+
     def test_helper_preserves_suite_layout_and_print_restart(self):
         self.assertIn('/ALFAPRINT',HELPER_PS)
         self.assertIn('PrintSurveillance\\AlfaPrintSurveillance.exe',HELPER_PS)

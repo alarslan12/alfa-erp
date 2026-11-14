@@ -195,10 +195,13 @@ class Service(QObject):
             fresh,new_state=classify_new_orders(
                 self.state,rows,str(self.last_revision.get("epoch") or ""),
                 legacy_seen=self.seen)
-            DATA.mkdir(parents=True,exist_ok=True)
-            staged=STATE.with_suffix(".tmp")
-            staged.write_text(json.dumps(new_state),encoding="utf-8")
-            os.replace(staged,STATE)
+            # Preserve the legacy migration and repair missing state, but
+            # avoid rewriting an unchanged watermark on routine refreshes.
+            if new_state!=self.state or self.seen is not None or not STATE.is_file():
+                DATA.mkdir(parents=True,exist_ok=True)
+                staged=STATE.with_suffix(".tmp")
+                staged.write_text(json.dumps(new_state),encoding="utf-8")
+                os.replace(staged,STATE)
             self.state=new_state
             self.seen=None
             self.tray.setToolTip('ALFA ERP · Firebase bildirimleri aktif')
@@ -234,7 +237,7 @@ class Service(QObject):
 
 def main():
     DATA.mkdir(parents=True,exist_ok=True)
-    install_reporter("2.0.29","staff",data_dir=DATA)
+    install_reporter("2.0.30","staff",data_dir=DATA)
     def _error_hook(error_type,error,tb):
         record_error(error_type,error,tb,source="tray")
     sys.excepthook=_error_hook

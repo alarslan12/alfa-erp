@@ -1,4 +1,4 @@
-# ALFACOPYCENTER Suite v2.0.29
+# ALFACOPYCENTER Suite v2.0.30
 
 **Tek Windows kurulumu**, dört seçilebilir bileşen:
 
@@ -10,7 +10,7 @@
 | ALFA Print Center | PrintSurveillance/AlfaPrintSurveillance.exe | Seçilebilir, varsayılan |
 | Arka plan yardımcıları | Bildirim, PrintAgent, PrintSupervisor | Seçilen bileşene bağlı |
 
-Kurulum: `ALFACOPYCENTER_Suite_Setup_V2_0_29.exe`. Aynı Inno Setup AppId
+Kurulum: `ALFACOPYCENTER_Suite_Setup_V2_0_30.exe`. Aynı Inno Setup AppId
 (`ALFACOPYCENTER.Suite`) ve kurulum yolu korundu:
 `%LOCALAPPDATA%\Programs\ALFACOPYCENTER`.
 
@@ -149,10 +149,13 @@ Aktif sipariş ve havuz kapaklarında toplam nüsha, SB/RNK adetleri görünür.
 
 Kapaklarda yalnızca mevcut SB/RNK adetleri sağ üstte gösterilir; siyah toplam rozeti kaldırıldı. Diğer işleyiş korunur.
 
-## v2.0.29 — Açık adres kargo fişi
 
-- Açık adres sipariş kartındaki Kargo fişi düğmesi: Yönetici PDF yükler/değiştirir, Personel indirip kaydeder. Yönetici de PDF indirebilir ancak kendi indirmesi personel onayı yerine geçmez.
-- PDF en fazla 512 KB; özel RTDB alanında tutulur, normal sipariş eşitlemesine dosya içeriği dahil edilmez. İndirme sırasında boyut ve SHA-256 kontrol edilir; başarılı yerel kayıttan sonra yetkili personel UID'si ve zaman bilgisi kaydedilir.
-- Fiş yenilendiğinde/eski adres değiştiğinde indirme onayı geçersiz olur. Açık adres siparişi kolileme VE güncel fişin personel tarafından indirildiğine dair kayıt olmadan tamamlanamaz. Mevcut tamamlanmış siparişler geriye dönük zorlanmaz; Dolap/Gardrops korunur.
-- Yeni Firebase Realtime Database kurallarının canlı projeye yayımlanması ZORUNLUDUR. Önce her iki uygulamayı güncelle, bekleyen işlemlerin tamamlanmasını sağla, Firebase Console'daki mevcut Rules içeriğini yerel dosyaya yedekle. Sonra v2.0.29 etiketindeki firebase/database.rules.json dosyasını Firebase Console > Realtime Database > Rules bölümüne aktar ve Publish seç. Önce CI emülatör testlerinin ve Windows sürümünün başarıyla tamamlandığını doğrula. Proje: alfa-erp-8700c. Veritabanını veya üyeleri silme. Kurallar uygulanmadıysa fiş yükleme reddedilir.
-- Yeni Firebase Storage/Blaze planı gerekli değildir. İnternet bağlantısı gereklidir. İndirme kaydı fiziksel baskının kanıtı değildir; dosya yetkili personel uygulaması tarafından doğrulanıp kaydedilir. Gerçek iki-PC testi ayrıca yapılmalıdır.
+# ALFACOPYCENTER Suite v2.0.30 — Stabilite ve optimizasyon
+
+- Doğrudan v2.0.28 çalışan kaynak ağacı esas alınmıştır. İptal edilen v2.0.29 kargo fişi özelliği dahil değildir.
+- Güncelleme indirmeleri 512 KiB bloklarla yapılır; arayüz ilerleme bildirimleri saniyede yaklaşık 10 ile sınırlandırılır, son ilerleme her zaman bildirilir. SHA-256 ve kurulum öncesi eşitleme kontrolleri korunur.
+- İptal edilen v2.0.29 yeni güncelleme merkezinde aday olarak değerlendirilmez.
+- Sipariş bildirimi servisinde durum değişmediyse gereksiz yerel JSON yazımı yapılmaz; yeni sipariş tespiti ve ses davranışı korunur.
+- Personel, Yönetici, Banner Studio ve Print Center aynı Suite paketindedir.
+- Firebase güvenlik kuralları, veri modeli, kullanıcı yetkileri, Katalog ve Siparişler kodu v2.0.28 ile aynıdır. Yeni kural yayımlamak gerekmez.
+- Daha önce canlı kargo fişi kuralları yayımlandıysa, aktif siparişleri tamamlamadan önce durum ayrıca doğrulanmalıdır.

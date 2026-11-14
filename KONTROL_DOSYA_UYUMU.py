@@ -16,8 +16,6 @@ BASE_REQUIRED = {
     'ekran_envanter.py': {'EnvanterView'},
     'widgets.py': {'fallback_cover_pixmap', 'refresh_cover_placeholders', 'cover_label'},
     'kart_siparis.py': {'ProgressCover', 'SiparisKarti'},
-    'kargo_etiketi.py': {'requires_label', 'label_ready', 'encode_pdf', 'decode_pdf'},
-    'rtdb_kargo_etiketi.py': {'upload_label', 'download_label'},
     'editor_siparis.py': {'SiparisTakipSekmeleri', 'SiparisEditor'},
 }
 ADMIN_REQUIRED = {

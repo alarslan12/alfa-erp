@@ -1,12 +1,15 @@
 # ALFA ERP · Sürüm Geçmişi
 
-## [v2.0.29] — 2026-11-14
+## [v2.0.30] — 2026-11-14
 
-- Açık adres siparişlerine özel Yönetici PDF yükleme, Personel indirme/onay.
-- SHA-256 doğrulaması, fiş değiştiğinde onay sıfırlama, sunucu tamamlanma kontrolü.
-- Firebase emülatör yetki testleri ve gerçek cihazda ayrıca doğrulama.
-- Yeni RTDB Rules dosyası canlı projede yayımlanmalıdır.
+- v2.0.28 tabanına dönüş; v2.0.29 kargo fişi iptal.
+- Güncelleme indirme ve ilerleme olayları optimize edildi.
+- Değişmeyen bildirim durumunun gereksiz yerel yazımı kaldırıldı.
+- Firebase, katalog ve sipariş işlevleri korunur.
 
+## [v2.0.29] — İptal
+
+- Kargo fişi güncellemesi üretimde kullanılmamalıdır.
 
 ## [v2.0.28] — 2026-11-14
 

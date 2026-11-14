@@ -36,46 +36,7 @@
           ".read": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true",
           "$id": {
             ".write": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true && (root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'owner' || root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'staff') && newData.exists()",
-            ".validate": "newData.hasChildren(['id','status','version','order_number']) && newData.child('id').val() === $id && (newData.child('status').val() === 'havuz' || newData.child('status').val() === 'aktif' || newData.child('status').val() === 'tamamlandi') && newData.child('version').isNumber() && newData.child('version').val() >= 1 && (!data.exists() || newData.child('version').val() === data.child('version').val()+1) && (!data.exists() || newData.child('order_number').val() === data.child('order_number').val()) && (( (!(!data.child('shipping_label').exists() && newData.child('shipping_label').exists()) && !(!newData.child('shipping_label').exists() && data.child('shipping_label').exists()) && newData.child('shipping_label/revision').val() === data.child('shipping_label/revision').val() && newData.child('shipping_label/filename').val() === data.child('shipping_label/filename').val() && newData.child('shipping_label/size').val() === data.child('shipping_label/size').val() && newData.child('shipping_label/sha256').val() === data.child('shipping_label/sha256').val() && newData.child('shipping_label/uploaded_by').val() === data.child('shipping_label/uploaded_by').val() && newData.child('shipping_label/uploaded_at').val() === data.child('shipping_label/uploaded_at').val()) || (auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid).child('role').val() === 'owner' && root.child('alfa/'+$workspace+'/members/'+auth.uid).child('active').val() === true && (data.child('status').val() === 'havuz' || data.child('status').val() === 'aktif') && !data.child('deleted_at').exists() && (newData.child('status').val() === 'havuz' || newData.child('status').val() === 'aktif') && !newData.child('deleted_at').exists() && (( !newData.child('shipping_label').exists() && (newData.child('shipping_reference').val() !== data.child('shipping_reference').val() || newData.child('platform').val() !== data.child('platform').val())) || (newData.child('shipping_label').exists() && !(newData.child('shipping_label/revision').val() === data.child('shipping_label/revision').val()) && !(newData.child('shipping_reference').val() !== data.child('shipping_reference').val() || newData.child('platform').val() !== data.child('platform').val()) && ((newData.child('platform').isString() && newData.child('platform').val().matches(/.*[Aa][çÇcC][ıIİi][kK] [Aa][Dd][Rr][Ee][Ss].*/)) || (newData.child('order_type').isString() && newData.child('order_type').val().matches(/.*[Aa][çÇcC][ıIİi][kK] [Aa][Dd][Rr][Ee][Ss].*/))) && newData.child('shipping_label/uploaded_by').val() === auth.uid && root.child('alfa/'+$workspace+'/shipping_label_files/'+$id+'/'+newData.child('shipping_label/revision').val()).exists() && root.child('alfa/'+$workspace+'/shipping_label_files/'+$id+'/'+newData.child('shipping_label/revision').val()).child('sha256').val() === newData.child('shipping_label/sha256').val() && root.child('alfa/'+$workspace+'/shipping_label_files/'+$id+'/'+newData.child('shipping_label/revision').val()).child('size').val() === newData.child('shipping_label/size').val()))))) && ((!data.child('shipping_label').exists() || !(newData.child('shipping_reference').val() !== data.child('shipping_reference').val() || newData.child('platform').val() !== data.child('platform').val()) || !newData.child('shipping_label').exists())) && ((((newData.child('shipping_label/revision').val() === data.child('shipping_label/revision').val()) && (!(!data.child('shipping_label_receipt').exists() && newData.child('shipping_label_receipt').exists()) && !(!newData.child('shipping_label_receipt').exists() && data.child('shipping_label_receipt').exists()) && newData.child('shipping_label_receipt/revision').val() === data.child('shipping_label_receipt/revision').val() && newData.child('shipping_label_receipt/downloaded_by').val() === data.child('shipping_label_receipt/downloaded_by').val() && newData.child('shipping_label_receipt/downloaded_at').val() === data.child('shipping_label_receipt/downloaded_at').val())) || (!(newData.child('shipping_label/revision').val() === data.child('shipping_label/revision').val()) && !newData.child('shipping_label_receipt').exists()) || (auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid).child('role').val() === 'staff' && root.child('alfa/'+$workspace+'/members/'+auth.uid).child('active').val() === true && (data.child('status').val() === 'havuz' || data.child('status').val() === 'aktif') && !data.child('deleted_at').exists() && (newData.child('status').val() === 'havuz' || newData.child('status').val() === 'aktif') && !newData.child('deleted_at').exists() && (newData.child('shipping_label/revision').val() === data.child('shipping_label/revision').val()) && !data.child('shipping_label_receipt').exists() && data.child('shipping_label').exists() && ((data.child('platform').isString() && data.child('platform').val().matches(/.*[Aa][çÇcC][ıIİi][kK] [Aa][Dd][Rr][Ee][Ss].*/)) || (data.child('order_type').isString() && data.child('order_type').val().matches(/.*[Aa][çÇcC][ıIİi][kK] [Aa][Dd][Rr][Ee][Ss].*/))) && newData.child('shipping_label_receipt/revision').val() === data.child('shipping_label/revision').val() && newData.child('shipping_label_receipt/downloaded_by').val() === auth.uid && !(newData.child('shipping_reference').val() !== data.child('shipping_reference').val() || newData.child('platform').val() !== data.child('platform').val())))) && ((!newData.child('shipping_label_receipt').exists() || (newData.child('shipping_label').exists() && newData.child('shipping_label_receipt/revision').val() === newData.child('shipping_label/revision').val()))) && ((newData.child('status').val() !== 'tamamlandi' || data.child('status').val() === 'tamamlandi' || !((data.child('platform').isString() && data.child('platform').val().matches(/.*[Aa][çÇcC][ıIİi][kK] [Aa][Dd][Rr][Ee][Ss].*/)) || (data.child('order_type').isString() && data.child('order_type').val().matches(/.*[Aa][çÇcC][ıIİi][kK] [Aa][Dd][Rr][Ee][Ss].*/)) || (newData.child('platform').isString() && newData.child('platform').val().matches(/.*[Aa][çÇcC][ıIİi][kK] [Aa][Dd][Rr][Ee][Ss].*/)) || (newData.child('order_type').isString() && newData.child('order_type').val().matches(/.*[Aa][çÇcC][ıIİi][kK] [Aa][Dd][Rr][Ee][Ss].*/))) || (data.child('shipping_label').exists() && data.child('shipping_label_receipt').exists() && data.child('shipping_label_receipt/revision').val() === data.child('shipping_label/revision').val() && (newData.child('shipping_label/revision').val() === data.child('shipping_label/revision').val()) && !(newData.child('shipping_reference').val() !== data.child('shipping_reference').val() || newData.child('platform').val() !== data.child('platform').val()) && root.child('alfa/'+$workspace+'/shipping_label_files/'+$id+'/'+data.child('shipping_label/revision').val()).exists() && root.child('alfa/'+$workspace+'/shipping_label_files/'+$id+'/'+data.child('shipping_label/revision').val()).child('sha256').val() === data.child('shipping_label/sha256').val())))",
-            "shipping_label": {
-              ".validate": "newData.hasChildren(['revision','filename','size','sha256','uploaded_by','uploaded_at']) && newData.child('revision').isString() && newData.child('revision').val().matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/) && newData.child('filename').isString() && newData.child('filename').val().length <= 140 && newData.child('size').isNumber() && newData.child('size').val() > 4 && newData.child('size').val() <= 524288 && newData.child('sha256').isString() && newData.child('sha256').val().matches(/^[0-9a-f]{64}$/) && newData.child('uploaded_by').isString() && newData.child('uploaded_by').val().length <= 128 && newData.child('uploaded_at').isString() && newData.child('uploaded_at').val().length <= 40",
-              "revision": {
-                ".validate": true
-              },
-              "filename": {
-                ".validate": true
-              },
-              "size": {
-                ".validate": true
-              },
-              "sha256": {
-                ".validate": true
-              },
-              "uploaded_by": {
-                ".validate": true
-              },
-              "uploaded_at": {
-                ".validate": true
-              },
-              "$other": {
-                ".validate": false
-              }
-            },
-            "shipping_label_receipt": {
-              ".validate": "newData.hasChildren(['revision','downloaded_by','downloaded_at']) && newData.child('revision').isString() && newData.child('revision').val().matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/) && newData.child('downloaded_by').isString() && newData.child('downloaded_by').val().length <= 128 && newData.child('downloaded_at').isString() && newData.child('downloaded_at').val().length <= 40",
-              "revision": {
-                ".validate": true
-              },
-              "downloaded_by": {
-                ".validate": true
-              },
-              "downloaded_at": {
-                ".validate": true
-              },
-              "$other": {
-                ".validate": false
-              }
-            }
+            ".validate": "newData.hasChildren(['id','status','version','order_number']) && newData.child('id').val() === $id && (newData.child('status').val() === 'havuz' || newData.child('status').val() === 'aktif' || newData.child('status').val() === 'tamamlandi') && newData.child('version').isNumber() && newData.child('version').val() >= 1 && (!data.exists() || newData.child('version').val() === data.child('version').val()+1) && (!data.exists() || newData.child('order_number').val() === data.child('order_number').val())"
           }
         },
         "inventory": {
@@ -213,27 +174,6 @@
           "$id": {
             ".write": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'owner' && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true && ((!newData.exists() && data.exists()) || (newData.hasChildren(['reviewed_by','reviewed_at']) && newData.child('reviewed_by').val() === auth.uid))",
             ".validate": "newData.child('reviewed_at').isString() && newData.child('reviewed_at').val().length <= 40"
-          }
-        },
-        "shipping_label_files": {
-          "$id": {
-            "$revision": {
-              ".read": "auth !== null && (root.child('alfa/'+$workspace+'/members/'+auth.uid).child('role').val() === 'owner' && root.child('alfa/'+$workspace+'/members/'+auth.uid).child('active').val() === true || root.child('alfa/'+$workspace+'/members/'+auth.uid).child('role').val() === 'staff' && root.child('alfa/'+$workspace+'/members/'+auth.uid).child('active').val() === true) && root.child('alfa/'+$workspace+'/orders/'+$id).exists() && !root.child('alfa/'+$workspace+'/orders/'+$id).child('deleted_at').exists() && (root.child('alfa/'+$workspace+'/members/'+auth.uid).child('role').val() === 'owner' && root.child('alfa/'+$workspace+'/members/'+auth.uid).child('active').val() === true || root.child('alfa/'+$workspace+'/orders/'+$id).child('shipping_label/revision').val() === $revision)",
-              ".write": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid).child('role').val() === 'owner' && root.child('alfa/'+$workspace+'/members/'+auth.uid).child('active').val() === true && $id.matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/) && $revision.matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/) && root.child('alfa/'+$workspace+'/orders/'+$id).exists() && ((!data.exists() && newData.exists() && (root.child('alfa/'+$workspace+'/orders/'+$id).child('status').val() === 'havuz' || root.child('alfa/'+$workspace+'/orders/'+$id).child('status').val() === 'aktif') && !root.child('alfa/'+$workspace+'/orders/'+$id).child('deleted_at').exists() && ((root.child('alfa/'+$workspace+'/orders/'+$id).child('platform').isString() && root.child('alfa/'+$workspace+'/orders/'+$id).child('platform').val().matches(/.*[Aa][çÇcC][ıIİi][kK] [Aa][Dd][Rr][Ee][Ss].*/)) || (root.child('alfa/'+$workspace+'/orders/'+$id).child('order_type').isString() && root.child('alfa/'+$workspace+'/orders/'+$id).child('order_type').val().matches(/.*[Aa][çÇcC][ıIİi][kK] [Aa][Dd][Rr][Ee][Ss].*/)))) || (data.exists() && !newData.exists() && root.child('alfa/'+$workspace+'/orders/'+$id).child('shipping_label/revision').val() !== $revision))",
-              ".validate": "newData.hasChildren(['payload','size','sha256']) && newData.child('payload').isString() && newData.child('payload').val().length <= 699052 && newData.child('payload').val().length > 8 && newData.child('size').isNumber() && newData.child('size').val() > 4 && newData.child('size').val() <= 524288 && newData.child('sha256').isString() && newData.child('sha256').val().matches(/^[0-9a-f]{64}$/)",
-              "payload": {
-                ".validate": true
-              },
-              "size": {
-                ".validate": true
-              },
-              "sha256": {
-                ".validate": true
-              },
-              "$other": {
-                ".validate": false
-              }
-            }
           }
         }
       }

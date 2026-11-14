@@ -23,7 +23,7 @@ from guncelleme_arayuzu import CheckWorker,should_check_today,mark_checked
 from duyuru_merkezi import AnnouncementsDialog,ManualReportDialog
 
 ROOT=Path(__file__).resolve().parent
-VERSION='2.0.29'
+VERSION='2.0.30'
 OWNER_EDITION=(ROOT/'YONETICI_SURUMU.flag').exists()
 
 
@@ -247,7 +247,6 @@ class AlfaMain(QMainWindow):
         self._update_daily.start()
         # Announcements and update checks start after the splash closes.
         QApplication.instance().aboutToQuit.connect(self._stop_update_job)
-        QApplication.instance().aboutToQuit.connect(self.orders.stop_label_job)
         # Firebase pairing is explicit and remembered; legacy ticket timers
         # were intentionally removed (no idle work, no repeat login).
 
@@ -384,14 +383,6 @@ class AlfaMain(QMainWindow):
         job.finished.connect(completed)
         job.finished.connect(job.deleteLater)
         job.start()
-
-    def closeEvent(self, event):
-        job = getattr(self.orders, '_label_job', None)
-        if job is not None and job.isRunning():
-            QMessageBox.information(self, 'Kargo fişi', 'Fiş dosya işlemi tamamlanmadan uygulamayı kapatma.')
-            event.ignore()
-            return
-        super().closeEvent(event)
 
     def _stop_update_job(self):
         job=self._update_job

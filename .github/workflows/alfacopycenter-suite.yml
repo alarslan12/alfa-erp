@@ -1,4 +1,4 @@
-name: ALFACOPYCENTER Suite v2.0.29 Windows build and release
+name: ALFACOPYCENTER Suite v2.0.30 Windows build and release
 
 on:
   push:
@@ -13,37 +13,23 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  firebase-label-rules:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-      - name: Firebase emulator dependencies
-        run: npm install --prefix "$RUNNER_TEMP/alfa-rules" --no-save --no-package-lock firebase@11 @firebase/rules-unit-testing@4 firebase-tools@14
-      - name: Verify real Firebase access rules without production credentials
-        run: |
-          export NODE_PATH="$RUNNER_TEMP/alfa-rules/node_modules"
-          "$RUNNER_TEMP/alfa-rules/node_modules/.bin/firebase" emulators:exec --only database --project demo-alfa-labels --config firebase/firebase.json "node tools/test_shipping_label_rules.cjs"
   windows-suite:
-    needs: firebase-label-rules
     runs-on: windows-2022
     timeout-minutes: 100
     env:
       PYTHONUTF8: '1'
       PYTHONIOENCODING: utf-8
       QT_QPA_PLATFORM: offscreen
-      SUITE_TAG: v2.0.29
-      SUITE_EXE: ALFACOPYCENTER_Suite_Setup_V2_0_29.exe
+      SUITE_TAG: v2.0.30
+      SUITE_EXE: ALFACOPYCENTER_Suite_Setup_V2_0_30.exe
     steps:
+      - name: Exclude cancelled v2.0.29 from automatic updates
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release edit v2.0.29 --repo "${{ github.repository }}" --prerelease --latest=false
+          if ($LASTEXITCODE -ne 0) { throw 'Cancelled release could not be excluded' }
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
         with:
@@ -143,23 +129,23 @@ jobs:
           if ($file.Length -lt 1000000) { throw 'Setup unexpectedly small' }
           $hash=(Get-FileHash $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
           "$hash  $($file.Name)" | Set-Content -Encoding ascii .\output\SHA256SUMS.txt
-          Copy-Item .\docs\ALFACOPYCENTER_SUITE_V2029_RELEASE.md .\output\RELEASE_NOTES.txt
+          Copy-Item .\docs\ALFACOPYCENTER_SUITE_V2030_RELEASE.md .\output\RELEASE_NOTES.txt
           & .\.buildvenv\Scripts\python.exe -c "from PySide6.QtPdf import QPdfDocument;print('Qt PDF import OK')"
           if ($LASTEXITCODE -ne 0) { throw 'QtPdf unavailable' }
 
       - name: Upload Suite Setup for CI audit
         uses: actions/upload-artifact@v4
         with:
-          name: ALFACOPYCENTER_Suite_v2.0.29_Windows
+          name: ALFACOPYCENTER_Suite_v2.0.30_Windows
           path: |
-            output/ALFACOPYCENTER_Suite_Setup_V2_0_29.exe
+            output/ALFACOPYCENTER_Suite_Setup_V2_0_30.exe
             output/SHA256SUMS.txt
             output/RELEASE_NOTES.txt
           if-no-files-found: error
           retention-days: 30
           compression-level: 0
 
-      - name: Publish verified immutable stable Suite v2.0.29 release
+      - name: Publish verified immutable stable Suite v2.0.30 release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -171,7 +157,7 @@ jobs:
             Write-Host "Verified Suite release already exists: $tag"
             exit 0
           }
-          gh release create $tag "output/$env:SUITE_EXE" output/SHA256SUMS.txt output/RELEASE_NOTES.txt --repo $repo --target "${{ github.sha }}" --title "ALFACOPYCENTER Suite v2.0.29" --notes-file output/RELEASE_NOTES.txt --latest
+          gh release create $tag "output/$env:SUITE_EXE" output/SHA256SUMS.txt output/RELEASE_NOTES.txt --repo $repo --target "${{ github.sha }}" --title "ALFACOPYCENTER Suite v2.0.30" --notes-file output/RELEASE_NOTES.txt --latest
           if ($LASTEXITCODE -ne 0) { throw 'Suite release publishing failed' }
           gh release view $tag --repo $repo --json tagName,assets,url
           if ($LASTEXITCODE -ne 0) { throw 'Published Suite release is not readable' }

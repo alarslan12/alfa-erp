@@ -132,7 +132,7 @@ def check_for_update(current,edition):
             continue
         # v1 was the previous edition-selectable ERP, v6 is obsolete/other.
         # Only v2+ Suite assets participate in the unified Suite channel.
-        if version[0]!=2:
+        if version[0]!=2 or version==(2,0,29):
             continue
         name="ALFACOPYCENTER_Suite_Setup_V"+"_".join(str(n) for n in version)+".exe"
         asset_names={str(a.get("name")) for a in (entry.get("assets") or [])
@@ -166,23 +166,29 @@ def _download_asset(asset,destination,max_bytes,progress=None):
     destination.parent.mkdir(parents=True,exist_ok=True)
     fd,name=tempfile.mkstemp(prefix=".alfa_up_",suffix=".part",dir=destination.parent)
     total=0
+    last_progress=0.0
     digest=hashlib.sha256()
     try:
         with os.fdopen(fd,"wb") as out, _request(asset["url"],timeout=35) as response:
             if not _is_allowed_download(asset["url"],response.geturl()):
                 raise UpdateError("GitHub dışında güvenilmeyen bir indirme yönlendirmesi")
             while True:
-                block=response.read(128*1024)
+                block=response.read(512*1024)
                 if not block:break
                 total+=len(block)
                 if total>max_bytes:
                     raise UpdateError("Güncelleme boyut sınırını aşıyor")
                 out.write(block);digest.update(block)
                 if progress:
-                    progress(total,asset.get("size") or 0)
+                    now=time.monotonic()
+                    if now-last_progress>=0.10:
+                        progress(total,asset.get("size") or 0)
+                        last_progress=now
         if total==0:
             raise UpdateError("İndirilen dosya boş")
         os.replace(name,destination)
+        if progress:
+            progress(total,asset.get("size") or total)
         return digest.hexdigest()
     finally:
         if os.path.exists(name):

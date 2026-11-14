@@ -1,7 +1,0 @@
-# ALFACOPYCENTER Suite v2.0.29 — Açık adres Kargonomi fişi
-
-- Açık adres sipariş kartındaki Kargo fişi düğmesi: Yönetici PDF yükler/değiştirir, Personel indirip kaydeder. Yönetici de PDF indirebilir ancak kendi indirmesi personel onayı yerine geçmez.
-- PDF en fazla 512 KB; özel RTDB alanında tutulur, normal sipariş eşitlemesine dosya içeriği dahil edilmez. İndirme sırasında boyut ve SHA-256 kontrol edilir; başarılı yerel kayıttan sonra yetkili personel UID'si ve zaman bilgisi kaydedilir.
-- Fiş yenilendiğinde/eski adres değiştiğinde indirme onayı geçersiz olur. Açık adres siparişi kolileme VE güncel fişin personel tarafından indirildiğine dair kayıt olmadan tamamlanamaz. Mevcut tamamlanmış siparişler geriye dönük zorlanmaz; Dolap/Gardrops korunur.
-- Yeni Firebase Realtime Database kurallarının canlı projeye yayımlanması ZORUNLUDUR. Önce her iki uygulamayı güncelle, bekleyen işlemlerin tamamlanmasını sağla, Firebase Console'daki mevcut Rules içeriğini yerel dosyaya yedekle. Sonra v2.0.29 etiketindeki firebase/database.rules.json dosyasını Firebase Console > Realtime Database > Rules bölümüne aktar ve Publish seç. Önce CI emülatör testlerinin ve Windows sürümünün başarıyla tamamlandığını doğrula. Proje: alfa-erp-8700c. Veritabanını veya üyeleri silme. Kurallar uygulanmadıysa fiş yükleme reddedilir.
-- Yeni Firebase Storage/Blaze planı gerekli değildir. İnternet bağlantısı gereklidir. İndirme kaydı fiziksel baskının kanıtı değildir; dosya yetkili personel uygulaması tarafından doğrulanıp kaydedilir. Gerçek iki-PC testi ayrıca yapılmalıdır.

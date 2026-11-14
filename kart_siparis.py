@@ -10,7 +10,6 @@ from PySide6.QtWidgets import (
     QCheckBox, QApplication, QToolButton, QMenu, QGridLayout, QSizePolicy
 )
 from widgets import text, cover_label, button, fallback_cover_pixmap
-from kargo_etiketi import requires_label, label_ready
 
 
 def readable_date(value):
@@ -284,16 +283,13 @@ class OrderCoversArea(QWidget):
 
 class SiparisKarti(QFrame):
     def __init__(self, db, siparis, covers, on_open, on_status, on_check=None,
-                 selected=False, on_delete=None, allow_edit=True, on_label=None):
+                 selected=False, on_delete=None, allow_edit=True):
         super().__init__()
         self.setObjectName('OrderRow')
         self.setMinimumHeight(174)
         status = db.siparis_durumu(siparis)
         self._status = status
-        self._has_label_control = bool(on_label and requires_label(siparis)
-                                  and (status != 'tamamlandi' or siparis.get('shipping_label')))
-        self.setFixedHeight((202 if status == 'tamamlandi' else 186) +
-                            (34 if self._has_label_control else 0))
+        self.setFixedHeight(202 if status == 'tamamlandi' else 186)
         self.setProperty('orderStatus', status)
         root = QHBoxLayout(self)
         root.setContentsMargins(10, 8, 10, 8)
@@ -363,23 +359,6 @@ class SiparisKarti(QFrame):
         finance.addWidget(sb_badge)
         finance.addWidget(rnk_badge)
         left.addLayout(finance)
-        if self._has_label_control:
-            label = siparis.get('shipping_label') or {}
-            if status == 'tamamlandi':
-                caption = 'Kargo fişi · indir'
-            elif label_ready(siparis):
-                caption = '✓ Kargo fişi indirildi'
-            elif label:
-                caption = '↓ Kargo fişi hazır'
-            else:
-                caption = '+ Kargo fişi yükle' if allow_edit else 'Kargo fişi bekleniyor'
-            label_button = button(caption, 'Success' if label_ready(siparis) else 'SmallAction')
-            label_button.setFixedHeight(29)
-            label_button.setToolTip('Kargonomi PDF fişi · yönetici yükler, personel indirir.')
-            label_button.clicked.connect(lambda: on_label(siparis['id']))
-            label_button.setEnabled(bool(siparis.get('bulut_id')) and
-                                    (bool(label) or bool(allow_edit)))
-            left.addWidget(label_button)
         left.addStretch()
         left_box = QWidget(); left_box.setLayout(left); left_box.setFixedWidth(278 if status == 'tamamlandi' else 264)
         root.addWidget(left_box)
@@ -443,8 +422,8 @@ class SiparisKarti(QFrame):
                 row.addWidget(delete_direct, 0)
         elif status == 'aktif':
             self._complete_btn = button('Tamamla', 'Success')
-            self._complete_btn.setEnabled(db.kolileme_tamam(siparis) and label_ready(siparis))
-            self._complete_btn.setToolTip('Bütün kitaplar kolilenmeli; açık adres siparişinde personel kargo fişini indirmeli.')
+            self._complete_btn.setEnabled(db.kolileme_tamam(siparis))
+            self._complete_btn.setToolTip('Bütün kitaplar kolilendiğinde kullanılabilir')
             self._complete_btn.clicked.connect(lambda: on_status(siparis, 'tamamlandi'))
             self._complete_btn.setFixedHeight(36)
             self._complete_btn.setMinimumWidth(0)
@@ -508,8 +487,7 @@ class SiparisKarti(QFrame):
         # Dense orders need a third row on smaller screens; only the affected
         # row grows, not the whole application's font/theme.
         total = len(self.covers_area._cards)
-        self.setFixedHeight((226 if compact and total >= 18 else (202 if self._status=='tamamlandi' else 186)) +
-                            (34 if self._has_label_control else 0))
+        self.setFixedHeight(226 if compact and total >= 18 else (202 if self._status=='tamamlandi' else 186))
         self.covers_area._pending_reflow.start(0)
 
     def set_selected(self, selected):
@@ -534,4 +512,4 @@ class SiparisKarti(QFrame):
             bar.setValue(summary[key])
         self.covers_area.update_groups(db, order)
         if hasattr(self, '_complete_btn'):
-            self._complete_btn.setEnabled(db.kolileme_tamam(order) and label_ready(order))
+            self._complete_btn.setEnabled(db.kolileme_tamam(order))

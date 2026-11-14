@@ -733,10 +733,6 @@ class ERPDatabase:
             raise ValueError("İzin verilmeyen sipariş geçişi")
         if yeni_durum == "tamamlandi" and not self.kolileme_tamam(siparis):
             raise ValueError("Bütün kitaplar kolilenmeden sipariş tamamlanamaz")
-        if yeni_durum == "tamamlandi" and self.cloud_required:
-            from kargo_etiketi import label_ready
-            if not label_ready(siparis):
-                raise ValueError("Kargo fişi personel tarafından indirilmeden sipariş tamamlanamaz.")
         if siparis not in self.siparisler:
             raise ValueError("Sipariş bulunamadı")
         category = self.kargo_kategorisi(siparis) if yeni_durum == 'tamamlandi' else None
@@ -877,10 +873,6 @@ class ERPDatabase:
             "siparis_turu": str(alanlar.get("siparis_turu", "")).strip(),
             "kitaplar": temiz,
         })
-        if (onceki.get("kod") != siparis.get("kod") or
-                onceki.get("platform") != siparis.get("platform")):
-            siparis.pop("shipping_label", None)
-            siparis.pop("shipping_label_receipt", None)
         try:
             self.siparisleri_kaydet()
         except Exception:
