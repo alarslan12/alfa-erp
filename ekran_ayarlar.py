@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QFrame, QComboBox,
     QFileDialog, QMessageBox, QStackedWidget, QLabel, QPushButton, QLineEdit, QCheckBox
 )
-from ayar_yonetimi import theme_styles
+from ayar_yonetimi import theme_styles, apply_visual_preferences
 from tema import QSS
 from pdf_kitap import PdfKutuphane
 from pdf_kapak import refresh_pdf_covers
@@ -101,6 +101,12 @@ class SettingsPage(QWidget):
             theme_row.addWidget(action)
             self.themes.append((key,action))
         controls.addLayout(theme_row)
+        self.colorblind_check=QCheckBox('Renk körlüğü modu · yüksek görünürlük')
+        self.colorblind_check.setChecked(self.config.get('colorblind_mode',False) is True)
+        self.colorblind_check.setToolTip('Kırmızı-yeşil ayrımına alternatif: kolilenen ve tamamlananlar elektrik mavisi; okunmamış uyarılar parlak sarı.')
+        self.colorblind_check.toggled.connect(self.set_colorblind_mode)
+        controls.addWidget(self.colorblind_check)
+        controls.addWidget(text('✓ Kolilendi / tamamlandı: cyan   ·   ⚠ Not / güncelleme: sarı','SettingsHint',wrap=True))
         self.show_unknown_pages=QCheckBox('Sayfa sayısı olmayan kitapları katalogda göster')
         self.show_unknown_pages.setToolTip('Varsayılan: gizli. Bu seçenek yalnızca katalog görünümünü değiştirir; Firebase kitaplarını silmez.')
         self.show_unknown_pages.setChecked(
@@ -255,10 +261,13 @@ class SettingsPage(QWidget):
 
     def set_theme(self,key):
         self.config.set('tema',key)
-        QApplication.instance().setProperty('alfa_theme',key)
-        QApplication.instance().setStyleSheet(QSS+theme_styles(key))
+        apply_visual_preferences(self.config)
         refresh_cover_placeholders()
         self.show_tab(0)
+
+    def set_colorblind_mode(self,enabled):
+        self.config.set('colorblind_mode',bool(enabled))
+        apply_visual_preferences(self.config)
 
     def save_sound(self,*_):
         mode=str(self.sound.currentData() or 'klasik')

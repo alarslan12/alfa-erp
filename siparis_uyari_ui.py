@@ -6,6 +6,7 @@ from PySide6.QtWidgets import (QApplication, QDialog, QFrame, QVBoxLayout,
     QHBoxLayout, QLabel, QCheckBox, QPushButton, QScrollArea, QWidget)
 from widgets import cover_label
 from siparis_uyari import revision, initial_note_notice
+from ayar_yonetimi import colorblind_enabled
 
 def plain(value, parent=None):
     w = QLabel(str(value), parent)
@@ -76,7 +77,8 @@ class OrderNoticeDialog(QDialog):
         root.setSpacing(10)
         heading = plain("⚠  SİPARİŞ #"+str(order.get("bulut_siparis_no") or order["id"])+
                         (" · SİPARİŞ NOTU" if initial else " · GÜNCELLEME VAR"))
-        heading.setStyleSheet("font-size:17px;font-weight:900;color:#ad6b00;background:#ffefcb;padding:12px;border-radius:8px;")
+        heading.setObjectName('OrderReviewHeading')
+        if not colorblind_enabled():heading.setStyleSheet("font-size:17px;font-weight:900;color:#ad6b00;background:#ffefcb;padding:12px;border-radius:8px;")
         root.addWidget(heading)
         root.addWidget(plain("Siparişe eklenen notu okuyup onaylayın." if initial else
                             "Aşağıdaki değişiklikleri kontrol edin. Kitap kodlarının üzerine gelerek kapaklarını görebilirsiniz."))
@@ -96,22 +98,27 @@ class OrderNoticeDialog(QDialog):
                 action = "Eklendi" if not before else ("Çıkarıldı" if not after else "Adet değişti")
                 line = ChangedBook(f"{action}  ·  #{code}  ·  {kind}  ·  {before} → {after} adet",
                                    code,str(item.get("name") or code),db,covers)
-                line.setStyleSheet("font-weight:850;font-size:13px;padding:9px;border-radius:6px;background:"+
-                                  ("#fde0dd;color:#a52b2b;" if after<before else "#d9f5e8;color:#126d45;"))
+                line.setObjectName('OrderReviewOld' if after<before else 'OrderReviewNew')
+                if not colorblind_enabled():
+                    line.setStyleSheet("font-weight:850;font-size:13px;padding:9px;border-radius:6px;background:"+
+                                      ("#fde0dd;color:#a52b2b;" if after<before else "#d9f5e8;color:#126d45;"))
                 lay.addWidget(line)
             else:
                 lay.addWidget(plain(str(item.get("label") or "Değişiklik")))
                 old = plain("Önce: "+str(item.get("old") or "—"))
-                old.setStyleSheet("font-size:12px;color:#a52b2b;background:#fde0dd;padding:7px;border-radius:5px;")
+                old.setObjectName('OrderReviewOld')
+                if not colorblind_enabled():old.setStyleSheet("font-size:12px;color:#a52b2b;background:#fde0dd;padding:7px;border-radius:5px;")
                 lay.addWidget(old)
                 new = plain("Yeni: "+str(item.get("new") or "—"))
-                new.setStyleSheet("font-weight:800;font-size:14px;color:#126d45;background:#d9f5e8;padding:9px;border-radius:5px;")
+                new.setObjectName('OrderReviewNew')
+                if not colorblind_enabled():new.setStyleSheet("font-weight:800;font-size:14px;color:#126d45;background:#d9f5e8;padding:9px;border-radius:5px;")
                 lay.addWidget(new)
         if order.get("order_note") and (initial or not any(
                 isinstance(item,dict) and item.get("label") in ("Sipariş notu","Yeni sipariş notu")
                 for item in changes.values())):
             note = plain(str(order["order_note"]) if initial else "Güncel sipariş notu: "+str(order["order_note"]))
-            note.setStyleSheet("font-weight:750;color:#794a00;background:#fff1cc;padding:9px;border-radius:6px;")
+            note.setObjectName('OrderReviewNote')
+            if not colorblind_enabled():note.setStyleSheet("font-weight:750;color:#794a00;background:#fff1cc;padding:9px;border-radius:6px;")
             lay.addWidget(note)
         lay.addStretch()
         scroll.setWidget(body)
@@ -125,7 +132,8 @@ class OrderNoticeDialog(QDialog):
         self.back.clicked.connect(self.reject)
         self.ok = QPushButton("Onayla ve siparişi aç" if open_detail else "Onayla ve kapat")
         self.ok.setEnabled(False)
-        self.ok.setStyleSheet("QPushButton {font-weight:800;padding:9px;background:#b45f05;color:white;} QPushButton:disabled {background:#888;color:#eee;}")
+        self.ok.setObjectName('OrderReviewConfirm')
+        if not colorblind_enabled():self.ok.setStyleSheet("QPushButton {font-weight:800;padding:9px;background:#b45f05;color:white;} QPushButton:disabled {background:#888;color:#eee;}")
         self.checked.toggled.connect(self.ok.setEnabled)
         self.ok.clicked.connect(self._confirm)
         row.addWidget(self.back); row.addStretch(); row.addWidget(self.ok)

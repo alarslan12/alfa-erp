@@ -150,7 +150,9 @@ class SiparisEditor(QDialog):
         if self.mode != 'edit' and pending_notice(order):
             warning=button('⚠ Siparişin notunu incele' if initial_note_notice(order)
                            else '⚠ Siparişle ilgili güncelleme var · okumak için tıkla')
-            warning.setStyleSheet('font-size:14px;font-weight:850;background:#ad5a00;color:white;padding:10px;')
+            warning.setObjectName('OrderNoticeInline')
+            from ayar_yonetimi import colorblind_enabled
+            if not colorblind_enabled():warning.setStyleSheet('font-size:14px;font-weight:850;background:#ad5a00;color:white;padding:10px;')
             def read_notice():
                 from siparis_uyari_ui import OrderNoticeDialog
                 current=self.current()

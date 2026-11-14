@@ -16,7 +16,7 @@ from urun_katalogu import GeneralProductCatalog
 from ekran_ayarlar import SettingsPage
 from alfa_rtdb import Workstation
 from bulut_canli import Sync
-from ayar_yonetimi import UserSettings, theme_styles
+from ayar_yonetimi import UserSettings, theme_styles, apply_visual_preferences
 from widgets import text,button,panel,Covers
 from alfa_hatalar import install_reporter,record_error,connect_device
 from guncelleme_arayuzu import CheckWorker,should_check_today,mark_checked
@@ -37,8 +37,7 @@ class AlfaMain(QMainWindow):
         custom=self.config.get('ozel_katalog')
         chosen=Path(custom) if custom and Path(custom).is_file() else ROOT/'KİTAPS.xlsx'
         self.db=ERPDatabase(chosen, data_dir=user_root)
-        QApplication.instance().setProperty('alfa_theme', self.config.get('tema', 'koyu'))
-        QApplication.instance().setStyleSheet(QSS + theme_styles(self.config.get('tema', 'koyu')))
+        apply_visual_preferences(self.config)
         if not self.db.katalog:
             raise RuntimeError('Katalog okunamadı; KİTAPS.xlsx dosyasını kontrol edin.')
         self.covers=Covers(self.db,ROOT)
@@ -316,8 +315,7 @@ class AlfaMain(QMainWindow):
         self.staff_theme_switch.setText('☼ Açık' if key=='acik' else '☾ Koyu')
         self.config.set('tema',key)
         app=QApplication.instance()
-        app.setProperty('alfa_theme',key)
-        app.setStyleSheet(QSS+theme_styles(key))
+        apply_visual_preferences(self.config)
         self.inventory.apply_theme()
         self.general_catalog.apply_theme()
         from widgets import refresh_cover_placeholders

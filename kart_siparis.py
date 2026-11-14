@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
 )
 from widgets import text, cover_label, button, fallback_cover_pixmap
 from siparis_uyari import pending_notice, initial_note_notice
+from ayar_yonetimi import colorblind_enabled
 
 
 def readable_date(value):
@@ -46,10 +47,29 @@ def set_boxed_card_style(card, group, active=True):
     Only fully boxed book cards get the tint; other cards keep their style.
     """
     packed = fully_boxed(group, active)
-    if card.property('bookFullyBoxed') == packed:
+    accessible=colorblind_enabled()
+    app=QApplication.instance()
+    light=bool(app and app.property('alfa_theme')=='acik')
+    key=f'{packed}:{accessible}:{light}'
+    if card.property('packedStyleKey') == key:
         return
+    card.setProperty('packedStyleKey', key)
     card.setProperty('bookFullyBoxed', packed)
-    if packed:
+    if packed and accessible:
+        selector='QFrame#'+card.objectName()
+        bg='rgba(0,205,255,78)' if light else 'rgba(0,213,255,76)'
+        hover='rgba(0,205,255,135)' if light else 'rgba(0,213,255,130)'
+        edge='#008cb6' if light else '#00dfff'
+        card.setStyleSheet(
+            selector+f' {{background:{bg};border:3px solid {edge};border-radius:9px;}}'+
+            selector+f':hover {{background:{hover};border:3px solid #00dfff;}}'+
+            selector+f'[trackSelected="true"] {{border:3px solid {edge};}}'+
+            selector+'[trackSelected="true"]:hover {border:3px solid #72efff;}'+
+            selector+' QFrame#TrackVariantSB,'+selector+' QFrame#TrackVariantRNK,'+
+            selector+' QFrame#PoolVariantSB,'+selector+' QFrame#PoolVariantRNK,'+
+            selector+f' QFrame#PoolOrderLinks {{background:rgba(0,213,255,32);border-color:{edge};}}'
+        )
+    elif packed:
         selector = 'QFrame#' + card.objectName()
         card.setStyleSheet(
             selector + ' {background:rgba(36,181,111,36);border:1px solid #36a86e;border-radius:9px;}' +
@@ -150,6 +170,7 @@ class ProgressCover(QLabel):
         if not self.fully_boxed and (not self.show_partial or (not self.ready and not self.boxed)):
             return
         painter = QPainter(self)
+        accessible=colorblind_enabled()
         rect = self.content_rect()
         x, y, w, h = rect.x(), rect.y(), rect.width(), rect.height()
         if self.fully_boxed:
@@ -157,21 +178,23 @@ class ProgressCover(QLabel):
             hover = self.underMouse()
             # Keep the original cover readable, tint the entire thumbnail.
             area = self.rect().adjusted(1, 1, -1, -1)
-            painter.setBrush(QColor(35, 195, 112, 100 if hover else 66))
-            painter.setPen(QPen(QColor('#83f0ad' if hover else '#40b978'), 2))
+            painter.setBrush(QColor(0, 213, 255, 150 if hover else 100) if accessible
+                             else QColor(35, 195, 112, 100 if hover else 66))
+            painter.setPen(QPen(QColor(('#86f5ff' if hover else '#00dfff') if accessible
+                                       else ('#83f0ad' if hover else '#40b978')), 3 if accessible else 2))
             painter.drawRoundedRect(area, 4, 4)
         elif self.ready:
             ready_h = round(h * self.ready)
-            painter.fillRect(QRect(x, y + h - ready_h, w, ready_h), QColor(47, 137, 230, 32))
-            painter.fillRect(x, y + h - 3, round(w * self.ready), 3, QColor(78, 156, 233, 150))
+            painter.fillRect(QRect(x, y + h - ready_h, w, ready_h), QColor(255, 222, 47, 74) if accessible else QColor(47, 137, 230, 32))
+            painter.fillRect(x, y + h - 3, round(w * self.ready), 3, QColor('#ffde2f') if accessible else QColor(78, 156, 233, 150))
         if self.boxed and not self.fully_boxed:
             boxed_h = round(h * self.boxed)
-            painter.fillRect(QRect(x, y + h - boxed_h, w, boxed_h), QColor(56, 210, 143, 46))
-            painter.fillRect(x, y + h - 3, round(w * self.boxed), 3, QColor(95, 209, 160, 175))
+            painter.fillRect(QRect(x, y + h - boxed_h, w, boxed_h), QColor(0, 213, 255, 76) if accessible else QColor(56, 210, 143, 46))
+            painter.fillRect(x, y + h - 3, round(w * self.boxed), 3, QColor('#00dfff') if accessible else QColor(95, 209, 160, 175))
         if self.fully_boxed and w >= 34 and h >= 44:
             tick = QRect(rect.center().x() - 13, rect.center().y() - 13, 26, 26)
-            painter.setPen(QPen(QColor('#b8f5d7'), 1.4))
-            painter.setBrush(QColor(19, 94, 65, 205))
+            painter.setPen(QPen(QColor('#ffffff' if accessible else '#b8f5d7'), 2 if accessible else 1.4))
+            painter.setBrush(QColor('#005477') if accessible else QColor(19, 94, 65, 205))
             painter.drawRoundedRect(tick, 13, 13)
             painter.setFont(QFont('Segoe UI', 16, QFont.Weight.Bold))
             painter.setPen(QColor('#ffffff'))
@@ -565,8 +588,13 @@ class SiparisKarti(QFrame):
         if not self._notice_pending:
             return
         self._pulse_on=not self._pulse_on
-        bg,fg=('#ffcb40','#362000') if self._pulse_on else ('#a74a00','#ffffff')
-        self._notice_btn.setStyleSheet(f'QPushButton {{background:{bg};color:{fg};font-size:11px;font-weight:900;border:2px solid #ffaa17;border-radius:6px;padding:1px;}}')
+        accessible=colorblind_enabled()
+        if accessible:
+            bg,fg=('#ffed00','#241c00') if self._pulse_on else ('#ffff8a','#241c00')
+        else:
+            bg,fg=('#ffcb40','#362000') if self._pulse_on else ('#a74a00','#ffffff')
+        border='#ffed00' if accessible else '#ffaa17'
+        self._notice_btn.setStyleSheet(f'QPushButton {{background:{bg};color:{fg};font-size:11px;font-weight:900;border:2px solid {border};border-radius:6px;padding:1px;}}')
         if self.isVisible():
             self.update()
 
@@ -576,8 +604,11 @@ class SiparisKarti(QFrame):
             return
         painter=QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        color=QColor('#ffc328' if self._pulse_on else '#ff8b21')
-        for width,alpha,inset in ((7,65,4),(4,140,3),(2,255,2)):
+        accessible=colorblind_enabled()
+        color=QColor(('#ffed00' if self._pulse_on else '#fff48a') if accessible
+                     else ('#ffc328' if self._pulse_on else '#ff8b21'))
+        strokes=((10,90,6),(6,180,4),(3,255,2)) if accessible else ((7,65,4),(4,140,3),(2,255,2))
+        for width,alpha,inset in strokes:
             color.setAlpha(alpha)
             pen=QPen(color,width)
             painter.setPen(pen)
@@ -621,3 +652,18 @@ class SiparisKarti(QFrame):
         self.covers_area.update_groups(db, order)
         if hasattr(self, '_complete_btn'):
             self._complete_btn.setEnabled(db.kolileme_tamam(order) and not pending_notice(order))
+
+
+def refresh_accessible_order_widgets():
+    app=QApplication.instance()
+    if not app:return
+    # Change existing cards in-place; don't rebuild the orders or lose scroll.
+    for widget in app.allWidgets():
+        if isinstance(widget,ProgressCover):
+            widget.update()
+        elif isinstance(widget,SiparisKarti):
+            if widget._notice_pending:widget._pulse_notice()
+            widget.update()
+        elif isinstance(widget,QFrame) and widget.property('bookFullyBoxed') is not None:
+            packed=bool(widget.property('bookFullyBoxed'))
+            set_boxed_card_style(widget,{'adet':1,'koli':int(packed)})

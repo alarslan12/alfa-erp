@@ -6,7 +6,7 @@ import tempfile
 import shutil
 import zipfile
 
-DEFAULTS = {'tema': 'koyu', 'ozel_katalog': None, 'bildirim_sesi': 'klasik',
+DEFAULTS = {'tema': 'koyu', 'colorblind_mode': False, 'ozel_katalog': None, 'bildirim_sesi': 'klasik',
             'elevenlabs_voice_a': '', 'elevenlabs_voice_b': '',
             'show_books_without_pages': False,
             'hide_blank_pages_migrated_v2026': False}
@@ -711,3 +711,80 @@ def theme_styles(name):
     # Koyu tema tamamen temel QSS üzerinden uygulanır; eski açık tema
     # bloğunun bu yoldan kazara yüklenmesini önlüyoruz.
     return ''
+
+
+def colorblind_enabled():
+    from PySide6.QtWidgets import QApplication
+    app=QApplication.instance()
+    return bool(app and app.property('alfa_colorblind'))
+
+
+def colorblind_styles(light=False):
+    """Independent accessibility overlay: strongly contrasting status colors."""
+    panel, hover, ink = ('#d4f4ff','#a9eaff','#00466c') if light else ('#103650','#12536a','#00e5ff')
+    packed, warning = ('#007ba6','#9c6500') if light else ('#00dfff','#ffed00')
+    yellow_bg,yellow_text=('#fff3a0','#503600') if light else ('#393b0a','#fff56a')
+    return f"""
+QFrame#OrderRow[orderStatus="tamamlandi"],
+QFrame#OrderRow[orderStatus="tamamlandi"][orderRecent="true"],
+QFrame#OrderRow[orderStatus="tamamlandi"][orderSelected="true"] {{
+    background:{panel};border:2px solid {packed};border-left:5px solid {packed};
+}}
+QFrame#OrderRow[orderStatus="tamamlandi"]:hover,
+QFrame#OrderRow[orderStatus="tamamlandi"][orderRecent="true"]:hover,
+QFrame#OrderRow[orderStatus="tamamlandi"][orderSelected="true"]:hover {{
+    background:{hover};border:3px solid {packed};border-left:5px solid {packed};
+}}
+QLabel#OrderDoneTag,QLabel#OrderStatusBadgeDone,QLabel#OrderPlatformDone {{
+    background:#00dfff;color:#082332;border:2px solid #007fa4;font-weight:900;
+}}
+QLabel#OrderDoneDate {{color:{ink};font-weight:900;}}
+QFrame#OrderArchiveHeader {{background:{panel};border:2px solid {packed};}}
+QPushButton#OrdersSubnav[orderStage="tamamlandi"] {{color:{ink};border-color:{packed};}}
+QPushButton#OrdersSubnav[orderStage="tamamlandi"]:hover,
+QPushButton#OrdersSubnav[orderStage="tamamlandi"]:checked {{
+    background:#00dfff;color:#082332;border:2px solid #007fa4;
+}}
+QProgressBar#ReadyProgress::chunk {{background:#ffde43;}}
+QProgressBar#BoxProgress::chunk {{background:#00dfff;}}
+QFrame#TrackActionBoxed {{background:{panel};border:2px solid {packed};}}
+QFrame#TrackActionBoxed:hover {{background:{hover};border:2px solid {packed};}}
+QPushButton#Success:enabled,QPushButton#TrackBulkPositive:enabled {{
+    background:#00dfff;color:#082332;border:2px solid #007fa4;font-weight:900;
+}}
+QPushButton#Success:enabled:hover,QPushButton#TrackBulkPositive:enabled:hover {{
+    background:#83f1ff;color:#082332;border:2px solid #00a7d2;
+}}
+QFrame#TrackActionReady QPushButton#TrackBulkPositive:enabled {{
+    background:#ffdf32;color:#332800;border:2px solid #c49a00;
+}}
+QFrame#TrackActionReady QPushButton#TrackBulkPositive:enabled:hover {{
+    background:#fff48a;color:#332800;border:2px solid #c49a00;
+}}
+QFrame#ProductionMetric[productionTone="packing"] {{background:{panel};border:2px solid {packed};}}
+QLabel#ProductionMetricValue[productionTone="packing"] {{color:{ink};font-weight:900;}}
+QFrame#ProductionMetric[productionTone="remaining"],
+QFrame#ProductionMetric[productionTone="print"] {{background:{yellow_bg};border:2px solid {warning};}}
+QLabel#ProductionMetricValue[productionTone="remaining"],
+QLabel#ProductionMetricValue[productionTone="print"] {{color:{yellow_text};font-weight:900;}}
+QPushButton#OrderNoticeInline {{background:#ffed00;color:#292200;border:2px solid #b99d00;font-weight:900;font-size:14px;padding:10px;}}
+QLabel#OrderReviewHeading {{background:#ffed00;color:#292200;border:2px solid #b99d00;font-size:17px;font-weight:900;padding:12px;border-radius:8px;}}
+QLabel#OrderReviewNew {{background:#00dfff;color:#082332;border:2px solid #007fa4;font-weight:900;padding:9px;border-radius:6px;}}
+QLabel#OrderReviewOld {{background:#ffdf32;color:#3d2c00;border:2px solid #b99d00;font-weight:850;padding:9px;border-radius:6px;}}
+QLabel#OrderReviewNote {{background:#fff17a;color:#302400;font-weight:900;padding:9px;border-radius:6px;}}
+QPushButton#OrderReviewConfirm:enabled {{background:#ffed00;color:#292200;border:2px solid #b99d00;font-weight:900;padding:9px;}}
+"""
+
+
+def apply_visual_preferences(config):
+    """Apply saved independent mode to existing and newly created widgets."""
+    from PySide6.QtWidgets import QApplication
+    from tema import QSS
+    app=QApplication.instance()
+    name=config.get('tema','koyu')
+    enabled=config.get('colorblind_mode',False) is True
+    app.setProperty('alfa_theme',name)
+    app.setProperty('alfa_colorblind',enabled)
+    app.setStyleSheet(QSS+theme_styles(name)+(colorblind_styles(name=='acik') if enabled else ''))
+    from kart_siparis import refresh_accessible_order_widgets
+    refresh_accessible_order_widgets()
