@@ -213,6 +213,17 @@ class ERPDatabase:
         for sid,row in current.items():
             prior=old.get(sid)
             if prior and self._business(prior)==self._business(row):continue
+            if prior and row.get('bulut_id') and sid not in self._pending and (
+                    prior.get('kargo_ucreti')!=row.get('kargo_ucreti') or prior.get('kargo_turu')!=row.get('kargo_turu')):
+                a,b=copy.deepcopy(self._business(prior)),copy.deepcopy(self._business(row))
+                for key in ('kargo_ucreti','kargo_turu'):
+                    a.pop(key,None);b.pop(key,None)
+                if a==b:
+                    self._next_revision+=1
+                    self._status_events.append({'kind':'shipping_fee','sequence':self._next_revision,
+                        'op_id':str(uuid.uuid4()),'local_id':sid,'order_id':row['bulut_id'],
+                        'previous_fee':prior.get('kargo_ucreti'),'shipping_fee':row.get('kargo_ucreti')})
+                    continue
             if prior and not prior.get('bulut_id') and sid not in self._pending:
                 raise ValueError('Eski yerel siparişler önce yönetici aracından buluta aktarılmalı.')
             # Semantic change detection: cloud-origin orders can contain
@@ -369,7 +380,7 @@ class ERPDatabase:
 
     def confirm_outbox(self,batch,results):
         by_id={str(x.get('id')):x for x in self.siparisler}
-        if batch['kind'] in ('status','progress','notice_ack'):
+        if batch['kind'] in ('status','progress','notice_ack','shipping_fee'):
             acknowledged={str(r['op_id']) for r in results}
             target=self._progress_events if batch['kind']=='progress' else self._status_events
             target[:]=[e for e in target if str(e['op_id']) not in acknowledged]
@@ -384,6 +395,10 @@ class ERPDatabase:
                                 row['bulut_version']=int(r['version'])
                             else:
                                 row['bulut_version']=0
+                        elif batch['kind']=='shipping_fee':
+                            # Another device may have changed unrelated fields.
+                            # Force a full fresh row rather than claiming its new version.
+                            row['bulut_version']=0
                         else:
                             row['bulut_version']=max(int(row.get('bulut_version') or 0),int(r['version']))
                         break
@@ -421,7 +436,7 @@ class ERPDatabase:
         """Never re-post a permanent 409 forever. Preserve evidence for recovery."""
         self._conflicts.append({'at':datetime.now().astimezone().isoformat(),
             'reason':str(message)[:240],'batch':copy.deepcopy(batch)})
-        if batch['kind'] in ('status','progress','notice_ack'):
+        if batch['kind'] in ('status','progress','notice_ack','shipping_fee'):
             target=self._progress_events if batch['kind']=='progress' else self._status_events
             ids={str(x['op_id']) for x in batch['events']}
             target[:]=[e for e in target if str(e['op_id']) not in ids]
@@ -832,6 +847,29 @@ class ERPDatabase:
         except Exception:
             siparis.clear()
             siparis.update(onceki)
+            raise
+
+    def set_open_address_shipping_fee(self,siparis,value):
+        """Owner UI only; cloud method independently checks workstation role."""
+        if siparis not in self.siparisler or self.siparis_durumu(siparis) not in ('aktif','tamamlandi'):
+            raise ValueError('Yalnız aktif veya tamamlanan sipariş düzenlenebilir.')
+        if self.kargo_kategorisi(siparis)!='acik_adres':
+            raise ValueError('Yalnız açık adres siparişi.')
+        if self.cloud_api or self.cloud_required:
+            if not siparis.get('bulut_id') or str(siparis['id']) in self._pending:
+                raise ValueError('Önce siparişin bulut eşitlemesi tamamlanmalı.')
+            if not getattr(self,'owner_admin_request',None):
+                raise ValueError('Yönetici yetkisi gerekli.')
+        try:fee=Decimal(str(value).replace(',','.'))
+        except (InvalidOperation,ValueError) as exc:raise ValueError('Geçersiz kargo ücreti.') from exc
+        if not fee.is_finite() or not Decimal(0)<=fee<=Decimal(10000000):
+            raise ValueError('Kargo ücreti 0 ile 10.000.000 TL arasında olmalı.')
+        old=dict(siparis)
+        siparis['kargo_ucreti']=float(round(fee,2))
+        siparis['kargo_turu']='acik_adres'
+        try:self.siparisleri_kaydet()
+        except Exception:
+            siparis.clear();siparis.update(old)
             raise
 
     def siparis_sil(self, siparis):

@@ -9,7 +9,7 @@ from widgets import text
 
 
 class ShippingCostDialog(QDialog):
-    def __init__(self,order,category,parent=None):
+    def __init__(self,order,category,parent=None,editing=False):
         super().__init__(parent)
         self.setWindowTitle('ALFA ERP · Kargo gideri')
         self.setObjectName('ShippingCostDialog')
@@ -20,7 +20,7 @@ class ShippingCostDialog(QDialog):
         caption='Telafi siparişi' if category=='telafi' else 'Normal açık adres siparişi'
         root.addWidget(text('▣  KARGO GİDERİNİ KAYDET','SettingsHeading'))
         root.addWidget(text(f"Sipariş #{order.get('id')} · {caption}",'Muted'))
-        root.addWidget(text('Siparişi tamamlamadan önce gerçekleşen kargo ücretini gir.','SettingsHint',wrap=True))
+        root.addWidget(text('Gerçekleşen kargo ücretini ekle veya düzelt.' if editing else 'Siparişi tamamlamadan önce gerçekleşen kargo ücretini gir.','SettingsHint',wrap=True))
         frame=QFrame();frame.setObjectName('OrderEditRevenueBox')
         row=QHBoxLayout(frame);row.setContentsMargins(10,6,10,6);row.setSpacing(5)
         self.amount=QLineEdit()
@@ -62,6 +62,6 @@ class ShippingCostDialog(QDialog):
         self.accept()
 
 
-def request_shipping_cost(parent,order,category):
-    dialog=ShippingCostDialog(order,category,parent)
+def request_shipping_cost(parent,order,category,editing=False):
+    dialog=ShippingCostDialog(order,category,parent,editing=editing)
     return dialog.value if dialog.exec()==QDialog.DialogCode.Accepted else None

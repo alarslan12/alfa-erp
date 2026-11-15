@@ -175,7 +175,7 @@ class ProgressCover(QLabel):
         x, y, w, h = rect.x(), rect.y(), rect.width(), rect.height()
         if self.fully_boxed:
             painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-            hover = self.underMouse()
+            hover = self.underMouse() and getattr(self,'allow_cover_hover',True)
             # Keep the original cover readable, tint the entire thumbnail.
             area = self.rect().adjusted(1, 1, -1, -1)
             painter.setBrush(QColor(0, 213, 255, 150 if hover else 100) if accessible
@@ -300,6 +300,7 @@ class OrderCoversArea(QWidget):
             code = str(group['kod'])
             book = db.katalog.get(code, {'kod':code,'isim':group['isim']})
             thumb = OrderMiniCover(book,covers,group,64,91,active=self._active)
+            thumb.allow_cover_hover=status!='tamamlandi'
             thumb.setParent(self)
             thumb.show()
             self._cards.append(thumb)
@@ -412,9 +413,11 @@ class SiparisKarti(QFrame):
         left.addWidget(text(readable_date(siparis.get('tarih', '')), 'OrderMeta'))
         if status == 'tamamlandi' and siparis.get('tamamlanma_tarihi'):
             left.addWidget(text('Tamamlandı · ' + readable_date(siparis['tamamlanma_tarihi']), 'OrderDoneDate'))
-        if status == 'tamamlandi' and siparis.get('kargo_turu') in ('telafi', 'acik_adres'):
-            label = 'Telafi kargosu' if siparis.get('kargo_turu') == 'telafi' else 'Açık adres kargosu'
-            cost = text(f"{label}: {float(siparis.get('kargo_ucreti',0) or 0):,.2f} TL", 'OrderShippingCost')
+        category=db.kargo_kategorisi(siparis)
+        if status in ('aktif','tamamlandi') and category in ('telafi','acik_adres') and (status=='tamamlandi' or siparis.get('kargo_ucreti') is not None):
+            label = 'Telafi kargosu' if category == 'telafi' else 'Açık adres kargosu'
+            value=siparis.get('kargo_ucreti')
+            cost = text(f"{label}: {float(value):,.2f} TL" if value is not None else f"{label}: girilmedi", 'OrderShippingCost')
             cost.setToolTip('Tamamlanan siparişin kaydedilen kargo gideri')
             left.addWidget(cost)
         highlight = QHBoxLayout()
@@ -539,6 +542,10 @@ class SiparisKarti(QFrame):
             edit = QAction('Siparişi düzenle', menu)
             edit.triggered.connect(lambda: on_open(siparis['id'], 'edit'))
             menu.addAction(edit)
+        if allow_edit and status in ('aktif','tamamlandi') and category=='acik_adres':
+            fee=QAction('Kargo ücreti ekle / düzenle',menu)
+            fee.triggered.connect(lambda:on_open(siparis['id'],'shipping_fee'))
+            menu.addAction(fee)
         if status == 'aktif':
             pool = QAction('Havuza geri al', menu)
             pool.triggered.connect(lambda: on_status(siparis, 'havuz'))

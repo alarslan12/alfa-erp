@@ -12,7 +12,7 @@ from editor_siparis import SiparisEditor
 from takvim import TarihPopup
 from kargo_fisi import dosyaya_yaz, tarayicida_ac
 from kargo_ucreti import request_shipping_cost
-from siparis_arsivi import ayir_tamamlananlar
+from siparis_arsivi import ayir_tamamlananlar, completed_page, PAGE_SIZE
 from temali_combo import AlfaTemaliCombo
 from siparis_uyari import pending_notice, revision
 from siparis_uyari_ui import OrderNoticeDialog
@@ -35,10 +35,11 @@ class SiparisView(QWidget):
         self._row_signatures = {}
         self._empty_row = None
         self._recent_sid = None
-        # Tamamlananlar: yalnızca son 5 günlük kartları otomatik oluştur.
+        # Tamamlananlar: yalnızca son 3 günlük kartları otomatik oluştur.
         # Arşiv siparişleri kullanıcı çağırana kadar widget olarak yüklenmez.
         self._archive_open = False
-        self._archive_limit = 25
+        self._completed_page = 0
+        self._completed_pages = 1
         self._archive_count = 0
 
         root = QVBoxLayout(self)
@@ -91,7 +92,7 @@ class SiparisView(QWidget):
             ('Ciro', 'money'), ('Kitap sayısı', 'adet'), ('Sayfa sayısı', 'sayfa'),
         ):
             self.sort.addItem(label, kind)
-        self.sort.currentIndexChanged.connect(self.refresh_rows)
+        self.sort.currentIndexChanged.connect(lambda *_:self.refresh_rows(reset_position=True))
         self.sort.setToolTip('Sıralama ölçütü')
         segment.addWidget(self.sort)
         self.reverse_btn = QToolButton()
@@ -181,11 +182,11 @@ class SiparisView(QWidget):
         arch_layout = QHBoxLayout(self.archive_header)
         arch_layout.setContentsMargins(12, 5, 12, 5)
         arch_layout.setSpacing(10)
-        self.archive_text = text('Son 5 günün tamamlanan siparişleri', 'ArchiveStatus')
+        self.archive_text = text('Son 3 günün tamamlanan siparişleri', 'ArchiveStatus')
         arch_layout.addWidget(self.archive_text)
         arch_layout.addStretch(1)
         self.archive_btn = button('Arşivi aç', 'ArchiveToggle')
-        self.archive_btn.setToolTip('5 günden eski tamamlanan siparişleri yalnızca talep edildiğinde görüntüler')
+        self.archive_btn.setToolTip('3 günden eski tamamlanan siparişleri yalnızca talep edildiğinde görüntüler')
         self.archive_btn.clicked.connect(self.toggle_archive)
         arch_layout.addWidget(self.archive_btn)
         self.archive_header.setVisible(False)
@@ -198,11 +199,21 @@ class SiparisView(QWidget):
         self.rows_scroll = scrollable(self.rows)
         self.rows_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         root.addWidget(self.rows_scroll, 1)
-        self.archive_more = button('25 sipariş daha göster', 'ArchiveLoadMore')
-        self.archive_more.setToolTip('Arşivdeki bir sonraki 25 kaydı yükle')
-        self.archive_more.clicked.connect(self.load_more_archive)
-        self.archive_more.setVisible(False)
-        root.addWidget(self.archive_more, 0, Qt.AlignmentFlag.AlignHCenter)
+        self.pagination = QFrame()
+        self.pagination.setObjectName('CompletedArchiveBar')
+        pager=QHBoxLayout(self.pagination);pager.setContentsMargins(8,3,8,3)
+        pager.addStretch()
+        self.prev_page=button('‹ Önceki','ArchiveLoadMore')
+        self.prev_page.clicked.connect(lambda:self.change_completed_page(-1))
+        pager.addWidget(self.prev_page)
+        self.page_caption=text('1 / 1','ArchiveStatus')
+        pager.addWidget(self.page_caption)
+        self.next_page=button('Sonraki ›','ArchiveLoadMore')
+        self.next_page.clicked.connect(lambda:self.change_completed_page(1))
+        pager.addWidget(self.next_page)
+        pager.addStretch()
+        self.pagination.hide()
+        root.addWidget(self.pagination)
         self._resize_timer = QTimer(self)
         self._resize_timer.setSingleShot(True)
         self._resize_timer.setInterval(90)
@@ -294,17 +305,19 @@ class SiparisView(QWidget):
         if self.status != 'tamamlandi':
             return
         self._archive_open = not self._archive_open
-        self._archive_limit = 25
+        self._completed_page = 0
+        self._completed_pages = 1
         self.from_date = self.to_date = None
         self.calendar_btn.setText('▦  Takvim')
         self.refresh(reset_date=True)
         self.rows_scroll.verticalScrollBar().setValue(0)
 
-    def load_more_archive(self):
-        if self.status != 'tamamlandi' or not self._archive_open:
-            return
-        self._archive_limit += 25
+    def change_completed_page(self,delta):
+        if self.status!='tamamlandi':return
+        self._completed_page=max(0,min(self._completed_pages-1,self._completed_page+delta))
         self.refresh_rows()
+        self.rows_scroll.verticalScrollBar().setValue(0)
+        QTimer.singleShot(0,lambda:self.rows_scroll.verticalScrollBar().setValue(0))
 
     def change_status(self, status):
         if status not in ('havuz', 'aktif', 'tamamlandi'):
@@ -312,7 +325,8 @@ class SiparisView(QWidget):
         if self.status != status:
             self.status = status
             self._archive_open = False
-            self._archive_limit = 25
+            self._completed_page = 0
+            self._completed_pages = 1
             self.selected.clear()
             self.from_date = self.to_date = None
             self._search_timer.stop()
@@ -325,6 +339,7 @@ class SiparisView(QWidget):
             self.refresh()
 
     def refresh(self, reset_date=False):
+        if reset_date:self._completed_page=0
         selected_date = None if reset_date else self.day.currentData()
         self.day.blockSignals(True)
         self.day.clear()
@@ -400,8 +415,9 @@ class SiparisView(QWidget):
         else:
             result.sort(key=lambda o:str(o.get('tarih','')), reverse=reverse)
         self._archive_count = len(result) if self.status == 'tamamlandi' else 0
-        if self.status == 'tamamlandi' and self._archive_open:
-            return result[:self._archive_limit]
+        if self.status == 'tamamlandi':
+            page,self._completed_page,self._completed_pages=completed_page(result,self._completed_page)
+            return page
         return result
 
     def _signature(self, order):
@@ -413,10 +429,11 @@ class SiparisView(QWidget):
                 str(order.get('platform','')), str(order.get('tarih','')),
                 str(order.get('tamamlanma_tarihi','')),
                 str(order.get('ciro',0)), str(order.get('siparis_turu','')),
-                revision(order), pending_notice(order), books)
+                order.get('kargo_ucreti'),revision(order), pending_notice(order), books)
 
     def refresh_rows(self, *_, reset_position=False):
         old_pos = self.rows_scroll.verticalScrollBar().value()
+        if reset_position:self._completed_page=0
         orders = self.filtered()
         totals = {'adet':0,'sayfa':0}
         revenue = 0
@@ -466,7 +483,7 @@ class SiparisView(QWidget):
             widget.show()
         if not orders:
             if self.status == 'tamamlandi' and not self._archive_open:
-                empty_note = 'Son 5 günde tamamlanan sipariş bulunamadı. Daha eski kayıtlar için Arşivi açın.'
+                empty_note = 'Son 3 günde tamamlanan sipariş bulunamadı. Daha eski kayıtlar için Arşivi açın.'
             elif self.status == 'tamamlandi':
                 empty_note = 'Arşivde bu arama veya tarih seçimine uygun sipariş yok.'
             else:
@@ -482,21 +499,18 @@ class SiparisView(QWidget):
         self.archive_header.setVisible(completed)
         if completed:
             recent, archived = self._completed_partitions()
-            if self._archive_open:
-                self.archive_text.setText(
-                    f'Arşiv · {len(orders)} / {self._archive_count} sipariş gösteriliyor'
-                )
-                self.archive_btn.setText('← Son 5 güne dön')
-                self.archive_more.setVisible(self._archive_count > len(orders))
-            else:
-                self.archive_text.setText(
-                    f'Son 5 gün · {len(recent)} sipariş  |  Arşivde {len(archived)} sipariş'
-                )
-                self.archive_btn.setText(f'Arşivi aç  ({len(archived)})')
-                self.archive_more.setVisible(False)
+            first=self._completed_page*PAGE_SIZE+1 if orders else 0
+            last=self._completed_page*PAGE_SIZE+len(orders) if orders else 0
+            scope='Arşiv' if self._archive_open else 'Son 3 gün'
+            self.archive_text.setText(f'{scope} · {first}–{last} / {self._archive_count} sipariş  |  Arşivde {len(archived)}')
+            self.archive_btn.setText('← Son 3 güne dön' if self._archive_open else f'Arşivi aç  ({len(archived)})')
             self.archive_btn.setEnabled(bool(archived) or self._archive_open)
+            self.pagination.setVisible(self._completed_pages>1)
+            self.page_caption.setText(f'{self._completed_page+1} / {self._completed_pages}')
+            self.prev_page.setEnabled(self._completed_page>0)
+            self.next_page.setEnabled(self._completed_page+1<self._completed_pages)
         else:
-            self.archive_more.setVisible(False)
+            self.pagination.hide()
         active = self.status == 'aktif'
         self.production_panel.setVisible(active)
         if active:
@@ -601,6 +615,19 @@ class SiparisView(QWidget):
         """Sipariş penceresini aç; olası hatayı sessizce yutmak yerine göster."""
         if tab == 'edit' and not self.admin_mode:
             return error(self, 'Bu işlem Yönetici Paneli üzerinden yapılır.')
+        if tab=='shipping_fee':
+            if not self.admin_mode:return error(self,'Bu işlem Yönetici Paneli üzerinden yapılır.')
+            order=next((o for o in self.db.siparisler if str(o['id'])==str(sid)),None)
+            if not order or self.db.kargo_kategorisi(order)!='acik_adres':
+                return error(self,'Yalnızca açık adres siparişlerinde kullanılabilir.')
+            fee=request_shipping_cost(self,order,'acik_adres',editing=True)
+            if fee is None:return
+            try:self.db.set_open_address_shipping_fee(order,fee)
+            except Exception as exc:return error(self,exc)
+            self._after_editor_updated()
+            main=self.window()
+            if getattr(main,'analytics',None) is not None:main.analytics.refresh()
+            return
         mode = 'edit' if tab == 'edit' else 'track'
         if mode=='track':
             order=next((o for o in self.db.siparisler if str(o['id'])==str(sid)),None)

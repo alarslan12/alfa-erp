@@ -13,6 +13,7 @@ from PySide6.QtCore import QUrl
 from widgets import button, text, scrollable
 from muhasebe_veri import PaymentDays, accounting_days, completed_summary, html_report, completion_fingerprints, accounting_revenue
 from takvim import MONTHS, WEEK
+from ayar_yonetimi import accessible_ui_color
 
 NAVY='#10243a'
 FG='#f5f9ff'
@@ -79,7 +80,7 @@ class LineChart(QWidget):
         for key,label,col in reversed(self.series):
             w=max(66,len(label)*6+22)
             xlegend-=w
-            painter.setPen(Qt.PenStyle.NoPen);painter.setBrush(QColor(col))
+            painter.setPen(Qt.PenStyle.NoPen);painter.setBrush(QColor(accessible_ui_color(col)))
             painter.drawEllipse(xlegend,16,7,7)
             painter.setPen(QColor(colors['muted']))
             painter.drawText(xlegend+11,23,label)
@@ -121,7 +122,7 @@ class LineChart(QWidget):
                 x = base_x + index*(bar_w+spacing)
                 y = b-height
                 painter.setPen(Qt.PenStyle.NoPen)
-                painter.setBrush(QColor(color))
+                painter.setBrush(QColor(accessible_ui_color(color)))
                 if height > 0:
                     painter.drawRoundedRect(int(x),int(y),bar_w,max(2,int(height)),4,4)
                 else:
@@ -133,7 +134,7 @@ class LineChart(QWidget):
                                  Qt.AlignmentFlag.AlignHCenter,number)
         else:
             for key,label,color in self.series:
-                pen=QPen(QColor(color))
+                pen=QPen(QColor(accessible_ui_color(color)))
                 pen.setWidthF(2.5)
                 painter.setPen(pen)
                 path=QPainterPath()
@@ -167,7 +168,7 @@ class StatPill(QFrame):
         val.setObjectName('AccountingPillValue')
         val.setFixedHeight(27)
         val.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-        val.setStyleSheet(f'color:{accent};')
+        val.setStyleSheet(f'color:{accessible_ui_color(accent)};')
         val.setToolTip(f'{title}: {value}')
         val.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         layout.addWidget(val)
@@ -188,7 +189,7 @@ class RevenuePill(QFrame):
         layout.addWidget(heading)
         total=QLabel(str(value))
         total.setObjectName("AnalyticsRevenuePillAmount")
-        total.setStyleSheet(f"color:{accent};")
+        total.setStyleSheet(f"color:{accessible_ui_color(accent)};")
         total.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         total.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         layout.addWidget(total,1)
@@ -587,6 +588,7 @@ class AnalitikView(QWidget):
                 ('Telafi siparişi kargosu', money(m['shipping_telafi']), '#ff9d92'),
                 ('Açık adres kargosu', money(m['shipping_acik_adres']), AMBER),
                 ('Kargo / ciro oranı', f"%{m.get('shipping_ratio',0):.1f}", '#f0ba84'),
+                ('Aktif açık adres kargo (tümü)', money(m['active_address_shipping']), AMBER),
             ]),
             ('ORTALAMALAR · BİRİM VERİMLİLİK', 'averages', [
                 ('Ort. sipariş tutarı', money(m['avg_order']), PURPLE),

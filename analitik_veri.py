@@ -106,11 +106,12 @@ def build_dashboard(db, *, days=30, status='all', platform='all', order_kind='al
         cat = shipping_group(o)
         if cat == 'telafi': stats['telafi_orders'] += 1
         if cat == 'acik_adres': stats['address_orders'] += 1
-        if stage == 'tamamlandi' and o.get('kargo_ucreti') is not None and cat:
+        if (stage == 'tamamlandi' or (stage=='aktif' and cat=='acik_adres')) and o.get('kargo_ucreti') is not None and cat:
             cost = max(0, num(o.get('kargo_ucreti')))
             stats['shipping_'+cat] += cost
             stats['shipping_recorded_count'] += 1
-            if completed: trends_shipping[completed] += cost
+            expense_day=completed or created
+            if expense_day:trends_shipping[expense_day] += cost
         elif stage == 'tamamlandi' and cat:
             stats['shipping_missing_count'] += 1
         plat = str(o.get('platform', 'Bilinmiyor')).strip() or 'Bilinmiyor'
@@ -170,7 +171,7 @@ def build_dashboard(db, *, days=30, status='all', platform='all', order_kind='al
             1 for o in selected if db.siparis_durumu(o)=='tamamlandi' and
             shipping_group(o)=='telafi' and o.get('kargo_ucreti') is not None) if stats['shipping_telafi'] else 0,
         'shipping_address_avg':stats['shipping_acik_adres']/sum(
-            1 for o in selected if db.siparis_durumu(o)=='tamamlandi' and
+            1 for o in selected if db.siparis_durumu(o) in ('aktif','tamamlandi') and
             shipping_group(o)=='acik_adres' and o.get('kargo_ucreti') is not None) if stats['shipping_acik_adres'] else 0,
         'average_completion_hours':mean(completion_hours) if completion_hours else 0,
         'completion_time_count':len(completion_hours),

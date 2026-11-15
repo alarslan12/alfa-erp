@@ -168,12 +168,19 @@ def completed_summary(db, start, end):
             bentry['pages'] += pages
             platform[label]['books'] += qty
             platform[label]['pages'] += pages
+    # Pending active-address shipping is operational expense, separate from
+    # the dated completed-only ledger and payment-day approvals.
+    active_shipping=[o for o in db.siparisler if db.siparis_durumu(o)=='aktif'
+                     and shipping_group(o)=='acik_adres' and o.get('kargo_ucreti') is not None]
+    active_cost=sum(max(0.0,num(o.get('kargo_ucreti'))) for o in active_shipping)
     orders = counts['orders']
     days = (end - start).days + 1
     result = {
         'orders': orders,
         'gross': round(counts['gross'],2),
         'shipping_total': round(counts['shipping'],2),
+        'active_address_shipping':round(active_cost,2),
+        'active_address_shipping_count':len(active_shipping),
         'shipping_telafi': round(counts['shipping_telafi'],2),
         'shipping_acik_adres': round(counts['shipping_acik_adres'],2),
         'shipping_missing': counts['shipping_missing'],

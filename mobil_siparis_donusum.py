@@ -59,7 +59,10 @@ def convert_mobile_order(row, items, catalog):
     if isinstance(row.get('order_notice'),dict):
         output['order_notice'] = row['order_notice']
     if row.get('shipping_fee') is not None:
+        from analitik_veri import shipping_group
         output['kargo_ucreti'] = float(row['shipping_fee'])
+        category=shipping_group(output)
+        if category:output['kargo_turu']=category
     if status in ('aktif', 'tamamlandi'):
         output['isleme_alinma_tarihi'] = _timestamp(row.get('started_at') or row.get('created_at'))
     if status == 'tamamlandi':

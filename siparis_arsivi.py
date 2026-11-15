@@ -1,4 +1,4 @@
-"""Tamamlanan siparişlerin son 5 gün ve istek üzerine açılan arşiv ayrımı.
+"""Tamamlanan siparişlerin son 3 gün ve istek üzerine açılan arşiv ayrımı.
 
 Qt bağımsız tutulur. Sipariş verisi taşınmaz / silinmez; yalnızca
 pencerede çizilecek siparişler ayrılır.
@@ -14,8 +14,8 @@ def tamamlanma_gunu(order):
         return None
 
 
-def ayir_tamamlananlar(orders, today=None, window_days=5):
-    """[bugün-4, bugün] aralığı güncel; daha eskiler/bilinmeyenler arşivdir."""
+def ayir_tamamlananlar(orders, today=None, window_days=3):
+    """[bugün-2, bugün] aralığı güncel; daha eskiler/bilinmeyenler arşivdir."""
     today = today or date.today()
     cutoff = today - timedelta(days=max(1, int(window_days)) - 1)
     recent, archive = [], []
@@ -26,3 +26,12 @@ def ayir_tamamlananlar(orders, today=None, window_days=5):
         else:
             archive.append(order)
     return recent, archive
+
+
+PAGE_SIZE=20
+
+def completed_page(orders, page=0, page_size=PAGE_SIZE):
+    size=max(1,int(page_size))
+    pages=max(1,(len(orders)+size-1)//size)
+    page=max(0,min(int(page),pages-1))
+    return orders[page*size:(page+1)*size],page,pages

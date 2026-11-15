@@ -703,6 +703,46 @@ class Workstation:
             results.append(self._atomic_order(order_id, mutate))
         return results
 
+    def shipping_fees(self,events):
+        """Owner-only conditional fee write; idempotent and no item changes."""
+        from utils import tr_kucult
+        member=self._get("members/"+self.uid) or {}
+        if member.get("role")!="owner" or member.get("active") is not True:
+            raise DeviceError("Kargo ücreti düzenlemek için yönetici yetkisi gerekli",403)
+        results=[]
+        for event in events:
+            order_id=str(event["order_id"])
+            op_id=str(event["op_id"])
+            def mutate(row):
+                if row.get("deleted_at"):
+                    raise DeviceError("Sipariş silinmiş",409)
+                processed=row.setdefault("ops",{})
+                if op_id in processed:
+                    return None,{"op_id":op_id,"order_id":order_id,"local_id":event["local_id"],"version":int(processed[op_id])}
+                kind=tr_kucult(row.get("order_type",""))
+                platform=tr_kucult(row.get("platform",""))
+                if "telafi" in kind or ("acik adres" not in kind and "acik adres" not in platform) or row.get("status") not in ("aktif","tamamlandi"):
+                    raise DeviceError("Sipariş artık uygun değil",409)
+                before=row.get("shipping_fee")
+                expected=event.get("previous_fee")
+                if before!=expected:
+                    raise DeviceError("Kargo ücreti başka cihazda değişti",409)
+                try:fee=float(event["shipping_fee"])
+                except (TypeError,ValueError):raise DeviceError("Geçersiz kargo ücreti",422)
+                if not 0<=fee<=10000000:
+                    raise DeviceError("Geçersiz kargo ücreti",422)
+                row["shipping_fee"]=round(fee,2)
+                row["version"]=int(row["version"])+1
+                row["updated_at"]=datetime.now(timezone.utc).isoformat()
+                processed[op_id]=row["version"]
+                row.setdefault("event_log",{})[op_id]={"id":op_id,"action":"shipping_fee_edit",
+                    "device_id":self.uid,"device_name":socket.gethostname()[:120],
+                    "order_ids":[order_id],"created_at":row["updated_at"],
+                    "details":{"before":before,"after":row["shipping_fee"]}}
+                return row,{"op_id":op_id,"order_id":order_id,"local_id":event["local_id"],"version":row["version"]}
+            results.append(self._atomic_order(order_id,mutate))
+        return results
+
     def transition(self, events):
         return self._apply_events(events, "status")
 

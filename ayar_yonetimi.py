@@ -698,6 +698,10 @@ def theme_styles(name):
         QPushButton#StaffThemeSwitch {background:#e2d9ca;color:#2b4560;border:1px solid #b9a48a;}
         QPlainTextEdit#OrderNoteInput {background:#fffaf3;color:#23384f;border:1px solid #b5a18a;placeholder-text-color:#687887;selection-background-color:#bad8e9;selection-color:#203c52;}
         QPlainTextEdit#OrderNoteInput:focus {border-color:#688eae;}
+        QSpinBox#OrderEditQty {color:#23384f;background:#fffaf3;}
+        QPushButton#OrderEditQtyStep {background:#e5edf3;color:#23384f;border-color:#7d9bb1;}
+        QPushButton#OrderEditQtyStep:hover {background:#c7dfed;}
+        QPushButton#OrderEditQtyStep:disabled {background:#e2e1dc;color:#818181;}
         QFrame#ProductionMetric {background:#fffaf3;border:1px solid #c6b8a4;}
         QFrame#ProductionMetric[productionTone="remaining"] {background:#fff0d7;border:1px solid #ce9a56;border-left:3px solid #bf7e26;}
         QFrame#ProductionMetric[productionTone="print"] {background:#f2eafb;border:1px solid #b49bcf;border-left:3px solid #8b6aba;}
@@ -727,13 +731,17 @@ def colorblind_styles(light=False):
     return f"""
 QFrame#OrderRow[orderStatus="tamamlandi"],
 QFrame#OrderRow[orderStatus="tamamlandi"][orderRecent="true"],
-QFrame#OrderRow[orderStatus="tamamlandi"][orderSelected="true"] {{
+QFrame#OrderRow[orderStatus="tamamlandi"][orderSelected="true"],
+QFrame#OrderRow[orderStatus="tamamlandi"][orderFocused="true"],
+QFrame#OrderRow[orderStatus="tamamlandi"][orderSelected="true"][orderRecent="true"] {{
     background:{panel};border:2px solid {packed};border-left:5px solid {packed};
 }}
 QFrame#OrderRow[orderStatus="tamamlandi"]:hover,
 QFrame#OrderRow[orderStatus="tamamlandi"][orderRecent="true"]:hover,
-QFrame#OrderRow[orderStatus="tamamlandi"][orderSelected="true"]:hover {{
-    background:{hover};border:3px solid {packed};border-left:5px solid {packed};
+QFrame#OrderRow[orderStatus="tamamlandi"][orderSelected="true"]:hover,
+QFrame#OrderRow[orderStatus="tamamlandi"][orderFocused="true"]:hover,
+QFrame#OrderRow[orderStatus="tamamlandi"][orderSelected="true"][orderRecent="true"]:hover {{
+    background:{panel};border:2px solid {packed};border-left:5px solid {packed};
 }}
 QLabel#OrderDoneTag,QLabel#OrderStatusBadgeDone,QLabel#OrderPlatformDone {{
     background:#00dfff;color:#082332;border:2px solid #007fa4;font-weight:900;
@@ -785,6 +793,53 @@ def apply_visual_preferences(config):
     enabled=config.get('colorblind_mode',False) is True
     app.setProperty('alfa_theme',name)
     app.setProperty('alfa_colorblind',enabled)
-    app.setStyleSheet(QSS+theme_styles(name)+(colorblind_styles(name=='acik') if enabled else ''))
+    base=QSS+theme_styles(name)+static_completed_styles(name)
+    app.setStyleSheet(replace_red_green(base)+colorblind_styles(name=='acik') if enabled else base)
     from kart_siparis import refresh_accessible_order_widgets
     refresh_accessible_order_widgets()
+
+
+def static_completed_styles(name):
+    bg,edge=('#e8f2e9','#77ae92') if name=='acik' else ('#19302f','#468b78')
+    selectors=[]
+    for state in ('','[orderRecent="true"]','[orderSelected="true"]','[orderFocused="true"]','[orderSelected="true"][orderRecent="true"]'):
+        selectors.extend(['QFrame#OrderRow[orderStatus="tamamlandi"]'+state,
+                          'QFrame#OrderRow[orderStatus="tamamlandi"]'+state+':hover'])
+    return ','.join(selectors)+f' {{background:{bg};border:1px solid {edge};border-left:4px solid {edge};}}'
+
+
+def replace_red_green(styles):
+    """Map red/green UI palette hues, preserving lightness and opacity.
+    Does not alter book artwork or neutral/blue/purple/yellow colors.
+    """
+    import colorsys,re
+    def mapped(r,g,b):
+        h,l,s=colorsys.rgb_to_hls(r/255,g/255,b/255)
+        hue=h*360
+        if s<.15:return r,g,b
+        if 72<=hue<174:target=195/360
+        elif hue<22 or hue>=333:target=47/360
+        else:return r,g,b
+        return tuple(round(v*255) for v in colorsys.hls_to_rgb(target,l,s))
+    def hex_color(match):
+        value=match.group(1)
+        r,g,b=(int(value[i:i+2],16) for i in (0,2,4))
+        return '#%02x%02x%02x'%mapped(r,g,b)
+    def rgb_color(match):
+        r,g,b=(int(match.group(i)) for i in (2,3,4))
+        if min(r,g,b)<0 or max(r,g,b)>255:return match.group(0)
+        r,g,b=mapped(r,g,b)
+        return f'{match.group(1)}({r},{g},{b}{match.group(5)})'
+    styles=re.sub(r'#([0-9a-fA-F]{6})(?![0-9a-zA-Z_-])',hex_color,styles)
+    return re.sub(r'\b(rgb|rgba)\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(,\s*[\d.]+)?\s*\)',
+                  lambda m:rgb_color(m) if m.group(5) else rgb_color_with_no_alpha(m,mapped),styles)
+
+
+def rgb_color_with_no_alpha(match,mapped):
+    r,g,b=(int(match.group(i)) for i in (2,3,4))
+    if min(r,g,b)<0 or max(r,g,b)>255:return match.group(0)
+    return 'rgb(%d,%d,%d)'%mapped(r,g,b)
+
+
+def accessible_ui_color(color):
+    return replace_red_green(color) if colorblind_enabled() and isinstance(color,str) else color

@@ -1710,3 +1710,12 @@ QLabel#ProductionMetricDetail {background:transparent;color:#b9cadd;font-size:10
 QSS += """
 QPushButton#OrderNoticeInline {font-size:14px;font-weight:850;background:#ad5a00;color:white;padding:10px;}
 """
+
+QSS += """
+QFrame#OrderRow[orderStatus="tamamlandi"],QFrame#OrderRow[orderStatus="tamamlandi"]:hover,QFrame#OrderRow[orderStatus="tamamlandi"][orderRecent="true"],QFrame#OrderRow[orderStatus="tamamlandi"][orderRecent="true"]:hover {background:#19302f;border:1px solid #468b78;border-left:4px solid #29d79a;}
+QSpinBox#OrderEditQty {padding:3px;color:#f2f6ff;min-height:30px;}
+QPushButton#OrderEditQtyStep {padding:0;font-size:17px;font-weight:900;border:1px solid #6b8daf;border-radius:5px;background:#2a4562;color:#ecf5ff;}
+QPushButton#OrderEditQtyStep:hover {background:#406b93;}
+QPushButton#OrderEditQtyStep:disabled {background:#26323d;color:#7b8b9a;}
+QLabel#OrderReviewBookHint {background:#244767;color:#e4f5ff;border:1px solid #72aadd;border-radius:7px;padding:8px;font-size:13px;font-weight:850;}
+"""

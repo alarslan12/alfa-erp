@@ -80,8 +80,14 @@ class OrderNoticeDialog(QDialog):
         heading.setObjectName('OrderReviewHeading')
         if not colorblind_enabled():heading.setStyleSheet("font-size:17px;font-weight:900;color:#ad6b00;background:#ffefcb;padding:12px;border-radius:8px;")
         root.addWidget(heading)
+        changes = (order.get("order_notice") or {}).get("changes") or {}
+        if not initial and any(isinstance(item,dict) and item.get('type')=='book' and
+                (not item.get('old') or not item.get('new')) for item in changes.values()):
+            hint=plain("ⓘ  Kitap kodunun üzerine gel · Kapak ve kitap adı açılır")
+            hint.setObjectName('OrderReviewBookHint')
+            root.addWidget(hint)
         root.addWidget(plain("Siparişe eklenen notu okuyup onaylayın." if initial else
-                            "Aşağıdaki değişiklikleri kontrol edin. Kitap kodlarının üzerine gelerek kapaklarını görebilirsiniz."))
+                            "Aşağıdaki değişiklikleri kontrol edin."))
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         body = QWidget()
