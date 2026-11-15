@@ -6,6 +6,10 @@ https://github.com/alarslan12/alfa-erp/releases.
 """
 
 _RELEASES = [
+    ("2.0.37", "Telafi sipariş etiketi", [
+        "Telafi siparişlerinin ciro alanında 0 TL yerine TELAFİ SİPARİŞ etiketi gösterilir.",
+        "Personel ve Yönetici ortak sipariş kartları; muhasebe ve kargo giderleri değişmez.",
+    ]),
     ("2.0.36", "Sipariş arşivi ve arayüz düzeltmeleri", [
         "Tamamlanan siparişler 20'şerli sayfalara ve son üç takvim günü / arşiv ayrımına kavuştu.",
         "Tamamlanan siparişlerde statik kart ve kapak rengi; tikler korunur.",

@@ -1,5 +1,10 @@
 # ALFA ERP · Sürüm Geçmişi
 
+## [v2.0.37] — 2026-11-15
+
+- Telafi siparişleri kartında 0 TL yerine TELAFİ SİPARİŞ etiketi; satış cirosu 0 TL olarak korunur.
+- Normal siparişlerin ciro etiketi, Firebase ve muhasebe işleyişi değişmez.
+
 ## [v2.0.36] — 2026-11-15 (ön izleme)
 
 - Tamamlanan siparişlerde 20 kayıtlık sayfalar, üç takvim günü ve arşiv ayrımı.

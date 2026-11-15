@@ -1719,3 +1719,10 @@ QPushButton#OrderEditQtyStep:hover {background:#406b93;}
 QPushButton#OrderEditQtyStep:disabled {background:#26323d;color:#7b8b9a;}
 QLabel#OrderReviewBookHint {background:#244767;color:#e4f5ff;border:1px solid #72aadd;border-radius:7px;padding:8px;font-size:13px;font-weight:850;}
 """
+
+QSS += """
+QLabel#OrderTelafiPill {
+    background:#5b4419; border:1px solid #e0b858; border-radius:6px;
+    color:#fff0ac; padding:4px 5px; font-size:10px; font-weight:850;
+}
+"""

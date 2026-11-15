@@ -433,11 +433,19 @@ class SiparisKarti(QFrame):
         ciro = float(siparis.get('ciro', 0) or 0)
         # Very large sales values get a compact badge; exact amount remains on hover.
         short_ciro = f'{ciro/1_000_000:,.2f} Mn ₺' if ciro >= 1_000_000 else f'{ciro:,.2f} ₺'
-        revenue = text(short_ciro, 'OrderRevenuePill')
-        revenue.setToolTip(f'Kesin ciro: {ciro:,.2f} ₺')
+        is_telafi = category == 'telafi'
+        revenue = text('TELAFİ SİPARİŞ' if is_telafi else short_ciro,
+                       'OrderTelafiPill' if is_telafi else 'OrderRevenuePill')
+        revenue.setToolTip('Telafi siparişi · Satış cirosu 0 TL; kargo gideri ayrı kaydedilir.'
+                           if is_telafi else f'Kesin ciro: {ciro:,.2f} ₺')
         revenue.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        revenue.setMinimumWidth(88)
-        revenue.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        if is_telafi:
+            revenue.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Preferred)
+            revenue.setMinimumWidth(max(88, revenue.sizeHint().width(),
+                                        revenue.fontMetrics().horizontalAdvance('TELAFİ SİPARİŞ') + 16))
+        else:
+            revenue.setMinimumWidth(88)
+            revenue.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         finance.addWidget(revenue, 1)
         sb_badge = text(f"SB {summary['sb']}", 'BadgeSB')
         rnk_badge = text(f"RNK {summary['rnk']}", 'BadgeRNK')
