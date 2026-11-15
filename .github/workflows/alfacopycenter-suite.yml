@@ -1,4 +1,4 @@
-name: ALFACOPYCENTER Suite v2.0.35 Windows build and release
+name: ALFACOPYCENTER Suite v2.0.36 Windows build and release
 
 on:
   push:
@@ -13,47 +13,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  promote-v2035:
-    if: github.event_name == 'push' && github.event.head_commit.message == 'Promote verified v2.0.35 to stable'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: write
-      actions: read
-    env:
-      GH_TOKEN: ${{ github.token }}
-      REPO: ${{ github.repository }}
-      TAG: v2.0.35
-      VERIFIED_SHA: 0cee3f9b56a54f4ce282a52da1215ccf3b6735cc
-      VERIFIED_RUN: '43637752766'
-      VERIFIED_DIGEST: sha256:ec0fde86d4c464d783ddfe0d6f6bb3aa180cf4047872eba54654e0997fd1f185
-    steps:
-      - name: Promote only the already verified immutable installer
-        shell: bash
-        run: |
-          set -euo pipefail
-          test "$(gh api "repos/$REPO/actions/runs/$VERIFIED_RUN" --jq '.conclusion')" = success
-          test "$(gh api "repos/$REPO/actions/runs/$VERIFIED_RUN" --jq '.head_sha')" = "$VERIFIED_SHA"
-          test "$(gh api "repos/$REPO/git/ref/tags/$TAG" --jq '.object.sha')" = "$VERIFIED_SHA"
-          release="$(gh api "repos/$REPO/releases/tags/$TAG")"
-          test "$(jq -r '.draft' <<< "$release")" = false
-          test "$(jq -r '.assets[] | select(.name=="ALFACOPYCENTER_Suite_Setup_V2_0_35.exe" and .state=="uploaded") | .digest' <<< "$release")" = "$VERIFIED_DIGEST"
-          test "$(jq -r '.assets[] | select(.name=="SHA256SUMS.txt" and .state=="uploaded") | .name' <<< "$release")" = SHA256SUMS.txt
-          jq -r '.body // ""' <<< "$release" | sed -e 's/ (ön izleme)//g' -e 's/Kararlı kanal v2.0.30 olarak kalır; yeni sürüm ön izleme./v2.0.35 kararlı sürüm olarak onaylandı./g' > release-notes.md
-          printf '\n\n**Kararlı sürüm:** Windows derlemesi, regresyon ve bileşen açılış testleri başarılı. Mevcut doğrulanmış kurulum dosyası değiştirilmedi.\n' >> release-notes.md
-          gh release edit "$TAG" --repo "$REPO" --prerelease=false --latest --title "ALFACOPYCENTER Suite v2.0.35 — Kararlı sürüm" --notes-file release-notes.md
-          test "$(gh api "repos/$REPO/releases/latest" --jq '.tag_name')" = "$TAG"
-          test "$(gh api "repos/$REPO/releases/tags/$TAG" --jq '.prerelease')" = false
   windows-suite:
-    if: github.event_name != 'push' || github.event.head_commit.message != 'Promote verified v2.0.35 to stable'
     runs-on: windows-2022
     timeout-minutes: 100
     env:
       PYTHONUTF8: '1'
       PYTHONIOENCODING: utf-8
       QT_QPA_PLATFORM: offscreen
-      SUITE_TAG: v2.0.35
-      SUITE_EXE: ALFACOPYCENTER_Suite_Setup_V2_0_35.exe
+      SUITE_TAG: v2.0.36
+      SUITE_EXE: ALFACOPYCENTER_Suite_Setup_V2_0_36.exe
     steps:
       - name: Exclude cancelled v2.0.29 from automatic updates
         shell: pwsh
@@ -161,23 +129,23 @@ jobs:
           if ($file.Length -lt 1000000) { throw 'Setup unexpectedly small' }
           $hash=(Get-FileHash $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
           "$hash  $($file.Name)" | Set-Content -Encoding ascii .\output\SHA256SUMS.txt
-          Copy-Item .\docs\ALFACOPYCENTER_SUITE_V2035_RELEASE.md .\output\RELEASE_NOTES.txt
+          Copy-Item .\docs\ALFACOPYCENTER_SUITE_V2036_RELEASE.md .\output\RELEASE_NOTES.txt
           & .\.buildvenv\Scripts\python.exe -c "from PySide6.QtPdf import QPdfDocument;print('Qt PDF import OK')"
           if ($LASTEXITCODE -ne 0) { throw 'QtPdf unavailable' }
 
       - name: Upload Suite Setup for CI audit
         uses: actions/upload-artifact@v4
         with:
-          name: ALFACOPYCENTER_Suite_v2.0.35_Windows
+          name: ALFACOPYCENTER_Suite_v2.0.36_Windows
           path: |
-            output/ALFACOPYCENTER_Suite_Setup_V2_0_35.exe
+            output/ALFACOPYCENTER_Suite_Setup_V2_0_36.exe
             output/SHA256SUMS.txt
             output/RELEASE_NOTES.txt
           if-no-files-found: error
           retention-days: 30
           compression-level: 0
 
-      - name: Publish verified Suite v2.0.35 preview release
+      - name: Publish verified Suite v2.0.36 preview release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -189,7 +157,7 @@ jobs:
             Write-Host "Verified Suite preview release already exists: $tag"
             exit 0
           }
-          gh release create $tag "output/$env:SUITE_EXE" output/SHA256SUMS.txt output/RELEASE_NOTES.txt --repo $repo --target "${{ github.sha }}" --title "ALFACOPYCENTER Suite v2.0.35" --notes-file output/RELEASE_NOTES.txt --prerelease --latest=false
+          gh release create $tag "output/$env:SUITE_EXE" output/SHA256SUMS.txt output/RELEASE_NOTES.txt --repo $repo --target "${{ github.sha }}" --title "ALFACOPYCENTER Suite v2.0.36" --notes-file output/RELEASE_NOTES.txt --prerelease --latest=false
           if ($LASTEXITCODE -ne 0) { throw 'Suite release publishing failed' }
           gh release view $tag --repo $repo --json tagName,assets,url
           if ($LASTEXITCODE -ne 0) { throw 'Published Suite release is not readable' }

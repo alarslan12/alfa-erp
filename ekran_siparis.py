@@ -364,7 +364,8 @@ class SiparisView(QWidget):
                     if not order:continue
                     status=self.db.siparis_durumu(order)
                     if (getattr(page,'_rendered_notice',None)!=(revision(order),pending_notice(order)) or
-                            getattr(page,'_rendered_status',None)!=status):
+                            getattr(page,'_rendered_status',None)!=status or
+                            getattr(page,'_rendered_fee',None)!=order.get('kargo_ucreti')):
                         page.build_ui()
                     elif status=='aktif' and not pending_notice(order):
                         page.refresh_progress_labels()

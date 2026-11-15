@@ -6,6 +6,12 @@ https://github.com/alarslan12/alfa-erp/releases.
 """
 
 _RELEASES = [
+    ("2.0.36", "Sipariş arşivi ve arayüz düzeltmeleri", [
+        "Tamamlanan siparişler 20'şerli sayfalara ve son üç takvim günü / arşiv ayrımına kavuştu.",
+        "Tamamlanan siparişlerde statik kart ve kapak rengi; tikler korunur.",
+        "Yöneticiye açık adres kargo ücreti düzenleme; analitikte aktif ve tamamlanan giderler.",
+        "Renk körlüğü paleti genişletildi; adet düğmeleri ve kitap değişikliği ipucu düzeltildi.",
+    ]),
     ("2.0.35", "Renk körlüğü modu", [
         "Personel ve Yönetici ayarlarına kalıcı ve temadan bağımsız renk körlüğü modu.",
         "Kolilenen kitap ve tamamlanan siparişlerde yoğun elektrik mavisi, güçlü kenar ve hover.",

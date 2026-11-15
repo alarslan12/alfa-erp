@@ -59,10 +59,11 @@ def set_boxed_card_style(card, group, active=True):
         selector='QFrame#'+card.objectName()
         bg='rgba(0,205,255,78)' if light else 'rgba(0,213,255,76)'
         hover='rgba(0,205,255,135)' if light else 'rgba(0,213,255,130)'
+        if card.objectName()=='OrderArchiveCard':hover=bg
         edge='#008cb6' if light else '#00dfff'
         card.setStyleSheet(
             selector+f' {{background:{bg};border:3px solid {edge};border-radius:9px;}}'+
-            selector+f':hover {{background:{hover};border:3px solid #00dfff;}}'+
+            selector+f':hover {{background:{hover};border:3px solid {edge if card.objectName()=="OrderArchiveCard" else "#00dfff"};}}'+
             selector+f'[trackSelected="true"] {{border:3px solid {edge};}}'+
             selector+'[trackSelected="true"]:hover {border:3px solid #72efff;}'+
             selector+' QFrame#TrackVariantSB,'+selector+' QFrame#TrackVariantRNK,'+
@@ -73,7 +74,7 @@ def set_boxed_card_style(card, group, active=True):
         selector = 'QFrame#' + card.objectName()
         card.setStyleSheet(
             selector + ' {background:rgba(36,181,111,36);border:1px solid #36a86e;border-radius:9px;}' +
-            selector + ':hover {background:rgba(36,181,111,61);border:2px solid #51d68b;}' +
+            selector + (':hover {background:rgba(36,181,111,36);border:1px solid #36a86e;}' if card.objectName()=='OrderArchiveCard' else ':hover {background:rgba(36,181,111,61);border:2px solid #51d68b;}') +
             selector + '[trackSelected="true"] {border:2px solid #68cd96;}' +
             selector + '[trackSelected="true"]:hover {border:2px solid #8be8b2;}' +
             selector + ' QFrame#TrackVariantSB,' + selector + ' QFrame#TrackVariantRNK,' +

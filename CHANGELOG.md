@@ -1,5 +1,12 @@
 # ALFA ERP · Sürüm Geçmişi
 
+## [v2.0.36] — 2026-11-15 (ön izleme)
+
+- Tamamlanan siparişlerde 20 kayıtlık sayfalar, üç takvim günü ve arşiv ayrımı.
+- Statik tamamlanma görünümü ve kapak tikleri.
+- Açık adres kargo gideri düzenleme, analitik yansıması.
+- Renk körlüğü paleti, adet düğmeleri ve kitap değişikliği ipucu.
+
 ## [v2.0.35] — Renk körlüğü modu (ön izleme)
 
 - Personel ve Yönetici için temadan bağımsız yüksek görünürlük ayarı.

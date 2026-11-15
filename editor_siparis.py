@@ -126,6 +126,7 @@ class SiparisEditor(QDialog):
 
         self._rendered_status = self.db.siparis_durumu(order)
         self._rendered_notice = (revision(order),pending_notice(order))
+        self._rendered_fee = order.get('kargo_ucreti')
         if self.mode == 'edit':
             self.header_lay.addWidget(text(f'Sipariş #{self.sid} · Düzenleme', 'PageTitle'))
             self.header_lay.addWidget(text('Kargo, platform, ciro ve kitap adetlerini güncelle.', 'Muted'))
@@ -142,6 +143,9 @@ class SiparisEditor(QDialog):
         close.clicked.connect(lambda: self.track_host.close_order_tab(self.sid) if self.embedded and hasattr(self, 'track_host') else self.close())
         self.header_lay.addWidget(close)
 
+        if self.mode != 'edit' and self._rendered_status=='aktif' and self.db.kargo_kategorisi(order)=='acik_adres':
+            fee=order.get('kargo_ucreti')
+            self.body_lay.addWidget(text(f"Açık adres · Kargo gideri: {float(fee):,.2f} TL" if fee is not None else 'Açık adres · Kargo gideri henüz girilmedi','OrderShippingCost'))
         if self.mode != 'edit' and order.get('order_note'):
             note=QPlainTextEdit('Sipariş notu: '+str(order['order_note']))
             note.setReadOnly(True);note.setFixedHeight(66)
@@ -229,9 +233,11 @@ class SiparisEditor(QDialog):
         line.addStretch()
         line.addWidget(text(f"Tarih: {date_value[:16].replace('T',' ')}   ·   {overview['adet']} kitap   ·   {overview['sayfa']:,} sayfa", 'Muted'))
         self.body_lay.addWidget(bar)
-        if order.get('kargo_turu') in ('telafi','acik_adres'):
-            group = 'Telafi siparişi' if order.get('kargo_turu') == 'telafi' else 'Açık adres siparişi'
-            self.body_lay.addWidget(text(f"{group} · Kargo gideri: {float(order.get('kargo_ucreti',0) or 0):,.2f} TL", 'OrderShippingCost'))
+        category=self.db.kargo_kategorisi(order)
+        if category in ('telafi','acik_adres'):
+            group = 'Telafi siparişi' if category == 'telafi' else 'Açık adres siparişi'
+            fee=order.get('kargo_ucreti')
+            self.body_lay.addWidget(text(f"{group} · Kargo gideri: {float(fee):,.2f} TL" if fee is not None else f'{group} · Kargo gideri henüz girilmedi','OrderShippingCost'))
         content = QWidget(); grid = QGridLayout(content)
         grid.setContentsMargins(4,4,6,8)
         grid.setHorizontalSpacing(10); grid.setVerticalSpacing(10)
