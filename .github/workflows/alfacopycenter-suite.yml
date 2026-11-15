@@ -145,19 +145,33 @@ jobs:
           retention-days: 30
           compression-level: 0
 
-      - name: Publish verified Suite v2.0.36 preview release
+      - name: Promote verified Suite v2.0.36 to stable
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           $tag=$env:SUITE_TAG
           $repo="${{ github.repository }}"
+          # Preserve the verified preview artifact and its original source tag.
+          $notes=Get-Content output/RELEASE_NOTES.txt -Raw -Encoding utf8
+          $notes=$notes.Replace(' (ön izleme)','').Replace('v2.0.35 kararlı kanalda kalır; v2.0.36 Windows kalite kapısından sonra ön sürüm olarak yayımlanır.','v2.0.36 Windows kalite kapısını geçmiştir ve kararlı kanalda yayımlanmıştır.')
+          $notes | Set-Content output/STABLE_RELEASE_NOTES.txt -Encoding utf8
           gh release view $tag --repo $repo 2>$null | Out-Null
           if ($LASTEXITCODE -eq 0) {
-            Write-Host "Verified Suite preview release already exists: $tag"
-            exit 0
+            $verified=Join-Path $env:RUNNER_TEMP 'alfa-release-2036'
+            New-Item -ItemType Directory -Path $verified -Force | Out-Null
+            gh release download $tag --repo $repo --pattern "$env:SUITE_EXE" --pattern SHA256SUMS.txt --dir $verified --clobber
+            if ($LASTEXITCODE -ne 0) { throw 'Existing release assets could not be downloaded' }
+            $record=Get-Content (Join-Path $verified 'SHA256SUMS.txt') -Raw
+            $expected=($record.Trim() -split '\s+')[0]
+            $actual=(Get-FileHash (Join-Path $verified $env:SUITE_EXE) -Algorithm SHA256).Hash
+            if ($expected -notmatch '^[a-fA-F0-9]{64}$' -or $actual -ne $expected) { throw 'Existing preview checksum mismatch' }
+            gh release edit $tag --repo $repo --prerelease=false --latest --notes-file output/STABLE_RELEASE_NOTES.txt
+            if ($LASTEXITCODE -ne 0) { throw 'Stable release promotion failed' }
+          } else {
+            gh release create $tag "output/$env:SUITE_EXE" output/SHA256SUMS.txt output/RELEASE_NOTES.txt --repo $repo --target "${{ github.sha }}" --title "ALFACOPYCENTER Suite v2.0.36" --notes-file output/STABLE_RELEASE_NOTES.txt --latest
+            if ($LASTEXITCODE -ne 0) { throw 'Stable release publishing failed' }
           }
-          gh release create $tag "output/$env:SUITE_EXE" output/SHA256SUMS.txt output/RELEASE_NOTES.txt --repo $repo --target "${{ github.sha }}" --title "ALFACOPYCENTER Suite v2.0.36" --notes-file output/RELEASE_NOTES.txt --prerelease --latest=false
-          if ($LASTEXITCODE -ne 0) { throw 'Suite release publishing failed' }
-          gh release view $tag --repo $repo --json tagName,assets,url
-          if ($LASTEXITCODE -ne 0) { throw 'Published Suite release is not readable' }
+          $release=gh release view $tag --repo $repo --json tagName,isPrerelease,isDraft,assets,url | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or $release.isPrerelease -or $release.isDraft) { throw 'Stable release verification failed' }
+          $release | ConvertTo-Json -Depth 5
