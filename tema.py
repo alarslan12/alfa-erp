@@ -1726,3 +1726,10 @@ QLabel#OrderTelafiPill {
     color:#fff0ac; padding:4px 5px; font-size:10px; font-weight:850;
 }
 """
+
+QSS += """
+QPushButton#OrderShippingPending {background:#5b4419;color:#fff0ac;border:1px solid #e0b858;border-radius:6px;padding:3px 5px;font-size:11px;font-weight:850;}
+QPushButton#OrderShippingPending:hover {background:#795b20;}
+QPushButton#OrderShippingRecorded {background:#193c51;color:#d8f6ff;border:1px solid #68b6d5;border-radius:6px;padding:3px 5px;font-size:11px;font-weight:800;}
+QPushButton#OrderShippingRecorded:hover {background:#275b72;}
+"""

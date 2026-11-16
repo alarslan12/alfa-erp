@@ -551,8 +551,8 @@ class AnalitikView(QWidget):
         explanation.setWordWrap(True)
         hero.addWidget(explanation)
         revenue=[
-            ("Toplam ciro",money(m["gross"]),MINT,
-             "Tamamlanan siparişlerin satış tutarı"),
+            ("İade sonrası ciro",money(m["gross"]),MINT,
+             "Tamamlanan siparişlerin iade düşülmüş satış tutarı"),
             ("Kargo sonrası ciro",money(m["after_shipping"]),"#65d4fc",
              "Cirodan kayıtlı kargo gideri çıkarılmış"),
             ("Ödenen ciro",money(paid_revenue),"#bba1ff",
@@ -571,7 +571,7 @@ class AnalitikView(QWidget):
             cards.setColumnStretch(column,1)
         hero.addLayout(cards)
         note=QLabel(
-            "Kargo sonrası ciro = Toplam ciro − Telafi ve açık adres kargo "
+            "Kargo sonrası ciro = İade sonrası ciro − Telafi ve açık adres kargo "
             "giderleri. Bu tutar net kâr değildir; baskı, işçilik ve "
             "komisyon giderleri ayrıca düşülmemiştir."
         )
@@ -583,6 +583,13 @@ class AnalitikView(QWidget):
         # Secondary figures intentionally use the existing, quieter StatPill
         # design. Similar averages live together, away from key money figures.
         groups=[
+            ('İADE İSTATİSTİKLERİ · TAMAMLANMA DÖNEMİ','returns',[
+                ('İade öncesi ciro',money(m['gross_before_returns']),BLUE),
+                ('İade edilen satış',money(m['returned_revenue']),'#dcb0ff'),
+                ('İade edilen sipariş',integer(m['returned_orders']),'#dcb0ff'),
+                ('İade / sipariş oranı',f"%{m['return_order_ratio']:.1f}",'#dcb0ff'),
+                ('İade / ciro oranı',f"%{m['return_revenue_ratio']:.1f}",'#dcb0ff'),
+            ]),
             ('KARGO GİDERLERİ', 'shipping', [
                 ('Toplam kargo gideri', money(m['shipping_total']), AMBER),
                 ('Telafi siparişi kargosu', money(m['shipping_telafi']), '#ff9d92'),
@@ -716,8 +723,8 @@ class AnalitikView(QWidget):
             total=self.db.siparis_ozeti(o)
             orders.append([f"#{o.get('id','')}",str(o.get('tamamlanma_tarihi',''))[:16].replace('T',' '),
                 str(o.get('platform') or 'Manuel'),total['adet'],total['sayfa'],
-                money(accounting_revenue(o))])
-        self.result_layout.addWidget(self.table(['No','Tamamlanma','Platform','Kitap','Sayfa','Ciro'],orders,205))
+                'İade edildi' if o.get('iade_tarihi') else 'Tamamlandı', money(accounting_revenue(o))])
+        self.result_layout.addWidget(self.table(['No','Tamamlanma','Platform','Kitap','Sayfa','Durum','Ciro'],orders,205))
         if len(self.latest['orders'])>80:
             self.result_layout.addWidget(text('İlk 80 sipariş gösteriliyor; HTML raporu tüm siparişleri içerir.','AccountingHelp'))
         if m['shipping_missing']:

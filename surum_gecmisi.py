@@ -6,6 +6,11 @@ https://github.com/alarslan12/alfa-erp/releases.
 """
 
 _RELEASES = [
+    ("2.0.38", "Kargo takibi ve iade yönetimi", [
+        "Yönetici tamamlanan siparişlerden iade işaretler veya geri alır.",
+        "İade sekmesi, iade sonrası ciro ve oranlar; kargo gideri korunur.",
+        "Açık Adres ve Telafi kargo takibi; 0 TL/boş ücret bekler.",
+    ]),
     ("2.0.37", "Telafi sipariş etiketi", [
         "Telafi siparişlerinin ciro alanında 0 TL yerine TELAFİ SİPARİŞ etiketi gösterilir.",
         "Personel ve Yönetici ortak sipariş kartları; muhasebe ve kargo giderleri değişmez.",

@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
 from widgets import text, cover_label, button, fallback_cover_pixmap
 from siparis_uyari import pending_notice, initial_note_notice
 from ayar_yonetimi import colorblind_enabled
+from siparis_arsivi import shipping_fee_entered, is_returned
 
 
 def readable_date(value):
@@ -376,7 +377,9 @@ class SiparisKarti(QFrame):
         self._notice_pending = status!='tamamlandi' and pending_notice(siparis)
         self._pulse_on = True
         self.setFixedHeight((202 if status == 'tamamlandi' else 186)+(43 if self._notice_pending else 0))
+        returned = status=='tamamlandi' and is_returned(siparis)
         self.setProperty('orderStatus', status)
+        if returned:self.setProperty('orderReturned', True)
         root = QHBoxLayout(self)
         root.setContentsMargins(10, 8, 10, 8)
         root.setSpacing(10)
@@ -413,13 +416,19 @@ class SiparisKarti(QFrame):
         left.addWidget(ship)
         left.addWidget(text(readable_date(siparis.get('tarih', '')), 'OrderMeta'))
         if status == 'tamamlandi' and siparis.get('tamamlanma_tarihi'):
-            left.addWidget(text('Tamamlandı · ' + readable_date(siparis['tamamlanma_tarihi']), 'OrderDoneDate'))
+            left.addWidget(text(('İade · ' + readable_date(siparis['iade_tarihi'])) if returned else ('Tamamlandı · ' + readable_date(siparis['tamamlanma_tarihi'])), 'OrderReturnedDate' if returned else 'OrderDoneDate'))
         category=db.kargo_kategorisi(siparis)
         if status in ('aktif','tamamlandi') and category in ('telafi','acik_adres') and (status=='tamamlandi' or siparis.get('kargo_ucreti') is not None):
             label = 'Telafi kargosu' if category == 'telafi' else 'Açık adres kargosu'
             value=siparis.get('kargo_ucreti')
-            cost = text(f"{label}: {float(value):,.2f} TL" if value is not None else f"{label}: girilmedi", 'OrderShippingCost')
-            cost.setToolTip('Tamamlanan siparişin kaydedilen kargo gideri')
+            if allow_edit and status=='tamamlandi':
+                entered=shipping_fee_entered(siparis)
+                cost=button(f"Kargo: {float(value):,.2f} TL · Düzenle" if entered else 'Kargo ücreti girilmedi · Gir',
+                            'OrderShippingRecorded' if entered else 'OrderShippingPending')
+                cost.clicked.connect(lambda:on_open(siparis['id'],'shipping_fee'))
+                cost.setToolTip('Gerçek kargo giderini ekle veya düzenle')
+            else:
+                cost = text(f"{label}: {float(value):,.2f} TL" if value is not None else f"{label}: girilmedi", 'OrderShippingCost')
             left.addWidget(cost)
         highlight = QHBoxLayout()
         highlight.setSpacing(6)
@@ -434,10 +443,11 @@ class SiparisKarti(QFrame):
         # Very large sales values get a compact badge; exact amount remains on hover.
         short_ciro = f'{ciro/1_000_000:,.2f} Mn ₺' if ciro >= 1_000_000 else f'{ciro:,.2f} ₺'
         is_telafi = category == 'telafi'
-        revenue = text('TELAFİ SİPARİŞ' if is_telafi else short_ciro,
-                       'OrderTelafiPill' if is_telafi else 'OrderRevenuePill')
+        revenue = text('İADE' if returned else ('TELAFİ SİPARİŞ' if is_telafi else short_ciro),
+                       'OrderReturnedTag' if returned else ('OrderTelafiPill' if is_telafi else 'OrderRevenuePill'))
         revenue.setToolTip('Telafi siparişi · Satış cirosu 0 TL; kargo gideri ayrı kaydedilir.'
                            if is_telafi else f'Kesin ciro: {ciro:,.2f} ₺')
+        if returned:revenue.setToolTip('İade edilen satış: '+('0,00 TL' if is_telafi else short_ciro))
         revenue.setAlignment(Qt.AlignmentFlag.AlignCenter)
         if is_telafi:
             revenue.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Preferred)
@@ -538,7 +548,7 @@ class SiparisKarti(QFrame):
             self._complete_btn.setMinimumWidth(0)
             row.addWidget(self._complete_btn, 1)
         else:
-            done = text('✓ Tamamlandı', 'OrderDoneTag')
+            done = text('↩ İade edildi' if returned else '✓ Tamamlandı', 'OrderReturnedTag' if returned else 'OrderDoneTag')
             done.setAlignment(Qt.AlignmentFlag.AlignCenter)
             done.setFixedHeight(36)
             row.addWidget(done, 1)
@@ -551,7 +561,7 @@ class SiparisKarti(QFrame):
             edit = QAction('Siparişi düzenle', menu)
             edit.triggered.connect(lambda: on_open(siparis['id'], 'edit'))
             menu.addAction(edit)
-        if allow_edit and status in ('aktif','tamamlandi') and category=='acik_adres':
+        if allow_edit and ((category=='acik_adres' and status in ('aktif','tamamlandi')) or (category=='telafi' and status=='tamamlandi')):
             fee=QAction('Kargo ücreti ekle / düzenle',menu)
             fee.triggered.connect(lambda:on_open(siparis['id'],'shipping_fee'))
             menu.addAction(fee)
@@ -569,10 +579,15 @@ class SiparisKarti(QFrame):
             delete.triggered.connect(lambda: on_delete(siparis))
             menu.addSeparator(); menu.addAction(delete)
         elif status == 'tamamlandi':
+            if allow_edit:
+                refund=QAction('İadeyi geri al' if returned else 'İade edildi olarak işaretle',menu)
+                refund.triggered.connect(lambda:on_open(siparis['id'],'return_state'))
+                menu.addAction(refund)
             reopen = QAction('Aktife geri al', menu)
+            reopen.setEnabled(not returned)
             reopen.triggered.connect(lambda: on_status(siparis, 'aktif'))
             menu.addAction(reopen)
-            if on_delete:
+            if on_delete and not returned:
                 delete = QAction('Siparişi sil', menu)
                 delete.triggered.connect(lambda: on_delete(siparis))
                 menu.addSeparator(); menu.addAction(delete)

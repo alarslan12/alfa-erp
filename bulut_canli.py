@@ -74,6 +74,8 @@ class Push(QThread):
                 result = self.client.progress(self.batch['events'])
             elif self.batch['kind'] == 'notice_ack':
                 result = self.client.acknowledge_notices(self.batch['events'])
+            elif self.batch['kind'] == 'return_state':
+                result = self.client.return_states(self.batch['events'])
             elif self.batch['kind'] == 'shipping_fee':
                 result = self.client.shipping_fees(self.batch['events'])
             else:
@@ -257,7 +259,7 @@ class Sync(QObject):
             try:
                 self.db.confirm_outbox(batch,results)
                 notice_ids=[r.get('local_id') for r in results
-                            if isinstance(r,dict) and ('notice_state' in r or 'notice' in r or batch['kind']=='shipping_fee') and r.get('local_id') is not None]
+                            if isinstance(r,dict) and ('notice_state' in r or 'notice' in r or batch['kind'] in ('shipping_fee','return_state')) and r.get('local_id') is not None]
                 if notice_ids:
                     self.changed.emit(notice_ids)
                 self.isolate_batch=False
@@ -280,7 +282,7 @@ class Sync(QObject):
         def fail(message,status=0):
             self.push_task=None
             self.force_pull=True
-            if status in (400,409,413,422) or (status==403 and batch['kind']=='shipping_fee'):
+            if status in (400,409,413,422) or (status==403 and batch['kind'] in ('shipping_fee','return_state')):
                 # One failing event must not roll back an entire group's work.
                 size=len(batch.get('events',batch.get('edits',[])))
                 if size>1:

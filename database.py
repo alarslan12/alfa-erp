@@ -213,6 +213,17 @@ class ERPDatabase:
         for sid,row in current.items():
             prior=old.get(sid)
             if prior and self._business(prior)==self._business(row):continue
+            if prior and prior.get('iade_tarihi')!=row.get('iade_tarihi'):
+                a,b=copy.deepcopy(self._business(prior)),copy.deepcopy(self._business(row))
+                a.pop('iade_tarihi',None);b.pop('iade_tarihi',None)
+                if a!=b or not row.get('bulut_id') or sid in self._pending:
+                    raise ValueError('İade işlemi yalnız eşitlenmiş tek siparişte yapılabilir.')
+                self._next_revision+=1
+                self._status_events.append({'kind':'return_state','sequence':self._next_revision,
+                    'op_id':str(uuid.uuid4()),'local_id':sid,'order_id':row['bulut_id'],
+                    'previous_returned_at':prior.get('iade_tarihi'),
+                    'returned_at':row.get('iade_tarihi')})
+                continue
             if prior and row.get('bulut_id') and sid not in self._pending and (
                     prior.get('kargo_ucreti')!=row.get('kargo_ucreti') or prior.get('kargo_turu')!=row.get('kargo_turu')):
                 a,b=copy.deepcopy(self._business(prior)),copy.deepcopy(self._business(row))
@@ -380,7 +391,7 @@ class ERPDatabase:
 
     def confirm_outbox(self,batch,results):
         by_id={str(x.get('id')):x for x in self.siparisler}
-        if batch['kind'] in ('status','progress','notice_ack','shipping_fee'):
+        if batch['kind'] in ('status','progress','notice_ack','shipping_fee','return_state'):
             acknowledged={str(r['op_id']) for r in results}
             target=self._progress_events if batch['kind']=='progress' else self._status_events
             target[:]=[e for e in target if str(e['op_id']) not in acknowledged]
@@ -395,7 +406,7 @@ class ERPDatabase:
                                 row['bulut_version']=int(r['version'])
                             else:
                                 row['bulut_version']=0
-                        elif batch['kind']=='shipping_fee':
+                        elif batch['kind'] in ('shipping_fee','return_state'):
                             # Another device may have changed unrelated fields.
                             # Force a full fresh row rather than claiming its new version.
                             row['bulut_version']=0
@@ -436,7 +447,7 @@ class ERPDatabase:
         """Never re-post a permanent 409 forever. Preserve evidence for recovery."""
         self._conflicts.append({'at':datetime.now().astimezone().isoformat(),
             'reason':str(message)[:240],'batch':copy.deepcopy(batch)})
-        if batch['kind'] in ('status','progress','notice_ack','shipping_fee'):
+        if batch['kind'] in ('status','progress','notice_ack','shipping_fee','return_state'):
             target=self._progress_events if batch['kind']=='progress' else self._status_events
             ids={str(x['op_id']) for x in batch['events']}
             target[:]=[e for e in target if str(e['op_id']) not in ids]
@@ -810,6 +821,8 @@ class ERPDatabase:
     def siparis_durumunu_degistir(self, siparis, yeni_durum, kargo_ucreti=None):
         from datetime import datetime
         eski = self.siparis_durumu(siparis)
+        if siparis.get('iade_tarihi'):
+            raise ValueError('Önce Yönetici iade işaretini geri almalı.')
         if (eski, yeni_durum) not in (("havuz", "aktif"), ("aktif", "tamamlandi"), ("aktif", "havuz"), ("tamamlandi", "aktif")):
             raise ValueError("İzin verilmeyen sipariş geçişi")
         if yeni_durum in ('aktif','tamamlandi') and pending_notice(siparis):
@@ -849,12 +862,36 @@ class ERPDatabase:
             siparis.update(onceki)
             raise
 
+    def set_order_returned(self,siparis,returned):
+        if siparis not in self.siparisler or self.siparis_durumu(siparis)!='tamamlandi':
+            raise ValueError('Yalnız tamamlanan sipariş iade edilebilir.')
+        if self.cloud_api or self.cloud_required:
+            if not getattr(self,'owner_admin_request',None):
+                raise ValueError('Yönetici yetkisi gerekli.')
+            if (not siparis.get('bulut_id') or str(siparis['id']) in self._pending or
+                any(str(e.get('local_id'))==str(siparis['id']) for e in self._status_events+self._progress_events)):
+                raise ValueError('Önce siparişin bulut eşitlemesi tamamlanmalı.')
+        if bool(siparis.get('iade_tarihi'))==bool(returned):return
+        old=dict(siparis)
+        if returned:siparis['iade_tarihi']=datetime.now().astimezone().isoformat(timespec='seconds')
+        else:siparis.pop('iade_tarihi',None)
+        try:self.siparisleri_kaydet()
+        except Exception:
+            siparis.clear();siparis.update(old)
+            raise
+
     def set_open_address_shipping_fee(self,siparis,value):
+        if self.kargo_kategorisi(siparis)!='acik_adres':
+            raise ValueError('Yalnız açık adres siparişi.')
+        return self.set_shipping_fee(siparis,value)
+
+    def set_shipping_fee(self,siparis,value):
         """Owner UI only; cloud method independently checks workstation role."""
         if siparis not in self.siparisler or self.siparis_durumu(siparis) not in ('aktif','tamamlandi'):
             raise ValueError('Yalnız aktif veya tamamlanan sipariş düzenlenebilir.')
-        if self.kargo_kategorisi(siparis)!='acik_adres':
-            raise ValueError('Yalnız açık adres siparişi.')
+        category=self.kargo_kategorisi(siparis)
+        if category not in ('acik_adres','telafi') or (category=='telafi' and self.siparis_durumu(siparis)!='tamamlandi'):
+            raise ValueError('Yalnız açık adres veya tamamlanan telafi siparişi.')
         if self.cloud_api or self.cloud_required:
             if not siparis.get('bulut_id') or str(siparis['id']) in self._pending:
                 raise ValueError('Önce siparişin bulut eşitlemesi tamamlanmalı.')
@@ -866,7 +903,7 @@ class ERPDatabase:
             raise ValueError('Kargo ücreti 0 ile 10.000.000 TL arasında olmalı.')
         old=dict(siparis)
         siparis['kargo_ucreti']=float(round(fee,2))
-        siparis['kargo_turu']='acik_adres'
+        siparis['kargo_turu']=category
         try:self.siparisleri_kaydet()
         except Exception:
             siparis.clear();siparis.update(old)
@@ -874,6 +911,8 @@ class ERPDatabase:
 
     def siparis_sil(self, siparis):
         """Her durumdaki siparişi onay sonrasında atomik yedekli kayıtla sil."""
+        if siparis.get('iade_tarihi'):
+            raise ValueError('İadeli kayıt korunur; önce iade işaretini geri alın.')
         if self.siparis_durumu(siparis) not in ('havuz', 'aktif', 'tamamlandi'):
             raise ValueError('Geçersiz sipariş durumu.')
         if siparis not in self.siparisler:

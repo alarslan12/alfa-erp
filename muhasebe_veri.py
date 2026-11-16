@@ -13,11 +13,15 @@ import tempfile
 import hashlib
 
 from analitik_veri import read_date, num, shipping_group
+from siparis_arsivi import is_returned, shipping_fee_entered
+
+
+def original_revenue(order):
+    return 0.0 if shipping_group(order)=="telafi" else num(order.get('ciro'))
 
 
 def accounting_revenue(order):
-    """A compensation shipment is not a sale, even for legacy records."""
-    return 0.0 if shipping_group(order) == "telafi" else num(order.get('ciro'))
+    return 0.0 if is_returned(order) else original_revenue(order)
 
 
 
@@ -93,7 +97,7 @@ def completion_fingerprints(db):
         if day:
             groups[day.isoformat()].append((str(order.get('bulut_id') or order.get('id','')),
                 order.get('ciro'),order.get('kargo_turu'),order.get('kargo_ucreti'),
-                order.get('kitaplar')))
+                order.get('kitaplar')) + ((order['iade_tarihi'],) if is_returned(order) else ()))
     result={}
     for day,rows in groups.items():
         payload=json.dumps(sorted(rows,key=lambda row:row[0]),ensure_ascii=False,
@@ -138,6 +142,13 @@ def completed_summary(db, start, end):
         chosen.append(order)
         day = daily[completion.isoformat()]
         gross = accounting_revenue(order)
+        original=original_revenue(order)
+        counts['gross_before_returns']+=original
+        if is_returned(order):
+            counts['returned_orders']+=1
+            counts['returned_revenue']+=original
+            day['returned_orders']=day.get('returned_orders',0)+1
+            day['returned_revenue']=day.get('returned_revenue',0)+original
         group = shipping_group(order)
         ship = max(0.0,num(order.get('kargo_ucreti'))) if group in ('telafi','acik_adres') and order.get('kargo_ucreti') is not None else 0.0
         day['orders'] += 1; day['gross'] += gross; day['shipping'] += ship
@@ -145,7 +156,7 @@ def completed_summary(db, start, end):
         counts['shipping'] += ship
         if group in ('telafi', 'acik_adres'):
             counts['shipping_' + group] += ship
-            if order.get('kargo_ucreti') is None:
+            if not shipping_fee_entered(order):
                 counts['shipping_missing'] += 1
         label = str(order.get('platform') or 'Bilinmiyor').strip() or 'Bilinmiyor'
         platform[label]['orders'] += 1; platform[label]['gross'] += gross
@@ -178,6 +189,11 @@ def completed_summary(db, start, end):
     result = {
         'orders': orders,
         'gross': round(counts['gross'],2),
+        'gross_before_returns':round(counts['gross_before_returns'],2),
+        'returned_orders':counts['returned_orders'],
+        'returned_revenue':round(counts['returned_revenue'],2),
+        'return_order_ratio':100*counts['returned_orders']/orders if orders else 0.0,
+        'return_revenue_ratio':100*counts['returned_revenue']/counts['gross_before_returns'] if counts['gross_before_returns']>0 else 0.0,
         'shipping_total': round(counts['shipping'],2),
         'active_address_shipping':round(active_cost,2),
         'active_address_shipping_count':len(active_shipping),
@@ -220,7 +236,10 @@ def html_report(data, paid_days, review_days=None):
     metric=data['metrics']
     paid_amount=sum(accounting_revenue(o) for o in data['orders']
                     if str(o.get('tamamlanma_tarihi',''))[:10] in paid_days)
-    rows=[('Tamamlanan sipariş',metric['orders']),('Toplam ciro',money(metric['gross'])),
+    rows=[('Tamamlanan sipariş',metric['orders']),('İade öncesi ciro',money(metric['gross_before_returns'])),
+          ('İade tutarı',money(metric['returned_revenue'])),('İade sonrası ciro',money(metric['gross'])),
+          ('İade edilen sipariş',metric['returned_orders']),('İade / sipariş',f"%{metric['return_order_ratio']:.1f}"),
+          ('İade / ciro',f"%{metric['return_revenue_ratio']:.1f}"),
           ('Ödenen ciro',money(paid_amount)),
           ('Ödenmeyen ciro',money(metric['gross']-paid_amount)),
           ('Telafi kargo',money(metric['shipping_telafi'])),('Açık adres kargo',money(metric['shipping_acik_adres'])),
@@ -242,7 +261,7 @@ def html_report(data, paid_days, review_days=None):
     ))+'</tr>' for d in data['daily'] if d['orders'])
     orders=''.join('<tr>' + ''.join(f'<td>{esc(v)}</td>' for v in (
         o.get('id',''), str(o.get('tamamlanma_tarihi',''))[:16].replace('T',' '),
-        o.get('platform',''),money(accounting_revenue(o)),
+        o.get('platform',''), 'İade edildi' if is_returned(o) else 'Tamamlandı', money(accounting_revenue(o)),
         money(num(o.get('kargo_ucreti'))) if o.get('kargo_ucreti') is not None else '—',
         o.get('kargo_turu') or '—'
     ))+'</tr>' for o in data['orders'])
@@ -256,5 +275,5 @@ def html_report(data, paid_days, review_days=None):
 <div class="tiles">{kpis}</div><h2>Günlük muhasebe</h2><table><thead><tr><th>Gün</th><th>Sipariş</th><th>Ciro</th><th>Kargo</th><th>Kargo sonrası</th><th>Ödeme</th></tr></thead><tbody>{days}</tbody></table>
 <h2>Platformlar</h2><table><thead><tr><th>Platform</th><th>Sipariş</th><th>Ciro</th></tr></thead><tbody>{platforms}</tbody></table>
 <h2>En çok tamamlanan kitaplar</h2><table><thead><tr><th>Kod</th><th>Kitap</th><th>Adet</th><th>SB</th><th>RNK</th><th>Sayfa</th></tr></thead><tbody>{bookrows}</tbody></table>
-<h2>Tamamlanan sipariş listesi</h2><table><thead><tr><th>No</th><th>Tamamlanma</th><th>Platform</th><th>Ciro</th><th>Kargo</th><th>Kargo türü</th></tr></thead><tbody>{orders}</tbody></table>
-<p>Not: Kargo sonrası tutar, yalnızca kayıtlı Telafi/Açık Adres kargo ücretleri düşülmüş cirodur; kâr hesabı değildir. Ücret kaydı eksik sipariş sayısı: {metric['shipping_missing']}.</p></body></html>'''
+<h2>Tamamlanan sipariş listesi</h2><table><thead><tr><th>No</th><th>Tamamlanma</th><th>Platform</th><th>Durum</th><th>Ciro</th><th>Kargo</th><th>Kargo türü</th></tr></thead><tbody>{orders}</tbody></table>
+<p>Not: İadeler siparişin tamamlanma döneminde satış cirosundan düşülür. Kargo sonrası tutar iade sonrası cirodan kayıtlı Telafi/Açık Adres giderleri düşülerek hesaplanır;; kâr hesabı değildir. Ücret kaydı eksik sipariş sayısı: {metric['shipping_missing']}.</p></body></html>'''

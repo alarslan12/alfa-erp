@@ -794,7 +794,7 @@ def apply_visual_preferences(config):
     app.setProperty('alfa_theme',name)
     app.setProperty('alfa_colorblind',enabled)
     base=QSS+theme_styles(name)+static_completed_styles(name)
-    app.setStyleSheet(replace_red_green(base)+colorblind_styles(name=='acik') if enabled else base)
+    app.setStyleSheet((replace_red_green(base)+colorblind_styles(name=='acik') if enabled else base)+return_card_styles(name,enabled))
     from kart_siparis import refresh_accessible_order_widgets
     refresh_accessible_order_widgets()
 
@@ -843,3 +843,15 @@ def rgb_color_with_no_alpha(match,mapped):
 
 def accessible_ui_color(color):
     return replace_red_green(color) if colorblind_enabled() and isinstance(color,str) else color
+
+
+def return_card_styles(name,accessible):
+    if accessible:
+        bg,edge,ink=('#fff0bb','#a06b00','#593900') if name=='acik' else ('#3b3018','#ffdf58','#fff2a1')
+    else:
+        bg,edge,ink=('#f4e6f8','#9155a8','#55266b') if name=='acik' else ('#30223e','#c087e4','#f1d6ff')
+    selectors=[]
+    for st in ('','[orderRecent="true"]','[orderSelected="true"]','[orderFocused="true"]','[orderSelected="true"][orderRecent="true"]'):
+        s='QFrame#OrderRow[orderStatus="tamamlandi"][orderReturned="true"]'+st
+        selectors.extend([s,s+':hover'])
+    return ','.join(selectors)+f' {{background:{bg};border:2px solid {edge};border-left:5px solid {edge};}}'+f' QLabel#OrderReturnedTag {{background:{bg};color:{ink};border:1px solid {edge};border-radius:6px;font-weight:900;padding:4px;}} QLabel#OrderReturnedDate {{color:{ink};font-weight:800;}}'

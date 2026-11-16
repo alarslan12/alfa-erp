@@ -35,3 +35,16 @@ def completed_page(orders, page=0, page_size=PAGE_SIZE):
     pages=max(1,(len(orders)+size-1)//size)
     page=max(0,min(int(page),pages-1))
     return orders[page*size:(page+1)*size],page,pages
+
+
+def shipping_fee_entered(order):
+    from decimal import Decimal, InvalidOperation
+    try:
+        value=Decimal(str(order.get('kargo_ucreti') or 0).replace(',', '.'))
+        return value.is_finite() and value>0
+    except (ValueError, InvalidOperation, TypeError):
+        return False
+
+
+def is_returned(order):
+    return bool(order.get('iade_tarihi'))

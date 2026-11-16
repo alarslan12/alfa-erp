@@ -12,7 +12,7 @@ from editor_siparis import SiparisEditor
 from takvim import TarihPopup
 from kargo_fisi import dosyaya_yaz, tarayicida_ac
 from kargo_ucreti import request_shipping_cost
-from siparis_arsivi import ayir_tamamlananlar, completed_page, PAGE_SIZE
+from siparis_arsivi import ayir_tamamlananlar, completed_page, PAGE_SIZE, shipping_fee_entered, is_returned
 from temali_combo import AlfaTemaliCombo
 from siparis_uyari import pending_notice, revision
 from siparis_uyari_ui import OrderNoticeDialog
@@ -38,6 +38,7 @@ class SiparisView(QWidget):
         # Tamamlananlar: yalnızca son 3 günlük kartları otomatik oluştur.
         # Arşiv siparişleri kullanıcı çağırana kadar widget olarak yüklenmez.
         self._archive_open = False
+        self._returns_open = False
         self._completed_page = 0
         self._completed_pages = 1
         self._archive_count = 0
@@ -189,8 +190,27 @@ class SiparisView(QWidget):
         self.archive_btn.setToolTip('3 günden eski tamamlanan siparişleri yalnızca talep edildiğinde görüntüler')
         self.archive_btn.clicked.connect(self.toggle_archive)
         arch_layout.addWidget(self.archive_btn)
+        self.returns_btn=button('İade edildi','ArchiveToggle')
+        self.returns_btn.clicked.connect(self.toggle_returns)
+        arch_layout.addWidget(self.returns_btn)
         self.archive_header.setVisible(False)
         root.addWidget(self.archive_header)
+        self.shipping_filter_bar=QFrame()
+        self.shipping_filter_bar.setObjectName('CompletedArchiveBar')
+        fee_layout=QHBoxLayout(self.shipping_filter_bar)
+        fee_layout.setContentsMargins(12,5,12,5)
+        fee_layout.addWidget(text('Kargo takibi','ArchiveStatus'))
+        self.shipping_filter=AlfaTemaliCombo()
+        self.shipping_filter.setObjectName('OrderFilter')
+        self.shipping_filter.setMinimumWidth(220)
+        for label,mode in (('Tüm siparişler','all'),('Kargo ücreti girilmedi','pending'),('Kargo ücreti girildi','entered')):
+            self.shipping_filter.addItem(label,mode)
+        self.shipping_filter.currentIndexChanged.connect(self._shipping_filter_changed)
+        fee_layout.addWidget(self.shipping_filter)
+        self.shipping_counts=text('','ArchiveStatus');fee_layout.addWidget(self.shipping_counts)
+        fee_layout.addStretch(1)
+        self.shipping_filter_bar.hide()
+        root.addWidget(self.shipping_filter_bar)
 
         self.rows = QWidget()
         self.rows_lay = QVBoxLayout(self.rows)
@@ -288,12 +308,45 @@ class SiparisView(QWidget):
         return [o for o in self.db.siparisler if self.db.siparis_durumu(o) == self.status]
 
     def _completed_partitions(self):
-        return ayir_tamamlananlar(self.current())
+        return ayir_tamamlananlar([o for o in self.current() if not is_returned(o)])
+
+    def _shipping_mode(self):
+        return (self.shipping_filter.currentData() or 'all') if self.admin_mode and self.status=='tamamlandi' else 'all'
+
+    def _shipping_eligible(self,order):
+        return self.db.kargo_kategorisi(order) in ('acik_adres','telafi')
+
+    def _completed_source(self):
+        mode=self._shipping_mode()
+        rows=self.current()
+        if self._returns_open:
+            rows=[o for o in rows if is_returned(o)]
+        elif mode=='all':
+            recent,archived=self._completed_partitions()
+            return archived if self._archive_open else recent
+        if mode!='all':
+            rows=[o for o in rows if self._shipping_eligible(o) and shipping_fee_entered(o)==(mode=='entered')]
+        return rows
+
+    def _shipping_filter_changed(self,*_):
+        if not self.admin_mode or self.status!='tamamlandi':return
+        self._archive_open=False
+        self.from_date=self.to_date=None
+        self.calendar_btn.setText('▦  Takvim')
+        self.refresh(reset_date=True)
+
+    def toggle_returns(self):
+        if self.status!='tamamlandi':return
+        self._returns_open=not self._returns_open
+        self._archive_open=False
+        self.from_date=self.to_date=None
+        self.calendar_btn.setText('▦  Takvim')
+        self.refresh(reset_date=True)
+        self.rows_scroll.verticalScrollBar().setValue(0)
 
     def dates(self):
         if self.status == 'tamamlandi':
-            recent, archived = self._completed_partitions()
-            source = archived if self._archive_open else recent
+            source = self._completed_source()
             # Tamamlanma gününü değil, filtrelemede kullanılan eklenme
             # tarihini göster; arşivde seçilen tarih gerçekten eşleşir.
         else:
@@ -302,7 +355,7 @@ class SiparisView(QWidget):
                        if len(str(o.get('tarih',''))) >= 10}, reverse=True)
 
     def toggle_archive(self):
-        if self.status != 'tamamlandi':
+        if self.status != 'tamamlandi' or self._returns_open or self._shipping_mode()!='all':
             return
         self._archive_open = not self._archive_open
         self._completed_page = 0
@@ -324,6 +377,10 @@ class SiparisView(QWidget):
             return
         if self.status != status:
             self.status = status
+            self._returns_open=False
+            self.shipping_filter.blockSignals(True)
+            self.shipping_filter.setCurrentIndex(0)
+            self.shipping_filter.blockSignals(False)
             self._archive_open = False
             self._completed_page = 0
             self._completed_pages = 1
@@ -387,8 +444,7 @@ class SiparisView(QWidget):
         query = self.search.text().strip()
         result = []
         if self.status == 'tamamlandi':
-            recent, archived = self._completed_partitions()
-            source = archived if self._archive_open else recent
+            source = self._completed_source()
         else:
             source = self.current()
         for order in source:
@@ -412,7 +468,7 @@ class SiparisView(QWidget):
             result.sort(key=lambda o:self.db.siparis_ozeti(o)[kind], reverse=reverse)
         elif self.status == 'tamamlandi':
             # Arşiv tarih sırasını gerçekten tamamlanma gününe göre yap.
-            result.sort(key=lambda o:str(o.get('tamamlanma_tarihi') or o.get('tarih','')), reverse=reverse)
+            result.sort(key=lambda o:str((o.get('iade_tarihi') if self._returns_open else None) or o.get('tamamlanma_tarihi') or o.get('tarih','')), reverse=reverse)
         else:
             result.sort(key=lambda o:str(o.get('tarih','')), reverse=reverse)
         self._archive_count = len(result) if self.status == 'tamamlandi' else 0
@@ -430,7 +486,7 @@ class SiparisView(QWidget):
                 str(order.get('platform','')), str(order.get('tarih','')),
                 str(order.get('tamamlanma_tarihi','')),
                 str(order.get('ciro',0)), str(order.get('siparis_turu','')),
-                order.get('kargo_ucreti'),revision(order), pending_notice(order), books)
+                order.get('kargo_ucreti'),order.get('iade_tarihi'),revision(order), pending_notice(order), books)
 
     def refresh_rows(self, *_, reset_position=False):
         old_pos = self.rows_scroll.verticalScrollBar().value()
@@ -461,7 +517,7 @@ class SiparisView(QWidget):
             overview = self.db.siparis_ozeti(order)
             totals['adet'] += overview['adet']
             totals['sayfa'] += overview['sayfa']
-            revenue += float(order.get('ciro',0) or 0)
+            if not is_returned(order):revenue += float(order.get('ciro',0) or 0)
             signature = self._signature(order)
             if sid not in self._row_cache or self._row_signatures.get(sid) != signature:
                 old = self._row_cache.pop(sid, None)
@@ -483,7 +539,9 @@ class SiparisView(QWidget):
             self.rows_lay.addWidget(widget)
             widget.show()
         if not orders:
-            if self.status == 'tamamlandi' and not self._archive_open:
+            if self._returns_open or self._shipping_mode()!='all':
+                empty_note='Bu iade/kargo filtresine uygun sipariş yok.'
+            elif self.status == 'tamamlandi' and not self._archive_open:
                 empty_note = 'Son 3 günde tamamlanan sipariş bulunamadı. Daha eski kayıtlar için Arşivi açın.'
             elif self.status == 'tamamlandi':
                 empty_note = 'Arşivde bu arama veya tarih seçimine uygun sipariş yok.'
@@ -498,12 +556,20 @@ class SiparisView(QWidget):
         )
         completed = self.status == 'tamamlandi'
         self.archive_header.setVisible(completed)
+        self.shipping_filter_bar.setVisible(completed and self.admin_mode)
         if completed:
             recent, archived = self._completed_partitions()
             first=self._completed_page*PAGE_SIZE+1 if orders else 0
             last=self._completed_page*PAGE_SIZE+len(orders) if orders else 0
-            scope='Arşiv' if self._archive_open else 'Son 3 gün'
-            self.archive_text.setText(f'{scope} · {first}–{last} / {self._archive_count} sipariş  |  Arşivde {len(archived)}')
+            fee_scope=self._shipping_mode()!='all'
+            scope='İade edildi' if self._returns_open else ('Tüm geçmiş · Kargo' if fee_scope else ('Arşiv' if self._archive_open else 'Son 3 gün'))
+            self.archive_text.setText(f'{scope} · {first}–{last} / {self._archive_count} sipariş')
+            self.archive_btn.setVisible(not fee_scope and not self._returns_open)
+            self.returns_btn.setText('← Tamamlananlara dön' if self._returns_open else f'İade edildi ({sum(is_returned(o) for o in self.current())})')
+            if self.admin_mode:
+                eligible=[o for o in self.current() if self._shipping_eligible(o)]
+                count=sum(shipping_fee_entered(o) for o in eligible)
+                self.shipping_counts.setText(f'Bekleyen: {len(eligible)-count} · Girilen: {count}')
             self.archive_btn.setText('← Son 3 güne dön' if self._archive_open else f'Arşivi aç  ({len(archived)})')
             self.archive_btn.setEnabled(bool(archived) or self._archive_open)
             self.pagination.setVisible(self._completed_pages>1)
@@ -616,14 +682,28 @@ class SiparisView(QWidget):
         """Sipariş penceresini aç; olası hatayı sessizce yutmak yerine göster."""
         if tab == 'edit' and not self.admin_mode:
             return error(self, 'Bu işlem Yönetici Paneli üzerinden yapılır.')
+        if tab=='return_state':
+            if not self.admin_mode:return error(self,'Bu işlem yalnız Yönetici tarafından yapılabilir.')
+            order=next((o for o in self.db.siparisler if str(o['id'])==str(sid)),None)
+            if not order:return error(self,'Sipariş bulunamadı.')
+            returned=not is_returned(order)
+            message='iade olarak işaretlensin ve satış cirosundan düşülsün mü?' if returned else 'iade işareti geri alınsın mı?'
+            if not confirm(self,f'#{sid} numaralı sipariş {message}'):return
+            try:self.db.set_order_returned(order,returned)
+            except Exception as exc:return error(self,exc)
+            self._after_editor_updated()
+            main=self.window()
+            if getattr(main,'analytics',None) is not None:main.analytics.refresh()
+            return
         if tab=='shipping_fee':
             if not self.admin_mode:return error(self,'Bu işlem Yönetici Paneli üzerinden yapılır.')
             order=next((o for o in self.db.siparisler if str(o['id'])==str(sid)),None)
-            if not order or self.db.kargo_kategorisi(order)!='acik_adres':
-                return error(self,'Yalnızca açık adres siparişlerinde kullanılabilir.')
-            fee=request_shipping_cost(self,order,'acik_adres',editing=True)
+            category=self.db.kargo_kategorisi(order) if order else None
+            if not order or category not in ('acik_adres','telafi') or (category=='telafi' and self.db.siparis_durumu(order)!='tamamlandi'):
+                return error(self,'Yalnız açık adres veya tamamlanan telafi siparişi.')
+            fee=request_shipping_cost(self,order,category,editing=True)
             if fee is None:return
-            try:self.db.set_open_address_shipping_fee(order,fee)
+            try:self.db.set_shipping_fee(order,fee)
             except Exception as exc:return error(self,exc)
             self._after_editor_updated()
             main=self.window()
@@ -741,6 +821,9 @@ class SiparisView(QWidget):
         self.refresh_rows(reset_position=True)
 
     def reset_filters(self):
+        self.shipping_filter.blockSignals(True)
+        self.shipping_filter.setCurrentIndex(0)
+        self.shipping_filter.blockSignals(False)
         self._search_timer.stop()
         self.search.blockSignals(True)
         self.search.clear()

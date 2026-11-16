@@ -1,4 +1,4 @@
-# ALFACOPYCENTER Suite v2.0.37
+# ALFACOPYCENTER Suite v2.0.38
 
 **Tek Windows kurulumu**, dört seçilebilir bileşen:
 
@@ -10,7 +10,7 @@
 | ALFA Print Center | PrintSurveillance/AlfaPrintSurveillance.exe | Seçilebilir, varsayılan |
 | Arka plan yardımcıları | Bildirim, PrintAgent, PrintSupervisor | Seçilen bileşene bağlı |
 
-Kurulum: `ALFACOPYCENTER_Suite_Setup_V2_0_37.exe`. Aynı Inno Setup AppId
+Kurulum: `ALFACOPYCENTER_Suite_Setup_V2_0_38.exe`. Aynı Inno Setup AppId
 (`ALFACOPYCENTER.Suite`) ve kurulum yolu korundu:
 `%LOCALAPPDATA%\Programs\ALFACOPYCENTER`.
 
@@ -229,3 +229,8 @@ Kapaklarda yalnızca mevcut SB/RNK adetleri sağ üstte gösterilir; siyah topla
 ## v2.0.37 — Telafi sipariş etiketi
 
 Telafi siparişleri havuz, aktif, tamamlanan ve arşiv kartlarında 0 TL yerine **TELAFİ SİPARİŞ** gösterir. Finansal değerler, kargo giderleri ve Firebase verileri değiştirilmez.
+
+
+## v2.0.38
+
+Yönetici kargo ücretlerini takip eder, tamamlanan siparişleri iade olarak işaretler veya geri alır. İadeler tamamlanma dönemindeki cirodan düşülür. Firebase durum enum ve kuralları değişmez.

@@ -83,7 +83,13 @@ def build_dashboard(db, *, days=30, status='all', platform='all', order_kind='al
     for o in selected:
         stage = db.siparis_durumu(o)
         stats['order_'+stage] += 1
-        gross = 0.0 if shipping_group(o) == 'telafi' else num(o.get('ciro'))
+        original = 0.0 if shipping_group(o) == 'telafi' else num(o.get('ciro'))
+        returned = stage=='tamamlandi' and bool(o.get('iade_tarihi'))
+        stats['gross_before_returns'] += original
+        if returned:
+            stats['returned_orders'] += 1
+            stats['returned_revenue'] += original
+        gross=0.0 if returned else original
         stats['gross'] += gross
         created = read_date(o.get('tarih'))
         if stage != 'tamamlandi' and created and (today-created).days >= 7:
@@ -165,6 +171,8 @@ def build_dashboard(db, *, days=30, status='all', platform='all', order_kind='al
         'ready_rate':prepared/copies*100 if copies else 0,
         'boxed_rate':boxed/copies*100 if copies else 0,
         'completion_rate':stats['order_tamamlandi']/n*100 if n else 0,
+        'return_order_ratio':stats['returned_orders']/n*100 if n else 0,
+        'return_revenue_ratio':stats['returned_revenue']/stats['gross_before_returns']*100 if stats['gross_before_returns']>0 else 0,
         'color_ratio':rnk/copies*100 if copies else 0,
         'telafi_ratio':stats['telafi_orders']/n*100 if n else 0,
         'shipping_telafi_avg':stats['shipping_telafi']/sum(

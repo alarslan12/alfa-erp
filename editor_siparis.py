@@ -229,7 +229,7 @@ class SiparisEditor(QDialog):
         bar = QFrame(); bar.setObjectName('OrderArchiveHeader')
         line = QHBoxLayout(bar)
         line.setContentsMargins(12,8,12,8)
-        line.addWidget(text('✓ Tamamlanan sipariş arşivi', 'Title'))
+        line.addWidget(text('↩ İade edilen sipariş' if order.get('iade_tarihi') else '✓ Tamamlanan sipariş arşivi', 'Title'))
         line.addStretch()
         line.addWidget(text(f"Tarih: {date_value[:16].replace('T',' ')}   ·   {overview['adet']} kitap   ·   {overview['sayfa']:,} sayfa", 'Muted'))
         self.body_lay.addWidget(bar)

@@ -1,5 +1,9 @@
 # ALFA ERP · Sürüm Geçmişi
 
+## [v2.0.38] — Kargo takibi ve iade yönetimi
+
+- Tamamlanan siparişlerde Yönetici iade işareti, ayrı iade listesi, kargo takibi ve iade sonrası muhasebe.
+
 ## [v2.0.37] — 2026-11-15
 
 - Telafi siparişleri kartında 0 TL yerine TELAFİ SİPARİŞ etiketi; satış cirosu 0 TL olarak korunur.

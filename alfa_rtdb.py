@@ -414,6 +414,8 @@ class Workstation:
                     def delete(previous):
                         if int(previous.get("version") or 0) != expected:
                             raise DeviceError("Sipariş başka cihazda değişti", 409)
+                        if previous.get("returned_at"):
+                            raise DeviceError("İadeli kayıt korunur",409)
                         previous["deleted_at"] = datetime.now(timezone.utc).isoformat()
                         previous["version"] = expected + 1
                         return previous, {"local_id":local_id, "uuid":order_id,
@@ -657,6 +659,8 @@ class Workstation:
                         # status. Acknowledge without overwriting the latest row.
                         return None,{"op_id":op_id,"order_id":order_id,
                                      "version":int(row.get("version") or 0)}
+                    if row.get("returned_at"):
+                        raise DeviceError("İadeli sipariş önce Yönetici tarafından geri alınmalı",409)
                     if str(row.get("status")) != src:
                         raise DeviceError("Sipariş durumu başka cihazda değişti; yenile",409)
                     if dst in ("aktif","tamamlandi"):
@@ -721,7 +725,10 @@ class Workstation:
                     return None,{"op_id":op_id,"order_id":order_id,"local_id":event["local_id"],"version":int(processed[op_id])}
                 kind=tr_kucult(row.get("order_type",""))
                 platform=tr_kucult(row.get("platform",""))
-                if "telafi" in kind or ("acik adres" not in kind and "acik adres" not in platform) or row.get("status") not in ("aktif","tamamlandi"):
+                is_telafi = "telafi" in kind
+                eligible = (row.get("status")=="tamamlandi" if is_telafi else
+                    ("acik adres" in kind or "acik adres" in platform) and row.get("status") in ("aktif","tamamlandi"))
+                if not eligible:
                     raise DeviceError("Sipariş artık uygun değil",409)
                 before=row.get("shipping_fee")
                 expected=event.get("previous_fee")
@@ -739,6 +746,40 @@ class Workstation:
                     "device_id":self.uid,"device_name":socket.gethostname()[:120],
                     "order_ids":[order_id],"created_at":row["updated_at"],
                     "details":{"before":before,"after":row["shipping_fee"]}}
+                return row,{"op_id":op_id,"order_id":order_id,"local_id":event["local_id"],"version":row["version"]}
+            results.append(self._atomic_order(order_id,mutate))
+        return results
+
+    def return_states(self,events):
+        member=self._get("members/"+self.uid) or {}
+        if member.get("role")!="owner" or member.get("active") is not True:
+            raise DeviceError("İade işlemi için Yönetici yetkisi gerekli",403)
+        results=[]
+        for event in events:
+            order_id=str(event["order_id"]); op_id=str(event["op_id"])
+            def mutate(row):
+                if row.get("deleted_at") or row.get("status")!="tamamlandi":
+                    raise DeviceError("Yalnız tamamlanan sipariş iade edilebilir",409)
+                processed=row.setdefault("ops",{})
+                if op_id in processed:
+                    return None,{"op_id":op_id,"order_id":order_id,"local_id":event["local_id"],"version":int(processed[op_id])}
+                before=row.get("returned_at") or None
+                if before!=(event.get("previous_returned_at") or None):
+                    raise DeviceError("İade durumu başka cihazda değişti",409)
+                after=event.get("returned_at") or None
+                if after:
+                    try:
+                        stamp=datetime.fromisoformat(str(after).replace('Z','+00:00'))
+                        if stamp.tzinfo is None:raise ValueError('timezone')
+                    except (ValueError,TypeError):raise DeviceError("Geçersiz iade tarihi",422)
+                    row["returned_at"]=str(after)
+                else:row.pop("returned_at",None)
+                row["version"]=int(row["version"])+1
+                row["updated_at"]=datetime.now(timezone.utc).isoformat()
+                processed[op_id]=row["version"]
+                row.setdefault("event_log",{})[op_id]={"id":op_id,"action":"order_return" if after else "order_return_undo",
+                    "device_id":self.uid,"device_name":socket.gethostname()[:120],"order_ids":[order_id],
+                    "created_at":row["updated_at"],"details":{"before":before,"after":after}}
                 return row,{"op_id":op_id,"order_id":order_id,"local_id":event["local_id"],"version":row["version"]}
             results.append(self._atomic_order(order_id,mutate))
         return results
