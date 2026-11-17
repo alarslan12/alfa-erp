@@ -71,7 +71,9 @@ def _phase_bounds(pages_sb, pages_color, copies_finishing, finishing_pages, orde
         "optimistic_elapsed_min": optimistic,
         "sequential_elapsed_min": sequential,
     }
-    if printing >= max(punch_lo, labor_lo / WORKERS):
+    if not (pages_sb or pages_color or copies_finishing or orders_to_pack):
+        components["bottleneck"] = "Bekleyen iş yok"
+    elif printing >= max(punch_lo, labor_lo / WORKERS):
         components["bottleneck"] = "Siyah-beyaz baskı" if print_sb >= print_color else "Renkli baskı"
     elif punch_lo >= labor_lo / WORKERS:
         components["bottleneck"] = "Tek delme makinesi"
