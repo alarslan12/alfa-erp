@@ -1733,3 +1733,10 @@ QPushButton#OrderShippingPending:hover {background:#795b20;}
 QPushButton#OrderShippingRecorded {background:#193c51;color:#d8f6ff;border:1px solid #68b6d5;border-radius:6px;padding:3px 5px;font-size:11px;font-weight:800;}
 QPushButton#OrderShippingRecorded:hover {background:#275b72;}
 """
+
+QSS += """
+QLabel#OrderReturnReason {
+    background:#382a51; color:#f2dcff; border:1px solid #a87ad6;
+    border-radius:7px; padding:6px 10px; font-size:11px; font-weight:750;
+}
+"""

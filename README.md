@@ -1,4 +1,4 @@
-# ALFACOPYCENTER Suite v2.0.38
+# ALFACOPYCENTER Suite v2.0.39
 
 **Tek Windows kurulumu**, dört seçilebilir bileşen:
 
@@ -10,7 +10,7 @@
 | ALFA Print Center | PrintSurveillance/AlfaPrintSurveillance.exe | Seçilebilir, varsayılan |
 | Arka plan yardımcıları | Bildirim, PrintAgent, PrintSupervisor | Seçilen bileşene bağlı |
 
-Kurulum: `ALFACOPYCENTER_Suite_Setup_V2_0_38.exe`. Aynı Inno Setup AppId
+Kurulum: `ALFACOPYCENTER_Suite_Setup_V2_0_39.exe`. Aynı Inno Setup AppId
 (`ALFACOPYCENTER.Suite`) ve kurulum yolu korundu:
 `%LOCALAPPDATA%\Programs\ALFACOPYCENTER`.
 
@@ -231,6 +231,11 @@ Kapaklarda yalnızca mevcut SB/RNK adetleri sağ üstte gösterilir; siyah topla
 Telafi siparişleri havuz, aktif, tamamlanan ve arşiv kartlarında 0 TL yerine **TELAFİ SİPARİŞ** gösterir. Finansal değerler, kargo giderleri ve Firebase verileri değiştirilmez.
 
 
-## v2.0.38
+## v2.0.39
 
 Yönetici kargo ücretlerini takip eder, tamamlanan siparişleri iade olarak işaretler veya geri alır. İadeler tamamlanma dönemindeki cirodan düşülür. Firebase durum enum ve kuralları değişmez.
+
+
+## v2.0.39 — Banner arşivi, iade sebebi ve performans
+
+Banner Studio tasarım arşivine arama ve silme/ad değiştirme/seçim sonrasında kaydırma konumu koruması eklendi. Yönetici iade sebebini zorunlu kaydeder, sonradan düzenler; kartın altında görüntülenir. Senkronizasyon kaynaklı gereksiz görünmeyen ekran yenilemeleri birleştirildi. Firebase yetki kuralları ve 4 programın tek Setup kurulumu korunur.

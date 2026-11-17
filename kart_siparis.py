@@ -376,13 +376,23 @@ class SiparisKarti(QFrame):
         self._status = status
         self._notice_pending = status!='tamamlandi' and pending_notice(siparis)
         self._pulse_on = True
-        self.setFixedHeight((202 if status == 'tamamlandi' else 186)+(43 if self._notice_pending else 0))
         returned = status=='tamamlandi' and is_returned(siparis)
+        self._returned=returned
+        self.setFixedHeight((202 if status == 'tamamlandi' else 186)+(43 if self._notice_pending else 0)+(48 if returned else 0))
         self.setProperty('orderStatus', status)
         if returned:self.setProperty('orderReturned', True)
-        root = QHBoxLayout(self)
-        root.setContentsMargins(10, 8, 10, 8)
-        root.setSpacing(10)
+        if returned:
+            outer = QVBoxLayout(self)
+            outer.setContentsMargins(10,8,10,8)
+            outer.setSpacing(4)
+            root = QHBoxLayout()
+            root.setContentsMargins(0,0,0,0)
+            root.setSpacing(10)
+            outer.addLayout(root,1)
+        else:
+            root = QHBoxLayout(self)
+            root.setContentsMargins(10, 8, 10, 8)
+            root.setSpacing(10)
         summary = db.siparis_ozeti(siparis)
         self._selected_checkbox = None
         self._selected_tag = None
@@ -583,6 +593,10 @@ class SiparisKarti(QFrame):
                 refund=QAction('İadeyi geri al' if returned else 'İade edildi olarak işaretle',menu)
                 refund.triggered.connect(lambda:on_open(siparis['id'],'return_state'))
                 menu.addAction(refund)
+                if returned:
+                    edit_reason=QAction('İade sebebini düzenle',menu)
+                    edit_reason.triggered.connect(lambda:on_open(siparis['id'],'return_reason'))
+                    menu.addAction(edit_reason)
             reopen = QAction('Aktife geri al', menu)
             reopen.setEnabled(not returned)
             reopen.triggered.connect(lambda: on_status(siparis, 'aktif'))
@@ -603,6 +617,14 @@ class SiparisKarti(QFrame):
         box.setFixedWidth(216 if status == 'havuz' else 205)
         root.addWidget(box)
         self._right_box = box
+        if returned:
+            full_reason=' '.join(str(siparis.get('iade_sebebi') or '').split()) or 'Belirtilmedi'
+            short_reason=full_reason if len(full_reason)<=180 else full_reason[:177]+'…'
+            reason_label=text('İade sebebi: '+short_reason,'OrderReturnReason')
+            reason_label.setWordWrap(True)
+            reason_label.setMaximumHeight(44)
+            reason_label.setToolTip('İade sebebi: '+full_reason)
+            outer.addWidget(reason_label)
         self.set_selected(selected)
 
     def showEvent(self,event):
@@ -657,7 +679,7 @@ class SiparisKarti(QFrame):
         # Dense orders need a third row on smaller screens; only the affected
         # row grows, not the whole application's font/theme.
         total = len(self.covers_area._cards)
-        self.setFixedHeight((226 if compact and total >= 18 else (202 if self._status=='tamamlandi' else 186))+(43 if self._notice_pending else 0))
+        self.setFixedHeight((226 if compact and total >= 18 else (202 if self._status=='tamamlandi' else 186))+(43 if self._notice_pending else 0)+(48 if self._returned else 0))
         self.covers_area._pending_reflow.start(0)
 
     def set_selected(self, selected):

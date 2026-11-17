@@ -1,3 +1,10 @@
+## [v2.0.39] — 2026-11-17
+
+- Banner Studio Tasarım Arşivi: anlık Türkçe uyumlu arama, filtreli seçim, sonuç sayacı, silme/yeniden adlandırmada konum koruma.
+- Yönetici Tamamlananlar > İade Edildi: zorunlu iade sebebi, düzenleme, sipariş kartı altında açıklama; Firebase owner-only senkronizasyon.
+- Personel/Yönetici: bulut yenileme sinyalleri birleştirildi, gizli sekmelerin sipariş kartları gereksiz yenilenmiyor.
+- Yerel kayıt ve Firebase güvenlik kuralları, dört uygulamalı tek Setup, kargo/analitik ve önceki sürüm özellikleri korunur.
+
 # ALFA ERP · Sürüm Geçmişi
 
 ## [v2.0.38] — Kargo takibi ve iade yönetimi

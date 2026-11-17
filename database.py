@@ -213,16 +213,20 @@ class ERPDatabase:
         for sid,row in current.items():
             prior=old.get(sid)
             if prior and self._business(prior)==self._business(row):continue
-            if prior and prior.get('iade_tarihi')!=row.get('iade_tarihi'):
+            if prior and (prior.get('iade_tarihi')!=row.get('iade_tarihi') or
+                          str(prior.get('iade_sebebi') or '')!=str(row.get('iade_sebebi') or '')):
                 a,b=copy.deepcopy(self._business(prior)),copy.deepcopy(self._business(row))
-                a.pop('iade_tarihi',None);b.pop('iade_tarihi',None)
+                for field in ('iade_tarihi','iade_sebebi'):
+                    a.pop(field,None);b.pop(field,None)
                 if a!=b or not row.get('bulut_id') or sid in self._pending:
                     raise ValueError('İade işlemi yalnız eşitlenmiş tek siparişte yapılabilir.')
                 self._next_revision+=1
                 self._status_events.append({'kind':'return_state','sequence':self._next_revision,
                     'op_id':str(uuid.uuid4()),'local_id':sid,'order_id':row['bulut_id'],
                     'previous_returned_at':prior.get('iade_tarihi'),
-                    'returned_at':row.get('iade_tarihi')})
+                    'returned_at':row.get('iade_tarihi'),
+                    'previous_return_reason':prior.get('iade_sebebi') or '',
+                    'return_reason':row.get('iade_sebebi') or ''})
                 continue
             if prior and row.get('bulut_id') and sid not in self._pending and (
                     prior.get('kargo_ucreti')!=row.get('kargo_ucreti') or prior.get('kargo_turu')!=row.get('kargo_turu')):
@@ -862,7 +866,7 @@ class ERPDatabase:
             siparis.update(onceki)
             raise
 
-    def set_order_returned(self,siparis,returned):
+    def set_order_returned(self,siparis,returned,reason=None):
         if siparis not in self.siparisler or self.siparis_durumu(siparis)!='tamamlandi':
             raise ValueError('Yalnız tamamlanan sipariş iade edilebilir.')
         if self.cloud_api or self.cloud_required:
@@ -871,10 +875,19 @@ class ERPDatabase:
             if (not siparis.get('bulut_id') or str(siparis['id']) in self._pending or
                 any(str(e.get('local_id'))==str(siparis['id']) for e in self._status_events+self._progress_events)):
                 raise ValueError('Önce siparişin bulut eşitlemesi tamamlanmalı.')
-        if bool(siparis.get('iade_tarihi'))==bool(returned):return
+        reason = ' '.join(str(reason or '').split()) if returned else ''
+        if returned and (not reason or len(reason)>500):
+            raise ValueError('İade sebebi 1–500 karakter arasında olmalıdır.')
+        if (bool(siparis.get('iade_tarihi'))==bool(returned) and
+                (not returned or siparis.get('iade_sebebi','')==reason)):return
         old=dict(siparis)
-        if returned:siparis['iade_tarihi']=datetime.now().astimezone().isoformat(timespec='seconds')
-        else:siparis.pop('iade_tarihi',None)
+        if returned:
+            if not siparis.get('iade_tarihi'):
+                siparis['iade_tarihi']=datetime.now().astimezone().isoformat(timespec='seconds')
+            siparis['iade_sebebi']=reason
+        else:
+            siparis.pop('iade_tarihi',None)
+            siparis.pop('iade_sebebi',None)
         try:self.siparisleri_kaydet()
         except Exception:
             siparis.clear();siparis.update(old)

@@ -374,20 +374,23 @@ async function saveToLibrary(){
  }catch(e){toast('Arşive kaydedilemedi: '+e.message)}finally{busy('',false)}
 }
 function closeLibrary(){$('libraryModal').classList.remove('show')}
-async function openLibrary(){
- $('libraryModal').classList.add('show');$('libraryList').innerHTML='<div class="empty">Kayıtlar açılıyor…</div>';
- try{
-  const result=await api('/api/library/list');
-  $('libraryLocation').textContent='Bu bilgisayarda · '+result.folder;
-  libraryEntries=result.items||[];
-  selectedArchiveIds=new Set([...selectedArchiveIds].filter(id=>libraryEntries.some(x=>x.id===id)));
-  updateLibrarySelection();
-  const list=$('libraryList');list.innerHTML='';
-  if(!result.items.length){list.innerHTML='<div class="empty">Henüz kayıt yok. Tasarımı “Arşive Kaydet” ile kaydet veya PNG/JPG indir; burada görünecek.</div>';return}
-  result.items.forEach(entry=>{
+function libraryMatches(entry){
+ const query=normalize($('archiveSearch').value).trim();
+ return !query||normalize([entry.title,entry.created_at,entry.format,entry.books_count].join(' ')).includes(query);
+}
+function renderLibraryEntries(position=null){
+ const list=$('libraryList'),offset=position===null?list.scrollTop:position;
+ const entries=libraryEntries.filter(libraryMatches);
+ $('archiveVisibleCount').textContent=entries.length+' / '+libraryEntries.length+' tasarım';
+ list.innerHTML='';
+ if(!entries.length){
+  list.innerHTML='<div class="empty">'+(libraryEntries.length?'Aramanızla eşleşen tasarım bulunamadı.':'Henüz kayıt yok. Arşive Kaydet ile tasarım ekleyebilirsiniz.')+'</div>';
+  return;
+ }
+  entries.forEach(entry=>{
    const card=document.createElement('article');card.className='library-card';
    const img='/api/library/preview?id='+encodeURIComponent(entry.id);
-   card.innerHTML=`<label class="library-pick" title="Toplu ZIP için seç"><input type="checkbox" data-op="pick" ${selectedArchiveIds.has(entry.id)?'checked':''}><span>Seç</span></label><img src="${img}" alt="${escapeHTML(entry.title)}">
+   card.innerHTML=`<label class="library-pick" title="Toplu ZIP için seç"><input type="checkbox" data-op="pick" ${selectedArchiveIds.has(entry.id)?'checked':''}><span>Seç</span></label><img loading="lazy" decoding="async" src="${img}" alt="${escapeHTML(entry.title)}">
     <div class="library-card-body"><strong>${escapeHTML(entry.title)}</strong>
     <small>${escapeHTML((entry.created_at||'').replace('T',' ').slice(0,16))} · ${entry.books_count} kitap · ${escapeHTML(entry.format.toUpperCase())}</small>
     <div class="library-actions"><button data-op="open" class="btn compact gold" ${entry.reason==='import'?'disabled':''}>Düzenle</button>
@@ -426,6 +429,22 @@ async function openLibrary(){
    };
    list.append(card)
   });
+ list.scrollTop=Math.max(0,Math.min(offset,list.scrollHeight-list.clientHeight));
+}
+async function openLibrary(){
+ const alreadyOpen=$('libraryModal').classList.contains('show');
+ const position=alreadyOpen?$('libraryList').scrollTop:0;
+ if(!alreadyOpen)$('archiveSearch').value='';
+ $('libraryModal').classList.add('show');
+ if(!alreadyOpen)$('libraryList').innerHTML='<div class="empty">Kayıtlar açılıyor…</div>';
+ try{
+  const result=await api('/api/library/list');
+  $('libraryLocation').textContent='Bu bilgisayarda · '+result.folder;
+  libraryEntries=result.items||[];
+  const ids=new Set(libraryEntries.map(x=>x.id));
+  selectedArchiveIds=new Set([...selectedArchiveIds].filter(id=>ids.has(id)));
+  updateLibrarySelection();
+  renderLibraryEntries(position);
  }catch(e){$('libraryList').innerHTML='<div class="empty">Arşiv okunamadı: '+escapeHTML(e.message)+'</div>'}
 }
 
@@ -497,9 +516,10 @@ function bindUI(){
  $('downloadJpg').onclick=()=>downloadImage(false,'JPEG');
  $('downloadSquare').onclick=()=>downloadImage(true,'PNG');
  $('openLibrary').onclick=()=>openLibrary();
- $('archiveSelectAll').onclick=()=>{selectedArchiveIds=new Set(libraryEntries.map(x=>x.id));openLibrary()};
- $('archiveClear').onclick=()=>{selectedArchiveIds.clear();openLibrary()};
+ $('archiveSelectAll').onclick=()=>{for(const entry of libraryEntries.filter(libraryMatches))selectedArchiveIds.add(entry.id);renderLibraryEntries();updateLibrarySelection()};
+ $('archiveClear').onclick=()=>{selectedArchiveIds.clear();renderLibraryEntries();updateLibrarySelection()};
  $('archiveDownload').onclick=()=>downloadArchiveSelection();
+ $('archiveSearch').addEventListener('input',()=>renderLibraryEntries(0));
  $('saveLibrary').onclick=()=>saveToLibrary();
  $('closeLibrary').onclick=()=>closeLibrary();
  $('importLibraryImage').onclick=()=>$('fileImportArtwork').click();
@@ -553,7 +573,7 @@ function bindUI(){
 }
 async function boot(){try{const result=await api('/api/bootstrap');state={...state,...result};
   studioNonce=result.update_nonce||'';
-  $('studioVersion').textContent='Banner Studio v3.13 · Suite '+(result.suite_version||'bilinmiyor');
+  $('studioVersion').textContent='Banner Studio v3.14 · Suite '+(result.suite_version||'bilinmiyor');
  const previous=await api('/api/draft').catch(()=>({draft:null}));
  if(previous.draft){
   state.books=previous.draft.books||[];

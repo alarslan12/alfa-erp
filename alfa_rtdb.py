@@ -764,22 +764,35 @@ class Workstation:
                 if op_id in processed:
                     return None,{"op_id":op_id,"order_id":order_id,"local_id":event["local_id"],"version":int(processed[op_id])}
                 before=row.get("returned_at") or None
-                if before!=(event.get("previous_returned_at") or None):
-                    raise DeviceError("İade durumu başka cihazda değişti",409)
+                previous_reason=str(row.get("return_reason") or "")
+                if (before!=(event.get("previous_returned_at") or None) or
+                        previous_reason!=str(event.get("previous_return_reason") or "")):
+                    raise DeviceError("İade durumu/işlem sebebi başka cihazda değişti",409)
                 after=event.get("returned_at") or None
+                incoming_reason=event.get("return_reason",None)
+                if incoming_reason is not None:
+                    if not isinstance(incoming_reason,str):
+                        raise DeviceError("Geçersiz iade sebebi",422)
+                    incoming_reason=' '.join(incoming_reason.split())
+                    if after and (not incoming_reason or len(incoming_reason)>500):
+                        raise DeviceError("İade sebebi 1–500 karakter olmalı",422)
                 if after:
                     try:
                         stamp=datetime.fromisoformat(str(after).replace('Z','+00:00'))
                         if stamp.tzinfo is None:raise ValueError('timezone')
                     except (ValueError,TypeError):raise DeviceError("Geçersiz iade tarihi",422)
                     row["returned_at"]=str(after)
-                else:row.pop("returned_at",None)
+                    if incoming_reason is not None:row["return_reason"]=incoming_reason
+                else:
+                    row.pop("returned_at",None)
+                    row.pop("return_reason",None)
                 row["version"]=int(row["version"])+1
                 row["updated_at"]=datetime.now(timezone.utc).isoformat()
                 processed[op_id]=row["version"]
                 row.setdefault("event_log",{})[op_id]={"id":op_id,"action":"order_return" if after else "order_return_undo",
                     "device_id":self.uid,"device_name":socket.gethostname()[:120],"order_ids":[order_id],
-                    "created_at":row["updated_at"],"details":{"before":before,"after":after}}
+                    "created_at":row["updated_at"],"details":{"before":before,"after":after,
+                        "previous_reason":previous_reason,"reason":row.get("return_reason") or ""}}
                 return row,{"op_id":op_id,"order_id":order_id,"local_id":event["local_id"],"version":row["version"]}
             results.append(self._atomic_order(order_id,mutate))
         return results

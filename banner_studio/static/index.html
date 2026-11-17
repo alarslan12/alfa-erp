@@ -30,6 +30,7 @@
     @media(max-width:1480px){.header-mid{display:none}.topbar{gap:10px}.brand{min-width:215px}}
     @media(max-width:1100px){.workspace{grid-template-columns:275px minmax(350px,1fr) 300px}.topbar{padding:0 14px;gap:8px}.brand{min-width:235px}.header-mid{display:none}}
     @media(max-width:850px){.workspace{grid-template-columns:1fr;height:auto}.sidebar{height:auto;max-height:650px}.sidebar.right{height:auto;min-height:620px}.stage{min-height:720px}.topbar{flex-wrap:wrap;height:auto;padding:9px 12px}.header-mid{display:none}.preview-shadow{width:min(100%,560px)}.selected-list{height:220px}}
+  .library-search-row{display:flex;align-items:center;gap:12px;padding:4px 24px 11px;border-bottom:1px solid #36525e}.library-search-row input{flex:1;max-width:750px}.library-search-row .pill{white-space:nowrap}
   </style>
 </head>
 <body>
@@ -173,8 +174,9 @@
    <button id="archiveDownload" class="btn compact gold">↓ Seçilen PNG’leri klasöre kaydet</button>
    <span id="archiveSelectedCount" class="pill">0 tasarım seçili</span></div>
    <span id="libraryLocation" class="muted">İsme göre A–Z sıralı · Yerel bilgisayarda saklanır</span></div>
+  <div class="library-search-row"><input id="archiveSearch" class="control" type="search" autocomplete="off" placeholder="🔎  Arşivde tasarım adı, tarih veya kitap sayısı ara…" aria-label="Tasarım arşivinde ara"><span id="archiveVisibleCount" class="pill">0 tasarım</span></div>
   <div id="libraryList" class="library-grid"></div>
  </section>
 </div>
-<script src="/app.js?v=3.13"></script>
+<script src="/app.js?v=3.14"></script>
 </body></html>

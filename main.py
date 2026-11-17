@@ -23,7 +23,7 @@ from guncelleme_arayuzu import CheckWorker,should_check_today,mark_checked
 from duyuru_merkezi import AnnouncementsDialog,ManualReportDialog
 
 ROOT=Path(__file__).resolve().parent
-VERSION='2.0.38'
+VERSION='2.0.39'
 OWNER_EDITION=(ROOT/'YONETICI_SURUMU.flag').exists()
 
 
@@ -231,6 +231,14 @@ class AlfaMain(QMainWindow):
         self.cloud_connect.setText(
             'Cihaz yetkisi' if OWNER_EDITION else
             'Yeniden eşleştir' if self.device.paired else 'Buluta bağla')
+        # Merge rapid cloud signals and never repaint hidden order cards.
+        self._cloud_changed_ids=set()
+        self._cloud_orders_dirty=False
+        self._cloud_catalog_dirty=False
+        self._cloud_refresh_timer=QTimer(self)
+        self._cloud_refresh_timer.setSingleShot(True)
+        self._cloud_refresh_timer.setInterval(180)
+        self._cloud_refresh_timer.timeout.connect(self._apply_cloud_changes)
         self.live.changed.connect(self._cloud_orders_changed)
         self.live.status.connect(self._cloud_status)
         self.catalog.order_created.connect(self.order_created)
@@ -468,6 +476,10 @@ class AlfaMain(QMainWindow):
             return
         self.stack.setCurrentIndex(index)
         self._mark_navigation(index)
+        if index==0 and self._cloud_catalog_dirty:
+            self._cloud_catalog_dirty=False
+            self.catalog.refresh_grid()
+            self.catalog.update_cart()
         if index==2:
             self.analytics.refresh()
         elif index==3:
@@ -476,22 +488,38 @@ class AlfaMain(QMainWindow):
             self.settings_page.show_tab(self.settings_page.current_tab)
 
     def _cloud_orders_changed(self,ids):
+        """Coalesce cloud signals; hidden pages can refresh on navigation."""
         if not ids:return
-        if '__katalog__' in ids:
-            self.catalog.refresh_grid()
-            self.catalog.update_cart()
-            # Historical 0-page order snapshots are recovered from the
-            # authoritative catalog. Repaint order totals immediately.
-            self.orders.refresh()
+        self._cloud_changed_ids.update(str(item) for item in ids)
+        if not self._cloud_refresh_timer.isActive():
+            self._cloud_refresh_timer.start()
+
+    def _apply_cloud_changes(self):
+        ids=set(self._cloud_changed_ids)
+        self._cloud_changed_ids.clear()
+        if not ids:return
+        page=self.stack.currentWidget()
+        catalog_changed='__katalog__' in ids
+        if catalog_changed:
+            if page is self.catalog:
+                self.catalog.refresh_grid()
+                self.catalog.update_cart()
+                self._cloud_catalog_dirty=False
+            else:
+                self._cloud_catalog_dirty=True
+        if '__envanter__' in ids and page is self.inventory_host:
+            self.select_inventory(self.inventory_view.currentIndex())
+        order_changed=catalog_changed or any(
+            key not in ('__katalog__','__muhasebe__','__envanter__') for key in ids)
+        if order_changed:
+            if page is self.orders:
+                self.orders.refresh()
+                self._cloud_orders_dirty=False
+            else:
+                self._cloud_orders_dirty=True
             if self.bookpool and self.bookpool.isVisible():
                 self.bookpool.refresh()
-        if '__envanter__' in ids:
-            self.inventory.refresh()
-            self.general_catalog.refresh()
-        if any(x not in ('__katalog__','__muhasebe__','__envanter__') for x in ids):
-            self.orders.refresh()
-            if self.bookpool and self.bookpool.isVisible():self.bookpool.refresh()
-        if self.stack.currentWidget() is self.analytics:self.analytics.refresh()
+        if page is self.analytics:self.analytics.refresh()
 
     def _cloud_status(self,online,message):
         # Pending crash reports retry ONLY on an actual connectivity transition,
@@ -533,6 +561,7 @@ class AlfaMain(QMainWindow):
         self.stack.setCurrentWidget(self.orders)
         self._mark_navigation(1,status)
         self.orders.change_status(status)
+        self._cloud_orders_dirty=False
         self.live.boost()
         if status=='havuz':
             self.live.pull()

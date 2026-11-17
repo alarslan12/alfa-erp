@@ -6,6 +6,14 @@ https://github.com/alarslan12/alfa-erp/releases.
 """
 
 _RELEASES = [
+    ("2.0.39", "Banner arşivi, iade sebebi ve performans", [
+        "Tasarım Arşivi'nde Türkçe karakter uyumlu arama ve sonuç sayacı.",
+        "Arşivde silme, yeniden adlandırma ve seçme işlemlerinde kaydırma konumu korunur.",
+        "Yönetici iade sebebini girer, düzenler; iade kartlarının altında görünür.",
+        "Firebase iade sebebi senkronizasyonu yönetici yetkisi ve sürüm çakışma kontrolüyle yapılır.",
+        "Gereksiz arka plan arayüz yenilemeleri birleştirilerek uzun kullanımda takılma riski azaltıldı.",
+    ]),
+
     ("2.0.38", "Kargo takibi ve iade yönetimi", [
         "Yönetici tamamlanan siparişlerden iade işaretler veya geri alır.",
         "İade sekmesi, iade sonrası ciro ve oranlar; kargo gideri korunur.",

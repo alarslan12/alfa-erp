@@ -2,7 +2,7 @@
 from datetime import datetime
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QComboBox, QCheckBox,
-    QFrame, QToolButton, QListView, QAbstractItemView, QSizePolicy, QDialog, QGridLayout
+    QFrame, QToolButton, QListView, QAbstractItemView, QSizePolicy, QDialog, QGridLayout, QInputDialog
 )
 from PySide6.QtCore import Qt, QTimer
 from widgets import text, button, scrollable, error, confirm
@@ -486,7 +486,7 @@ class SiparisView(QWidget):
                 str(order.get('platform','')), str(order.get('tarih','')),
                 str(order.get('tamamlanma_tarihi','')),
                 str(order.get('ciro',0)), str(order.get('siparis_turu','')),
-                order.get('kargo_ucreti'),order.get('iade_tarihi'),revision(order), pending_notice(order), books)
+                order.get('kargo_ucreti'),order.get('iade_tarihi'),order.get('iade_sebebi'),revision(order), pending_notice(order), books)
 
     def refresh_rows(self, *_, reset_position=False):
         old_pos = self.rows_scroll.verticalScrollBar().value()
@@ -682,15 +682,28 @@ class SiparisView(QWidget):
         """Sipariş penceresini aç; olası hatayı sessizce yutmak yerine göster."""
         if tab == 'edit' and not self.admin_mode:
             return error(self, 'Bu işlem Yönetici Paneli üzerinden yapılır.')
-        if tab=='return_state':
+        if tab in ('return_state','return_reason'):
             if not self.admin_mode:return error(self,'Bu işlem yalnız Yönetici tarafından yapılabilir.')
             order=next((o for o in self.db.siparisler if str(o['id'])==str(sid)),None)
             if not order:return error(self,'Sipariş bulunamadı.')
-            returned=not is_returned(order)
-            message='iade olarak işaretlensin ve satış cirosundan düşülsün mü?' if returned else 'iade işareti geri alınsın mı?'
-            if not confirm(self,f'#{sid} numaralı sipariş {message}'):return
-            try:self.db.set_order_returned(order,returned)
-            except Exception as exc:return error(self,exc)
+            is_refund=is_returned(order)
+            if tab=='return_reason' and not is_refund:
+                return error(self,'Sipariş henüz iade edilmemiş.')
+            if tab=='return_state' and is_refund:
+                if not confirm(self,f'#{sid} numaralı siparişin iade işareti geri alınsın mı?'):return
+                try:self.db.set_order_returned(order,False)
+                except Exception as exc:return error(self,exc)
+            else:
+                reason,accepted=QInputDialog.getMultiLineText(self,'İade sebebi',
+                    f'#{sid} · İade sebebini yazın (en fazla 500 karakter):',
+                    str(order.get('iade_sebebi') or ''))
+                if not accepted:return
+                reason=' '.join(reason.split())
+                if not reason or len(reason)>500:
+                    return error(self,'İade sebebi 1–500 karakter olmalıdır.')
+                if tab=='return_state' and not confirm(self,f'#{sid} numaralı sipariş iade olarak işaretlensin ve cirosu düşülsün mü?'):return
+                try:self.db.set_order_returned(order,True,reason=reason)
+                except Exception as exc:return error(self,exc)
             self._after_editor_updated()
             main=self.window()
             if getattr(main,'analytics',None) is not None:main.analytics.refresh()

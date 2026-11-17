@@ -56,6 +56,7 @@ def convert_mobile_order(row, items, catalog):
     }
     if row.get('returned_at') and status=='tamamlandi':
         output['iade_tarihi'] = str(row['returned_at'])
+        output['iade_sebebi'] = str(row.get('return_reason') or '')[:500]
     if 'order_note' in row:
         output['order_note'] = str(row.get('order_note') or '')
     if isinstance(row.get('order_notice'),dict):
