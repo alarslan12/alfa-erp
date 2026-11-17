@@ -1,3 +1,10 @@
+## [v2.0.41] — 2026-11-18
+
+- Yönetici → Analitik → Verimlilik (FlexFlow): gerçek cihaz hızları, delme, elle spiralleme ve kolileme süreleriyle sayısal üretim kapasitesi.
+- Aktif üretim, havuz ve tamamlanan dönem için baskı sayfaları, standart manuel kişi-saatleri, darboğaz ve vardiya risk değerlendirmesi.
+- Sayfa sayısı bilinmeyen kitaplarda eksik tahmin açıkça gösterilir. Bu rakamlar yazıcı telemetrisi veya ölçülmüş personel verimliliği değildir.
+- Personel, Katalog, Siparişler, Firebase veri modeli ve güvenlik kuralları değiştirilmedi; Suite yükseltme yoluyla kurulur.
+
 ## [v2.0.40] — 2026-11-17
 
 - Banner Studio: son tarayıcı sekmesi kapatıldığında güvenli server shutdown; yeniden yükleme ve birden fazla sekme destekli oturum sayacı.

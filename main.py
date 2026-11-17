@@ -23,7 +23,7 @@ from guncelleme_arayuzu import CheckWorker,should_check_today,mark_checked
 from duyuru_merkezi import AnnouncementsDialog,ManualReportDialog
 
 ROOT=Path(__file__).resolve().parent
-VERSION='2.0.40'
+VERSION='2.0.41'
 OWNER_EDITION=(ROOT/'YONETICI_SURUMU.flag').exists()
 
 
@@ -168,7 +168,8 @@ class AlfaMain(QMainWindow):
         self.catalog=KatalogView(self.db,self.covers,config=self.config)
         self.title_line.insertWidget(1,self.catalog.toolbar,1)
         self.orders=SiparisView(self.db,self.covers,self.open_book_pool,admin_mode=OWNER_EDITION)
-        self.analytics=AnalitikView(self.db,lambda sid:self.orders.open_editor(sid,'track'))
+        self.analytics=AnalitikView(self.db,lambda sid:self.orders.open_editor(sid,'track'),
+                                     owner_edition=OWNER_EDITION)
         self.inventory=EnvanterView(self.db)
         # General products belong to INVENTORY, not the book catalog.
         self.general_catalog=GeneralProductCatalog(self.db)

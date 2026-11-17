@@ -202,10 +202,11 @@ class RevenuePill(QFrame):
 
 class AnalitikView(QWidget):
     """Selected completion day/range -> completed orders only, with payment tracking."""
-    def __init__(self, db, on_open_order=None):
+    def __init__(self, db, on_open_order=None, owner_edition=False):
         super().__init__()
         self.setObjectName('AnalyticsPage')
         self.db=db
+        self.owner_edition=bool(owner_edition)
         self.cloud_admin_request=None  # Yönetici oturumu açılırsa atanır.
         self.on_open_order=on_open_order
         self.payments=PaymentDays(Path(db.sepet_dosyasi).parent)
@@ -231,6 +232,11 @@ class AnalitikView(QWidget):
         export.setToolTip('Seçili tamamlanma tarihlerindeki kayıtlarla HTML muhasebe raporu oluştur')
         export.clicked.connect(self.export_html)
         header.addWidget(export)
+        if self.owner_edition:
+            flexflow=button('▤ Verimlilik · FlexFlow', 'AnalyticsExport')
+            flexflow.setToolTip('Gerçek yazıcı parkı, delme ve işçilik kapasitesiyle üretim tahmini')
+            flexflow.clicked.connect(self.open_flexflow)
+            header.addWidget(flexflow)
         reload=button('↻','SmallAction')
         reload.setToolTip('Siparişleri ve takvimi yenile')
         reload.clicked.connect(self.refresh)
@@ -331,6 +337,17 @@ class AnalitikView(QWidget):
         body.addWidget(self.results_scroll,1)
         root.addLayout(body,1)
         self.refresh()
+
+    def open_flexflow(self):
+        if not self.owner_edition:
+            return
+        from ekran_verimlilik import FlexFlowDialog
+        start=self.start.isoformat() if self.start else ''
+        end=(self.end or self.start).isoformat() if self.start else ''
+        period=f'{start} – {end}' if start else ''
+        dialog=FlexFlowDialog(self.db, self.latest.get('orders', []) if self.latest else [],
+                              period_label=period, parent=self)
+        dialog.exec()
 
     def eventFilter(self, watched, event):
         # Qt can deliver a final event while the scroll area is being

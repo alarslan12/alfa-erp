@@ -6,6 +6,14 @@ https://github.com/alarslan12/alfa-erp/releases.
 """
 
 _RELEASES = [
+    ("2.0.41", "FlexFlow sayısal üretim kapasitesi", [
+        "Yönetici Analitik ekranına FlexFlow Verimlilik görünümü eklendi.",
+        "3 siyah-beyaz ve 3 renkli yazıcının gerçek hızları, tek delme cihazı ve iki çalışan hesaba katılır.",
+        "Standart işçilik kişi-saatleri, baskı yükü, darboğaz ve mesai riski dakika cinsinden gösterilir.",
+        "Aktif işler, havuz ve seçili dönemin tamamlanan siparişleri ayrıdır; bilinmeyen sayfa sayıları uyarılır.",
+        "Personel ekranı, mevcut katalog/sipariş işlemleri, Firebase kuralları ve kullanıcı verileri değişmedi.",
+    ]),
+
     ("2.0.40", "Banner Studio arka plan süreçleri düzeltmesi", [
         "Tarayıcıdaki son Banner Studio sekmesi kapatılınca yerel sunucu otomatik kapanır.",
         "Aynı bilgisayarda tekrar açma mevcut sunucuyu kullanır; mükerrer EXE oluşmaz.",
