@@ -4,6 +4,23 @@ const qs = s => [...document.querySelectorAll(s)];
 let state={settings:{},books:[],catalog:[],palettes:{},styles:[],layouts:[],covers:0};
 let renderTimer=null,latestRender=0,selectedCover=null,cropMode=false,customTarget=null;
 let draftTimer=null,draftReady=false,selectedArchiveIds=new Set(),libraryEntries=[];
+const studioClientId=(globalThis.crypto?.randomUUID?.() ||
+ 'studio-'+Math.random().toString(36).slice(2)+'-'+Date.now().toString(36));
+function studioPresence(action){
+ if(!studioNonce)return;
+ const body=JSON.stringify({nonce:studioNonce,client_id:studioClientId,action});
+ if(action==='closed'){
+  try{navigator.sendBeacon('/api/studio/presence',new Blob([body],{type:'application/json'}))}
+  catch(_err){}
+  return;
+ }
+ fetch('/api/studio/presence',{method:'POST',headers:{'Content-Type':'application/json'},
+   body,keepalive:true}).catch(()=>{});
+}
+setInterval(()=>studioPresence('heartbeat'),20000);
+window.addEventListener('pageshow',()=>studioPresence('open'));
+window.addEventListener('visibilitychange',()=>{if(!document.hidden)studioPresence('open')});
+
 const slogans=['Güncel kaynaklar · Özenli baskı','Kitap koduyla hızlı sipariş','Temel · Klinik · Tam Set','Set seçenekleri için mesaj atın','Sınav hazırlığında pratik seçim','Baskı seçeneklerini birlikte belirleyelim','Güncel katalog · Düzenli kitap setleri'];
 const escapeHTML = s => String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const normalize = s => String(s||'').toLocaleLowerCase('tr-TR').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/ı/g,'i').replace(/ğ/g,'g').replace(/ş/g,'s').replace(/ç/g,'c').replace(/ö/g,'o').replace(/ü/g,'u');
@@ -31,6 +48,7 @@ function showCoverStatus(result){
  if(info.total&&info.matched===0){toast('Kapaklar eşleşmedi: kodu veya kitap adı dosya adıyla kontrol et. Eksikler için veri alanının üzerine gel.')}
 }
 window.addEventListener('pagehide',()=>{
+ studioPresence('closed');
  if(!draftReady)return;
  clearTimeout(draftTimer);
  // Works even if the ephemeral localhost port changes next time.
@@ -573,7 +591,8 @@ function bindUI(){
 }
 async function boot(){try{const result=await api('/api/bootstrap');state={...state,...result};
   studioNonce=result.update_nonce||'';
-  $('studioVersion').textContent='Banner Studio v3.14 · Suite '+(result.suite_version||'bilinmiyor');
+  studioPresence('open');
+  $('studioVersion').textContent='Banner Studio v3.15 · Suite '+(result.suite_version||'bilinmiyor');
  const previous=await api('/api/draft').catch(()=>({draft:null}));
  if(previous.draft){
   state.books=previous.draft.books||[];

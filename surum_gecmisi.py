@@ -6,6 +6,13 @@ https://github.com/alarslan12/alfa-erp/releases.
 """
 
 _RELEASES = [
+    ("2.0.40", "Banner Studio arka plan süreçleri düzeltmesi", [
+        "Tarayıcıdaki son Banner Studio sekmesi kapatılınca yerel sunucu otomatik kapanır.",
+        "Aynı bilgisayarda tekrar açma mevcut sunucuyu kullanır; mükerrer EXE oluşmaz.",
+        "Beklenmedik tarayıcı kapanışında sahipsiz süreçler zaman aşımıyla temizlenir.",
+        "Tasarım arşivi, ERP siparişleri ve Firebase verileri korunur.",
+    ]),
+
     ("2.0.39", "Banner arşivi, iade sebebi ve performans", [
         "Tasarım Arşivi'nde Türkçe karakter uyumlu arama ve sonuç sayacı.",
         "Arşivde silme, yeniden adlandırma ve seçme işlemlerinde kaydırma konumu korunur.",

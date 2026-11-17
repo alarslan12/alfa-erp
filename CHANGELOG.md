@@ -1,3 +1,10 @@
+## [v2.0.40] — 2026-11-17
+
+- Banner Studio: son tarayıcı sekmesi kapatıldığında güvenli server shutdown; yeniden yükleme ve birden fazla sekme destekli oturum sayacı.
+- Windows tek-örnek mutex; ikinci çalıştırma mevcut stüdyoyu açar, yeni arka plan EXE'si bırakmaz.
+- Çökmüş tarayıcı ve hiç açılamamış pencere için zaman aşımıyla kendini kapatma; localhost origin/host kontrolleri.
+- Tasarım arşivi, siparişler, Firebase ve diğer Suite bileşenleri değişmedi.
+
 ## [v2.0.39] — 2026-11-17
 
 - Banner Studio Tasarım Arşivi: anlık Türkçe uyumlu arama, filtreli seçim, sonuç sayacı, silme/yeniden adlandırmada konum koruma.

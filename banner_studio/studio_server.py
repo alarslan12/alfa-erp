@@ -22,6 +22,8 @@ import sys
 import time
 from urllib.parse import urlsplit, parse_qs, unquote
 import webbrowser
+from studio_lifecycle import (BrowserSessions, SingleStudio, write_active_server,
+                              remove_active_server, open_existing_studio)
 from alfa_guncelleme import check_for_update,download_update,launch_update,UpdateError
 
 from PIL import Image
@@ -29,8 +31,9 @@ from banner_engine import (Renderer, Settings, read_excel, cover_files,
                            get_cover, upright_cover, PALETTES, LAYOUTS, STYLES, square_preview)
 import studio_library as library
 
-SUITE_VERSION='2.0.39'
+SUITE_VERSION='2.0.40'
 UPDATE_NONCE=secrets.token_urlsafe(32)
+STUDIO_SESSIONS=BrowserSessions()
 UPDATE_LOCK=threading.RLock()
 UPDATE_STATE={'release':None,'verified':None,'busy':False}
 SUITE_STORAGE=Path(os.environ.get('LOCALAPPDATA') or Path.home())/'ALFA_Banner_Studio_Pro'
@@ -39,6 +42,7 @@ BASE=Path(__file__).resolve().parent
 DATA=library.ROOT.parent/'Calisma'
 LEGACY_DATA=BASE/'data'
 DATA.mkdir(parents=True,exist_ok=True)
+STUDIO_SESSION_FILE=DATA/'banner_running.json'
 for filename in ('Kitaplar.xlsx','Magaza_Logo.png'):
     dest=DATA/filename
     if not dest.exists() and (LEGACY_DATA/filename).is_file():
@@ -170,6 +174,7 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_header('Content-Length',str(length))
         self.send_header('Cache-Control','no-store')
         self.send_header('X-Content-Type-Options','nosniff')
+        self.send_header('X-Frame-Options','DENY')
         self.end_headers()
     def _response(self,obj,code=200):
         data=_json_bytes(obj)
@@ -185,7 +190,12 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers();self.wfile.write(data)
     def do_GET(self):
         global CATALOG,COVER_IDX
+        if self.headers.get('Host')!=f'127.0.0.1:{self.server.server_port}':
+            return self._response({'error':'Yerel sunucu adresi geçersiz.'},403)
         req=urlsplit(self.path);q=parse_qs(req.query)
+        if req.path=='/api/studio/info':
+            return self._response({'app':'ALFA Banner Studio Pro','pid':os.getpid(),
+                                   'port':self.server.server_port})
         if req.path=='/api/library/asset':
             filename=(q.get('name') or [''])[0]
             if not re.fullmatch(r'[a-f0-9]{64}\.(jpg|jpeg|png|webp)',filename):
@@ -273,8 +283,27 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_POST(self):
         global CATALOG,COVER_IDX,CATALOG_FILE,CATALOG_ERROR
+        if self.headers.get('Host')!=f'127.0.0.1:{self.server.server_port}':
+            return self._response({'error':'Yerel sunucu adresi geçersiz.'},403)
         path=urlsplit(self.path).path
         try:
+            if path=='/api/studio/presence':
+                origin=self.headers.get('Origin','')
+                expected=f'http://127.0.0.1:{self.server.server_port}'
+                mime=self.headers.get('Content-Type','').split(';')[0].strip()
+                if origin!=expected or mime!='application/json':
+                    return self._response({'error':'Güvenilmeyen pencere isteği'},403)
+                payload=json.loads(_read_body(self,2048))
+                if not isinstance(payload,dict) or payload.get('nonce')!=UPDATE_NONCE:
+                    return self._response({'error':'Geçersiz oturum'},403)
+                client_id=payload.get('client_id')
+                action=payload.get('action')
+                if (not isinstance(client_id,str) or
+                        not re.fullmatch(r'[a-zA-Z0-9_-]{16,80}',client_id) or
+                        action not in ('open','heartbeat','closed')):
+                    return self._response({'error':'Geçersiz pencere kimliği'},422)
+                STUDIO_SESSIONS.event(client_id,action)
+                return self._response({'ok':True})
             if path in ('/api/update/download','/api/update/install'):
                 # A local page can update itself; a website in another tab cannot.
                 origin=self.headers.get('Origin','')
@@ -538,6 +567,14 @@ class Handler(SimpleHTTPRequestHandler):
             except (BrokenPipeError,ConnectionResetError):return
 
 
+def _browser_watchdog(server,stopped):
+    """Shut down when every tab closes; also reap crashed/browser-less sessions."""
+    while not stopped.wait(2):
+        if STUDIO_SESSIONS.should_exit():
+            server.shutdown()
+            return
+
+
 def main():
     if '--self-check' in sys.argv:
         # Offline packaging check. No browser or HTTP listener is created.
@@ -548,14 +585,38 @@ def main():
         print('ALFA Banner Studio self-check OK; catalog:',len(CATALOG))
         return
     DATA.mkdir(parents=True,exist_ok=True)
-    server=ThreadingHTTPServer(('127.0.0.1',0),Handler)
-    url=f'http://127.0.0.1:{server.server_port}'
-    print('ALFA Banner Studio Pro · Yerel web arayüzü')
-    print('Adres:',url)
-    print('Bilgisayar dışına veri gönderilmez. Kapatmak için Ctrl+C.')
-    webbrowser.open(url)
-    try:server.serve_forever(poll_interval=.4)
-    except KeyboardInterrupt:pass
-    finally:server.server_close()
+    instance=SingleStudio()
+    server=None
+    stopped=threading.Event()
+    port=0
+    try:
+        if not instance.acquire():
+            if not open_existing_studio(STUDIO_SESSION_FILE,
+                                        lambda url:webbrowser.open(url,new=2)):
+                print('Banner Studio zaten açılıyor veya başka bir pencerede çalışıyor.')
+            return
+        server=ThreadingHTTPServer(('127.0.0.1',0),Handler)
+        server.daemon_threads=True
+        port=server.server_port
+        write_active_server(STUDIO_SESSION_FILE,port)
+        url=f'http://127.0.0.1:{port}'
+        threading.Thread(target=_browser_watchdog,args=(server,stopped),
+                         daemon=True,name='BannerStudioWindowMonitor').start()
+        print('ALFA Banner Studio Pro · Yerel web arayüzü')
+        print('Adres:',url)
+        print('Tarayıcı sekmesi kapatıldığında sunucu otomatik kapanır.')
+        if '--headless' not in sys.argv:
+            webbrowser.open(url,new=2)
+        try:
+            server.serve_forever(poll_interval=.3)
+        except KeyboardInterrupt:
+            pass
+    finally:
+        stopped.set()
+        if server is not None:
+            server.server_close()
+        if port:
+            remove_active_server(STUDIO_SESSION_FILE,port)
+        instance.close()
 
 if __name__=='__main__':main()

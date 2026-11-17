@@ -1,4 +1,4 @@
-name: ALFACOPYCENTER Suite v2.0.39 Windows build and release
+name: ALFACOPYCENTER Suite v2.0.40 Windows build and release
 
 on:
   push:
@@ -20,8 +20,8 @@ jobs:
       PYTHONUTF8: '1'
       PYTHONIOENCODING: utf-8
       QT_QPA_PLATFORM: offscreen
-      SUITE_TAG: v2.0.39
-      SUITE_EXE: ALFACOPYCENTER_Suite_Setup_V2_0_39.exe
+      SUITE_TAG: v2.0.40
+      SUITE_EXE: ALFACOPYCENTER_Suite_Setup_V2_0_40.exe
     steps:
       - name: Exclude cancelled v2.0.29 from automatic updates
         shell: pwsh
@@ -43,6 +43,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Firebase files missing' }
           python -m compileall -q .
           if ($LASTEXITCODE -ne 0) { throw 'Python syntax failed' }
+          node --check banner_studio/static/app.js
+          if ($LASTEXITCODE -ne 0) { throw 'Banner Studio JS syntax failed' }
           $old = @('alfa_bulut.py','alfa_cihaz.py','alfa_tek_kurulum.iss',
                    'alfa_personel.iss','alfa_yonetici.iss','supabase')
           foreach ($file in $old) {
@@ -122,6 +124,40 @@ jobs:
             }
           }
 
+      - name: Verify packaged Banner Studio exits after browser closes
+        shell: pwsh
+        run: |
+          $exe=Join-Path $env:GITHUB_WORKSPACE 'dist\AlfaBannerStudio\AlfaBannerStudio.exe'
+          $statusPath=Join-Path $env:LOCALAPPDATA 'ALFA_Banner_Studio_Pro\Calisma\banner_running.json'
+          Remove-Item $statusPath -ErrorAction SilentlyContinue
+          $process=Start-Process -FilePath $exe -ArgumentList '--headless' -PassThru
+          try {
+            $info=$null
+            for ($n=0; $n -lt 90; $n++) {
+              if (Test-Path $statusPath) {
+                try {
+                  $candidate=Get-Content $statusPath -Raw | ConvertFrom-Json
+                  if ($candidate.pid -eq $process.Id) { $info=$candidate;break }
+                } catch {}
+              }
+              if ($process.HasExited) { throw 'Banner Studio exited before opening server' }
+              Start-Sleep -Milliseconds 500
+            }
+            if (-not $info) { throw 'Banner Studio headless endpoint not ready' }
+            $url="http://127.0.0.1:$($info.port)"
+            $boot=Invoke-RestMethod -Uri "$url/api/bootstrap" -TimeoutSec 30
+            $clientId='smoketest-'+[guid]::NewGuid().ToString('N')
+            foreach ($action in @('open','closed')) {
+              $body=@{nonce=$boot.update_nonce;client_id=$clientId;action=$action} | ConvertTo-Json -Compress
+              $answer=Invoke-RestMethod -Uri "$url/api/studio/presence" -Method Post -Headers @{Origin=$url} -ContentType 'application/json' -Body $body -TimeoutSec 10
+              if (-not $answer.ok) { throw "Browser presence failed: $action" }
+            }
+            if (-not $process.WaitForExit(30000)) { throw 'Banner Studio remained running after last tab close' }
+            if ($process.ExitCode -ne 0) { throw "Banner Studio returned $($process.ExitCode)" }
+          } finally {
+            if (-not $process.HasExited) { Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue }
+          }
+
       - name: Verify Suite binary and SHA-256
         shell: pwsh
         run: |
@@ -129,23 +165,23 @@ jobs:
           if ($file.Length -lt 1000000) { throw 'Setup unexpectedly small' }
           $hash=(Get-FileHash $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
           "$hash  $($file.Name)" | Set-Content -Encoding ascii .\output\SHA256SUMS.txt
-          Copy-Item .\docs\ALFACOPYCENTER_SUITE_V2039_RELEASE.md .\output\RELEASE_NOTES.txt
+          Copy-Item .\docs\ALFACOPYCENTER_SUITE_V2040_RELEASE.md .\output\RELEASE_NOTES.txt
           & .\.buildvenv\Scripts\python.exe -c "from PySide6.QtPdf import QPdfDocument;print('Qt PDF import OK')"
           if ($LASTEXITCODE -ne 0) { throw 'QtPdf unavailable' }
 
       - name: Upload Suite Setup for CI audit
         uses: actions/upload-artifact@v4
         with:
-          name: ALFACOPYCENTER_Suite_v2.0.39_Windows
+          name: ALFACOPYCENTER_Suite_v2.0.40_Windows
           path: |
-            output/ALFACOPYCENTER_Suite_Setup_V2_0_39.exe
+            output/ALFACOPYCENTER_Suite_Setup_V2_0_40.exe
             output/SHA256SUMS.txt
             output/RELEASE_NOTES.txt
           if-no-files-found: error
           retention-days: 30
           compression-level: 0
 
-      - name: Publish verified Suite v2.0.39 stable release
+      - name: Publish verified Suite v2.0.40 stable release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -156,7 +192,7 @@ jobs:
           if ($LASTEXITCODE -eq 0) {
             Write-Host "Suite release already exists: $tag"
           } else {
-            gh release create $tag "output/$env:SUITE_EXE" output/SHA256SUMS.txt output/RELEASE_NOTES.txt --repo $repo --target "${{ github.sha }}" --title "ALFACOPYCENTER Suite v2.0.39" --notes-file output/RELEASE_NOTES.txt --latest
+            gh release create $tag "output/$env:SUITE_EXE" output/SHA256SUMS.txt output/RELEASE_NOTES.txt --repo $repo --target "${{ github.sha }}" --title "ALFACOPYCENTER Suite v2.0.40" --notes-file output/RELEASE_NOTES.txt --latest
             if ($LASTEXITCODE -ne 0) { throw 'Suite release publishing failed' }
           }
           $release=gh release view $tag --repo $repo --json tagName,isPrerelease,isDraft,assets,url | ConvertFrom-Json
