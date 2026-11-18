@@ -1,350 +1,395 @@
-"""FlexFlow — a single integrated, read-only in-page production dashboard.
+"""Owner-only FlexFlow operations dashboard.
 
-Built once and updated only on visible, explicit or coalesced data changes.
-No popup, fictional efficiency score, printer control or Firebase writes.
+Designed for operators: real counts, daily/hourly pace, current queue and a
+plain-language shift forecast. Fixed engineering coefficients stay in
+flexflow.py and never appear as confusing user-facing performance claims.
 """
 from __future__ import annotations
 
-from datetime import datetime
-from PySide6.QtCore import Qt, QRectF
-from PySide6.QtGui import QColor, QFont, QPainter, QPen, QLinearGradient
+from datetime import date, datetime, timedelta
+from pathlib import Path
+from PySide6.QtCore import Qt, QUrl
+from PySide6.QtGui import QColor, QDesktopServices
 from PySide6.QtWidgets import (
-    QApplication, QFrame, QGridLayout, QHBoxLayout, QHeaderView, QLabel,
-    QPushButton, QScrollArea, QSizePolicy, QTableWidget, QTableWidgetItem,
-    QVBoxLayout, QWidget, QAbstractItemView
+    QApplication, QFrame, QFileDialog, QGridLayout, QHBoxLayout, QHeaderView,
+    QLabel, QMessageBox, QPushButton, QScrollArea, QComboBox, QProgressBar,
+    QSizePolicy, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
+    QAbstractItemView,
 )
-from flexflow import estimate, BLACK_PPM, COLOR_PPM
+from flexflow_operasyon import daily_dashboard
+from flexflow_rapor import csv_report, html_report
 
 
-def fmt(value, digits=0):
-    return f"{float(value):,.{digits}f}".replace(",", "_").replace(".", ",").replace("_", ".")
+def fmt(value, places=0):
+    return f"{float(value):,.{places}f}".replace(",", "_").replace(".", ",").replace("_", ".")
 
 
-def minutes(value):
-    return "Belirsiz" if value is None else fmt(value, 1) + " dk"
-
-
-def scheme():
-    light = str(QApplication.instance().property("alfa_theme") or "koyu") == "acik"
+def palette():
+    light=str(QApplication.instance().property("alfa_theme") or "koyu")=="acik"
     return {
-        "panel": "#ffffff" if light else "#18293d",
-        "ink": "#18334a" if light else "#ecf6ff",
-        "muted": "#586d7e" if light else "#bed0df",
-        "border": "#d4e1eb" if light else "#344e67",
-        "track": "#e7eef5" if light else "#2c3e51",
+        "panel":"#ffffff" if light else "#172a40",
+        "text":"#1c354b" if light else "#eff7ff",
+        "muted":"#617889" if light else "#b9d1e4",
+        "border":"#d6e1ea" if light else "#3b5673",
+        "track":"#e4edf5" if light else "#273d53",
     }
 
 
 class MetricCard(QFrame):
-    def __init__(self, label, color, parent=None):
+    def __init__(self,title,color,parent=None):
         super().__init__(parent)
-        self.color = color
-        lay = QVBoxLayout(self)
-        lay.setContentsMargins(14, 12, 14, 12)
-        lay.setSpacing(4)
-        self.caption = QLabel(label)
-        self.caption.setWordWrap(True)
-        self.value = QLabel("—")
+        self.color=color
+        self.setObjectName("FlexFlowMetric")
+        self.setMinimumHeight(106)
+        root=QVBoxLayout(self)
+        root.setContentsMargins(13,10,13,10)
+        root.setSpacing(4)
+        self.title=QLabel(title)
+        self.value=QLabel("—")
         self.value.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        self.value.setStyleSheet("font-weight:900;font-size:23px;color:" + color)
-        self.detail = QLabel("")
-        self.detail.setWordWrap(True)
-        lay.addWidget(self.caption)
-        lay.addWidget(self.value)
-        lay.addWidget(self.detail)
-        self.setMinimumHeight(116)
+        self.description=QLabel("")
+        self.description.setWordWrap(True)
+        root.addWidget(self.title)
+        root.addWidget(self.value)
+        root.addWidget(self.description)
 
-    def set_values(self, value, detail):
-        p = scheme()
+    def update_values(self,value,description):
+        p=palette()
         self.setStyleSheet(
-            "QFrame{background:" + p["panel"] + ";border:1px solid:" +
-            p["border"] + ";border-radius:11px;}"
-            "QLabel{border:0;background:transparent;color:" + p["ink"] + ";}"
+            "QFrame#FlexFlowMetric{background:"+p["panel"]+
+            ";border:1px solid "+p["border"]+";border-radius:11px;}"
+            "QLabel{background:transparent;border:0;color:"+p["text"]+";}"
         )
-        self.value.setStyleSheet("font-weight:900;font-size:23px;color:" + self.color)
-        self.caption.setStyleSheet("font-size:12px;font-weight:750;color:" + p["muted"])
-        self.detail.setStyleSheet("font-size:11px;color:" + p["muted"])
+        self.title.setStyleSheet("color:"+p["muted"]+";font-weight:750;font-size:12px")
+        self.value.setStyleSheet("color:"+self.color+";font-weight:900;font-size:22px")
+        self.description.setStyleSheet("color:"+p["muted"]+";font-size:11px")
         self.value.setText(str(value))
-        self.detail.setText(str(detail))
+        self.description.setText(str(description))
 
 
-class HorizontalBars(QWidget):
-    """Four equipment/workload bars; no animation timer or third-party plot library."""
-    def __init__(self, title):
-        super().__init__()
-        self.title = title
-        self.rows = []
-        self.hovered = -1
-        self.setMinimumHeight(220)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        self.setMouseTracking(True)
-
-    def set_rows(self, rows):
-        self.rows = list(rows)
-        self.hovered = -1
-        self.update()
-
-    def mouseMoveEvent(self, event):
-        idx=int((event.position().y()-55)//40)
-        idx=idx if 0<=idx<min(4,len(self.rows)) else -1
-        if idx!=self.hovered:
-            self.hovered=idx
-            from PySide6.QtWidgets import QToolTip
-            if idx>=0:
-                label,actual,capacity,color,suffix=self.rows[idx]
-                pct=100*actual/capacity if capacity else 0
-                message=(label+": "+fmt(actual,1)+" / "+fmt(capacity,0)+" "+
-                         suffix+" (%"+fmt(pct,1)+")")
-                QToolTip.showText(event.globalPosition().toPoint(),message,self)
-            else:
-                QToolTip.hideText()
-            self.update()
-        super().mouseMoveEvent(event)
-
-    def leaveEvent(self, event):
-        self.hovered=-1
-        from PySide6.QtWidgets import QToolTip
-        QToolTip.hideText()
-        self.update()
-        super().leaveEvent(event)
-
-    def paintEvent(self, event):
-        p = scheme()
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.setBrush(QColor(p["panel"]))
-        painter.setPen(QPen(QColor(p["border"]), 1))
-        painter.drawRoundedRect(self.rect().adjusted(1, 1, -2, -2), 12, 12)
-        painter.setPen(QColor(p["ink"]))
-        painter.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
-        painter.drawText(18, 27, self.title)
-        width = max(70.0, self.width() - 42.0)
-        for i, (title, actual, capacity, color, suffix) in enumerate(self.rows[:4]):
-            y = 55 + i * 40
-            painter.setFont(QFont("Segoe UI", 9, QFont.Weight.DemiBold))
-            painter.setPen(QColor(p["ink"]))
-            painter.drawText(18, y, title)
-            ratio = actual / capacity if capacity > 0 else 0
-            value = fmt(actual, 1) + " / " + fmt(capacity, 0) + " " + suffix
-            painter.setPen(QColor(p["muted"]))
-            painter.drawText(self.rect().adjusted(0, y - 17, -17, 0),
-                             Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight, value)
-            track = QRectF(18, y + 7, width, 11)
-            painter.setBrush(QColor("#4a617a") if i==self.hovered else QColor(p["track"]))
-            painter.setPen(Qt.PenStyle.NoPen)
-            painter.drawRoundedRect(track, 5, 5)
-            fill = QRectF(18, y + 7, max(0, width * min(1.0, ratio)), 11)
-            if fill.width() > 0:
-                gradient = QLinearGradient(fill.topLeft(), fill.topRight())
-                gradient.setColorAt(0, QColor(color).darker(115))
-                gradient.setColorAt(1, QColor(color))
-                painter.setBrush(gradient)
-                painter.drawRoundedRect(fill, 5, 5)
-        painter.end()
-
-
-class FlowTimeline(QWidget):
-    """Stage-duration visualization; upper bounds are not a promised finish time."""
+class BacklogPanel(QFrame):
     def __init__(self):
         super().__init__()
-        self.parts = []
-        self.hovered=-1
-        self.setMouseTracking(True)
-        self.setMinimumHeight(230)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        self.setObjectName("FlexFlowBacklog")
+        root=QVBoxLayout(self)
+        root.setContentsMargins(15,13,15,14)
+        root.setSpacing(9)
+        title=QLabel("AÇIK İŞLERİN DURUMU")
+        title.setStyleSheet("font-weight:900;font-size:13px;")
+        root.addWidget(title)
+        self.labels=[]
+        self.bars=[]
+        for label,color in (
+            ("Baskı / hazırlık bekliyor","#60baff"),
+            ("Kolilemeye hazır","#f3bf70"),
+            ("Kolilenmiş","#59d8aa"),
+        ):
+            row=QHBoxLayout()
+            caption=QLabel(label)
+            count=QLabel("—")
+            count.setStyleSheet("font-weight:850;")
+            row.addWidget(caption)
+            row.addStretch()
+            row.addWidget(count)
+            root.addLayout(row)
+            bar=QProgressBar()
+            bar.setTextVisible(False)
+            bar.setRange(0,1000)
+            bar.setFixedHeight(13)
+            bar.setStyleSheet(
+                "QProgressBar{background:"+palette()["track"]+
+                ";border:0;border-radius:6px;}"
+                "QProgressBar::chunk{background:"+color+";border-radius:6px;}"
+            )
+            root.addWidget(bar)
+            self.labels.append(count)
+            self.bars.append(bar)
+        self.subtitle=QLabel("")
+        self.subtitle.setWordWrap(True)
+        root.addWidget(self.subtitle)
 
-    def set_parts(self, parts):
-        self.parts = list(parts)
-        self.hovered=-1
-        self.update()
-
-    def mouseMoveEvent(self, event):
-        idx=int((event.position().y()-53)//42)
-        idx=idx if 0<=idx<min(4,len(self.parts)) else -1
-        if idx!=self.hovered:
-            self.hovered=idx
-            from PySide6.QtWidgets import QToolTip
-            if idx>=0:
-                label,lo,hi,_=self.parts[idx]
-                QToolTip.showText(event.globalPosition().toPoint(),
-                                  label+": "+minutes(lo)+" – "+minutes(hi),self)
-            else:QToolTip.hideText()
-            self.update()
-        super().mouseMoveEvent(event)
-
-    def leaveEvent(self, event):
-        self.hovered=-1
-        from PySide6.QtWidgets import QToolTip
-        QToolTip.hideText()
-        self.update()
-        super().leaveEvent(event)
-
-    def paintEvent(self, event):
-        p = scheme()
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.setPen(QPen(QColor(p["border"]), 1))
-        painter.setBrush(QColor(p["panel"]))
-        painter.drawRoundedRect(self.rect().adjusted(1, 1, -2, -2), 12, 12)
-        painter.setPen(QColor(p["ink"]))
-        painter.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
-        painter.drawText(18, 27, "İş aşamaları · tahmini dakika")
-        maximum = max((hi for _, lo, hi, _ in self.parts), default=0)
-        maximum = max(1.0, maximum)
-        bar_left = min(176, max(113, self.width() * 0.29))
-        bar_width = max(40.0, self.width() - bar_left - 62.0)
-        for i, (label, lo, hi, color) in enumerate(self.parts[:4]):
-            y = 53 + i * 42
-            painter.setPen(QColor(p["ink"]))
-            painter.setFont(QFont("Segoe UI", 9, QFont.Weight.DemiBold))
-            painter.drawText(15, y + 14, int(bar_left - 28), 18,
-                             Qt.AlignmentFlag.AlignVCenter, label)
-            painter.setPen(Qt.PenStyle.NoPen)
-            painter.setBrush(QColor("#4a617a") if i==self.hovered else QColor(p["track"]))
-            track = QRectF(bar_left, y + 12, bar_width, 14)
-            painter.drawRoundedRect(track, 6, 6)
-            high = bar_width * min(1.0, hi / maximum)
-            low = bar_width * min(1.0, lo / maximum)
-            if high:
-                painter.setBrush(QColor(color).darker(170))
-                painter.drawRoundedRect(QRectF(bar_left, y + 12, high, 14), 5, 5)
-            if low:
-                painter.setBrush(QColor(color))
-                painter.drawRoundedRect(QRectF(bar_left, y + 12, low, 14), 5, 5)
-            painter.setPen(QColor(p["muted"]))
-            painter.drawText(int(bar_left + 4), y + 2, minutes(lo) + " – " + minutes(hi))
-        painter.end()
+    def refresh(self,work):
+        total=int(work["books"])
+        values=[int(work["print_waiting"]),int(work["pack_ready"]),int(work["boxed"])]
+        for val,label,bar in zip(values,self.labels,self.bars):
+            label.setText(fmt(val)+" nüsha")
+            bar.setValue(round(1000*val/total) if total else 0)
+        self.subtitle.setText(
+            "Açık siparişlerde toplam "+fmt(total)+" kitap nüshasının durumu. "
+            "Tamamlanmış siparişler bu stok hesabına tekrar eklenmez."
+        )
 
 
 class FlexFlowView(QWidget):
-    """Single coherent screen for open (active and pool) production workload."""
-    def __init__(self, db, parent=None):
+    def __init__(self,db,parent=None):
         super().__init__(parent)
-        self.db = db
-        self._last = None
+        self.db=db
+        self.latest=None
         self.setObjectName("FlexFlowPage")
-        root = QVBoxLayout(self)
-        root.setContentsMargins(3, 3, 3, 3)
-        self.scroll = QScrollArea()
-        self.scroll.setWidgetResizable(True)
-        self.scroll.setFrameShape(QFrame.Shape.NoFrame)
-        self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        root.addWidget(self.scroll)
-        content = QWidget()
-        self.scroll.setWidget(content)
-        layout = QVBoxLayout(content)
-        layout.setContentsMargins(9, 11, 12, 15)
-        layout.setSpacing(12)
-        top = QHBoxLayout()
-        header = QLabel("FLEXFLOW  ·  ÜRETİM VERİMLİLİĞİ")
-        header.setStyleSheet("font-size:18px;font-weight:900;")
-        top.addWidget(header)
-        top.addStretch()
-        reload = QPushButton("↻  Güncelle")
-        reload.clicked.connect(self.refresh)
-        top.addWidget(reload)
-        layout.addLayout(top)
-        self.subtitle = QLabel("Aktif ve havuz siparişlerinden tek üretim yükü · 2 çalışan · 07:00–17:00")
-        self.subtitle.setWordWrap(True)
-        layout.addWidget(self.subtitle)
-        self.cards = []
-        grid = QGridLayout()
-        grid.setHorizontalSpacing(11)
-        grid.setVerticalSpacing(11)
-        for i, (label, color) in enumerate((
-            ("Kalan baskı", "#62baff"), ("Standart işçilik", "#57dfb0"),
-            ("En erken teorik bitiş", "#f1c270"), ("Mesai marjı", "#d8b3fa")
-        )):
-            card = MetricCard(label, color)
-            grid.addWidget(card, i // 2, i % 2)
-            self.cards.append(card)
-        layout.addLayout(grid)
-        self.warning = QLabel()
-        self.warning.setWordWrap(True)
-        layout.addWidget(self.warning)
-        self.equipment = HorizontalBars("Makine kapasitesi · 10 saatlik teorik tavan")
-        self.flow = FlowTimeline()
-        layout.addWidget(self.equipment)
-        layout.addWidget(self.flow)
-        self.notice = QLabel()
-        self.notice.setWordWrap(True)
-        layout.addWidget(self.notice)
-        table_label = QLabel("SİPARİŞ BAZLI KALAN İŞ · İLK 30")
-        table_label.setStyleSheet("font-weight:900;font-size:13px;")
-        layout.addWidget(table_label)
-        self.table = QTableWidget(0, 5)
-        self.table.setHorizontalHeaderLabels(["Sipariş", "Durum", "Kalan SB", "Kalan RNK", "Kalan sayfa"])
-        self.table.verticalHeader().hide()
-        self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.table.setAlternatingRowColors(True)
-        self.table.setMinimumHeight(250)
-        self.table.setMaximumHeight(480)
-        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        layout.addWidget(self.table)
-        layout.addStretch()
+        # Import on construction, not at module import: AnalitikView creates
+        # this view while ekran_analitik is already being imported.
+        from ekran_analitik import LineChart
+        outer=QVBoxLayout(self)
+        outer.setContentsMargins(3,3,3,3)
+        area=QScrollArea()
+        area.setWidgetResizable(True)
+        area.setFrameShape(QFrame.Shape.NoFrame)
+        area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        outer.addWidget(area)
+        content=QWidget()
+        area.setWidget(content)
+        root=QVBoxLayout(content)
+        root.setContentsMargins(9,11,12,16)
+        root.setSpacing(12)
 
-    def refresh(self):
-        pending = [
-            row for row in self.db.siparisler
-            if not row.get("iade_tarihi")
-            and self.db.siparis_durumu(row) in ("aktif", "havuz")
+        toolbar=QHBoxLayout()
+        heading=QLabel("FLEXFLOW  ·  ÜRETİM PANOSU")
+        heading.setStyleSheet("font-size:18px;font-weight:900")
+        toolbar.addWidget(heading)
+        toolbar.addStretch()
+        self.period=QComboBox()
+        self.period.setMinimumWidth(112)
+        for label,n in (("Son 7 gün",7),("Son 14 gün",14),("Son 30 gün",30)):
+            self.period.addItem(label,n)
+        self.period.setCurrentIndex(1)
+        self.period.currentIndexChanged.connect(self._period_changed)
+        toolbar.addWidget(self.period)
+        self.export_csv=QPushButton("CSV")
+        self.export_html=QPushButton("HTML Rapor")
+        self.export_csv.clicked.connect(lambda:self.export("csv"))
+        self.export_html.clicked.connect(lambda:self.export("html"))
+        toolbar.addWidget(self.export_csv)
+        toolbar.addWidget(self.export_html)
+        reload=QPushButton("↻ Güncelle")
+        reload.clicked.connect(self.refresh)
+        toolbar.addWidget(reload)
+        root.addLayout(toolbar)
+
+        intro=QLabel(
+            "Günlük üretim hareketleri, işlerin ilerlemesi ve tamamlanma temposu. "
+            "Buradaki saatlik rakamlar kaydedilmiş işlemlere dayanır."
+        )
+        intro.setWordWrap(True)
+        root.addWidget(intro)
+
+        self.cards=[]
+        kpis=QGridLayout()
+        kpis.setSpacing(10)
+        for i,(name,color) in enumerate((
+            ("Bugün tamamlanan","#51d6a6"),
+            ("Bugün hazırlanan","#6cbcff"),
+            ("Bugün kolilenen","#f1c275"),
+            ("Açık sipariş","#b9a5f5"),
+            ("Tamamlama temposu","#5ac9e8"),
+            ("Ortalama karşılaştırması","#e3a3d8"),
+        )):
+            card=MetricCard(name,color)
+            kpis.addWidget(card,i//3,i%3)
+            self.cards.append(card)
+        for col in range(3):kpis.setColumnStretch(col,1)
+        root.addLayout(kpis)
+        self.data_note=QLabel()
+        self.data_note.setWordWrap(True)
+        root.addWidget(self.data_note)
+
+        charts=QGridLayout()
+        charts.setSpacing(10)
+        self.completed_chart=LineChart("Günlük tamamlanan sipariş",[("orders","Sipariş","#51d6a6")])
+        self.progress_chart=LineChart("Günlük hazırlanan / kolilenen nüsha",[
+            ("ready","Hazırlandı","#60baff"),("boxed","Kolilendi","#f1c275")
+        ])
+        for chart,col in ((self.completed_chart,0),(self.progress_chart,1)):
+            chart.setFixedHeight(237)
+            charts.addWidget(chart,0,col)
+            charts.setColumnStretch(col,1)
+        root.addLayout(charts)
+
+        self.backlog=BacklogPanel()
+        root.addWidget(self.backlog)
+        self.shift_note=QLabel()
+        self.shift_note.setWordWrap(True)
+        self.shift_note.setStyleSheet("font-size:12px;font-weight:800;padding:8px;")
+        root.addWidget(self.shift_note)
+
+        hourly_head=QHBoxLayout()
+        hourly_title=QLabel("SAAT SAAT ÜRETİM HAREKETLERİ")
+        hourly_title.setStyleSheet("font-weight:900;font-size:13px")
+        hourly_head.addWidget(hourly_title)
+        hourly_head.addStretch()
+        self.selected_day=QComboBox()
+        self.selected_day.setMinimumWidth(135)
+        self.selected_day.currentIndexChanged.connect(self.refresh)
+        hourly_head.addWidget(self.selected_day)
+        root.addLayout(hourly_head)
+
+        self.hourly_chart=LineChart("Seçilen gün · saatlik sipariş akışı",[
+            ("started","Aktife alındı","#6cbcff"),
+            ("orders","Tamamlandı","#51d6a6")
+        ])
+        self.hourly_chart.setFixedHeight(230)
+        root.addWidget(self.hourly_chart)
+
+        self.hourly_table=self._table(
+            ["Saat","Aktife alınan","Tamamlanan",
+             "Hazırlanan nüsha","Kolilenen nüsha"],
+            345,
+        )
+        root.addWidget(self.hourly_table)
+        daily_title=QLabel("GÜNLÜK ÜRETİM RAPORU")
+        daily_title.setStyleSheet("font-weight:900;font-size:13px")
+        root.addWidget(daily_title)
+        self.daily_table=self._table(
+            ["Tarih","Tamamlanan","Kitap","Basılan sayfa",
+             "Hazırlanan","Kolilenen"],315,
+        )
+        root.addWidget(self.daily_table)
+        info=QLabel(
+            "Hazırlandı ve kolilendi işlemleri, işlem günlüğünde zaman damgası "
+            "bulunduğu günler için gösterilir. Günlüğü bulunmayan geçmiş "
+            "işlemler saatlere dağıtılmaz. 'Nüsha' kitap adedini, "
+            "'sipariş' ise ayrı sipariş kayıtlarını ifade eder."
+        )
+        info.setWordWrap(True)
+        info.setStyleSheet("font-size:11px;")
+        root.addWidget(info)
+        root.addStretch()
+
+    @staticmethod
+    def _table(headers,height):
+        table=QTableWidget(0,len(headers))
+        table.setHorizontalHeaderLabels(headers)
+        table.verticalHeader().hide()
+        table.verticalHeader().setDefaultSectionSize(25)
+        table.setShowGrid(False)
+        table.setAlternatingRowColors(True)
+        table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        table.setFixedHeight(height)
+        table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        return table
+
+    @staticmethod
+    def _rows(table,rows):
+        table.setUpdatesEnabled(False)
+        try:
+            table.setRowCount(len(rows))
+            for i,row in enumerate(rows):
+                for j,value in enumerate(row):
+                    item=table.item(i,j)
+                    if item is None:
+                        item=QTableWidgetItem()
+                        table.setItem(i,j,item)
+                    item.setText(str(value))
+        finally:
+            table.setUpdatesEnabled(True)
+
+    def _period_changed(self,*_):
+        self.selected_day.clear()
+        self.refresh()
+
+    def refresh(self,*_):
+        try:
+            days=int(self.period.currentData() or 14)
+            current=self.selected_day.currentData()
+            events=getattr(self.db,"production_events",[])
+            report=daily_dashboard(self.db,events,days=days,selected_day=current)
+            self.latest=report
+        except Exception as exc:
+            QMessageBox.warning(self,"FlexFlow","Üretim panosu yenilenemedi: "+str(exc)[:240])
+            return
+        options=[(p["date"],p["label"]) for p in report["points"]]
+        self.selected_day.blockSignals(True)
+        self.selected_day.clear()
+        for key,label in reversed(options):
+            self.selected_day.addItem(key,key)
+        selected=current if current in {p[0] for p in options} else report["end"]
+        self.selected_day.setCurrentIndex(
+            next((idx for idx in range(self.selected_day.count())
+                  if self.selected_day.itemData(idx)==selected),0))
+        self.selected_day.blockSignals(False)
+        if selected!=report["selected_day"]:
+            report=daily_dashboard(self.db,events,days=days,selected_day=selected)
+            self.latest=report
+        today=report["today"]
+        open_work=report["open_work"]
+        self.cards[0].update_values(fmt(today["orders"])+" sipariş","Bugün tamamlanan sipariş")
+        if report["today_activity_known"]:
+            ready=fmt(today["ready"])+" nüsha"
+            boxed=fmt(today["boxed"])+" nüsha"
+        else:
+            ready=boxed="Kayıt yok"
+        self.cards[1].update_values(ready,"Bugün hazır işaretlenen (net)")
+        self.cards[2].update_values(boxed,"Bugün kolilenen (net)")
+        self.cards[3].update_values(fmt(report["open_orders"])+" sipariş",
+                                    fmt(report["active_orders"])+" aktif · "+
+                                    fmt(report["open_orders"]-report["active_orders"])+" havuz")
+        self.cards[4].update_values(fmt(report["today_rate"],2)+" sipariş/sa",
+                                     "Vardiya saati başına tamamlanan")
+        change=report["tempo_change"]
+        label=("Veri yok" if change is None else
+               ("+" if change>=0 else "")+fmt(change,1)+"%")
+        self.cards[5].update_values(label,"Önceki üretim günlerinin saatlik ortalamasına göre")
+        self.data_note.setText(
+            "Son "+fmt(report["days"])+" gün: "+
+            fmt(sum(p["orders"] for p in report["points"]))+
+            " tamamlanan sipariş. Önceki üretim günlerinde ortalama "+
+            fmt(report["average_orders"],1)+" sipariş/gün."
+            + (" Hazırlama/kolileme saat kayıtları bazı günler için eksiktir."
+               if not report["has_progress_history"] else "")
+        )
+        self.completed_chart.set_data(report["points"])
+        logged=set(report["logged_days"])
+        plotted=[{**p,"ready":p["ready"] if p["date"] in logged else 0,
+                  "boxed":p["boxed"] if p["date"] in logged else 0}
+                 for p in report["points"]]
+        self.progress_chart.set_data(plotted if logged else [])
+        self.backlog.refresh(open_work)
+        self.shift_note.setText(
+            "BUGÜNÜN İŞ PLANI: "+report["workload"]+
+            "  ·  Açık işte "+fmt(open_work["print_waiting"])+
+            " nüsha baskı/hazırlık bekliyor, "+
+            fmt(open_work["pack_ready"])+" nüsha kolilemeye hazır."
+        )
+        hourly=report["hourly"]
+        self.hourly_chart.set_data([
+            {"label":f'{h["hour"]:02d}:00',"date":report["selected_day"],
+             "started":h["started"],"orders":h["orders"]} for h in hourly[7:18]
+        ])
+        daily_registered=report["selected_day"] in logged
+        shown_hours=[
+            h for h in hourly if 7<=h["hour"]<=17 or
+            h["started"] or h["orders"] or h["ready"] or h["boxed"]
         ]
-        page = self.db._book_page_count
-        result = estimate(pending, page, now=datetime.now().astimezone())
-        self._last = result
-        self.cards[0].set_values(fmt(result["print_pages"]) + " sayfa",
-                                 fmt(result["print_copies"]) + " nüsha · SB " + fmt(result["pages_sb"]) +
-                                 " / RNK " + fmt(result["pages_color"]))
-        lo, hi = result["labor_min"]
-        self.cards[1].set_values(fmt(lo / 60, 2) + " – " + fmt(hi / 60, 2) + " kişi-saat",
-                                 "Delme + spiral + kolileme · standart aralık")
-        self.cards[2].set_values(minutes(result["optimistic_elapsed_min"]),
-                                 "İdeal iki personel / paralel makine alt sınırı")
-        margin = result["shift_remaining_min"] - result["optimistic_elapsed_min"]
-        self.cards[3].set_values(("+" if margin >= 0 else "−") + minutes(abs(margin))
-                                 if result["fully_known"] else "Belirsiz",
-                                 "Bugünkü 17.00 mesai bitişine göre ideal marj")
-        self.warning.setText(
-            ("⚠ Sayfa sayısı bilinmeyen " + fmt(result["missing_page_copies"]) +
-             " nüsha var. Mesai tahmini eksiktir. Kitap kodları: " +
-             ", ".join(result["missing_page_codes"][:20]))
-            if not result["fully_known"] else
-            result["shift_status"] + " · Teorik darboğaz: " + result["bottleneck"])
-        self.equipment.set_rows([
-            ("Siyah-beyaz baskı", result["pages_sb"], result["black_shift_page_capacity"], "#62baff", "sayfa"),
-            ("Renkli baskı", result["pages_color"], result["color_shift_page_capacity"], "#ed9f71", "sayfa"),
-            ("Delme · hızlı senaryo", result["punch_min"][0], 600.0, "#ba9bff", "dk"),
-            ("Manuel iş yükü · 2 kişi", lo, 1200.0, "#57dfb0", "kişi-dk"),
+        self._rows(self.hourly_table,[
+            [f'{h["hour"]:02d}:00',h["started"],h["orders"],
+             fmt(h["ready"]) if daily_registered else "—",
+             fmt(h["boxed"]) if daily_registered else "—"]
+            for h in shown_hours
         ])
-        self.flow.set_parts([
-            ("Paralel baskı", result["print_min"], result["print_min"], "#62baff"),
-            ("Delme", *result["punch_min"], "#ba9bff"),
-            ("Elle spiralleme", *result["bind_min"], "#57dfb0"),
-            ("Kolileme", *result["pack_min"], "#f0bd71"),
+        self._rows(self.daily_table,[
+            [p["date"],fmt(p["orders"]),fmt(p["books"]),fmt(p["pages"]),
+             fmt(p["ready"]) if p["date"] in logged else "—",
+             fmt(p["boxed"]) if p["date"] in logged else "—"]
+            for p in reversed(report["points"])
         ])
-        self.notice.setText(
-            "3 SB × 45 sayfa/dk = " + fmt(BLACK_PPM) + "; 2 normal RNK × 15 ve "
-            "1 yavaş RNK × 7,5 = " + fmt(COLOR_PPM, 1) +
-            " sayfa/dk. Delme: 300 sayfa/1–2 dk; spiral: 5–45 sn/nüsha; "
-            "kolileme: 1–5 dk/sipariş. Alt sınır kesin bitiş süresi değildir. "
-            "Hazırlandı/Kolilendi işaretleri ölçülmüş makine veya personel süreleri sayılmaz.")
-        rows = []
-        for order in pending:
-            subtotal = estimate([order], page)
-            if subtotal["print_copies"] == 0 and subtotal["pack_orders"] == 0:
-                continue
-            rows.append((order, subtotal))
-        rows.sort(key=lambda pair: pair[1]["print_pages"], reverse=True)
-        self.table.setUpdatesEnabled(False)
-        self.table.setRowCount(min(30, len(rows)))
-        for i, (order, subtotal) in enumerate(rows[:30]):
-            entries = [
-                "#" + str(order.get("id", "?")),
-                "Aktif" if self.db.siparis_durumu(order) == "aktif" else "Havuz",
-                fmt(subtotal["pages_sb"]), fmt(subtotal["pages_color"]),
-                fmt(subtotal["print_pages"])
-            ]
-            for j, value in enumerate(entries):
-                self.table.setItem(i, j, QTableWidgetItem(value))
-        self.table.setUpdatesEnabled(True)
+
+    def export(self,kind):
+        if self.latest is None:
+            self.refresh()
+            if self.latest is None:return
+        extension="csv" if kind=="csv" else "html"
+        file,_=QFileDialog.getSaveFileName(
+            self,"FlexFlow üretim raporu",
+            "ALFA_FlexFlow_"+self.latest["start"]+"_"+self.latest["end"]+"."+extension,
+            "CSV (*.csv)" if kind=="csv" else "HTML (*.html)")
+        if not file:return
+        try:
+            target=Path(file)
+            if target.suffix.lower()!="."+extension:
+                target=target.with_suffix("."+extension)
+            text=csv_report(self.latest) if kind=="csv" else html_report(self.latest)
+            target.write_text(text,encoding="utf-8-sig" if kind=="csv" else "utf-8")
+            if kind=="html":
+                QDesktopServices.openUrl(QUrl.fromLocalFile(str(target.resolve())))
+        except (OSError,ValueError) as exc:
+            QMessageBox.warning(self,"Rapor kaydedilemedi",str(exc))
