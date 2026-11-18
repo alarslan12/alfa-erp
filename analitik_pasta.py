@@ -64,12 +64,12 @@ class _DonutCanvas(QWidget):
         super().__init__(parent)
         self.rows = list(rows)
         self.current = -1
-        self.setFixedSize(236, 236)
+        self.setFixedSize(204, 204)
         self.setMouseTracking(True)
 
     def _region(self):
         # Consistent geometry in both painting and hit detection.
-        return 118.0, 118.0, 102.0, 59.0
+        return 102.0, 102.0, 89.0, 53.0
 
     def _index_at(self, point):
         if not self.rows:
@@ -152,7 +152,7 @@ class _DonutCanvas(QWidget):
         p.setBrush(panel)
         p.drawEllipse(QRectF(cx-inner, cy-inner, inner*2, inner*2))
         p.setPen(ink)
-        p.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
+        p.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
         total = sum(r["amount"] for r in self.rows)
         short = _money(total)
         if len(short) > 16:
@@ -173,11 +173,17 @@ class PlatformRevenueDonut(QFrame):
         super().__init__(parent)
         self.rows = revenue_slices(platforms)
         self.setObjectName("AnalyticsPlatformDonut")
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        self.setMinimumHeight(261)
-        h = QHBoxLayout(self)
-        h.setContentsMargins(12, 9, 12, 9)
-        h.setSpacing(16)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.setMinimumHeight(294)
+        root = QVBoxLayout(self)
+        root.setContentsMargins(14, 12, 14, 12)
+        root.setSpacing(7)
+        title = QLabel("PLATFORMA GÖRE GELİR DAĞILIMI")
+        title.setObjectName("AnalyticsDonutTitle")
+        root.addWidget(title)
+        h = QHBoxLayout()
+        h.setContentsMargins(0, 0, 0, 0)
+        h.setSpacing(11)
         self.canvas = _DonutCanvas(self.rows, self)
         h.addWidget(self.canvas, 0, Qt.AlignmentFlag.AlignVCenter)
         sidebar = QVBoxLayout()
@@ -202,6 +208,7 @@ class PlatformRevenueDonut(QFrame):
             sidebar.addWidget(note)
         sidebar.addStretch()
         h.addLayout(sidebar, 1)
+        root.addLayout(h, 1)
         self.canvas.hovered.connect(self._highlight)
         self._highlight(-1)
 
@@ -215,6 +222,8 @@ class PlatformRevenueDonut(QFrame):
             ";border:1px solid " + ("#d6e1eb" if light else "#3e5773") +
             ";border-radius:12px;}"
             "QLabel#DonutLegendHeading{color:" + secondary +
+            ";font-weight:900;font-size:11px;border:0;background:transparent;}"
+            "QLabel#AnalyticsDonutTitle{color:" + ink +
             ";font-weight:900;font-size:12px;border:0;background:transparent;}"
         )
         for i, label in enumerate(self.legends):

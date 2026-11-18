@@ -23,7 +23,7 @@ from guncelleme_arayuzu import CheckWorker,should_check_today,mark_checked
 from duyuru_merkezi import AnnouncementsDialog,ManualReportDialog
 
 ROOT=Path(__file__).resolve().parent
-VERSION='2.0.43'
+VERSION='2.0.44'
 OWNER_EDITION=(ROOT/'YONETICI_SURUMU.flag').exists()
 
 
@@ -533,7 +533,9 @@ class AlfaMain(QMainWindow):
         self.setWindowTitle('ALFA ERP '+('Yönetici' if OWNER_EDITION else 'Personel')+
                             ' v'+VERSION+' · '+
                             ('Bulut bağlı' if online else 'Bağlantı bekleniyor'))
-        self.setToolTip(message)
+        # Do not assign network status to the top-level window:
+        # QWidget tooltips inherit to the entire analytics canvas and
+        # shadow hover tooltips for graphs. The cloud badge below owns it.
         conflicts=self.db.unreviewed_cloud_conflicts
         if conflicts:
             count=len(conflicts)

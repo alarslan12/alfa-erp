@@ -139,8 +139,9 @@ class LineChart(QWidget):
             p.drawEllipse(int(legend_right),16,7,7)
             p.setPen(QColor(colors['muted']))
             p.drawText(int(legend_right+12),23,label)
-        # No static numeric Y-axis labels: display the exact series value only on hover.
-        left,top,right,bottom=21.0,46.0,float(self.width()-19),float(self.height()-35)
+        # A readable scale stays visible on the left. Precise point values
+        # appear only in the hover tooltip, never as permanent overlays.
+        left,top,right,bottom=77.0,46.0,float(self.width()-19),float(self.height()-35)
         if right-left<65 or bottom-top<40:
             self._chart_bounds=None
             p.end()
@@ -159,6 +160,10 @@ class LineChart(QWidget):
             y=top+(bottom-top)*j/4
             p.setPen(QPen(QColor(colors['grid']),1))
             p.drawLine(int(left),int(y),int(right),int(y))
+            value=ymax-(ymax-ymin)*j/4
+            p.setPen(QColor(colors['muted']))
+            p.drawText(5,int(y)-8,int(left-14),17,
+                       Qt.AlignmentFlag.AlignRight,self._formatted(value))
         n=len(self.data)
         if n:
             for idx in dict.fromkeys([0,n//4,n//2,3*n//4,n-1]):
@@ -174,19 +179,25 @@ class LineChart(QWidget):
             pen=QPen(col)
             pen.setWidthF(2.4)
             p.setPen(pen)
+            # QPainter.drawPath fills even open paths with the active brush,
+            # closing them implicitly: this caused the solid triangular
+            # polygons seen in the user's screenshot.
+            p.setBrush(Qt.BrushStyle.NoBrush)
             path=QPainterPath()
             for i,row in enumerate(self.data):
                 x,y=self._location(i,row.get(key,0))
                 if i==0:path.moveTo(x,y)
                 else:path.lineTo(x,y)
-            if self.data:p.drawPath(path)
-            # One-point series still needs a visible, small anchor;
-            # multi-day lines have no permanent peak markers or number labels.
-            if len(self.data)==1:
-                x,y=self._location(0,self.data[0].get(key,0))
-                p.setPen(Qt.PenStyle.NoPen)
-                p.setBrush(col)
-                p.drawEllipse(QPointF(x,y),3.5,3.5)
+            if self.data:
+                p.drawPath(path)
+                # Small circular markers make the interactive positions
+                # discoverable without cluttering long date ranges.
+                if len(self.data)<=40:
+                    p.setPen(QPen(col,2.0))
+                    p.setBrush(QColor(colors['panel']))
+                    for row_idx, row in enumerate(self.data):
+                        x,y=self._location(row_idx,row.get(key,0))
+                        p.drawEllipse(QPointF(x,y),3.2,3.2)
         if self.hovered:
             idx,key,label,value=self.hovered
             hx,hy=self._location(idx,value)
@@ -813,12 +824,47 @@ class AnalitikView(QWidget):
         for i in range(chartcols):chartgrid.setColumnStretch(i,1)
         self.result_layout.addLayout(chartgrid)
 
-        self.result_layout.addWidget(text('PLATFORMA GÖRE GELİR DAĞILIMI','AnalyticsSection'))
-        self.result_layout.addWidget(PlatformRevenueDonut(self.latest['platforms']))
-        self.result_layout.addWidget(text(
-            'Pasta grafik, iadeler düşülmüş satış cirosunu paylaştırır; kargo gideri '
-            'buradaki yüzdelere dahil değildir. İade/kargo sonrası toplam ciro üstte gösterilir.',
-            'AccountingHelp'))
+        # Keep the platform donut at chart-card width, not a whole empty row.
+        # Its companion uses *real* already-computed metrics: there are no
+        # invented growth percentages or additional Firebase reads.
+        platform_panel=PlatformRevenueDonut(self.latest['platforms'])
+        summary_panel=QFrame()
+        summary_panel.setObjectName('AnalyticsMetricGroup')
+        summary_panel.setSizePolicy(QSizePolicy.Policy.Expanding,QSizePolicy.Policy.Fixed)
+        summary_panel.setMinimumHeight(294)
+        summary_layout=QVBoxLayout(summary_panel)
+        summary_layout.setContentsMargins(12,12,12,12)
+        summary_layout.setSpacing(10)
+        period=f'{self.start:%d.%m} – {(self.end or self.start):%d.%m}'
+        summary_heading=QLabel('ÖZET GÖSTERGELER · '+period)
+        summary_heading.setObjectName('AnalyticsGroupTitle')
+        summary_layout.addWidget(summary_heading)
+        summary_grid=QGridLayout()
+        summary_grid.setHorizontalSpacing(9)
+        summary_grid.setVerticalSpacing(9)
+        snapshot=[
+            ('Net ciro',money(m['after_shipping']),MINT,'İade ve kargo sonrası'),
+            ('Basılan sayfa',integer(m['pages']),PURPLE,'Seçili tamamlanma dönemi'),
+            ('Kitap adedi',integer(m['books']),BLUE,'Seçili tamamlanma dönemi'),
+            ('SB / RNK kitap',integer(m['sb'])+' / '+integer(m['rnk']),
+             '#f3a06e','Siyah-beyaz / renkli'),
+        ]
+        for i,(label,value,accent,note) in enumerate(snapshot):
+            summary_grid.addWidget(RevenuePill(label,value,accent,note),i//2,i%2)
+        summary_grid.setColumnStretch(0,1)
+        summary_grid.setColumnStretch(1,1)
+        summary_layout.addLayout(summary_grid)
+        dashboard_row=QGridLayout()
+        dashboard_row.setSpacing(9)
+        dashboard_row.addWidget(platform_panel,0,0)
+        if chartcols==1:
+            dashboard_row.addWidget(summary_panel,1,0)
+            dashboard_row.setColumnStretch(0,1)
+        else:
+            dashboard_row.addWidget(summary_panel,0,1)
+            dashboard_row.setColumnStretch(0,1)
+            dashboard_row.setColumnStretch(1,1)
+        self.result_layout.addLayout(dashboard_row)
 
         tops=[]
         for row in self.latest.get('books_ranked',[])[:8]:

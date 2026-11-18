@@ -6,6 +6,17 @@ https://github.com/alarslan12/alfa-erp/releases.
 """
 
 _RELEASES = [
+    ("2.0.44", "Onaylı Analitik tasarımı ve grafik doğrulaması", [
+        "Çizgi grafikleri: QPainter yolu dolgusuz çizilir, önceki renkli üçgen/dolu alan sorunu giderildi.",
+        "Sol dikey eksende ölçülü sayısal değerler geri getirildi; hover'da her veri noktasının gerçek değeri görünür.",
+        "Uygulamanın genelinde çıkan Bulut bağlı tooltip'i ana pencereden kaldırılıp sadece bağlantı göstergesine bırakıldı.",
+        "Platform satış gelir grafiği bir grafik kartı genişliğine sığacak şekilde küçültüldü.",
+        "Grafiğin yanında seçili dönemin iade/kargo sonrası cirosu, sayfası, kitap adedi ve SB/RNK sayılarından oluşan özet kartlar eklendi.",
+        "Yeni özet değerleri gerçek muhasebe verilerindendir; uydurma büyüme oranı kullanılmaz.",
+        "Normal Analitik / FlexFlow, Katalog, Siparişler ve Firebase güvenlik kuralları korunur.",
+    ]),
+
+
     ("2.0.43", "İnteraktif platform pasta grafiği ve sade çizgi grafikler", [
         "Normal Analitik'e satış platformlarının iade sonrası ciro payını gösteren interaktif halka grafik eklendi.",
         "Gardrops, Dolap ve diğer platformlarda yüzde/gelir tutarı hover'da; renkli açıklamalar yanda gösterilir.",

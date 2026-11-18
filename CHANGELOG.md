@@ -1,3 +1,12 @@
+## [v2.0.44] — 2026-11-18
+
+- Kullanıcı tarafından onaylanan Analitik tasarımına göre grafikler ve kart yerleşimi düzenlendi.
+- Grafikte QPainter'ın aktif dolgu fırçası nedeniyle oluşan üçgen alanlar giderildi: çizgiler yalnızca kontur ve hafif nokta işaretleriyle çizilir.
+- Sol Y ekseni sayısal etiketleri geri getirildi; veri noktasının gerçek tarihi ve değeri sadece hover'da gösterilir.
+- Bulut durumu araç ipucunun ana pencereye verilmesi kaldırıldı; artık yalnız bağlantı göstergesinde, grafiklerin hover ipucunu örtmez.
+- Platforma göre gelir donut grafiği bir grafik kartı genişliğinde; yanında gerçek verilerle Net Ciro, Basılan Sayfa, Kitap Adedi, SB/RNK özet göstergeleri düzenlendi.
+- Hayali büyüme yüzdesi eklenmedi. Katalog, Siparişler, FlexFlow ve Firebase/finans modeli değiştirilmedi.
+
 ## [v2.0.43] — 2026-11-18
 
 - Normal Analitik'e satış platformlarının iade sonrası ciro yüzdesini gösteren interaktif halka (pasta) grafiği eklendi. Hover'da platform adı, tutar ve yüzde; yanında renkli açıklama listesi.
