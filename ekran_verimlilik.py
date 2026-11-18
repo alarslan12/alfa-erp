@@ -254,7 +254,7 @@ class FlexFlowView(QWidget):
         daily_title.setStyleSheet("font-weight:900;font-size:13px")
         root.addWidget(daily_title)
         self.daily_table=self._table(
-            ["Tarih","Tamamlanan","Kitap","Basılan sayfa",
+            ["Tarih","Aktife alınan","Tamamlanan","Kitap","Sayfa",
              "Hazırlanan","Kolilenen"],315,
         )
         root.addWidget(self.daily_table)
@@ -390,8 +390,8 @@ class FlexFlowView(QWidget):
             for h in shown_hours
         ])
         self._rows(self.daily_table,[
-            [p["date"],fmt(p["orders"]),fmt(p["books"]),fmt(p["pages"]),
-             fmt(p["ready"]) if p["date"] in logged else "—",
+            [p["date"],fmt(p["started"]),fmt(p["orders"]),fmt(p["books"]),
+             fmt(p["pages"]),fmt(p["ready"]) if p["date"] in logged else "—",
              fmt(p["boxed"]) if p["date"] in logged else "—"]
             for p in reversed(report["points"])
         ])
