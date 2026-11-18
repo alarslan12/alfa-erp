@@ -24,6 +24,17 @@ def accounting_revenue(order):
     return 0.0 if is_returned(order) else original_revenue(order)
 
 
+def accounting_shipping(order):
+    """Known, non-negative shipping cost; refunds do not erase this expense."""
+    if order.get("kargo_ucreti") is None:
+        return 0.0
+    return max(0.0, num(order.get("kargo_ucreti")))
+
+
+def after_shipping_revenue(order):
+    """Final order revenue after returns and recorded shipping expenses."""
+    return accounting_revenue(order) - accounting_shipping(order)
+
 
 class PaymentDays:
     """Kullanıcı veri klasöründe atomik kayıt. Geçersiz dosyayı sessizce ezmez."""
@@ -150,7 +161,7 @@ def completed_summary(db, start, end):
             day['returned_orders']=day.get('returned_orders',0)+1
             day['returned_revenue']=day.get('returned_revenue',0)+original
         group = shipping_group(order)
-        ship = max(0.0,num(order.get('kargo_ucreti'))) if group in ('telafi','acik_adres') and order.get('kargo_ucreti') is not None else 0.0
+        ship = accounting_shipping(order)
         day['orders'] += 1; day['gross'] += gross; day['shipping'] += ship
         counts['gross'] += gross; counts['orders'] += 1
         counts['shipping'] += ship
@@ -202,6 +213,7 @@ def completed_summary(db, start, end):
         'shipping_missing': counts['shipping_missing'],
         'after_shipping': round(counts['gross']-counts['shipping'],2),
         'avg_order': counts['gross']/orders if orders else 0.0,
+        'per_book': counts['gross']/counts['books'] if counts['books'] else 0.0,
         'pages': counts['pages'], 'pages_sb':counts['pages_sb'], 'pages_rnk':counts['pages_rnk'],
         'books':counts['books'], 'sb':counts['sb'], 'rnk':counts['rnk'],
         'avg_pages':counts['pages']/orders if orders else 0.0,
