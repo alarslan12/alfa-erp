@@ -63,11 +63,14 @@ def extract_history(rows, days=90, now=None, maximum=12000):
     return events[:max(100,int(maximum))]
 
 
-def daily_dashboard(db, events=(), days=14, now=None):
+def daily_dashboard(db, events=(), days=14, now=None, selected_day=None):
     """Business-ready production indicators, separated by provenance."""
     now=now or datetime.now().astimezone()
     days=max(1,min(90,int(days)))
     today=now.date()
+    selected_day=selected_day or today
+    if isinstance(selected_day,str):
+        selected_day=date.fromisoformat(selected_day)
     start=today-timedelta(days=days-1)
     points={}
     for i in range(days):
@@ -105,7 +108,6 @@ def daily_dashboard(db, events=(), days=14, now=None):
     logged_days=set()
     hourly=[{"hour":hour,"started":0,"orders":0,"ready":0,"boxed":0,
              "ready_orders":set(),"boxed_orders":set()} for hour in range(24)]
-    logged_started=set()
     event_days=set()
     for entry in events or []:
         dt=local_datetime(entry.get("at"))
@@ -121,9 +123,7 @@ def daily_dashboard(db, events=(), days=14, now=None):
         row["boxed"]+=delta_boxed
         if delta_ready:row["ready_orders"].add(entry.get("order_id"))
         if delta_boxed:row["boxed_orders"].add(entry.get("order_id"))
-        if str(entry.get("status"))=="aktif":
-            logged_started.add((day_key,entry.get("order_id")))
-        if dt.date()==today:
+        if dt.date()==selected_day:
             hour=hourly[dt.hour]
             hour["ready"]+=delta_ready
             hour["boxed"]+=delta_boxed
@@ -135,9 +135,9 @@ def daily_dashboard(db, events=(), days=14, now=None):
     for order in db.siparisler:
         start_at=local_datetime(order.get("isleme_alinma_tarihi"))
         done_at=local_datetime(order.get("tamamlanma_tarihi")) if db.siparis_durumu(order)=="tamamlandi" else None
-        if start_at and start_at.date()==today:
+        if start_at and start_at.date()==selected_day:
             hourly[start_at.hour]["started"]+=1
-        if done_at and done_at.date()==today:
+        if done_at and done_at.date()==selected_day:
             hourly[done_at.hour]["orders"]+=1
 
     values=list(points.values())
@@ -171,6 +171,7 @@ def daily_dashboard(db, events=(), days=14, now=None):
     today_activity_known=today.isoformat() in logged_days
     return {
         "days":days,"start":start.isoformat(),"end":today.isoformat(),
+        "selected_day":selected_day.isoformat(),
         "points":values,"hourly":hourly,"today":values[-1],
         "open_orders":len(open_orders),
         "active_orders":sum(1 for o in open_orders if db.siparis_durumu(o)=="aktif"),
