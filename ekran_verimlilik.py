@@ -195,18 +195,23 @@ class FlexFlowView(QWidget):
 
         charts=QGridLayout()
         charts.setSpacing(10)
-        self.completed_chart=LineChart("Günlük tamamlanan sipariş",[("orders","Sipariş","#51d6a6")])
+        self.completed_chart=LineChart("Günlük tamamlanan sipariş",[
+            ("orders","Sipariş","#51d6a6")])
+        self.pages_chart=LineChart("Tamamlanan işlerin sayfa hacmi",[
+            ("pages","Sayfa","#b597ff")])
         self.progress_chart=LineChart("Kayıtlı günlerde hazırlanan / kolilenen",[
             ("ready","Hazırlandı","#60baff"),("boxed","Kolilendi","#f1c275")
         ])
-        for chart,col in ((self.completed_chart,0),(self.progress_chart,1)):
-            chart.setFixedHeight(237)
-            charts.addWidget(chart,0,col)
-            charts.setColumnStretch(col,1)
-        root.addLayout(charts)
-
         self.backlog=BacklogPanel()
-        root.addWidget(self.backlog)
+        for chart in (self.completed_chart,self.pages_chart,self.progress_chart):
+            chart.setFixedHeight(235)
+        charts.addWidget(self.completed_chart,0,0)
+        charts.addWidget(self.pages_chart,0,1)
+        charts.addWidget(self.progress_chart,1,0)
+        charts.addWidget(self.backlog,1,1)
+        charts.setColumnStretch(0,1)
+        charts.setColumnStretch(1,1)
+        root.addLayout(charts)
         self.shift_note=QLabel()
         self.shift_note.setWordWrap(True)
         self.shift_note.setStyleSheet("font-size:12px;font-weight:800;padding:8px;")
@@ -227,8 +232,17 @@ class FlexFlowView(QWidget):
             ("started","Aktife alındı","#6cbcff"),
             ("orders","Tamamlandı","#51d6a6")
         ])
-        self.hourly_chart.setFixedHeight(230)
-        root.addWidget(self.hourly_chart)
+        self.hourly_progress=LineChart("Seçilen gün · saatlik kitap hareketleri",[
+            ("ready","Hazırlandı","#60baff"),
+            ("boxed","Kolilendi","#f1c275")
+        ])
+        hours_grid=QGridLayout()
+        hours_grid.setSpacing(10)
+        for col,chart in enumerate((self.hourly_chart,self.hourly_progress)):
+            chart.setFixedHeight(230)
+            hours_grid.addWidget(chart,0,col)
+            hours_grid.setColumnStretch(col,1)
+        root.addLayout(hours_grid)
 
         self.hourly_table=self._table(
             ["Saat","Aktife alınan","Tamamlanan",
@@ -343,6 +357,7 @@ class FlexFlowView(QWidget):
                if not report["has_progress_history"] else "")
         )
         self.completed_chart.set_data(report["points"])
+        self.pages_chart.set_data(report["points"])
         logged=set(report["logged_days"])
         # Missing event history is not a measured zero. Plot only dates
         # with recorded movement; the daily table shows an explicit dash.
@@ -356,11 +371,14 @@ class FlexFlowView(QWidget):
             fmt(open_work["pack_ready"])+" nüsha kolilemeye hazır."
         )
         hourly=report["hourly"]
-        self.hourly_chart.set_data([
+        hour_points=[
             {"label":f'{h["hour"]:02d}:00',"date":report["selected_day"],
-             "started":h["started"],"orders":h["orders"]} for h in hourly[7:18]
-        ])
+             "started":h["started"],"orders":h["orders"],
+             "ready":h["ready"],"boxed":h["boxed"]} for h in hourly[7:18]
+        ]
+        self.hourly_chart.set_data(hour_points)
         daily_registered=report["selected_day"] in logged
+        self.hourly_progress.set_data(hour_points if daily_registered else [])
         shown_hours=[
             h for h in hourly if 7<=h["hour"]<=17 or
             h["started"] or h["orders"] or h["ready"] or h["boxed"]
