@@ -1,3 +1,13 @@
+## [v2.0.45] — 2026-11-18
+
+- FlexFlow baştan operasyonel yönetim paneline dönüştürüldü; makine hızı/delme/spiral katsayıları yalnız hesaplama çekirdeğinde kaldı.
+- Bugün tamamlanan sipariş, gerçek zaman damgalı hazırlama/kolileme hareketleri (nüsha/sipariş), açık iş sayısı ve vardiya saatine göre tamamlanma temposu kartları.
+- Son 7/14/30 gün çizgi grafikleri, seçilen günün saatlik aktife alınan/tamamlanan sayıları, hazırlanma/kolileme hareketleri ve günlük rapor tablosu.
+- Önceki üretim günlerinin saatlik ortalamasına göre tempo değişimi; keyfî 0-1 verimlilik skoru yok.
+- Buluttaki mevcut işlem günlüklerinden yalnız anonimleştirilmiş işlem/adet/tarih özetleri aynı senkronizasyonda alınır; ek Firebase okuma yok. Yerel, küçük bir 90 günlük olay özeti çevrimdışı kullanım için saklanır.
+- Saatlik olay geçmişi olmayan günler 'Kayıt yok' olarak gösterilir, geçmişe dönük uydurma çalışma saatleri üretilmez.
+- CSV ve HTML rapor dışa aktarımı eklendi; Katalog/Siparişler, Normal Analitik, iade/kargo muhasebesi ve Firebase Rules değişmedi.
+
 ## [v2.0.44] — 2026-11-18
 
 - Kullanıcı tarafından onaylanan Analitik tasarımına göre grafikler ve kart yerleşimi düzenlendi.
