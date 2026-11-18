@@ -14,6 +14,7 @@ from widgets import button, text, scrollable
 from muhasebe_veri import PaymentDays, accounting_days, completed_summary, html_report, completion_fingerprints, accounting_revenue, after_shipping_revenue
 from takvim import MONTHS, WEEK
 from ayar_yonetimi import accessible_ui_color
+from analitik_pasta import PlatformRevenueDonut
 
 NAVY='#10243a'
 FG='#f5f9ff'
@@ -94,7 +95,7 @@ class LineChart(QWidget):
                 choices.append((d,idx,key,label,float(self.data[idx].get(key,0))))
             if choices:
                 best=min(choices)
-                if best[0]<=19:
+                if best[0]<=25:
                     hovered=(best[1],best[2],best[3],best[4])
         if hovered!=self.hovered:
             self.hovered=hovered
@@ -138,7 +139,8 @@ class LineChart(QWidget):
             p.drawEllipse(int(legend_right),16,7,7)
             p.setPen(QColor(colors['muted']))
             p.drawText(int(legend_right+12),23,label)
-        left,top,right,bottom=73.0,46.0,float(self.width()-19),float(self.height()-35)
+        # No static numeric Y-axis labels: display the exact series value only on hover.
+        left,top,right,bottom=21.0,46.0,float(self.width()-19),float(self.height()-35)
         if right-left<65 or bottom-top<40:
             self._chart_bounds=None
             p.end()
@@ -157,9 +159,6 @@ class LineChart(QWidget):
             y=top+(bottom-top)*j/4
             p.setPen(QPen(QColor(colors['grid']),1))
             p.drawLine(int(left),int(y),int(right),int(y))
-            v=ymax-(ymax-ymin)*j/4
-            p.setPen(QColor(colors['muted']))
-            p.drawText(7,int(y)-7,57,17,Qt.AlignmentFlag.AlignRight,self._formatted(v))
         n=len(self.data)
         if n:
             for idx in dict.fromkeys([0,n//4,n//2,3*n//4,n-1]):
@@ -181,21 +180,13 @@ class LineChart(QWidget):
                 if i==0:path.moveTo(x,y)
                 else:path.lineTo(x,y)
             if self.data:p.drawPath(path)
-            if self.data:
-                peak_idx=max(range(len(self.data)),key=lambda i:float(self.data[i].get(key,0) or 0))
-                vx=float(self.data[peak_idx].get(key,0) or 0)
-                px,py=self._location(peak_idx,vx)
+            # One-point series still needs a visible, small anchor;
+            # multi-day lines have no permanent peak markers or number labels.
+            if len(self.data)==1:
+                x,y=self._location(0,self.data[0].get(key,0))
                 p.setPen(Qt.PenStyle.NoPen)
-                halo=QColor(col);halo.setAlpha(65)
-                p.setBrush(halo)
-                p.drawEllipse(QPointF(px,py),9,9)
                 p.setBrush(col)
-                p.drawEllipse(QPointF(px,py),4.2,4.2)
-                p.setFont(QFont('Segoe UI',8,QFont.Weight.Bold))
-                p.setPen(QColor(colors['text']))
-                label_y=max(top+6,min(bottom-15,py-23))
-                p.drawText(int(max(left,min(px-32,right-64))),int(label_y),65,16,
-                           Qt.AlignmentFlag.AlignCenter,self._formatted(vx))
+                p.drawEllipse(QPointF(x,y),3.5,3.5)
         if self.hovered:
             idx,key,label,value=self.hovered
             hx,hy=self._location(idx,value)
@@ -822,29 +813,20 @@ class AnalitikView(QWidget):
         for i in range(chartcols):chartgrid.setColumnStretch(i,1)
         self.result_layout.addLayout(chartgrid)
 
-        distribution=QHBoxLayout();distribution.setSpacing(9)
+        self.result_layout.addWidget(text('PLATFORMA GÖRE GELİR DAĞILIMI','AnalyticsSection'))
+        self.result_layout.addWidget(PlatformRevenueDonut(self.latest['platforms']))
+        self.result_layout.addWidget(text(
+            'Pasta grafik, iadeler düşülmüş satış cirosunu paylaştırır; kargo gideri '
+            'buradaki yüzdelere dahil değildir. İade/kargo sonrası toplam ciro üstte gösterilir.',
+            'AccountingHelp'))
+
         tops=[]
         for row in self.latest.get('books_ranked',[])[:8]:
             name=row['isim']
             tops.append([f"#{row['kod']}",name,row['adet'],row['sb'],row['rnk'],integer(row['pages'])])
-        platform_rows=[[r['name'],r['orders'],integer(r['books']),money(r['gross'])]
-                       for r in self.latest['platforms'][:8]]
-        # Compact distribution tables give useful detail even for a single date.
-        panels=[('EN ÇOK TAMAMLANAN KİTAPLAR',
-                 ['Kod','Kitap','Adet','SB','RNK','Sayfa'],tops),
-                ('PLATFORMA GÖRE',
-                 ['Platform','Sipariş','Kitap','Ciro'],platform_rows)]
-        if columns>=4:
-            for caption,head,rows in panels:
-                sub=QVBoxLayout();sub.setSpacing(5)
-                sub.addWidget(text(caption,'AnalyticsSection'))
-                sub.addWidget(self.table(head,rows,205))
-                distribution.addLayout(sub,1)
-            self.result_layout.addLayout(distribution)
-        else:
-            for caption,head,rows in panels:
-                self.result_layout.addWidget(text(caption,'AnalyticsSection'))
-                self.result_layout.addWidget(self.table(head,rows,205))
+        self.result_layout.addWidget(text('EN ÇOK TAMAMLANAN KİTAPLAR','AnalyticsSection'))
+        self.result_layout.addWidget(
+            self.table(['Kod','Kitap','Adet','SB','RNK','Sayfa'],tops,205))
 
         self.result_layout.addWidget(text('GÜNLÜK MUHASEBE','AnalyticsSection'))
         rows=[]
