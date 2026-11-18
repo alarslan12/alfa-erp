@@ -231,7 +231,7 @@ class FlexFlowView(QWidget):
 
         self.hourly_table=self._table(
             ["Saat","Aktife alınan","Tamamlanan",
-             "Hazırlanan nüsha","Kolilenen nüsha"],
+             "Hazırlanan nüsha / sip.","Kolilenen nüsha / sip."],
             345,
         )
         root.addWidget(self.hourly_table)
@@ -318,8 +318,10 @@ class FlexFlowView(QWidget):
             boxed=fmt(today["boxed"])+" nüsha"
         else:
             ready=boxed="Kayıt yok"
-        self.cards[1].update_values(ready,"Bugün hazır işaretlenen (net)")
-        self.cards[2].update_values(boxed,"Bugün kolilenen (net)")
+        self.cards[1].update_values(
+            ready,"Bugün "+fmt(today["ready_orders"])+" siparişte hazırlama hareketi")
+        self.cards[2].update_values(
+            boxed,"Bugün "+fmt(today["boxed_orders"])+" siparişte kolileme hareketi")
         self.cards[3].update_values(fmt(report["open_orders"])+" sipariş",
                                     fmt(report["active_orders"])+" aktif · "+
                                     fmt(report["open_orders"]-report["active_orders"])+" havuz")
@@ -362,8 +364,8 @@ class FlexFlowView(QWidget):
         ]
         self._rows(self.hourly_table,[
             [f'{h["hour"]:02d}:00',h["started"],h["orders"],
-             fmt(h["ready"]) if daily_registered else "—",
-             fmt(h["boxed"]) if daily_registered else "—"]
+             (fmt(h["ready"])+" / "+fmt(h["ready_orders"])) if daily_registered else "—",
+             (fmt(h["boxed"])+" / "+fmt(h["boxed_orders"])) if daily_registered else "—"]
             for h in shown_hours
         ])
         self._rows(self.daily_table,[
