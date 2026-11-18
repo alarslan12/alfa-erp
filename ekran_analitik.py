@@ -69,7 +69,7 @@ class LineChart(QWidget):
         value=float(value)
         if abs(value)>=10:
             return f'{value:,.0f}'.replace(',', '.')
-        return f'{value:,.1f}'.replace(',', '.').replace('..', ',')
+        return f'{value:,.1f}'.replace('.', ',')
 
     def _location(self,idx,value):
         if self._chart_bounds is None:return 0.0,0.0
