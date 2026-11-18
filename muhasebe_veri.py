@@ -11,13 +11,29 @@ import json
 import os
 import tempfile
 import hashlib
+from decimal import Decimal, InvalidOperation
 
 from analitik_veri import read_date, num, shipping_group
 from siparis_arsivi import is_returned, shipping_fee_entered
 
 
+def _money(value):
+    """Read persisted numeric amounts, including old Turkish-format strings."""
+    raw=str(value or "0").strip().replace(" ", "").replace("₺", "")
+    if "," in raw and "." in raw:
+        raw=(raw.replace(".", "").replace(",", ".")
+             if raw.rfind(",")>raw.rfind(".") else raw.replace(",", ""))
+    else:
+        raw=raw.replace(",", ".")
+    try:
+        amount=Decimal(raw)
+        return max(0.0,float(amount)) if amount.is_finite() else 0.0
+    except (InvalidOperation, ValueError, OverflowError):
+        return 0.0
+
+
 def original_revenue(order):
-    return 0.0 if shipping_group(order)=="telafi" else num(order.get('ciro'))
+    return 0.0 if shipping_group(order)=="telafi" else _money(order.get('ciro'))
 
 
 def accounting_revenue(order):
@@ -26,9 +42,7 @@ def accounting_revenue(order):
 
 def accounting_shipping(order):
     """Known, non-negative shipping cost; refunds do not erase this expense."""
-    if order.get("kargo_ucreti") is None:
-        return 0.0
-    return max(0.0, num(order.get("kargo_ucreti")))
+    return _money(order.get("kargo_ucreti"))
 
 
 def after_shipping_revenue(order):
