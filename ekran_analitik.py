@@ -7,7 +7,7 @@ from PySide6.QtGui import QColor, QPainter, QPen, QFont, QPainterPath, QDesktopS
 from PySide6.QtWidgets import (
     QWidget, QFrame, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel,
     QPushButton, QFileDialog, QMessageBox, QTableWidget, QTableWidgetItem,
-    QHeaderView, QAbstractItemView, QSizePolicy, QApplication, QCheckBox
+    QHeaderView, QAbstractItemView, QSizePolicy, QApplication, QCheckBox, QTabWidget
 )
 from PySide6.QtCore import QUrl
 from widgets import button, text, scrollable
@@ -222,6 +222,25 @@ class AnalitikView(QWidget):
         root=QVBoxLayout(self)
         root.setContentsMargins(2,3,2,5)
         root.setSpacing(9)
+        self.sections=None
+        self.flexflow=None
+        self._normal_dirty=True
+        if self.owner_edition:
+            from ekran_verimlilik import FlexFlowView
+            self.sections=QTabWidget(self)
+            self.sections.setObjectName("AnalyticsSectionTabs")
+            normal_page=QWidget()
+            normal_layout=QVBoxLayout(normal_page)
+            normal_layout.setContentsMargins(1,3,1,3)
+            normal_layout.setSpacing(9)
+            self.sections.addTab(normal_page,"Normal Analitik")
+            self.flexflow=FlexFlowView(self.db,self)
+            self.sections.addTab(self.flexflow,"FlexFlow")
+            root.addWidget(self.sections,1)
+            self.sections.currentChanged.connect(self._section_changed)
+            work_layout=normal_layout
+        else:
+            work_layout=root
         header=QHBoxLayout()
         heading=text('◈  Muhasebe & Analitik', 'AnalyticsTitle')
         header.addWidget(heading)
@@ -232,16 +251,11 @@ class AnalitikView(QWidget):
         export.setToolTip('Seçili tamamlanma tarihlerindeki kayıtlarla HTML muhasebe raporu oluştur')
         export.clicked.connect(self.export_html)
         header.addWidget(export)
-        if self.owner_edition:
-            flexflow=button('▤ Verimlilik · FlexFlow', 'AnalyticsExport')
-            flexflow.setToolTip('Gerçek yazıcı parkı, delme ve işçilik kapasitesiyle üretim tahmini')
-            flexflow.clicked.connect(self.open_flexflow)
-            header.addWidget(flexflow)
         reload=button('↻','SmallAction')
         reload.setToolTip('Siparişleri ve takvimi yenile')
         reload.clicked.connect(self.refresh)
         header.addWidget(reload)
-        root.addLayout(header)
+        work_layout.addLayout(header)
 
         body=QHBoxLayout()
         body.setSpacing(12)
@@ -335,19 +349,24 @@ class AnalitikView(QWidget):
         self._reflow_timer.setInterval(90)
         self._reflow_timer.timeout.connect(self._adapt_width)
         body.addWidget(self.results_scroll,1)
-        root.addLayout(body,1)
-        self.refresh()
+        work_layout.addLayout(body,1)
+        # Render lazily on tab navigation to avoid startup/UI freezes.
+        self._normal_refresh_timer=QTimer(self)
+        self._normal_refresh_timer.setSingleShot(True)
+        self._normal_refresh_timer.setInterval(125)
+        self._normal_refresh_timer.timeout.connect(self._refresh_normal_now)
+        self._report_timer=QTimer(self)
+        self._report_timer.setSingleShot(True)
+        self._report_timer.setInterval(90)
+        self._report_timer.timeout.connect(self._render_report)
 
-    def open_flexflow(self):
-        if not self.owner_edition:
-            return
-        from ekran_verimlilik import FlexFlowDialog
-        start=self.start.isoformat() if self.start else ''
-        end=(self.end or self.start).isoformat() if self.start else ''
-        period=f'{start} – {end}' if start else ''
-        dialog=FlexFlowDialog(self.db, self.latest.get('orders', []) if self.latest else [],
-                              period_label=period, parent=self)
-        dialog.exec()
+    def _section_changed(self,index):
+        if index==1 and self.flexflow is not None:
+            self._normal_refresh_timer.stop()
+            self._report_timer.stop()
+            self.flexflow.refresh()
+        else:
+            self.refresh()
 
     def eventFilter(self, watched, event):
         # Qt can deliver a final event while the scroll area is being
@@ -374,10 +393,9 @@ class AnalitikView(QWidget):
         # pending Qt layout deletions are still being processed.
         if not self.isVisible() or getattr(self,'_report_building',False):
             return
-        if self._last_metric_columns != (
-            self._metric_columns(), self._revenue_columns()
-        ):
-            self.show_report()
+        # Do not reconstruct 6 charts/large tables on layout resize.
+        # Qt grids stretch until the next data-driven refresh.
+        return
 
     def _toggle_range(self,enabled):
         if enabled:
@@ -423,6 +441,17 @@ class AnalitikView(QWidget):
         self.results_scroll.verticalScrollBar().setValue(0)
 
     def refresh(self,*_):
+        if self.sections is not None and self.sections.currentIndex()==1:
+            self._normal_dirty=True
+            if self.flexflow is not None:
+                self.flexflow.refresh()
+            return
+        self._normal_refresh_timer.start()
+
+    def _refresh_normal_now(self):
+        if self.sections is not None and self.sections.currentIndex()==1:
+            self._normal_dirty=True
+            return
         if self.db.cloud_accounting_loaded:
             self.payments.apply_cloud(self.db.cloud_accounting_rows)
         self.completed_days,self.active_days=accounting_days(self.db)
@@ -435,6 +464,7 @@ class AnalitikView(QWidget):
             self.end=None
             self.year,self.month=self.start.year,self.start.month
         self.paint_calendar()
+        self._normal_dirty=False
         self.show_report()
 
     def paint_calendar(self):
@@ -453,15 +483,21 @@ class AnalitikView(QWidget):
             done=self.completed_days.get(key,0)
             active=self.active_days.get(key,0)
             state='paid' if is_paid else 'review' if is_review else 'done' if done else 'active' if active else 'none'
+            selected=bool(start and start<=day<=end)
+            outside=day.month!=self.month
+            changed=(btn.property('accountState')!=state or
+                     btn.property('selectedDay')!=selected or
+                     btn.property('outsideMonth')!=outside)
             btn.setProperty('dateKey',key)
             btn.setProperty('accountState',state)
-            btn.setProperty('selectedDay',bool(start and start<=day<=end))
-            btn.setProperty('outsideMonth',day.month!=self.month)
+            btn.setProperty('selectedDay',selected)
+            btn.setProperty('outsideMonth',outside)
             btn.setText(str(day.day))
             status='ÖDENDİ' if is_paid else 'Değişiklik sonrası ödeme yeniden kontrol edilmeli' if is_review else 'ÖDENMEDİ' if done else 'Aktif sipariş var' if active else 'İşlem yok'
             btn.setToolTip(f'{day:%d.%m.%Y}\n{done} tamamlanan · {active} aktif sipariş (oluşturulma günü)\n{status}')
-            btn.style().unpolish(btn)
-            btn.style().polish(btn)
+            if changed:
+                btn.style().unpolish(btn)
+                btn.style().polish(btn)
         if start:
             if self.end:
                 label=f'{self.start:%d.%m.%Y} → {self.end:%d.%m.%Y}'
@@ -523,13 +559,26 @@ class AnalitikView(QWidget):
         self.show_report()
 
     def show_report(self):
+        if self.start is None:
+            return
+        if self.sections is not None and self.sections.currentIndex()==1:
+            self._normal_dirty=True
+            return
+        self._report_timer.start()
+
+    def _render_report(self):
         if self.start is None or getattr(self,'_report_building',False):
             return
+        if self.sections is not None and self.sections.currentIndex()==1:
+            self._normal_dirty=True
+            return
         self._report_building=True
+        self.setUpdatesEnabled(False)
         try:
             self._build_report()
         finally:
             self._report_building=False
+            self.setUpdatesEnabled(True)
 
     def _build_report(self):
         start=self.start.isoformat()
