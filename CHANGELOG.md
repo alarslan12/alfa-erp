@@ -1,3 +1,11 @@
+## [v2.0.43] — 2026-11-18
+
+- Normal Analitik'e satış platformlarının iade sonrası ciro yüzdesini gösteren interaktif halka (pasta) grafiği eklendi. Hover'da platform adı, tutar ve yüzde; yanında renkli açıklama listesi.
+- Gelir payı hesabı sipariş adedini değil gerçek satış cirosunu kullanır; iade edilen satışları ve sıfır cirolu telafi siparişlerini dilimlere katmaz. Kargo, ayrı finans kartlarında düşülmeye devam eder.
+- Çizgi grafiklerinin altı doldurulmaz; sol dikey eksendeki sabit sayısal etiketler ve tepeye yapıştırılmış sürekli değerler kaldırıldı.
+- Grafikteki veri noktalarının sayısal değerleri sadece fareyle üzerine gelince gösterilir.
+- Normal Analitik/FlexFlow yerleşimi, siparişler, kargo ve iade muhasebesi korunur.
+
 ## [v2.0.42] — 2026-11-18
 
 - Analitik artık **Normal Analitik** ve tek, popup olmayan **FlexFlow** sayfası olarak iki sekme içerir. Kapasite grafikleri, zaman aşamaları, sayısal kartlar ve iş yükü tablosu eklenmiştir.
