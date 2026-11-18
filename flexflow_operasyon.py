@@ -165,7 +165,8 @@ def daily_dashboard(db, events=(), days=14, now=None, selected_day=None):
     elapsed=max(0.0,min(SHIFT_MINUTES,(now-shift_start).total_seconds()/60))
     rate=today_orders/(elapsed/60) if elapsed else 0
     baseline_rate=average_orders/(SHIFT_MINUTES/60)
-    tempo_change=(100*(rate/baseline_rate-1)) if baseline_rate>0 else None
+    # A first few minutes at shift start is not a fair daily comparison.
+    tempo_change=(100*(rate/baseline_rate-1)) if baseline_rate>0 and elapsed>=60 else None
     pending=[o for o in open_orders if db.siparis_durumu(o) in ("aktif","havuz")]
     forecast=estimate(pending,db._book_page_count,now=now)
     if forecast["shift_status"]=="İki senaryoda da mesaiye sığıyor":
