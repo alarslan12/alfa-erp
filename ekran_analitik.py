@@ -38,113 +38,179 @@ def integer(n):
 
 
 class LineChart(QWidget):
-    """Hafif yerel grafik; yeni paket kurmaya gerek yok."""
+    """Lightweight interactive time-series chart: hover value, peak, clear axes."""
     def __init__(self, title, series):
         super().__init__()
-        self.title = title
-        self.series = series    # (dataset_key, caption, color)
-        self.data = []
+        self.title=title
+        self.series=series
+        self.data=[]
+        self.hovered=None
+        self._chart_bounds=None
         self.setObjectName('AnalyticsChart')
         self.setMinimumHeight(200)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding,QSizePolicy.Policy.Preferred)
+        self.setMouseTracking(True)
 
-    def set_data(self, data):
-        self.data = data
+    def set_data(self,data):
+        self.data=list(data)
+        self.hovered=None
         self.update()
 
     def _colors(self):
-        theme = str(QApplication.instance().property('alfa_theme') or 'koyu')
-        if theme == 'acik':
-            return {
-                'bg': CREAM_BG, 'panel': CREAM_PANEL, 'border': CREAM_BORDER,
-                'text': CREAM_TEXT, 'muted': CREAM_MUTED, 'grid': '#dacdbc'
-            }
-        return {
-            'bg': NAVY, 'panel': NAVY, 'border': '#3b516c',
-            'text': FG, 'muted': MUTED, 'grid': '#34475e'
-        }
+        theme=str(QApplication.instance().property('alfa_theme') or 'koyu')
+        if theme=='acik':
+            return {'panel':CREAM_PANEL,'border':CREAM_BORDER,'text':CREAM_TEXT,
+                    'muted':CREAM_MUTED,'grid':'#d7c8b7'}
+        return {'panel':NAVY,'border':'#3b516c','text':FG,
+                'muted':MUTED,'grid':'#34475e'}
 
-    def paintEvent(self, event):
+    @staticmethod
+    def _formatted(value):
+        value=float(value)
+        if abs(value)>=1000000:return f'{value/1000000:.2f}M'
+        if abs(value)>=1000:return f'{value/1000:.1f}k'
+        if abs(value)>=10:return f'{value:.0f}'
+        return f'{value:.1f}'
+
+    def _location(self,idx,value):
+        if self._chart_bounds is None:return 0.0,0.0
+        l,t,r,b,ymin,ymax=self._chart_bounds
+        x=(l+r)/2 if len(self.data)==1 else l+(r-l)*idx/max(1,len(self.data)-1)
+        y=b-(b-t)*(float(value)-ymin)/(ymax-ymin)
+        return x,y
+
+    def mouseMoveEvent(self,event):
+        if self._chart_bounds is None or not self.data:
+            return super().mouseMoveEvent(event)
+        l,t,r,b,_,_=self._chart_bounds
+        x,y=event.position().x(),event.position().y()
+        hovered=None
+        if l-11<=x<=r+11 and t-14<=y<=b+14:
+            n=len(self.data)
+            idx=0 if n==1 else min(n-1,max(0,round((x-l)*max(1,n-1)/max(1,r-l))))
+            choices=[]
+            for key,label,_ in self.series:
+                point=self._location(idx,self.data[idx].get(key,0))
+                d=((point[0]-x)**2+(point[1]-y)**2)**0.5
+                choices.append((d,idx,key,label,float(self.data[idx].get(key,0))))
+            if choices:
+                best=min(choices)
+                if best[0]<=19:
+                    hovered=(best[1],best[2],best[3],best[4])
+        if hovered!=self.hovered:
+            self.hovered=hovered
+            if hovered:
+                from PySide6.QtWidgets import QToolTip
+                idx,key,label,value=hovered
+                date_label=self.data[idx].get('date') or self.data[idx].get('label','')
+                QToolTip.showText(event.globalPosition().toPoint(),
+                                  str(date_label)+' · '+label+': '+f'{value:,.2f}',self)
+            else:
+                from PySide6.QtWidgets import QToolTip
+                QToolTip.hideText()
+            self.update()
+        super().mouseMoveEvent(event)
+
+    def leaveEvent(self,event):
+        if self.hovered is not None:
+            self.hovered=None
+            from PySide6.QtWidgets import QToolTip
+            QToolTip.hideText()
+            self.update()
+        super().leaveEvent(event)
+
+    def paintEvent(self,event):
         colors=self._colors()
-        painter=QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.setBrush(QColor(colors['panel']))
-        painter.setPen(QPen(QColor(colors['border']),1))
-        painter.drawRoundedRect(self.rect().adjusted(1,1,-2,-2),12,12)
-        painter.setFont(QFont('Segoe UI',11,QFont.Weight.Bold))
-        painter.setPen(QColor(colors['text']))
-        painter.drawText(17,25,self.title)
-        right=self.width()-20
-        xlegend=right
-        painter.setFont(QFont('Segoe UI',8))
+        p=QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        p.setBrush(QColor(colors['panel']))
+        p.setPen(QPen(QColor(colors['border']),1))
+        p.drawRoundedRect(self.rect().adjusted(1,1,-2,-2),12,12)
+        p.setPen(QColor(colors['text']))
+        p.setFont(QFont('Segoe UI',10,QFont.Weight.Bold))
+        p.drawText(14,23,self.title)
+        legend_right=self.width()-17
+        p.setFont(QFont('Segoe UI',8))
         for key,label,col in reversed(self.series):
-            w=max(66,len(label)*6+22)
-            xlegend-=w
-            painter.setPen(Qt.PenStyle.NoPen);painter.setBrush(QColor(accessible_ui_color(col)))
-            painter.drawEllipse(xlegend,16,7,7)
-            painter.setPen(QColor(colors['muted']))
-            painter.drawText(xlegend+11,23,label)
-        l, t, r, b = 47,47,max(75,self.width()-17),self.height()-36
-        if r-l<40 or b-t<45:
-            painter.end();return
-        vals=[float(item.get(key,0)) for item in self.data for key,_,_ in self.series]
-        ymax=max(vals, default=0)
-        ymax=max(1,ymax*1.12)
-        painter.setFont(QFont('Segoe UI',8))
+            block=max(57,len(label)*6+20)
+            legend_right-=block
+            p.setBrush(QColor(accessible_ui_color(col)))
+            p.setPen(Qt.PenStyle.NoPen)
+            p.drawEllipse(int(legend_right),16,7,7)
+            p.setPen(QColor(colors['muted']))
+            p.drawText(int(legend_right+12),23,label)
+        left,top,right,bottom=73.0,46.0,float(self.width()-19),float(self.height()-35)
+        if right-left<65 or bottom-top<40:
+            self._chart_bounds=None
+            p.end()
+            return
+        values=[float(row.get(key,0) or 0) for row in self.data for key,_,_ in self.series]
+        ymin=min(0,min(values,default=0))
+        ymax=max(1,max(values,default=0))
+        if ymin>=0:ymax*=1.10
+        else:
+            extent=max(1.0,ymax-ymin)
+            ymin-=extent*.05
+            ymax+=extent*.08
+        self._chart_bounds=(left,top,right,bottom,ymin,ymax)
+        p.setFont(QFont('Segoe UI',8))
         for j in range(5):
-            y=t+(b-t)*j/4
-            painter.setPen(QPen(QColor(colors['grid']),1))
-            painter.drawLine(int(l),int(y),int(r),int(y))
-            v=ymax*(1-j/4)
-            s=(f'{v/1000:.1f}k' if v>=1000 else f'{v:.0f}' if v>=10 else f'{v:.1f}')
-            painter.setPen(QColor(colors['muted']))
-            painter.drawText(7,int(y)+4,37,12,Qt.AlignmentFlag.AlignRight,s)
+            y=top+(bottom-top)*j/4
+            p.setPen(QPen(QColor(colors['grid']),1))
+            p.drawLine(int(left),int(y),int(right),int(y))
+            v=ymax-(ymax-ymin)*j/4
+            p.setPen(QColor(colors['muted']))
+            p.drawText(7,int(y)-7,57,17,Qt.AlignmentFlag.AlignRight,self._formatted(v))
         n=len(self.data)
         if n:
-            labels=[0,n//4,n//2,3*n//4,n-1]
-            for idx in dict.fromkeys(labels):
-                x=(l+r)/2 if n==1 else l+(r-l)*idx/max(1,n-1)
-                painter.setPen(QColor(colors['muted']))
-                painter.drawText(int(x)-21,b+8,42,17,Qt.AlignmentFlag.AlignHCenter,self.data[idx]['label'])
-        if n==0:
-            painter.setPen(QColor(colors['muted']))
-            painter.drawText(self.rect(),Qt.AlignmentFlag.AlignCenter,'Henüz veri yok')
-        if n == 1:
-            # A line chart with one date is just a dot: display proportional bars.
-            plot_width = max(45, r-l)
-            bar_w = min(58, max(28, int(plot_width/(len(self.series)*4))))
-            spacing = min(22, max(8, bar_w//2))
-            group_w = len(self.series)*bar_w + (len(self.series)-1)*spacing
-            base_x = (l+r-group_w)/2
-            for index,(key,label,color) in enumerate(self.series):
-                value = float(self.data[0].get(key,0))
-                height = (b-t)*value/ymax
-                x = base_x + index*(bar_w+spacing)
-                y = b-height
-                painter.setPen(Qt.PenStyle.NoPen)
-                painter.setBrush(QColor(accessible_ui_color(color)))
-                if height > 0:
-                    painter.drawRoundedRect(int(x),int(y),bar_w,max(2,int(height)),4,4)
-                else:
-                    painter.drawRoundedRect(int(x),int(b)-2,bar_w,2,1,1)
-                number = f'{value:,.0f}' if key in ('orders','pages','sb','rnk','books') else f'{value:,.2f}'
-                painter.setPen(QColor(colors['text']))
-                painter.setFont(QFont('Segoe UI',9,QFont.Weight.Bold))
-                painter.drawText(int(x)-25,int(max(t+2,y-20)),bar_w+50,17,
-                                 Qt.AlignmentFlag.AlignHCenter,number)
+            for idx in dict.fromkeys([0,n//4,n//2,3*n//4,n-1]):
+                x,_=self._location(idx,0)
+                label=str(self.data[idx].get('label',''))
+                p.setPen(QColor(colors['muted']))
+                p.drawText(int(x-23),int(bottom+8),46,17,Qt.AlignmentFlag.AlignHCenter,label)
         else:
-            for key,label,color in self.series:
-                pen=QPen(QColor(accessible_ui_color(color)))
-                pen.setWidthF(2.5)
-                painter.setPen(pen)
-                path=QPainterPath()
-                for i,item in enumerate(self.data):
-                    x=l+(r-l)*i/max(1,n-1)
-                    y=b-(b-t)*float(item.get(key,0))/ymax
-                    if i==0: path.moveTo(x,y)
-                    else:path.lineTo(x,y)
-                painter.drawPath(path)
-        painter.end()
+            p.setPen(QColor(colors['muted']))
+            p.drawText(self.rect(),Qt.AlignmentFlag.AlignCenter,'Henüz veri yok')
+        for key,label,color in self.series:
+            col=QColor(accessible_ui_color(color))
+            pen=QPen(col)
+            pen.setWidthF(2.4)
+            p.setPen(pen)
+            path=QPainterPath()
+            for i,row in enumerate(self.data):
+                x,y=self._location(i,row.get(key,0))
+                if i==0:path.moveTo(x,y)
+                else:path.lineTo(x,y)
+            if self.data:p.drawPath(path)
+            if self.data:
+                peak_idx=max(range(len(self.data)),key=lambda i:float(self.data[i].get(key,0) or 0))
+                vx=float(self.data[peak_idx].get(key,0) or 0)
+                px,py=self._location(peak_idx,vx)
+                p.setPen(Qt.PenStyle.NoPen)
+                halo=QColor(col);halo.setAlpha(65)
+                p.setBrush(halo)
+                p.drawEllipse(QPointF(px,py),9,9)
+                p.setBrush(col)
+                p.drawEllipse(QPointF(px,py),4.2,4.2)
+                p.setFont(QFont('Segoe UI',8,QFont.Weight.Bold))
+                p.setPen(QColor(colors['text']))
+                label_y=max(top+6,min(bottom-15,py-23))
+                p.drawText(int(max(left,min(px-32,right-64))),int(label_y),65,16,
+                           Qt.AlignmentFlag.AlignCenter,self._formatted(vx))
+        if self.hovered:
+            idx,key,label,value=self.hovered
+            hx,hy=self._location(idx,value)
+            p.setPen(QPen(QColor(colors['muted']),1,Qt.PenStyle.DashLine))
+            p.drawLine(int(hx),int(top),int(hx),int(bottom))
+            tint=next((color for colkey,_,color in self.series if colkey==key),BLUE)
+            color=QColor(accessible_ui_color(tint))
+            p.setPen(Qt.PenStyle.NoPen)
+            glow=QColor(color);glow.setAlpha(75)
+            p.setBrush(glow)
+            p.drawEllipse(QPointF(hx,hy),12,12)
+            p.setBrush(color)
+            p.drawEllipse(QPointF(hx,hy),6,6)
+        p.end()
 
 
 class StatPill(QFrame):
