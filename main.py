@@ -533,7 +533,9 @@ class AlfaMain(QMainWindow):
         self.setWindowTitle('ALFA ERP '+('Yönetici' if OWNER_EDITION else 'Personel')+
                             ' v'+VERSION+' · '+
                             ('Bulut bağlı' if online else 'Bağlantı bekleniyor'))
-        self.setToolTip(message)
+        # Do not assign network status to the top-level window:
+        # QWidget tooltips inherit to the entire analytics canvas and
+        # shadow hover tooltips for graphs. The cloud badge below owns it.
         conflicts=self.db.unreviewed_cloud_conflicts
         if conflicts:
             count=len(conflicts)
