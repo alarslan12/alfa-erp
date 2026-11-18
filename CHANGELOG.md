@@ -1,3 +1,13 @@
+## [v2.0.42] — 2026-11-18
+
+- Analitik artık **Normal Analitik** ve tek, popup olmayan **FlexFlow** sayfası olarak iki sekme içerir. Kapasite grafikleri, zaman aşamaları, sayısal kartlar ve iş yükü tablosu eklenmiştir.
+- Sayfa açılışı/yenilemeleri gecikmeli birleştirilir; grafikler her boyut değişiminde tekrar kurulmaz.
+- Çizgi grafiklerinin sayısal sol ekseni, hover noktaları ve tepe işaretleri iyileştirildi.
+- Ödenmeyen ciro, iade ve kaydedilmiş kargo giderleri düşüldükten sonraki tutarı gösterir; HTML raporu aynı yöntemi kullanır.
+- İade sebebi dialogu açık/koyu temalarda okunabilir; kitap başına ciro eklenmiş, kitap/sayfa/SB/RNK istatistikleri birleştirilmiştir.
+- İstenmeyen ödeme kapsama, aktif açık adres kargo göstergesi ve alt sipariş tablosu kaldırılmıştır.
+- Katalog, Siparişler ve Firebase güvenlik kuralları korunmuştur.
+
 ## [v2.0.41] — 2026-11-18
 
 - Yönetici → Analitik → Verimlilik (FlexFlow): gerçek cihaz hızları, delme, elle spiralleme ve kolileme süreleriyle sayısal üretim kapasitesi.
