@@ -93,6 +93,19 @@ class FlexFlowOperationalTests(unittest.TestCase):
         self.assertEqual(r["hourly"][10]["orders"],1)
         self.assertEqual(r["hourly"][11]["orders"],0)
 
+    def test_reactivated_order_transition_is_counted_without_current_start(self):
+        now,orders,_=self.setup_orders()
+        rows=[{"id":"cloud-pool","durum":"havuz","kitaplar":[],
+               "event_log":{"started-1":{
+                   "id":"started-1","action":"transition",
+                   "created_at":datetime(2026,11,18,13,0,tzinfo=now.tzinfo).isoformat(),
+                   "details":{"events":[{"to_status":"aktif"}]}}}}]
+        events=extract_history(rows,now=now)
+        orders.append({"id":4,"bulut_id":"cloud-pool","durum":"havuz","kitaplar":[]})
+        r=daily_dashboard(FakeDB(orders),events,now=now,days=7)
+        self.assertEqual(r["hourly"][13]["started"],1)
+        self.assertEqual(r["today"]["started"],3)
+
     def test_production_screen_shows_business_metrics_not_raw_coefficients(self):
         import os
         os.environ.setdefault("QT_QPA_PLATFORM","offscreen")
