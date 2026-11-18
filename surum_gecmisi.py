@@ -6,6 +6,16 @@ https://github.com/alarslan12/alfa-erp/releases.
 """
 
 _RELEASES = [
+    ("2.0.42", "Analitik hızlandırma ve görsel FlexFlow", [
+        "Analitik ekranı Normal Analitik ve FlexFlow olarak iki ana sekmeye ayrıldı; popup kaldırıldı.",
+        "FlexFlow tek ekranda dinamik kapasite grafikleri, kişi-saat kartları ve sipariş iş yükü tablosu gösterir.",
+        "Analitik raporu yüklemesi gecikmeli/birleştirilmiş; pencere boyutu her değiştiğinde bütün grafikler yeniden oluşturulmaz.",
+        "Çizgi grafiklerinde tam sol eksen, hover sayısal değerleri ve vurgulanan tepe noktaları eklendi.",
+        "İade ve kayıtlı kargo giderleri sonrası nihai ciro; ödenmeyen tutar da aynı net bazdan hesaplanır.",
+        "İade sebebi girişindeki beyaz zemin-beyaz yazı sorunu giderildi.",
+        "Kitap başına ciro eklendi, kitap/sayfa ve SB/RNK istatistikleri birleştirildi; gereksiz alt metrikler kaldırıldı.",
+    ]),
+
     ("2.0.41", "FlexFlow sayısal üretim kapasitesi", [
         "Yönetici Analitik ekranına FlexFlow Verimlilik görünümü eklendi.",
         "3 siyah-beyaz ve 3 renkli yazıcının gerçek hızları, tek delme cihazı ve iki çalışan hesaba katılır.",
