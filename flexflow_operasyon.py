@@ -45,15 +45,23 @@ def extract_history(rows, days=90, now=None, maximum=12000):
             if event_key in seen:continue
             dt=local_datetime(entry.get("created_at"))
             if dt is None or dt.date()<cutoff or dt.date()>now.date():continue
-            records=(entry.get("details") or {}).get("events") or []
+            details=entry.get("details") or {}
+            if not isinstance(details,dict):continue
+            records=details.get("events") or []
             if not isinstance(records,list):continue
             ready=boxed=0
             status=""
+            valid=True
             for detail in records:
                 if not isinstance(detail,dict):continue
-                ready+=int(detail.get("delta_ready") or 0)
-                boxed+=int(detail.get("delta_boxed") or 0)
+                try:
+                    ready+=int(detail.get("delta_ready") or 0)
+                    boxed+=int(detail.get("delta_boxed") or 0)
+                except (ValueError,TypeError,OverflowError):
+                    valid=False
+                    break
                 status=str(detail.get("to_status") or status)
+            if not valid:continue
             if ready==boxed==0 and status not in ("aktif","tamamlandi"):continue
             seen.add(event_key)
             events.append({"id":event_key, "order_id":order_id,
