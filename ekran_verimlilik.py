@@ -115,8 +115,9 @@ class BacklogPanel(QFrame):
             label.setText(fmt(val)+" nüsha")
             bar.setValue(round(1000*val/total) if total else 0)
         self.subtitle.setText(
-            "Açık siparişlerde toplam "+fmt(total)+" kitap nüshasının durumu. "
-            "Tamamlanmış siparişler bu stok hesabına tekrar eklenmez."
+            "Açık siparişlerin kolileme ilerlemesi: %"+
+            fmt(100*values[2]/total,1) if total else
+            "Şu anda açık sipariş bulunmuyor."
         )
 
 
@@ -284,7 +285,9 @@ class FlexFlowView(QWidget):
             table.setUpdatesEnabled(True)
 
     def _period_changed(self,*_):
+        self.selected_day.blockSignals(True)
         self.selected_day.clear()
+        self.selected_day.blockSignals(False)
         self.refresh()
 
     def refresh(self,*_):
