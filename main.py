@@ -520,7 +520,8 @@ class AlfaMain(QMainWindow):
                 self._cloud_orders_dirty=True
             if self.bookpool and self.bookpool.isVisible():
                 self.bookpool.refresh()
-        if page is self.analytics:self.analytics.refresh()
+        if page is self.analytics and (order_changed or '__muhasebe__' in ids):
+            self.analytics.refresh()
 
     def _cloud_status(self,online,message):
         # Pending crash reports retry ONLY on an actual connectivity transition,
