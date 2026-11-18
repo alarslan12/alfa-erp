@@ -53,6 +53,20 @@ class ERPDatabase:
                     self.cloud_epoch=str(saved.get('epoch') or '').strip() or None
             except (OSError,ValueError,TypeError):
                 pass
+        # Compact server-timestamped production events cached for owner
+        # FlexFlow. Read-only, bounded, and never added to order/outbox data.
+        self.production_events=[]
+        self._production_history_path=Path(self.siparis_dosyasi).parent/'alfa_flexflow_olaylari.json'
+        if self._production_history_path.exists():
+            try:
+                cache=json.loads(self._production_history_path.read_text(encoding='utf-8'))
+                if isinstance(cache,dict) and str(cache.get('epoch'))==str(self.cloud_epoch):
+                    values=cache.get('events') or []
+                    if isinstance(values,list):
+                        self.production_events=[x for x in values[:12000] if isinstance(x,dict)]
+            except (OSError,ValueError,TypeError):
+                # An invalid optional analytics cache must not block order work.
+                self.production_events=[]
         self.cloud_catalog_revision=None
         self._cloud_applying=False
         # Durable optimistic outbox: all network writes happen in a QThread.
@@ -592,7 +606,7 @@ class ERPDatabase:
                              'alfa_siparis_sayac.json','alfa_bulut_gorulenler.json',
                              'alfa_muhasebe_gunleri.json','alfa_islem_gunlugu.jsonl',
                              'alfa_sepet_hafiza.json','alfa_bildirim_durumu.json',
-                             'alfa_outbox.json'):
+                             'alfa_outbox.json','alfa_flexflow_olaylari.json'):
                     old_file=data_root/name
                     if old_file.exists():
                         dest=backup/(new_epoch+'_'+name)
@@ -603,6 +617,7 @@ class ERPDatabase:
                         shutil.move(str(old_file),str(dest))
                 self.siparisler.clear();self._son_id=0
                 self.cloud_accounting_rows=[];self.cloud_accounting_loaded=False
+                self.production_events=[]
                 self.secili_siparisler={};self.hafiza_sepet={}
                 self._pending.clear();self._progress_events.clear();self._status_events.clear();self._conflicts.clear()
                 self._pending_started=0
@@ -612,6 +627,18 @@ class ERPDatabase:
                 self._atomik_json_yaz(marker,{'epoch':new_epoch})
             self.cloud_epoch=new_epoch
         self.recover_old_outbox(payload)
+        if full_order_snapshot:
+            from flexflow_operasyon import extract_history
+            # Event logs are already present in the received order snapshot:
+            # no extra Firebase request, and no copied names/addresses.
+            extracted=extract_history(payload['orders'],days=90)
+            self.production_events=extracted
+            try:
+                self._atomik_json_yaz(
+                    str(self._production_history_path),
+                    {'epoch':self.cloud_epoch,'events':extracted})
+            except OSError:
+                pass  # Optional analytics cache; never prevent order sync.
         catalog_changed=self.apply_cloud_catalog(payload)
         before_accounting=json.dumps(self.cloud_accounting_rows,sort_keys=True,default=str)
         if isinstance(payload.get('accounting_days'),list):
