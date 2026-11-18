@@ -6,6 +6,15 @@ https://github.com/alarslan12/alfa-erp/releases.
 """
 
 _RELEASES = [
+    ("2.0.43", "İnteraktif platform pasta grafiği ve sade çizgi grafikler", [
+        "Normal Analitik'e satış platformlarının iade sonrası ciro payını gösteren interaktif halka grafik eklendi.",
+        "Gardrops, Dolap ve diğer platformlarda yüzde/gelir tutarı hover'da; renkli açıklamalar yanda gösterilir.",
+        "Çizgi grafikler dolgusuz ve yalın tutuldu; dikey eksende sabit sayılar ve tepe üstünde kalıcı değerler kaldırıldı.",
+        "Her veri noktasının kendi sayısal değeri yalnızca fareyle üzerine gelindiğinde gösterilir.",
+        "İade/kargo sonrası finans kartları, FlexFlow ve mevcut sipariş ekranları korunur.",
+    ]),
+
+
     ("2.0.42", "Analitik hızlandırma ve görsel FlexFlow", [
         "Analitik ekranı Normal Analitik ve FlexFlow olarak iki ana sekmeye ayrıldı; popup kaldırıldı.",
         "FlexFlow tek ekranda dinamik kapasite grafikleri, kişi-saat kartları ve sipariş iş yükü tablosu gösterir.",
