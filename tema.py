@@ -1740,3 +1740,32 @@ QLabel#OrderReturnReason {
     border-radius:7px; padding:6px 10px; font-size:11px; font-weight:750;
 }
 """
+
+
+QSS += """
+/* Analytics v2.0.42: two in-page sections; the FlexFlow card grid is data-bound. */
+QTabWidget#AnalyticsSectionTabs { border:0; background:transparent; }
+QTabWidget#AnalyticsSectionTabs::pane {
+    border:1px solid #395575; border-radius:11px;
+    background:#111f30; margin-top:2px;
+}
+QTabWidget#AnalyticsSectionTabs QTabBar::tab {
+    background:#1c3046; color:#b8d3e9;
+    border:1px solid #3f5a75; border-radius:9px;
+    min-width:140px; padding:9px 19px; margin:1px 5px 5px 2px;
+    font-size:12px; font-weight:900;
+}
+QTabWidget#AnalyticsSectionTabs QTabBar::tab:selected {
+    background:#28618c; border:1px solid #9bcaeb;
+    color:#ffffff;
+}
+QTabWidget#AnalyticsSectionTabs QTabBar::tab:hover {
+    border-color:#9ccbf1;
+}
+QWidget#FlexFlowPage { background:transparent; }
+QWidget#FlexFlowPage QScrollArea { border:0; background:transparent; }
+QWidget#FlexFlowPage QTableWidget {
+    alternate-background-color:#20344c;
+    gridline-color:#3a5671;
+}
+"""

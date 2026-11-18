@@ -7,11 +7,11 @@ from PySide6.QtGui import QColor, QPainter, QPen, QFont, QPainterPath, QDesktopS
 from PySide6.QtWidgets import (
     QWidget, QFrame, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel,
     QPushButton, QFileDialog, QMessageBox, QTableWidget, QTableWidgetItem,
-    QHeaderView, QAbstractItemView, QSizePolicy, QApplication, QCheckBox
+    QHeaderView, QAbstractItemView, QSizePolicy, QApplication, QCheckBox, QTabWidget
 )
 from PySide6.QtCore import QUrl
 from widgets import button, text, scrollable
-from muhasebe_veri import PaymentDays, accounting_days, completed_summary, html_report, completion_fingerprints, accounting_revenue
+from muhasebe_veri import PaymentDays, accounting_days, completed_summary, html_report, completion_fingerprints, accounting_revenue, after_shipping_revenue
 from takvim import MONTHS, WEEK
 from ayar_yonetimi import accessible_ui_color
 
@@ -38,113 +38,178 @@ def integer(n):
 
 
 class LineChart(QWidget):
-    """Hafif yerel grafik; yeni paket kurmaya gerek yok."""
+    """Lightweight interactive time-series chart: hover value, peak, clear axes."""
     def __init__(self, title, series):
         super().__init__()
-        self.title = title
-        self.series = series    # (dataset_key, caption, color)
-        self.data = []
+        self.title=title
+        self.series=series
+        self.data=[]
+        self.hovered=None
+        self._chart_bounds=None
         self.setObjectName('AnalyticsChart')
         self.setMinimumHeight(200)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding,QSizePolicy.Policy.Preferred)
+        self.setMouseTracking(True)
 
-    def set_data(self, data):
-        self.data = data
+    def set_data(self,data):
+        self.data=list(data)
+        self.hovered=None
         self.update()
 
     def _colors(self):
-        theme = str(QApplication.instance().property('alfa_theme') or 'koyu')
-        if theme == 'acik':
-            return {
-                'bg': CREAM_BG, 'panel': CREAM_PANEL, 'border': CREAM_BORDER,
-                'text': CREAM_TEXT, 'muted': CREAM_MUTED, 'grid': '#dacdbc'
-            }
-        return {
-            'bg': NAVY, 'panel': NAVY, 'border': '#3b516c',
-            'text': FG, 'muted': MUTED, 'grid': '#34475e'
-        }
+        theme=str(QApplication.instance().property('alfa_theme') or 'koyu')
+        if theme=='acik':
+            return {'panel':CREAM_PANEL,'border':CREAM_BORDER,'text':CREAM_TEXT,
+                    'muted':CREAM_MUTED,'grid':'#d7c8b7'}
+        return {'panel':NAVY,'border':'#3b516c','text':FG,
+                'muted':MUTED,'grid':'#34475e'}
 
-    def paintEvent(self, event):
+    @staticmethod
+    def _formatted(value):
+        value=float(value)
+        if abs(value)>=10:
+            return f'{value:,.0f}'.replace(',', '.')
+        return f'{value:,.1f}'.replace('.', ',')
+
+    def _location(self,idx,value):
+        if self._chart_bounds is None:return 0.0,0.0
+        l,t,r,b,ymin,ymax=self._chart_bounds
+        x=(l+r)/2 if len(self.data)==1 else l+(r-l)*idx/max(1,len(self.data)-1)
+        y=b-(b-t)*(float(value)-ymin)/(ymax-ymin)
+        return x,y
+
+    def mouseMoveEvent(self,event):
+        if self._chart_bounds is None or not self.data:
+            return super().mouseMoveEvent(event)
+        l,t,r,b,_,_=self._chart_bounds
+        x,y=event.position().x(),event.position().y()
+        hovered=None
+        if l-11<=x<=r+11 and t-14<=y<=b+14:
+            n=len(self.data)
+            idx=0 if n==1 else min(n-1,max(0,round((x-l)*max(1,n-1)/max(1,r-l))))
+            choices=[]
+            for key,label,_ in self.series:
+                point=self._location(idx,self.data[idx].get(key,0))
+                d=((point[0]-x)**2+(point[1]-y)**2)**0.5
+                choices.append((d,idx,key,label,float(self.data[idx].get(key,0))))
+            if choices:
+                best=min(choices)
+                if best[0]<=19:
+                    hovered=(best[1],best[2],best[3],best[4])
+        if hovered!=self.hovered:
+            self.hovered=hovered
+            if hovered:
+                from PySide6.QtWidgets import QToolTip
+                idx,key,label,value=hovered
+                date_label=self.data[idx].get('date') or self.data[idx].get('label','')
+                QToolTip.showText(event.globalPosition().toPoint(),
+                                  str(date_label)+' · '+label+': '+f'{value:,.2f}'.replace(',', '_').replace('.', ',').replace('_', '.'),self)
+            else:
+                from PySide6.QtWidgets import QToolTip
+                QToolTip.hideText()
+            self.update()
+        super().mouseMoveEvent(event)
+
+    def leaveEvent(self,event):
+        if self.hovered is not None:
+            self.hovered=None
+            from PySide6.QtWidgets import QToolTip
+            QToolTip.hideText()
+            self.update()
+        super().leaveEvent(event)
+
+    def paintEvent(self,event):
         colors=self._colors()
-        painter=QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.setBrush(QColor(colors['panel']))
-        painter.setPen(QPen(QColor(colors['border']),1))
-        painter.drawRoundedRect(self.rect().adjusted(1,1,-2,-2),12,12)
-        painter.setFont(QFont('Segoe UI',11,QFont.Weight.Bold))
-        painter.setPen(QColor(colors['text']))
-        painter.drawText(17,25,self.title)
-        right=self.width()-20
-        xlegend=right
-        painter.setFont(QFont('Segoe UI',8))
+        p=QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        p.setBrush(QColor(colors['panel']))
+        p.setPen(QPen(QColor(colors['border']),1))
+        p.drawRoundedRect(self.rect().adjusted(1,1,-2,-2),12,12)
+        p.setPen(QColor(colors['text']))
+        p.setFont(QFont('Segoe UI',10,QFont.Weight.Bold))
+        p.drawText(14,23,self.title)
+        legend_right=self.width()-17
+        p.setFont(QFont('Segoe UI',8))
         for key,label,col in reversed(self.series):
-            w=max(66,len(label)*6+22)
-            xlegend-=w
-            painter.setPen(Qt.PenStyle.NoPen);painter.setBrush(QColor(accessible_ui_color(col)))
-            painter.drawEllipse(xlegend,16,7,7)
-            painter.setPen(QColor(colors['muted']))
-            painter.drawText(xlegend+11,23,label)
-        l, t, r, b = 47,47,max(75,self.width()-17),self.height()-36
-        if r-l<40 or b-t<45:
-            painter.end();return
-        vals=[float(item.get(key,0)) for item in self.data for key,_,_ in self.series]
-        ymax=max(vals, default=0)
-        ymax=max(1,ymax*1.12)
-        painter.setFont(QFont('Segoe UI',8))
+            block=max(57,len(label)*6+20)
+            legend_right-=block
+            p.setBrush(QColor(accessible_ui_color(col)))
+            p.setPen(Qt.PenStyle.NoPen)
+            p.drawEllipse(int(legend_right),16,7,7)
+            p.setPen(QColor(colors['muted']))
+            p.drawText(int(legend_right+12),23,label)
+        left,top,right,bottom=73.0,46.0,float(self.width()-19),float(self.height()-35)
+        if right-left<65 or bottom-top<40:
+            self._chart_bounds=None
+            p.end()
+            return
+        values=[float(row.get(key,0) or 0) for row in self.data for key,_,_ in self.series]
+        ymin=min(0,min(values,default=0))
+        ymax=max(1,max(values,default=0))
+        if ymin>=0:ymax*=1.10
+        else:
+            extent=max(1.0,ymax-ymin)
+            ymin-=extent*.05
+            ymax+=extent*.08
+        self._chart_bounds=(left,top,right,bottom,ymin,ymax)
+        p.setFont(QFont('Segoe UI',8))
         for j in range(5):
-            y=t+(b-t)*j/4
-            painter.setPen(QPen(QColor(colors['grid']),1))
-            painter.drawLine(int(l),int(y),int(r),int(y))
-            v=ymax*(1-j/4)
-            s=(f'{v/1000:.1f}k' if v>=1000 else f'{v:.0f}' if v>=10 else f'{v:.1f}')
-            painter.setPen(QColor(colors['muted']))
-            painter.drawText(7,int(y)+4,37,12,Qt.AlignmentFlag.AlignRight,s)
+            y=top+(bottom-top)*j/4
+            p.setPen(QPen(QColor(colors['grid']),1))
+            p.drawLine(int(left),int(y),int(right),int(y))
+            v=ymax-(ymax-ymin)*j/4
+            p.setPen(QColor(colors['muted']))
+            p.drawText(7,int(y)-7,57,17,Qt.AlignmentFlag.AlignRight,self._formatted(v))
         n=len(self.data)
         if n:
-            labels=[0,n//4,n//2,3*n//4,n-1]
-            for idx in dict.fromkeys(labels):
-                x=(l+r)/2 if n==1 else l+(r-l)*idx/max(1,n-1)
-                painter.setPen(QColor(colors['muted']))
-                painter.drawText(int(x)-21,b+8,42,17,Qt.AlignmentFlag.AlignHCenter,self.data[idx]['label'])
-        if n==0:
-            painter.setPen(QColor(colors['muted']))
-            painter.drawText(self.rect(),Qt.AlignmentFlag.AlignCenter,'Henüz veri yok')
-        if n == 1:
-            # A line chart with one date is just a dot: display proportional bars.
-            plot_width = max(45, r-l)
-            bar_w = min(58, max(28, int(plot_width/(len(self.series)*4))))
-            spacing = min(22, max(8, bar_w//2))
-            group_w = len(self.series)*bar_w + (len(self.series)-1)*spacing
-            base_x = (l+r-group_w)/2
-            for index,(key,label,color) in enumerate(self.series):
-                value = float(self.data[0].get(key,0))
-                height = (b-t)*value/ymax
-                x = base_x + index*(bar_w+spacing)
-                y = b-height
-                painter.setPen(Qt.PenStyle.NoPen)
-                painter.setBrush(QColor(accessible_ui_color(color)))
-                if height > 0:
-                    painter.drawRoundedRect(int(x),int(y),bar_w,max(2,int(height)),4,4)
-                else:
-                    painter.drawRoundedRect(int(x),int(b)-2,bar_w,2,1,1)
-                number = f'{value:,.0f}' if key in ('orders','pages','sb','rnk','books') else f'{value:,.2f}'
-                painter.setPen(QColor(colors['text']))
-                painter.setFont(QFont('Segoe UI',9,QFont.Weight.Bold))
-                painter.drawText(int(x)-25,int(max(t+2,y-20)),bar_w+50,17,
-                                 Qt.AlignmentFlag.AlignHCenter,number)
+            for idx in dict.fromkeys([0,n//4,n//2,3*n//4,n-1]):
+                x,_=self._location(idx,0)
+                label=str(self.data[idx].get('label',''))
+                p.setPen(QColor(colors['muted']))
+                p.drawText(int(x-23),int(bottom+8),46,17,Qt.AlignmentFlag.AlignHCenter,label)
         else:
-            for key,label,color in self.series:
-                pen=QPen(QColor(accessible_ui_color(color)))
-                pen.setWidthF(2.5)
-                painter.setPen(pen)
-                path=QPainterPath()
-                for i,item in enumerate(self.data):
-                    x=l+(r-l)*i/max(1,n-1)
-                    y=b-(b-t)*float(item.get(key,0))/ymax
-                    if i==0: path.moveTo(x,y)
-                    else:path.lineTo(x,y)
-                painter.drawPath(path)
-        painter.end()
+            p.setPen(QColor(colors['muted']))
+            p.drawText(self.rect(),Qt.AlignmentFlag.AlignCenter,'Henüz veri yok')
+        for key,label,color in self.series:
+            col=QColor(accessible_ui_color(color))
+            pen=QPen(col)
+            pen.setWidthF(2.4)
+            p.setPen(pen)
+            path=QPainterPath()
+            for i,row in enumerate(self.data):
+                x,y=self._location(i,row.get(key,0))
+                if i==0:path.moveTo(x,y)
+                else:path.lineTo(x,y)
+            if self.data:p.drawPath(path)
+            if self.data:
+                peak_idx=max(range(len(self.data)),key=lambda i:float(self.data[i].get(key,0) or 0))
+                vx=float(self.data[peak_idx].get(key,0) or 0)
+                px,py=self._location(peak_idx,vx)
+                p.setPen(Qt.PenStyle.NoPen)
+                halo=QColor(col);halo.setAlpha(65)
+                p.setBrush(halo)
+                p.drawEllipse(QPointF(px,py),9,9)
+                p.setBrush(col)
+                p.drawEllipse(QPointF(px,py),4.2,4.2)
+                p.setFont(QFont('Segoe UI',8,QFont.Weight.Bold))
+                p.setPen(QColor(colors['text']))
+                label_y=max(top+6,min(bottom-15,py-23))
+                p.drawText(int(max(left,min(px-32,right-64))),int(label_y),65,16,
+                           Qt.AlignmentFlag.AlignCenter,self._formatted(vx))
+        if self.hovered:
+            idx,key,label,value=self.hovered
+            hx,hy=self._location(idx,value)
+            p.setPen(QPen(QColor(colors['muted']),1,Qt.PenStyle.DashLine))
+            p.drawLine(int(hx),int(top),int(hx),int(bottom))
+            tint=next((color for colkey,_,color in self.series if colkey==key),BLUE)
+            color=QColor(accessible_ui_color(tint))
+            p.setPen(Qt.PenStyle.NoPen)
+            glow=QColor(color);glow.setAlpha(75)
+            p.setBrush(glow)
+            p.drawEllipse(QPointF(hx,hy),12,12)
+            p.setBrush(color)
+            p.drawEllipse(QPointF(hx,hy),6,6)
+        p.end()
 
 
 class StatPill(QFrame):
@@ -222,6 +287,25 @@ class AnalitikView(QWidget):
         root=QVBoxLayout(self)
         root.setContentsMargins(2,3,2,5)
         root.setSpacing(9)
+        self.sections=None
+        self.flexflow=None
+        self._normal_dirty=True
+        if self.owner_edition:
+            from ekran_verimlilik import FlexFlowView
+            self.sections=QTabWidget(self)
+            self.sections.setObjectName("AnalyticsSectionTabs")
+            normal_page=QWidget()
+            normal_layout=QVBoxLayout(normal_page)
+            normal_layout.setContentsMargins(1,3,1,3)
+            normal_layout.setSpacing(9)
+            self.sections.addTab(normal_page,"Normal Analitik")
+            self.flexflow=FlexFlowView(self.db,self)
+            self.sections.addTab(self.flexflow,"FlexFlow")
+            root.addWidget(self.sections,1)
+            self.sections.currentChanged.connect(self._section_changed)
+            work_layout=normal_layout
+        else:
+            work_layout=root
         header=QHBoxLayout()
         heading=text('◈  Muhasebe & Analitik', 'AnalyticsTitle')
         header.addWidget(heading)
@@ -232,16 +316,11 @@ class AnalitikView(QWidget):
         export.setToolTip('Seçili tamamlanma tarihlerindeki kayıtlarla HTML muhasebe raporu oluştur')
         export.clicked.connect(self.export_html)
         header.addWidget(export)
-        if self.owner_edition:
-            flexflow=button('▤ Verimlilik · FlexFlow', 'AnalyticsExport')
-            flexflow.setToolTip('Gerçek yazıcı parkı, delme ve işçilik kapasitesiyle üretim tahmini')
-            flexflow.clicked.connect(self.open_flexflow)
-            header.addWidget(flexflow)
         reload=button('↻','SmallAction')
         reload.setToolTip('Siparişleri ve takvimi yenile')
         reload.clicked.connect(self.refresh)
         header.addWidget(reload)
-        root.addLayout(header)
+        work_layout.addLayout(header)
 
         body=QHBoxLayout()
         body.setSpacing(12)
@@ -335,19 +414,33 @@ class AnalitikView(QWidget):
         self._reflow_timer.setInterval(90)
         self._reflow_timer.timeout.connect(self._adapt_width)
         body.addWidget(self.results_scroll,1)
-        root.addLayout(body,1)
-        self.refresh()
+        work_layout.addLayout(body,1)
+        # Render lazily on tab navigation to avoid startup/UI freezes.
+        self._normal_refresh_timer=QTimer(self)
+        self._normal_refresh_timer.setSingleShot(True)
+        self._normal_refresh_timer.setInterval(125)
+        self._normal_refresh_timer.timeout.connect(self._refresh_normal_now)
+        self._report_timer=QTimer(self)
+        self._report_timer.setSingleShot(True)
+        self._report_timer.setInterval(90)
+        self._report_timer.timeout.connect(self._render_report)
+        self._flex_timer=QTimer(self)
+        self._flex_timer.setSingleShot(True)
+        self._flex_timer.setInterval(160)
+        self._flex_timer.timeout.connect(self._refresh_flex_now)
 
-    def open_flexflow(self):
-        if not self.owner_edition:
-            return
-        from ekran_verimlilik import FlexFlowDialog
-        start=self.start.isoformat() if self.start else ''
-        end=(self.end or self.start).isoformat() if self.start else ''
-        period=f'{start} – {end}' if start else ''
-        dialog=FlexFlowDialog(self.db, self.latest.get('orders', []) if self.latest else [],
-                              period_label=period, parent=self)
-        dialog.exec()
+    def _section_changed(self,index):
+        if index==1 and self.flexflow is not None:
+            self._normal_refresh_timer.stop()
+            self._report_timer.stop()
+            self._flex_timer.start()
+        else:
+            self._flex_timer.stop()
+            self.refresh()
+
+    def _refresh_flex_now(self):
+        if self.flexflow is not None and self.sections is not None and self.sections.currentIndex()==1:
+            self.flexflow.refresh()
 
     def eventFilter(self, watched, event):
         # Qt can deliver a final event while the scroll area is being
@@ -374,10 +467,9 @@ class AnalitikView(QWidget):
         # pending Qt layout deletions are still being processed.
         if not self.isVisible() or getattr(self,'_report_building',False):
             return
-        if self._last_metric_columns != (
-            self._metric_columns(), self._revenue_columns()
-        ):
-            self.show_report()
+        # Do not reconstruct 6 charts/large tables on layout resize.
+        # Qt grids stretch until the next data-driven refresh.
+        return
 
     def _toggle_range(self,enabled):
         if enabled:
@@ -423,6 +515,17 @@ class AnalitikView(QWidget):
         self.results_scroll.verticalScrollBar().setValue(0)
 
     def refresh(self,*_):
+        if self.sections is not None and self.sections.currentIndex()==1:
+            self._normal_dirty=True
+            if self.flexflow is not None:
+                self._flex_timer.start()
+            return
+        self._normal_refresh_timer.start()
+
+    def _refresh_normal_now(self):
+        if self.sections is not None and self.sections.currentIndex()==1:
+            self._normal_dirty=True
+            return
         if self.db.cloud_accounting_loaded:
             self.payments.apply_cloud(self.db.cloud_accounting_rows)
         self.completed_days,self.active_days=accounting_days(self.db)
@@ -435,6 +538,7 @@ class AnalitikView(QWidget):
             self.end=None
             self.year,self.month=self.start.year,self.start.month
         self.paint_calendar()
+        self._normal_dirty=False
         self.show_report()
 
     def paint_calendar(self):
@@ -453,15 +557,21 @@ class AnalitikView(QWidget):
             done=self.completed_days.get(key,0)
             active=self.active_days.get(key,0)
             state='paid' if is_paid else 'review' if is_review else 'done' if done else 'active' if active else 'none'
+            selected=bool(start and start<=day<=end)
+            outside=day.month!=self.month
+            changed=(btn.property('accountState')!=state or
+                     btn.property('selectedDay')!=selected or
+                     btn.property('outsideMonth')!=outside)
             btn.setProperty('dateKey',key)
             btn.setProperty('accountState',state)
-            btn.setProperty('selectedDay',bool(start and start<=day<=end))
-            btn.setProperty('outsideMonth',day.month!=self.month)
+            btn.setProperty('selectedDay',selected)
+            btn.setProperty('outsideMonth',outside)
             btn.setText(str(day.day))
             status='ÖDENDİ' if is_paid else 'Değişiklik sonrası ödeme yeniden kontrol edilmeli' if is_review else 'ÖDENMEDİ' if done else 'Aktif sipariş var' if active else 'İşlem yok'
             btn.setToolTip(f'{day:%d.%m.%Y}\n{done} tamamlanan · {active} aktif sipariş (oluşturulma günü)\n{status}')
-            btn.style().unpolish(btn)
-            btn.style().polish(btn)
+            if changed:
+                btn.style().unpolish(btn)
+                btn.style().polish(btn)
         if start:
             if self.end:
                 label=f'{self.start:%d.%m.%Y} → {self.end:%d.%m.%Y}'
@@ -523,13 +633,26 @@ class AnalitikView(QWidget):
         self.show_report()
 
     def show_report(self):
+        if self.start is None:
+            return
+        if self.sections is not None and self.sections.currentIndex()==1:
+            self._normal_dirty=True
+            return
+        self._report_timer.start()
+
+    def _render_report(self):
         if self.start is None or getattr(self,'_report_building',False):
             return
+        if self.sections is not None and self.sections.currentIndex()==1:
+            self._normal_dirty=True
+            return
         self._report_building=True
+        self.setUpdatesEnabled(False)
         try:
             self._build_report()
         finally:
             self._report_building=False
+            self.setUpdatesEnabled(True)
 
     def _build_report(self):
         start=self.start.isoformat()
@@ -544,12 +667,12 @@ class AnalitikView(QWidget):
                 clear_layout(item.layout())
         title=text('TAMAMLANAN SİPARİŞLER · MUHASEBE ÖZETİ','AnalyticsSection')
         self.result_layout.addWidget(title)
-        paid_revenue=sum(accounting_revenue(o) for o in self.latest['orders']
+        paid_revenue=sum(after_shipping_revenue(o) for o in self.latest['orders']
                          if str(o.get('tamamlanma_tarihi',''))[:10] in self._paid_days)
-        unpaid_revenue=m['gross']-paid_revenue
+        # Both cards are always reconciled to the same return/shipping-net amount.
+        unpaid_revenue=m['after_shipping']-paid_revenue
         paid_days_count=sum(1 for d in self.latest['daily'] if d['orders'] and d['date'] in self._paid_days)
         total_work_days=max(0,int(m.get('working_days',0)))
-        payment_ratio=(100*paid_days_count/total_work_days) if total_work_days else 0.0
         # The four amounts people look for first have their OWN visual group.
         # Paid/unpaid describe completed-day accounting flags, NOT an
         # individual customer's payment transaction.
@@ -570,12 +693,12 @@ class AnalitikView(QWidget):
         revenue=[
             ("İade sonrası ciro",money(m["gross"]),MINT,
              "Tamamlanan siparişlerin iade düşülmüş satış tutarı"),
-            ("Kargo sonrası ciro",money(m["after_shipping"]),"#65d4fc",
-             "Cirodan kayıtlı kargo gideri çıkarılmış"),
+            ("İade ve kargo sonrası ciro",money(m["after_shipping"]),"#65d4fc",
+             "İade sonrası cirodan kayıtlı kargo giderleri çıkarılmış"),
             ("Ödenen ciro",money(paid_revenue),"#bba1ff",
-             "Ödendi işaretli günlere ait ciro"),
+             "Ödendi işaretli günlerin iade ve kargo sonrası tutarı"),
             ("Ödenmeyen ciro",money(unpaid_revenue),"#f7c77c",
-             "Henüz ödendi işaretlenmemiş günler"),
+             "İade ve kargo düşüldükten sonra ödenmedi işaretli tutar"),
         ]
         revenue_columns=self._revenue_columns()
         cards=QGridLayout()
@@ -588,7 +711,7 @@ class AnalitikView(QWidget):
             cards.setColumnStretch(column,1)
         hero.addLayout(cards)
         note=QLabel(
-            "Kargo sonrası ciro = İade sonrası ciro − Telafi ve açık adres kargo "
+            "İade ve kargo sonrası ciro = İade sonrası ciro − kayıtlı kargo "
             "giderleri. Bu tutar net kâr değildir; baskı, işçilik ve "
             "komisyon giderleri ayrıca düşülmemiştir."
         )
@@ -612,10 +735,10 @@ class AnalitikView(QWidget):
                 ('Telafi siparişi kargosu', money(m['shipping_telafi']), '#ff9d92'),
                 ('Açık adres kargosu', money(m['shipping_acik_adres']), AMBER),
                 ('Kargo / ciro oranı', f"%{m.get('shipping_ratio',0):.1f}", '#f0ba84'),
-                ('Aktif açık adres kargo (tümü)', money(m['active_address_shipping']), AMBER),
             ]),
             ('ORTALAMALAR · BİRİM VERİMLİLİK', 'averages', [
                 ('Ort. sipariş tutarı', money(m['avg_order']), PURPLE),
+                ('Kitap başına ciro', money(m['per_book']), MINT),
                 ('Sayfa başına ciro', money(m['per_page']), MINT),
                 ('Kitap / sipariş', f"{m['avg_books']:.1f}", PURPLE),
                 ('Sayfa / sipariş', f"{m['avg_pages']:.1f}", AMBER),
@@ -626,14 +749,11 @@ class AnalitikView(QWidget):
                 ('Günlük ort. sipariş', f"{m.get('avg_daily_completed',0):.2f}", '#8ed2ff'),
                 ('Çalışılan gün', integer(total_work_days), '#abc9ff'),
                 ('Ödenmiş gün', integer(paid_days_count), '#70c8ff'),
-                ('Ödeme kapsama', f"%{payment_ratio:.1f}", '#76d3aa'),
             ]),
-            ('KİTAP · SAYFA', 'books', [
+            ('KİTAP · SAYFA · BASKI TÜRLERİ · SB / RNK', 'printing', [
                 ('Toplam kitap', integer(m['books']), BLUE),
                 ('Toplam sayfa', integer(m['pages']), MINT),
                 ('Kitap çeşidi', integer(m['unique_books']), '#a4c8ff'),
-            ]),
-            ('BASKI TÜRLERİ · SB / RNK', 'printing', [
                 ('Siyah-beyaz kitap', integer(m['sb']), PURPLE),
                 ('Renkli kitap', integer(m['rnk']), '#f3a06e'),
                 ('SB sayfa', integer(m['pages_sb']), BLUE),
@@ -734,16 +854,6 @@ class AnalitikView(QWidget):
             rows.append([item['date'],item['orders'],money(item['gross']),
                          money(item['shipping']),money(item['gross']-item['shipping']),paid])
         self.result_layout.addWidget(self.table(['Tarih','Tamamlanan','Ciro','Kargo','Kargo sonrası','Ödeme'],rows,165))
-        self.result_layout.addWidget(text('SİPARİŞLER','AnalyticsSection'))
-        orders=[]
-        for o in self.latest['orders'][:80]:
-            total=self.db.siparis_ozeti(o)
-            orders.append([f"#{o.get('id','')}",str(o.get('tamamlanma_tarihi',''))[:16].replace('T',' '),
-                str(o.get('platform') or 'Manuel'),total['adet'],total['sayfa'],
-                'İade edildi' if o.get('iade_tarihi') else 'Tamamlandı', money(accounting_revenue(o))])
-        self.result_layout.addWidget(self.table(['No','Tamamlanma','Platform','Kitap','Sayfa','Durum','Ciro'],orders,205))
-        if len(self.latest['orders'])>80:
-            self.result_layout.addWidget(text('İlk 80 sipariş gösteriliyor; HTML raporu tüm siparişleri içerir.','AccountingHelp'))
         if m['shipping_missing']:
             self.result_layout.addWidget(text(f"Kargo bedeli girilmemiş {m['shipping_missing']} telafi/açık adres siparişi var.",'AccountingHelp'))
         self.result_layout.addStretch()

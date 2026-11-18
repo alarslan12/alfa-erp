@@ -23,7 +23,7 @@ from guncelleme_arayuzu import CheckWorker,should_check_today,mark_checked
 from duyuru_merkezi import AnnouncementsDialog,ManualReportDialog
 
 ROOT=Path(__file__).resolve().parent
-VERSION='2.0.41'
+VERSION='2.0.42'
 OWNER_EDITION=(ROOT/'YONETICI_SURUMU.flag').exists()
 
 
@@ -520,7 +520,8 @@ class AlfaMain(QMainWindow):
                 self._cloud_orders_dirty=True
             if self.bookpool and self.bookpool.isVisible():
                 self.bookpool.refresh()
-        if page is self.analytics:self.analytics.refresh()
+        if page is self.analytics and (order_changed or '__muhasebe__' in ids):
+            self.analytics.refresh()
 
     def _cloud_status(self,online,message):
         # Pending crash reports retry ONLY on an actual connectivity transition,

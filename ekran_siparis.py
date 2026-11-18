@@ -694,9 +694,9 @@ class SiparisView(QWidget):
                 try:self.db.set_order_returned(order,False)
                 except Exception as exc:return error(self,exc)
             else:
-                reason,accepted=QInputDialog.getMultiLineText(self,'İade sebebi',
-                    f'#{sid} · İade sebebini yazın (en fazla 500 karakter):',
-                    str(order.get('iade_sebebi') or ''))
+                from iade_nedeni import request_return_reason
+                reason,accepted=request_return_reason(
+                    self,sid,str(order.get('iade_sebebi') or ''))
                 if not accepted:return
                 reason=' '.join(reason.split())
                 if not reason or len(reason)>500:
