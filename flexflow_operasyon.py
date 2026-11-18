@@ -89,6 +89,7 @@ def daily_dashboard(db, events=(), days=14, now=None, selected_day=None):
                      "ready_orders":set(),"boxed_orders":set(),
                      "pages":0,"books":0,"sb":0,"rnk":0}
     open_orders=[]
+    snapshot_starts=set()
     for order in db.siparisler:
         status=db.siparis_durumu(order)
         if status in ("havuz","aktif") and not order.get("iade_tarihi"):
@@ -109,6 +110,8 @@ def daily_dashboard(db, events=(), days=14, now=None, selected_day=None):
                     row["pages"]+=pages*qty
         activated=local_datetime(order.get("isleme_alinma_tarihi"))
         if activated and activated.date().isoformat() in points:
+            key=(activated.date().isoformat(),str(order.get("bulut_id") or order.get("id") or ""))
+            snapshot_starts.add(key)
             points[activated.date().isoformat()]["started"]+=1
 
     # Real cloud events only; current ready/boxed counters cannot reveal
@@ -117,6 +120,7 @@ def daily_dashboard(db, events=(), days=14, now=None, selected_day=None):
     hourly=[{"hour":hour,"started":0,"orders":0,"ready":0,"boxed":0,
              "ready_orders":set(),"boxed_orders":set()} for hour in range(24)]
     event_days=set()
+    logged_starts=set()
     for entry in events or []:
         dt=local_datetime(entry.get("at"))
         if dt is None:continue
@@ -126,6 +130,13 @@ def daily_dashboard(db, events=(), days=14, now=None, selected_day=None):
         delta_ready=int(entry.get("ready") or 0)
         delta_boxed=int(entry.get("boxed") or 0)
         if delta_ready or delta_boxed:logged_days.add(day_key)
+        if str(entry.get("status"))=="aktif":
+            identity=(day_key,str(entry.get("order_id") or ""))
+            if identity not in snapshot_starts and identity not in logged_starts:
+                logged_starts.add(identity)
+                points[day_key]["started"]+=1
+                if dt.date()==selected_day:
+                    hourly[dt.hour]["started"]+=1
         row=points[day_key]
         row["ready"]+=delta_ready
         row["boxed"]+=delta_boxed
