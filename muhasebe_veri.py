@@ -246,16 +246,16 @@ def html_report(data, paid_days, review_days=None):
     def esc(val): return escape(str(val), quote=True)
     def money(v): return f'{v:,.2f} TL'
     metric=data['metrics']
-    paid_amount=sum(accounting_revenue(o) for o in data['orders']
+    paid_amount=sum(after_shipping_revenue(o) for o in data['orders']
                     if str(o.get('tamamlanma_tarihi',''))[:10] in paid_days)
     rows=[('Tamamlanan sipariş',metric['orders']),('İade öncesi ciro',money(metric['gross_before_returns'])),
           ('İade tutarı',money(metric['returned_revenue'])),('İade sonrası ciro',money(metric['gross'])),
           ('İade edilen sipariş',metric['returned_orders']),('İade / sipariş',f"%{metric['return_order_ratio']:.1f}"),
           ('İade / ciro',f"%{metric['return_revenue_ratio']:.1f}"),
-          ('Ödenen ciro',money(paid_amount)),
-          ('Ödenmeyen ciro',money(metric['gross']-paid_amount)),
+          ('Ödenen ciro · iade/kargo sonrası',money(paid_amount)),
+          ('Ödenmeyen ciro · iade/kargo sonrası',money(metric['after_shipping']-paid_amount)),
           ('Telafi kargo',money(metric['shipping_telafi'])),('Açık adres kargo',money(metric['shipping_acik_adres'])),
-          ('Toplam kargo',money(metric['shipping_total'])),('Kargo sonrası ciro',money(metric['after_shipping'])),
+          ('Toplam kargo',money(metric['shipping_total'])),('İade ve kargo sonrası ciro',money(metric['after_shipping'])),
           ('Ortalama sipariş',money(metric['avg_order'])),('Toplam kitap',metric['books']),
           ('SB / RNK kitap',f"{metric['sb']} / {metric['rnk']}"),('Toplam sayfa',metric['pages']),
           ('SB / RNK sayfa',f"{metric['pages_sb']} / {metric['pages_rnk']}"),
