@@ -67,10 +67,9 @@ class LineChart(QWidget):
     @staticmethod
     def _formatted(value):
         value=float(value)
-        if abs(value)>=1000000:return f'{value/1000000:.2f}M'
-        if abs(value)>=1000:return f'{value/1000:.1f}k'
-        if abs(value)>=10:return f'{value:.0f}'
-        return f'{value:.1f}'
+        if abs(value)>=10:
+            return f'{value:,.0f}'.replace(',', '.')
+        return f'{value:,.1f}'.replace(',', '.').replace('..', ',')
 
     def _location(self,idx,value):
         if self._chart_bounds is None:return 0.0,0.0
@@ -104,7 +103,7 @@ class LineChart(QWidget):
                 idx,key,label,value=hovered
                 date_label=self.data[idx].get('date') or self.data[idx].get('label','')
                 QToolTip.showText(event.globalPosition().toPoint(),
-                                  str(date_label)+' · '+label+': '+f'{value:,.2f}',self)
+                                  str(date_label)+' · '+label+': '+f'{value:,.2f}'.replace(',', '_').replace('.', ',').replace('_', '.'),self)
             else:
                 from PySide6.QtWidgets import QToolTip
                 QToolTip.hideText()
