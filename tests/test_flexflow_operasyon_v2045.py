@@ -107,7 +107,7 @@ class FlexFlowOperationalTests(unittest.TestCase):
             self.assertEqual(len(view.cards),6)
             self.assertIn("ÜRETİM PANOSU",view.findChild(__import__(
                 "PySide6.QtWidgets",fromlist=["QLabel"]).QLabel).text())
-            self.assertEqual(view.daily_table.columnCount(),6)
+            self.assertEqual(view.daily_table.columnCount(),7)
             self.assertEqual(view.hourly_table.columnCount(),5)
             self.assertIn("Mesai",view.shift_note.text())
         finally:
