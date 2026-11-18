@@ -93,6 +93,26 @@ class FlexFlowOperationalTests(unittest.TestCase):
         self.assertEqual(r["hourly"][10]["orders"],1)
         self.assertEqual(r["hourly"][11]["orders"],0)
 
+    def test_production_screen_shows_business_metrics_not_raw_coefficients(self):
+        import os
+        os.environ.setdefault("QT_QPA_PLATFORM","offscreen")
+        from PySide6.QtWidgets import QApplication
+        from ekran_verimlilik import FlexFlowView
+        app=QApplication.instance() or QApplication(["alfa-flexflow-operations-test"])
+        now,orders,_=self.setup_orders()
+        view=FlexFlowView(FakeDB(orders))
+        try:
+            view.refresh()
+            self.assertIsNotNone(view.latest)
+            self.assertEqual(len(view.cards),6)
+            self.assertIn("ÜRETİM PANOSU",view.findChild(__import__(
+                "PySide6.QtWidgets",fromlist=["QLabel"]).QLabel).text())
+            self.assertEqual(view.daily_table.columnCount(),6)
+            self.assertEqual(view.hourly_table.columnCount(),5)
+            self.assertIn("Mesai",view.shift_note.text())
+        finally:
+            view.close()
+
 
 if __name__=="__main__":
     unittest.main()
