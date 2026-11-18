@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import QUrl
 from widgets import button, text, scrollable
-from muhasebe_veri import PaymentDays, accounting_days, completed_summary, html_report, completion_fingerprints, accounting_revenue
+from muhasebe_veri import PaymentDays, accounting_days, completed_summary, html_report, completion_fingerprints, accounting_revenue, after_shipping_revenue
 from takvim import MONTHS, WEEK
 from ayar_yonetimi import accessible_ui_color
 
@@ -593,12 +593,12 @@ class AnalitikView(QWidget):
                 clear_layout(item.layout())
         title=text('TAMAMLANAN SİPARİŞLER · MUHASEBE ÖZETİ','AnalyticsSection')
         self.result_layout.addWidget(title)
-        paid_revenue=sum(accounting_revenue(o) for o in self.latest['orders']
+        paid_revenue=sum(after_shipping_revenue(o) for o in self.latest['orders']
                          if str(o.get('tamamlanma_tarihi',''))[:10] in self._paid_days)
-        unpaid_revenue=m['gross']-paid_revenue
+        # Both cards are always reconciled to the same return/shipping-net amount.
+        unpaid_revenue=m['after_shipping']-paid_revenue
         paid_days_count=sum(1 for d in self.latest['daily'] if d['orders'] and d['date'] in self._paid_days)
         total_work_days=max(0,int(m.get('working_days',0)))
-        payment_ratio=(100*paid_days_count/total_work_days) if total_work_days else 0.0
         # The four amounts people look for first have their OWN visual group.
         # Paid/unpaid describe completed-day accounting flags, NOT an
         # individual customer's payment transaction.
@@ -619,12 +619,12 @@ class AnalitikView(QWidget):
         revenue=[
             ("İade sonrası ciro",money(m["gross"]),MINT,
              "Tamamlanan siparişlerin iade düşülmüş satış tutarı"),
-            ("Kargo sonrası ciro",money(m["after_shipping"]),"#65d4fc",
-             "Cirodan kayıtlı kargo gideri çıkarılmış"),
+            ("İade ve kargo sonrası ciro",money(m["after_shipping"]),"#65d4fc",
+             "İade sonrası cirodan kayıtlı kargo giderleri çıkarılmış"),
             ("Ödenen ciro",money(paid_revenue),"#bba1ff",
-             "Ödendi işaretli günlere ait ciro"),
+             "Ödendi işaretli günlerin iade ve kargo sonrası tutarı"),
             ("Ödenmeyen ciro",money(unpaid_revenue),"#f7c77c",
-             "Henüz ödendi işaretlenmemiş günler"),
+             "İade ve kargo düşüldükten sonra ödenmedi işaretli tutar"),
         ]
         revenue_columns=self._revenue_columns()
         cards=QGridLayout()
@@ -637,7 +637,7 @@ class AnalitikView(QWidget):
             cards.setColumnStretch(column,1)
         hero.addLayout(cards)
         note=QLabel(
-            "Kargo sonrası ciro = İade sonrası ciro − Telafi ve açık adres kargo "
+            "İade ve kargo sonrası ciro = İade sonrası ciro − kayıtlı kargo "
             "giderleri. Bu tutar net kâr değildir; baskı, işçilik ve "
             "komisyon giderleri ayrıca düşülmemiştir."
         )
@@ -661,10 +661,10 @@ class AnalitikView(QWidget):
                 ('Telafi siparişi kargosu', money(m['shipping_telafi']), '#ff9d92'),
                 ('Açık adres kargosu', money(m['shipping_acik_adres']), AMBER),
                 ('Kargo / ciro oranı', f"%{m.get('shipping_ratio',0):.1f}", '#f0ba84'),
-                ('Aktif açık adres kargo (tümü)', money(m['active_address_shipping']), AMBER),
             ]),
             ('ORTALAMALAR · BİRİM VERİMLİLİK', 'averages', [
                 ('Ort. sipariş tutarı', money(m['avg_order']), PURPLE),
+                ('Kitap başına ciro', money(m['per_book']), MINT),
                 ('Sayfa başına ciro', money(m['per_page']), MINT),
                 ('Kitap / sipariş', f"{m['avg_books']:.1f}", PURPLE),
                 ('Sayfa / sipariş', f"{m['avg_pages']:.1f}", AMBER),
@@ -675,14 +675,11 @@ class AnalitikView(QWidget):
                 ('Günlük ort. sipariş', f"{m.get('avg_daily_completed',0):.2f}", '#8ed2ff'),
                 ('Çalışılan gün', integer(total_work_days), '#abc9ff'),
                 ('Ödenmiş gün', integer(paid_days_count), '#70c8ff'),
-                ('Ödeme kapsama', f"%{payment_ratio:.1f}", '#76d3aa'),
             ]),
-            ('KİTAP · SAYFA', 'books', [
+            ('KİTAP · SAYFA · BASKI TÜRLERİ · SB / RNK', 'printing', [
                 ('Toplam kitap', integer(m['books']), BLUE),
                 ('Toplam sayfa', integer(m['pages']), MINT),
                 ('Kitap çeşidi', integer(m['unique_books']), '#a4c8ff'),
-            ]),
-            ('BASKI TÜRLERİ · SB / RNK', 'printing', [
                 ('Siyah-beyaz kitap', integer(m['sb']), PURPLE),
                 ('Renkli kitap', integer(m['rnk']), '#f3a06e'),
                 ('SB sayfa', integer(m['pages_sb']), BLUE),
@@ -783,16 +780,6 @@ class AnalitikView(QWidget):
             rows.append([item['date'],item['orders'],money(item['gross']),
                          money(item['shipping']),money(item['gross']-item['shipping']),paid])
         self.result_layout.addWidget(self.table(['Tarih','Tamamlanan','Ciro','Kargo','Kargo sonrası','Ödeme'],rows,165))
-        self.result_layout.addWidget(text('SİPARİŞLER','AnalyticsSection'))
-        orders=[]
-        for o in self.latest['orders'][:80]:
-            total=self.db.siparis_ozeti(o)
-            orders.append([f"#{o.get('id','')}",str(o.get('tamamlanma_tarihi',''))[:16].replace('T',' '),
-                str(o.get('platform') or 'Manuel'),total['adet'],total['sayfa'],
-                'İade edildi' if o.get('iade_tarihi') else 'Tamamlandı', money(accounting_revenue(o))])
-        self.result_layout.addWidget(self.table(['No','Tamamlanma','Platform','Kitap','Sayfa','Durum','Ciro'],orders,205))
-        if len(self.latest['orders'])>80:
-            self.result_layout.addWidget(text('İlk 80 sipariş gösteriliyor; HTML raporu tüm siparişleri içerir.','AccountingHelp'))
         if m['shipping_missing']:
             self.result_layout.addWidget(text(f"Kargo bedeli girilmemiş {m['shipping_missing']} telafi/açık adres siparişi var.",'AccountingHelp'))
         self.result_layout.addStretch()
