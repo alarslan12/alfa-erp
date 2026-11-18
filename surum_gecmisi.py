@@ -6,6 +6,17 @@ https://github.com/alarslan12/alfa-erp/releases.
 """
 
 _RELEASES = [
+    ("2.0.45", "FlexFlow günlük/saatlik operasyon analitiği", [
+        "FlexFlow teknik dakika katsayıları yerine anlaşılır, gerçek işlem sayılarını ve üretim temposunu gösterir.",
+        "Bugünkü tamamlanan sipariş, hazırlanma/kolileme nüshaları, açık sipariş ve vardiya saati başına tamamlama hızı.",
+        "7/14/30 günlük üretim eğilimleri, önceki üretim günleriyle karşılaştırma ve mesaiye yetişme değerlendirmesi.",
+        "Seçilen günün saatlik aktife alma/tamamlama grafiği ve kayıtlı hazırlanma/kolileme hareketleri tablosu.",
+        "Olayların sunucu zaman damgaları mevcut Firebase eşitlemesinden alınır, ek ağ isteği yapılmaz; kayıt eksikleri açıkça belirtilir.",
+        "CSV ve HTML günlük/saatlik üretim raporları eklendi; teknik makine varsayımları ekranda gizlidir.",
+        "Normal Analitik, mevcut sipariş ekranları, iade/kargo muhasebesi ve Firebase kuralları korunur.",
+    ]),
+
+
     ("2.0.44", "Onaylı Analitik tasarımı ve grafik doğrulaması", [
         "Çizgi grafikleri: QPainter yolu dolgusuz çizilir, önceki renkli üçgen/dolu alan sorunu giderildi.",
         "Sol dikey eksende ölçülü sayısal değerler geri getirildi; hover'da her veri noktasının gerçek değeri görünür.",
