@@ -425,14 +425,23 @@ class AnalitikView(QWidget):
         self._report_timer.setSingleShot(True)
         self._report_timer.setInterval(90)
         self._report_timer.timeout.connect(self._render_report)
+        self._flex_timer=QTimer(self)
+        self._flex_timer.setSingleShot(True)
+        self._flex_timer.setInterval(160)
+        self._flex_timer.timeout.connect(self._refresh_flex_now)
 
     def _section_changed(self,index):
         if index==1 and self.flexflow is not None:
             self._normal_refresh_timer.stop()
             self._report_timer.stop()
-            self.flexflow.refresh()
+            self._flex_timer.start()
         else:
+            self._flex_timer.stop()
             self.refresh()
+
+    def _refresh_flex_now(self):
+        if self.flexflow is not None and self.sections is not None and self.sections.currentIndex()==1:
+            self.flexflow.refresh()
 
     def eventFilter(self, watched, event):
         # Qt can deliver a final event while the scroll area is being
@@ -510,7 +519,7 @@ class AnalitikView(QWidget):
         if self.sections is not None and self.sections.currentIndex()==1:
             self._normal_dirty=True
             if self.flexflow is not None:
-                self.flexflow.refresh()
+                self._flex_timer.start()
             return
         self._normal_refresh_timer.start()
 
