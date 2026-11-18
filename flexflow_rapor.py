@@ -19,7 +19,7 @@ def _daily_rows(report):
     for item in reversed(report["points"]):
         known=item["date"] in logged
         yield (
-            item["date"], item["orders"], item["books"], item["pages"],
+            item["date"], item["started"], item["orders"], item["books"], item["pages"],
             item["sb"], item["rnk"],
             item["ready"] if known else "Kayıt yok",
             item["boxed"] if known else "Kayıt yok",
@@ -35,7 +35,7 @@ def csv_report(report):
     writer.writerow(["Günlük ortalama tamamlanan",round(report["average_orders"],2),"sipariş/üretim günü"])
     writer.writerow(["Açık sipariş",report["open_orders"]])
     writer.writerow([])
-    writer.writerow(["Tarih","Tamamlanan sipariş","Kitap nüshası","Sayfa",
+    writer.writerow(["Tarih","Aktife alınan sipariş","Tamamlanan sipariş","Kitap nüshası","Sayfa",
                      "SB kitap","RNK kitap","Hazırlanan (net nüsha)","Kolilenen (net nüsha)"])
     for row in _daily_rows(report):
         writer.writerow(row)
@@ -79,7 +79,7 @@ th{background:#e4eff8}.note{padding:12px;border-left:4px solid #e6b35e;backgroun
     ]
     summary="".join("<div class='card'><small>"+escape(k)+"</small><b>"+escape(v)+"</b></div>"
                     for k,v in cards)
-    daily_headers=["Tarih","Tamamlanan","Kitap","Sayfa","SB","RNK","Hazırlanan","Kolilenen"]
+    daily_headers=["Tarih","Aktife alınan","Tamamlanan","Kitap","Sayfa","SB","RNK","Hazırlanan","Kolilenen"]
     daily="<tr>"+"".join("<th>"+escape(x)+"</th>" for x in daily_headers)+"</tr>"
     for values in _daily_rows(report):
         daily+="<tr>"+"".join("<td>"+escape(str(x))+"</td>" for x in values)+"</tr>"
