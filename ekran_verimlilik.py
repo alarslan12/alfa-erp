@@ -74,13 +74,39 @@ class HorizontalBars(QWidget):
         super().__init__()
         self.title = title
         self.rows = []
+        self.hovered = -1
         self.setMinimumHeight(220)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         self.setMouseTracking(True)
 
     def set_rows(self, rows):
         self.rows = list(rows)
+        self.hovered = -1
         self.update()
+
+    def mouseMoveEvent(self, event):
+        idx=int((event.position().y()-55)//40)
+        idx=idx if 0<=idx<min(4,len(self.rows)) else -1
+        if idx!=self.hovered:
+            self.hovered=idx
+            from PySide6.QtWidgets import QToolTip
+            if idx>=0:
+                label,actual,capacity,color,suffix=self.rows[idx]
+                pct=100*actual/capacity if capacity else 0
+                message=(label+": "+fmt(actual,1)+" / "+fmt(capacity,0)+" "+
+                         suffix+" (%"+fmt(pct,1)+")")
+                QToolTip.showText(event.globalPosition().toPoint(),message,self)
+            else:
+                QToolTip.hideText()
+            self.update()
+        super().mouseMoveEvent(event)
+
+    def leaveEvent(self, event):
+        self.hovered=-1
+        from PySide6.QtWidgets import QToolTip
+        QToolTip.hideText()
+        self.update()
+        super().leaveEvent(event)
 
     def paintEvent(self, event):
         p = scheme()
@@ -104,7 +130,7 @@ class HorizontalBars(QWidget):
             painter.drawText(self.rect().adjusted(0, y - 17, -17, 0),
                              Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight, value)
             track = QRectF(18, y + 7, width, 11)
-            painter.setBrush(QColor(p["track"]))
+            painter.setBrush(QColor("#4a617a") if i==self.hovered else QColor(p["track"]))
             painter.setPen(Qt.PenStyle.NoPen)
             painter.drawRoundedRect(track, 5, 5)
             fill = QRectF(18, y + 7, max(0, width * min(1.0, ratio)), 11)
@@ -122,12 +148,36 @@ class FlowTimeline(QWidget):
     def __init__(self):
         super().__init__()
         self.parts = []
+        self.hovered=-1
+        self.setMouseTracking(True)
         self.setMinimumHeight(230)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
 
     def set_parts(self, parts):
         self.parts = list(parts)
+        self.hovered=-1
         self.update()
+
+    def mouseMoveEvent(self, event):
+        idx=int((event.position().y()-53)//42)
+        idx=idx if 0<=idx<min(4,len(self.parts)) else -1
+        if idx!=self.hovered:
+            self.hovered=idx
+            from PySide6.QtWidgets import QToolTip
+            if idx>=0:
+                label,lo,hi,_=self.parts[idx]
+                QToolTip.showText(event.globalPosition().toPoint(),
+                                  label+": "+minutes(lo)+" – "+minutes(hi),self)
+            else:QToolTip.hideText()
+            self.update()
+        super().mouseMoveEvent(event)
+
+    def leaveEvent(self, event):
+        self.hovered=-1
+        from PySide6.QtWidgets import QToolTip
+        QToolTip.hideText()
+        self.update()
+        super().leaveEvent(event)
 
     def paintEvent(self, event):
         p = scheme()
@@ -150,7 +200,7 @@ class FlowTimeline(QWidget):
             painter.drawText(15, y + 14, int(bar_left - 28), 18,
                              Qt.AlignmentFlag.AlignVCenter, label)
             painter.setPen(Qt.PenStyle.NoPen)
-            painter.setBrush(QColor(p["track"]))
+            painter.setBrush(QColor("#4a617a") if i==self.hovered else QColor(p["track"]))
             track = QRectF(bar_left, y + 12, bar_width, 14)
             painter.drawRoundedRect(track, 6, 6)
             high = bar_width * min(1.0, hi / maximum)
