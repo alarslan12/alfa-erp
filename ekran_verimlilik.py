@@ -196,7 +196,7 @@ class FlexFlowView(QWidget):
         charts=QGridLayout()
         charts.setSpacing(10)
         self.completed_chart=LineChart("Günlük tamamlanan sipariş",[("orders","Sipariş","#51d6a6")])
-        self.progress_chart=LineChart("Günlük hazırlanan / kolilenen nüsha",[
+        self.progress_chart=LineChart("Kayıtlı günlerde hazırlanan / kolilenen",[
             ("ready","Hazırlandı","#60baff"),("boxed","Kolilendi","#f1c275")
         ])
         for chart,col in ((self.completed_chart,0),(self.progress_chart,1)):
@@ -344,10 +344,10 @@ class FlexFlowView(QWidget):
         )
         self.completed_chart.set_data(report["points"])
         logged=set(report["logged_days"])
-        plotted=[{**p,"ready":p["ready"] if p["date"] in logged else 0,
-                  "boxed":p["boxed"] if p["date"] in logged else 0}
-                 for p in report["points"]]
-        self.progress_chart.set_data(plotted if logged else [])
+        # Missing event history is not a measured zero. Plot only dates
+        # with recorded movement; the daily table shows an explicit dash.
+        plotted=[p for p in report["points"] if p["date"] in logged]
+        self.progress_chart.set_data(plotted)
         self.backlog.refresh(open_work)
         self.shift_note.setText(
             "BUGÜNÜN İŞ PLANI: "+report["workload"]+
