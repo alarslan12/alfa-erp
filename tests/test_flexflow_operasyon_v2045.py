@@ -18,7 +18,7 @@ class FakeDB:
 
 class FlexFlowOperationalTests(unittest.TestCase):
     def setup_orders(self):
-        tz=timezone(timedelta(hours=3))
+        tz=datetime.now().astimezone().tzinfo
         now=datetime(2026,11,18,17,0,tzinfo=tz)
         orders=[
             {"id":1,"bulut_id":"cloud-one","durum":"tamamlandi",
