@@ -1769,3 +1769,52 @@ QWidget#FlexFlowPage QTableWidget {
     gridline-color:#3a5671;
 }
 """
+
+
+QSS += """
+/* FlexFlow: shared order filters + prominent daily decision support. */
+QWidget#FlexFlowPage QFrame#OrderFilterSegment {
+    background:#172c43; border:1px solid #456683;
+    border-radius:10px;
+}
+QWidget#FlexFlowPage QComboBox#OrderFilter {
+    min-height:34px; max-height:34px;
+    background:#203a56; color:#edf7ff;
+    border:1px solid #527a9b; border-radius:7px;
+    padding:3px 9px; font-size:12px; font-weight:850;
+}
+QWidget#FlexFlowPage QComboBox#OrderFilter:hover {border-color:#8dccff;}
+QWidget#FlexFlowPage QComboBox#OrderFilter QAbstractItemView {
+    background:#1a3048; color:#ecf6ff;
+    selection-background-color:#3175a2;
+    border:1px solid #527a9b;
+}
+QFrame#FlexFlowInsight {
+    background:#142d41; border:1px solid #4c8299;
+    border-left:4px solid #67d9b4; border-radius:12px;
+}
+QFrame#FlexFlowInsight[insightLevel="warning"] {
+    background:#302921; border-color:#c5964b;
+    border-left:4px solid #f5c46d;
+}
+QFrame#FlexFlowInsight[insightLevel="neutral"] {
+    background:#1a2a3e; border-color:#63819c;
+    border-left:4px solid #79b7f0;
+}
+QFrame#FlexFlowInsight QLabel {
+    background:transparent; border:0; color:#e9f5ff;
+    font-size:12px;
+}
+QLabel#FlexFlowInsightTitle {
+    color:#98e9d2; font-size:15px; font-weight:900;
+}
+QLabel#FlexFlowInsightRisk {
+    color:#f2cf84; font-weight:850;
+}
+QLabel#FlexFlowInsightNote {
+    color:#aac4d5; font-size:10px;
+}
+QLabel#FlexFlowHourlyDate {
+    color:#a9c7dd; font-weight:850; font-size:12px;
+}
+"""
