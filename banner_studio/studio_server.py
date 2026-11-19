@@ -251,7 +251,7 @@ class Handler(SimpleHTTPRequestHandler):
             return self._response({'catalog':CATALOG,'settings':config,'books':selected,
                    'palettes':PALETTES,'styles':STYLES,'layouts':LAYOUTS,
                    'covers':len(COVER_IDX[0]),'cover_status':_cover_status(),
-                   'version':'3.14 - Arşiv arama ve konum koruması',
+                   'version':'3.16 - Arşiv tasarımını yerinde güncelleme',
                    'suite_version':SUITE_VERSION,
                    'update_nonce':UPDATE_NONCE,
                    'catalog_error':CATALOG_ERROR,
@@ -354,7 +354,8 @@ class Handler(SimpleHTTPRequestHandler):
                     record=library.save_design(
                         cfg,books,out,COVER_IDX,get_cover,
                         name=str(body.get('name') or ''),
-                        image_format=str(body.get('format') or 'PNG'),reason='manual')
+                        image_format=str(body.get('format') or 'PNG'),reason='manual',
+                        record_id=body.get('archive_id') or None)
                     return self._response({'saved':record})
                 if path=='/api/render':
                     renderer=Renderer(cfg,books,COVER_IDX)
@@ -377,7 +378,8 @@ class Handler(SimpleHTTPRequestHandler):
                 if fmt not in ('PNG','JPEG'):raise ValueError('Yalnız JPG/PNG dışa aktarılır.')
                 record=library.save_design(
                     cfg,books,out,COVER_IDX,get_cover,
-                    name=str(body.get('name') or ''), image_format=fmt,reason='export')
+                    name=str(body.get('name') or ''), image_format=fmt,reason='export',
+                    record_id=body.get('archive_id') or None)
                 stream=BytesIO()
                 if fmt=='JPEG':out.convert('RGB').save(stream,'JPEG',quality=97,subsampling=0,optimize=True)
                 else:out.save(stream,'PNG',optimize=True)
@@ -402,7 +404,7 @@ class Handler(SimpleHTTPRequestHandler):
                 request=json.loads(_read_body(self,1_500_000))
                 cfg=_settings(request.get('settings') or {})
                 books=_rows(request.get('books') or [])
-                library.save_working_draft(cfg,books)
+                library.save_working_draft(cfg,books,request.get('archive_id') or None)
                 return self._response({'success':True})
             if path=='/api/library/export-names':
                 request=json.loads(_read_body(self,90_000))
