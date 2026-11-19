@@ -6,6 +6,16 @@ https://github.com/alarslan12/alfa-erp/releases.
 """
 
 _RELEASES = [
+    ("2.0.46", "FlexFlow hareketli gün filtreleri ve günlük operasyon yorumu", [
+        "Son 7/14/30 gün seçimleri kaldırıldı; yalnızca kayıtlı üretim hareketi olan günler modern tarih listesinden seçilebilir.",
+        "Siparişler ekranında kullanılan takvim FlexFlow'a eklendi; tek gün ve Shift+tık tarih aralığı aynı veri raporunu filtreler.",
+        "En üstte seçilen günün/dönemin iş hacmi, hareket kaydı güvenilirliği, üretim ortalaması ve açık iş önceliklerini açıklayan günlük değerlendirme yer alır.",
+        "Günlük/saatlik grafik ve tablolar ile CSV/HTML raporları da seçilen gün veya dönemle uyumlu çalışır.",
+        "Geçmiş tarihteki açık sipariş durumu uydurulmaz; güncel kuyruk ayrıca belirtilir. Kayıt bulunmayan hareketler sıfır olarak gösterilmez.",
+        "Mevcut muhasebe, Firebase, personel katalog ve sipariş akışları korunur.",
+    ]),
+
+
     ("2.0.45", "FlexFlow günlük/saatlik operasyon analitiği", [
         "FlexFlow teknik dakika katsayıları yerine anlaşılır, gerçek işlem sayılarını ve üretim temposunu gösterir.",
         "Bugünkü tamamlanan sipariş, hazırlanma/kolileme nüshaları, açık sipariş ve vardiya saati başına tamamlama hızı.",
