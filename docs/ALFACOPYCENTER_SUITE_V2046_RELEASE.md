@@ -2,7 +2,7 @@
 
 ## Modern tarih filtresi
 - FlexFlow'daki “Son 7 gün”, “Son 14 gün”, “Son 30 gün” açılır menüsü kaldırıldı.
-- Yerine Siparişler'de zaten kullanılan **AlfaTemaliCombo** tasarımında “Tüm hareketli günler” ve yalnızca gerçek üretim hareketi bulunan tarihlerin listesi eklendi.
+- Yerine Siparişler'de zaten kullanılan **AlfaTemaliCombo** tasarımında “Genel görünüm” ve yalnızca gerçek üretim hareketi bulunan tarihlerin listesi eklendi.
 - “▦ Takvim” düğmesi aynı Siparişler takvimini açar. Tarihlerde kaydedilmiş üretim hareketi vurgulanır. Tek gün seçimi ve **Shift + tık** ile başlangıç/bitiş aralığı desteklenir; “Temizle” filtresiz görünüme döner.
 - Dropdown'daki günler kaydedilmiş aktife alma, tamamlanma ve Firebase üzerinden zaten alınmış olay günlüğündeki hazırlama/kolileme hareketlerinden çıkarılır. Kayıtsız geçmiş işlemler uydurulmaz. Yeni Firebase sorgusu veya yazması eklenmez.
 - Filtrelenmiş gün veya dönem; günlük istatistikler, saatlik görünüm, çizgi grafikler, günlük/saatlik tablolar, CSV ve HTML raporu için aynı kaynak olur. Tarih aralığının son günü saatlik grafikte gösterilir.
