@@ -47,7 +47,7 @@ def _run(*args: str) -> str:
 
 
 def changed_paths(base: str, head: str) -> list[str]:
-    data = _run("git", "diff", "--name-only", "--diff-filter=ACMR",
+    data = _run("git", "diff", "--name-only", "--diff-filter=ACDMR",
                 f"{base}...{head}")
     return [line.strip().replace("\\", "/") for line in data.splitlines()
             if line.strip()]
@@ -150,8 +150,8 @@ def validate(branch: str, base: str, head: str) -> list[str]:
                 for p in allowed]
     issues = [f"Out-of-scope for {area}: {p} (owner: {classify(p)})"
               for p in paths if classify(p) != area]
-    if OWNER_DOCS[area] not in paths:
-        issues.append("Workstream PR must update its own status file: "
+    if OWNER_DOCS[area] not in paths or not Path(OWNER_DOCS[area]).is_file():
+        issues.append("Workstream PR must keep and update its own status file: "
                       + OWNER_DOCS[area])
     issues.extend(_version_change_forbidden(base, head, paths))
     return issues
