@@ -63,13 +63,15 @@ def verify() -> list[str]:
          r"^## \[v(\d+\.\d+\.\d+)\]",
          main_version),
         (".github/workflows/alfacopycenter-suite.yml",
-         r"(docs/ALFACOPYCENTER_SUITE_V\d+_RELEASE\.md)",
+         r"(docs[\\\\/]ALFACOPYCENTER_SUITE_V\d+_RELEASE\.md)",
          f"docs/ALFACOPYCENTER_SUITE_V{compact}_RELEASE.md"),
     ]
     for path, expression, wanted in rules:
         try:
             found = extract(path, expression)
-            if found != wanted:
+            # The Windows build workflow stores release-note paths with
+            # backslashes. Compare canonical separators on every platform.
+            if found.replace("\\", "/") != wanted.replace("\\", "/"):
                 errors.append(f"{path}: {found!r}, expected {wanted!r}")
         except (OSError, ValueError) as exc:
             errors.append(str(exc))
