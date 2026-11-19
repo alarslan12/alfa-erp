@@ -6,6 +6,15 @@ https://github.com/alarslan12/alfa-erp/releases.
 """
 
 _RELEASES = [
+    ("2.0.47", "Banner Studio arşiv kaydı ve Türkiye saat dilimi düzeltmesi", [
+        "Tasarım Arşivi > Düzenle akışı mevcut arşiv kimliğini korur; Değişiklikleri Kaydet kopya oluşturmaz.",
+        "Farklı Kaydet yeni kayıt oluşturur; aynı isimli tasarım için üzerine yazma onayı gerekir.",
+        "Düzenlenmekte olan bannerın PNG/JPG indirmeleri arşiv kaydını günceller.",
+        "Arşiv oluşturulma/güncellenme tarihleri Europe/Istanbul saatinde gösterilir; UTC kaynak verisi değiştirilmez.",
+        "Banner Studio dışındaki Suite uygulamalarının işlevleri ve yerel veri klasörleri korunur.",
+    ]),
+
+
     ("2.0.46", "FlexFlow hareketli gün filtreleri ve günlük operasyon yorumu", [
         "Son 7/14/30 gün seçimleri kaldırıldı; yalnızca kayıtlı üretim hareketi olan günler modern tarih listesinden seçilebilir.",
         "Siparişler ekranında kullanılan takvim FlexFlow'a eklendi; tek gün ve Shift+tık tarih aralığı aynı veri raporunu filtreler.",
