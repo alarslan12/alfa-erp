@@ -65,8 +65,15 @@ def _freeze_asset(source):
     return str(target)
 
 
-def save_design(settings, books, image, cover_index, resolve_cover, name='', image_format='PNG', reason='manual'):
-    """Persist render, preview and editable project; do not change user's sources."""
+def _title_key(value):
+    """Compare archive titles without accidental duplicates from spacing/case."""
+    value = unicodedata.normalize('NFKC', _safe_text(value)).casefold()
+    return re.sub(r'\s+', ' ', value).strip()
+
+
+def save_design(settings, books, image, cover_index, resolve_cover, name='',
+                image_format='PNG', reason='manual', record_id=None):
+    """Create a design, or replace the editable contents of an existing ID."""
     if not books:
         raise ValueError('Arşive kaydetmek için en az bir kitap seç.')
     image_format = str(image_format).upper()
@@ -75,12 +82,33 @@ def save_design(settings, books, image, cover_index, resolve_cover, name='', ima
     with LOCK:
         ARCHIVE.mkdir(parents=True, exist_ok=True)
         ASSET_POOL.mkdir(parents=True, exist_ok=True)
-        record_id = uuid.uuid4().hex
-        dest = _record_dir(record_id)
-        dest.mkdir()
+        now = datetime.now(timezone.utc).isoformat(timespec='seconds')
+        title = _safe_text(name) or _safe_text(' / '.join(
+            (settings.title_series, settings.title_set))) or 'İsimsiz afiş'
+        previous = None
+        if record_id:
+            dest = _record_dir(record_id)
+            try:
+                previous = json.loads((dest / 'kayit.json').read_text(encoding='utf-8'))
+                old_project = json.loads((dest / 'proje.json').read_text(encoding='utf-8'))
+            except (OSError, ValueError) as exc:
+                raise ValueError('Güncellenecek arşiv kaydı bulunamadı.') from exc
+            if (previous.get('id') != str(record_id) or
+                    not isinstance(old_project, dict) or
+                    old_project.get('editable') is False):
+                raise ValueError('Bu arşiv kaydı düzenlenebilir bir proje değil.')
+            title = previous.get('title') or title
+        else:
+            if reason == 'manual' and any(
+                _title_key(item.get('title')) == _title_key(title)
+                for item in list_designs(limit=5000)
+            ):
+                raise ValueError('Bu isim arşivde var. Üzerine yazmak için mevcut kaydı seçin.')
+            record_id = uuid.uuid4().hex
+            dest = _record_dir(record_id)
+
+        staging = Path(tempfile.mkdtemp(prefix='.kaydediliyor-', dir=ARCHIVE))
         try:
-            title = _safe_text(name) or _safe_text(' / '.join((settings.title_series, settings.title_set))) or 'İsimsiz afiş'
-            now = datetime.now(timezone.utc).isoformat(timespec='seconds')
             settings_copy = asdict(settings)
             if settings_copy.get('logo_path'):
                 settings_copy['logo_path'] = _freeze_asset(settings_copy['logo_path'])
@@ -91,29 +119,40 @@ def save_design(settings, books, image, cover_index, resolve_cover, name='', ima
                 copy['cover_override'] = _freeze_asset(path) if path else ''
                 rows.append(copy)
             ext = 'jpg' if image_format == 'JPEG' else 'png'
-            artwork = dest / ('afis.' + ext)
+            artwork = staging / ('afis.' + ext)
             image.convert('RGB').save(artwork, image_format,
                 **({'quality':97,'subsampling':0,'optimize':True} if ext == 'jpg' else {'optimize':True}))
             preview = image.copy()
             preview.thumbnail((340, 455), Image.Resampling.LANCZOS)
-            preview.convert('RGB').save(dest / 'onizleme.jpg', 'JPEG', quality=84)
+            preview.convert('RGB').save(staging / 'onizleme.jpg', 'JPEG', quality=84)
             manifest = {
-                'id': record_id, 'title': title, 'created_at': now,
+                'id': record_id, 'title': title,
+                'created_at': previous.get('created_at', now) if previous else now,
+                'updated_at': now,
                 'series': _safe_text(settings.title_series),
                 'set': _safe_text(settings.title_set),
                 'subtitle': _safe_text(settings.subtitle) if settings.show_subtitle else '',
                 'books_count': len(books), 'format': ext,
-                'reason': _safe_text(reason, 32),
+                'reason': previous.get('reason', reason) if previous else _safe_text(reason, 32),
                 'theme': _safe_text(settings.theme),
                 'account': _safe_text(settings.account_name),
             }
             project = {'schema': 4, 'settings': settings_copy, 'books': rows}
-            _write_json(dest / 'proje.json', project)
-            _write_json(dest / 'kayit.json', manifest)
+            _write_json(staging / 'proje.json', project)
+            _write_json(staging / 'kayit.json', manifest)
+            if previous:
+                # Stage every file first; never delete the original directory on failure.
+                for filename in (artwork.name, 'onizleme.jpg', 'proje.json', 'kayit.json'):
+                    os.replace(staging / filename, dest / filename)
+                old_ext = previous.get('format')
+                if old_ext in ('jpg', 'png') and old_ext != ext:
+                    (dest / ('afis.' + old_ext)).unlink(missing_ok=True)
+            else:
+                os.replace(staging, dest)
             return manifest
-        except Exception:
-            shutil.rmtree(dest, ignore_errors=True)
-            raise
+        finally:
+            if staging.exists():
+                shutil.rmtree(staging, ignore_errors=True)
 
 
 def list_designs(limit=500):
@@ -218,15 +257,19 @@ def import_image(raw, filename='Eski Afiş', title=''):
                 raise
 
 
-def save_working_draft(settings, books):
-    """Durable autosave, independent of browser port and extracted ZIP folder."""
+def save_working_draft(settings, books, archive_id=None):
+    """Durable autosave that also remembers the edited archive record."""
     if not isinstance(books,list) or len(books)>30:
         raise ValueError('Son çalışma en fazla 30 kitap içerebilir.')
+    if archive_id:
+        folder = _record_dir(archive_id)
+        if not (folder / 'kayit.json').is_file():
+            archive_id = None
     with LOCK:
         DRAFT.parent.mkdir(parents=True,exist_ok=True)
         _write_json(DRAFT,{
             'schema':5,'saved_at':datetime.now(timezone.utc).isoformat(),
-            'settings':asdict(settings),'books':books
+            'settings':asdict(settings),'books':books,'archive_id':archive_id
         })
     return True
 
