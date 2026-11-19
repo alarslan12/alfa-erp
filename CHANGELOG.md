@@ -1,3 +1,12 @@
+## [v2.0.46] — 2026-11-19
+
+- FlexFlow'un Son 7/14/30 gün QComboBox'ı kaldırıldı. Yerine Siparişler'deki `AlfaTemaliCombo` ile gerçek üretim hareketi (aktife alınma, tamamlanma, kayıtlı hazırlama/kolileme) bulunan gün listesi geldi.
+- Aynı `TarihPopup` bileşeni üzerinden tek gün veya Shift+tık tarih aralığı seçilebiliyor. Gün seçimi saatlik/günlük metrikleri, grafik ve tabloları, CSV/HTML dışa aktarımı etkiliyor.
+- FlexFlow en üstünde seçili tarihin gerçek tamamlanan sipariş/kitap/sayfa rakamları, kayıtlı ilerlemeler, geçmiş üretim günü ortalaması, güncel açık işler ve operasyon önceliği/riskinin yer aldığı değerlendirme paneli eklendi.
+- Geçmiş tarih verileri ile **şu anki** aktif/havuz kuyruğu ayrı tanımlanır; eksik hareket ve sayfa kayıtları asla ölçülmüş sıfırmış gibi gösterilmez.
+- Küresel görünümde grafikler yalnız hareketli günleri, günlük tablolar yalnız hareket kaydı bulunan günleri listeler. Veri okuma Firebase'de ek sorgu oluşturmaz.
+- Katalog/Siparişler, Firebase güvenlik kuralları ve mevcut ödeme/iade/kargo hesaplamaları değiştirilmedi.
+
 ## [v2.0.45] — 2026-11-18
 
 - FlexFlow baştan operasyonel yönetim paneline dönüştürüldü; makine hızı/delme/spiral katsayıları yalnız hesaplama çekirdeğinde kaldı.

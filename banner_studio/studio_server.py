@@ -31,7 +31,7 @@ from banner_engine import (Renderer, Settings, read_excel, cover_files,
                            get_cover, upright_cover, PALETTES, LAYOUTS, STYLES, square_preview)
 import studio_library as library
 
-SUITE_VERSION='2.0.45'
+SUITE_VERSION='2.0.46'
 UPDATE_NONCE=secrets.token_urlsafe(32)
 STUDIO_SESSIONS=BrowserSessions()
 UPDATE_LOCK=threading.RLock()

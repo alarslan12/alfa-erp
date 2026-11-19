@@ -13,8 +13,10 @@ WEEK = ('Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz')
 class TarihPopup(QDialog):
     selected = Signal(object, object)
 
-    def __init__(self, dates, parent=None):
+    def __init__(self, dates, parent=None, heading="Sipariş tarihini seç",
+                 activity_label="Sipariş bulunan gün"):
         super().__init__(parent)
+        self.activity_label=activity_label
         self.setObjectName('DatePickerDialog')
         self.setWindowTitle('Sipariş Takvimi')
         self.setModal(True)
@@ -28,7 +30,7 @@ class TarihPopup(QDialog):
         root = QVBoxLayout(self)
         root.setContentsMargins(18, 17, 18, 17)
         root.setSpacing(11)
-        heading = QLabel('Sipariş tarihini seç')
+        heading = QLabel(heading)
         heading.setObjectName('CalendarTitle')
         root.addWidget(heading)
         guide = QLabel('Gün seç • Shift + tık ile tarih aralığı')
@@ -75,7 +77,7 @@ class TarihPopup(QDialog):
         marker = QLabel('●')
         marker.setObjectName('CalendarMarker')
         legend.addWidget(marker)
-        legend.addWidget(QLabel('Sipariş bulunan gün'))
+        legend.addWidget(QLabel(activity_label))
         legend.addStretch()
         root.addLayout(legend)
         self.selection = QLabel('Henüz tarih seçilmedi')
@@ -142,7 +144,7 @@ class TarihPopup(QDialog):
             btn.setProperty('hasOrder', active)
             btn.setProperty('selectedDay', chosen)
             btn.setProperty('otherMonth', not own)
-            btn.setToolTip(f'{day.strftime("%d.%m.%Y")} · ' + ('Sipariş var' if active else 'Sipariş yok'))
+            btn.setToolTip(f'{day.strftime("%d.%m.%Y")} · ' + (self.activity_label if active else 'Kayıtlı hareket yok'))
             btn.style().unpolish(btn)
             btn.style().polish(btn)
 
