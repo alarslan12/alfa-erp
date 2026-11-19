@@ -395,10 +395,10 @@ async function downloadImage(square,format='PNG'){
  try{destination=await chooseSaveFile(name,format==='JPEG'?'image/jpeg':'image/png')}
  catch(e){toast('Kayıt yeri seçilemedi: '+e.message);return}
  if(destination.cancelled)return;
- let archiveId=currentArchive?.id||null,archiveTitle=currentArchive?.title||'',archive=true;
+ let archiveId=currentArchive?.id||null,archiveTitle=currentArchive?.title||'',archive=!square;
  const automaticTitle=[state.settings.title_series,state.settings.title_set].filter(Boolean).join(' / ')||'İsimsiz afiş';
  try{
-  if(!archiveId){
+  if(archive&&!archiveId){
    const target=await resolveArchiveTarget(automaticTitle);
    if(target.cancelled)archive=false;
    else{archiveId=target.id;archiveTitle=target.title}
