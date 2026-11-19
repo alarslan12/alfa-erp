@@ -478,7 +478,7 @@ function renderLibraryEntries(position=null){
     try{const project=await api('/api/library/open?id='+encodeURIComponent(entry.id));
      if(project.editable===false)throw new Error('Bu kayıt dışarıdan eklenmiş bir JPG/PNG. Görüntülenebilir fakat katmanlı proje değildir.');
      state.books=project.books;state.settings={...state.settings,...project.settings};reconcileSelectedBooks();
-     updateControls();renderSelected();scheduleRender();closeLibrary();toast('Eski tasarım düzenlemeye açıldı.');
+     setCurrentArchive(entry);updateControls();renderSelected();scheduleRender();closeLibrary();toast('Tasarım açıldı. Değişiklikleri Kaydet ile aynı kayıt güncellenir.');
     }catch(e){toast(e.message)}
    };
    card.querySelector('[data-op=download]').onclick=async()=>{
@@ -495,12 +495,12 @@ function renderLibraryEntries(position=null){
    };
    card.querySelector('[data-op=rename]').onclick=async()=>{
     const title=prompt('Tasarımın yeni adı:',entry.title);if(!title?.trim())return;
-    try{await api('/api/library/rename',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:entry.id,title})});await openLibrary()}
+    try{const result=await api('/api/library/rename',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:entry.id,title})});if(currentArchive?.id===entry.id){setCurrentArchive(result.saved);saveDraftSoon()}await openLibrary()}
     catch(e){toast(e.message)}
    };
    card.querySelector('[data-op=delete]').onclick=async()=>{
     if(!confirm('“'+entry.title+'” arşiv kaydı silinsin mi? Bu işlem geri alınamaz.'))return;
-    try{await api('/api/library/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:entry.id})});await openLibrary();toast('Kayıt arşivden silindi.')}
+    try{await api('/api/library/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:entry.id})});if(currentArchive?.id===entry.id){setCurrentArchive(null);saveDraftSoon()}await openLibrary();toast('Kayıt arşivden silindi.')}
     catch(e){toast(e.message)}
    };
    list.append(card)
@@ -597,6 +597,7 @@ function bindUI(){
  $('archiveDownload').onclick=()=>downloadArchiveSelection();
  $('archiveSearch').addEventListener('input',()=>renderLibraryEntries(0));
  $('saveLibrary').onclick=()=>saveToLibrary();
+ $('saveLibraryAs').onclick=()=>saveToLibrary(true);
  $('closeLibrary').onclick=()=>closeLibrary();
  $('importLibraryImage').onclick=()=>$('fileImportArtwork').click();
  $('pickExcel').onclick=()=>$('fileExcel').click();$('pickCovers').onclick=()=>$('fileCovers').click();$('pickCoverZip').onclick=()=>$('fileCoverZip').click();
@@ -610,7 +611,7 @@ function bindUI(){
    // Clear the old selection so cached book rows cannot mix into new sets.
    // Saved designs and local cover archive are deliberately untouched.
    state.catalog=result.catalog;
-   state.books=[];
+   state.books=[];setCurrentArchive(null);
    selectedCover=null;
    $('bookSearch').value='';
    $('groupFilter').value='';
@@ -643,7 +644,7 @@ function bindUI(){
  $('fileCustom').onchange=async ev=>{const file=ev.target.files[0];if(!file)return;busy('Kapak ekleniyor…',true);try{const result=await uploadBinary('/api/upload/custom?name='+encodeURIComponent(file.name),file);if(customTarget!==null&&state.books[customTarget]){state.books[customTarget].cover_override=result.cover_path}else if(state.books.length<30){state.books.push({id:'EXTRA-'+Date.now(),code:'ÖZEL',name:file.name.replace(/\.[^.]+$/,''),group:'Harici kapak',pages:null,color:false,cover_override:result.cover_path,badge_override:'',edition_override:''})}else{toast('30 kapak sınırı dolu.');return}afterBooksChanged();toast('Harici kapak eklendi')}catch(e){toast(e.message)}finally{busy('',false);ev.target.value=''}};
  $('saveProject').onclick=()=>{const data={schema:3,settings:state.settings,books:state.books};const file=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const url=URL.createObjectURL(file);let a=document.createElement('a');a.href=url;a.download='ALFA_Banner_Proje.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('Proje JSON indirildi.')};
  $('loadProject').onclick=()=>$('fileProject').click();
- $('fileProject').onchange=async ev=>{const file=ev.target.files[0];if(!file)return;try{const obj=JSON.parse(await file.text());if(![3,4].includes(obj.schema)||!Array.isArray(obj.books)||obj.books.length>30||!obj.settings)throw new Error('Banner Studio proje dosyası değil.');state.books=obj.books;state.settings={...state.settings,...obj.settings};reconcileSelectedBooks();updateControls();renderSelected();scheduleRender();toast('Proje açıldı.')}catch(e){toast('Proje açılamadı: '+e.message)}ev.target.value=''};
+ $('fileProject').onchange=async ev=>{const file=ev.target.files[0];if(!file)return;try{const obj=JSON.parse(await file.text());if(![3,4].includes(obj.schema)||!Array.isArray(obj.books)||obj.books.length>30||!obj.settings)throw new Error('Banner Studio proje dosyası değil.');setCurrentArchive(null);state.books=obj.books;state.settings={...state.settings,...obj.settings};reconcileSelectedBooks();updateControls();renderSelected();scheduleRender();toast('Proje açıldı.')}catch(e){toast('Proje açılamadı: '+e.message)}ev.target.value=''};
  $('fileImportArtwork').onchange=async e=>{const f=e.target.files[0];if(!f)return;busy('Eski afiş arşive alınıyor…',true);try{await uploadBinary('/api/library/import?name='+encodeURIComponent(f.name),f);await openLibrary();toast('Önceden indirilmiş JPG/PNG arşive eklendi.')}catch(err){toast(err.message)}finally{busy('',false);e.target.value=''}};
  $('libraryModal').addEventListener('click',e=>{if(e.target.id==='libraryModal')closeLibrary()});
 }
@@ -661,6 +662,13 @@ async function boot(){try{const result=await api('/api/bootstrap');state={...sta
     (reconciled.removed?' '+reconciled.removed+' eski kayıt ayıklandı.':''));
  }
  generatePresets();renderGroups();bindUI();updateControls();renderCatalog();renderSelected();showCoverStatus(result);
+ if(previous.draft?.archive_id){
+  try{
+   const saved=await api('/api/library/list');
+   const entry=(saved.items||[]).find(item=>item.id===previous.draft.archive_id);
+   if(entry&&entry.reason!=='import')setCurrentArchive(entry);
+  }catch(e){console.warn('Arşiv düzenleme bağlantısı yüklenemedi:',e.message)}
+ }
  if(result.catalog_error){
   toast('Katalog yüklenemedi: '+result.catalog_error);
   $('catalogList').innerHTML='<div class="empty">'+escapeHTML(result.catalog_error)+
