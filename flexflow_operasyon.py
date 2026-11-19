@@ -328,6 +328,21 @@ def operation_insight(report, now=None):
     else:
         progress=("Bu güne ait hazırlama/kolileme saat kaydı yok; "
                   "gerçek çalışma temposu bu hareketlerden çıkarılamaz.")
+    if report["average_orders"]>0 and not ranged:
+        difference=100*(completed/report["average_orders"]-1)
+        mark="üzerinde" if difference>1 else "altında" if difference<(-1) else "yakınında"
+        comparison=(
+            f"Önceki üretim günleri ortalaması {report['average_orders']:.1f} "
+            f"sipariş/gün. Seçili günün tamamlanma adedi bu ortalamanın "
+            f"%{abs(difference):.0f} {mark}."
+            if mark!="yakınında" else
+            f"Seçili gün, önceki üretim günleri ortalaması olan "
+            f"{report['average_orders']:.1f} sipariş/güne yakın.")
+    elif report["average_orders"]>0:
+        comparison=(f"Önceki üretim günleri ortalaması "
+                    f"{report['average_orders']:.1f} sipariş/gün.")
+    else:
+        comparison="Karşılaştırma için yeterli önceki üretim günü bulunmuyor."
     work=report["open_work"]
     active=int(report["active_orders"])
     pool=int(report["open_orders"])-active
@@ -378,6 +393,7 @@ def operation_insight(report, now=None):
             assessment="Şu anda kayıtlı açık üretim işi bulunmuyor."
             severity="success"
     return {"title":headline, "observation":observation, "progress":progress,
-            "live":live, "assessment":assessment, "severity":severity,
+            "comparison":comparison, "live":live, "assessment":assessment,
+            "severity":severity,
             "note":"Karar desteği; gerçek cihaz/çalışan süre ölçümü değildir."}
 
