@@ -1,3 +1,11 @@
+## [v2.0.47] — 2026-11-20
+
+- Banner Studio Tasarım Arşivi'nde “Düzenle” ile açılan tasarımın kimliği korunur; “Değişiklikleri Kaydet” mevcut kaydın üzerine yazar, kopya üretmez.
+- Ayrı tasarım oluşturmak için “Farklı Kaydet” seçeneği eklendi. Yeni kayıtta isim çakışırsa eski tasarımın üzerine yazma onayı istenir.
+- PNG/JPG indirmeleri düzenlenen tasarımın kaydını günceller; kare önizleme orijinal arşiv görselini değiştirmez.
+- Arşiv tarihleri kayıtlı UTC verisi değiştirilmeden Europe/Istanbul saat diliminde, Türkçe gün/ay/yıl ve saat olarak gösterilir.
+- Yerel arşiv, kapaklar, Excel katalogu, diğer Suite bileşenlerinin iş akışları ve Firebase verileri korunur.
+
 ## [v2.0.46] — 2026-11-19
 
 - FlexFlow'un Son 7/14/30 gün QComboBox'ı kaldırıldı. Yerine Siparişler'deki `AlfaTemaliCombo` ile gerçek üretim hareketi (aktife alınma, tamamlanma, kayıtlı hazırlama/kolileme) bulunan gün listesi geldi.
