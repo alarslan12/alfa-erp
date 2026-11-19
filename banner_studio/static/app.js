@@ -450,6 +450,19 @@ async function saveToLibrary(forceNew=false){
  finally{busy('',false);archiveSaveBusy=false}
 }
 function closeLibrary(){$('libraryModal').classList.remove('show')}
+function archiveDateTR(timestamp){
+ if(!timestamp)return 'Tarih yok';
+ const raw=String(timestamp).trim();
+ // Existing archive data is ISO-8601 UTC (+00:00); render without rewriting it.
+ if(!/[zZ]$|[+-]\\d{2}:?\\d{2}$/.test(raw))
+  return raw.replace('T',' ').slice(0,16);
+ const date=new Date(raw);
+ if(Number.isNaN(date.getTime()))return raw.replace('T',' ').slice(0,16);
+ return new Intl.DateTimeFormat('tr-TR',{
+  timeZone:'Europe/Istanbul',day:'2-digit',month:'2-digit',year:'numeric',
+  hour:'2-digit',minute:'2-digit',hour12:false
+ }).format(date);
+}
 function libraryMatches(entry){
  const query=normalize($('archiveSearch').value).trim();
  return !query||normalize([entry.title,entry.created_at,entry.format,entry.books_count].join(' ')).includes(query);
@@ -468,7 +481,7 @@ function renderLibraryEntries(position=null){
    const img='/api/library/preview?id='+encodeURIComponent(entry.id);
    card.innerHTML=`<label class="library-pick" title="Toplu ZIP için seç"><input type="checkbox" data-op="pick" ${selectedArchiveIds.has(entry.id)?'checked':''}><span>Seç</span></label><img loading="lazy" decoding="async" src="${img}" alt="${escapeHTML(entry.title)}">
     <div class="library-card-body"><strong>${escapeHTML(entry.title)}</strong>
-    <small>${escapeHTML((entry.created_at||'').replace('T',' ').slice(0,16))} · ${entry.books_count} kitap · ${escapeHTML(entry.format.toUpperCase())}</small>
+    <small>${escapeHTML(entry.updated_at&&entry.updated_at!==entry.created_at?'Güncellendi: '+archiveDateTR(entry.updated_at):archiveDateTR(entry.created_at))} · ${entry.books_count} kitap · ${escapeHTML(entry.format.toUpperCase())}</small>
     <div class="library-actions"><button data-op="open" class="btn compact gold" ${entry.reason==='import'?'disabled':''}>Düzenle</button>
     <button data-op="download" class="btn compact">Görseli indir</button>
     <button data-op="rename" class="btn compact ghost">Ad</button>
