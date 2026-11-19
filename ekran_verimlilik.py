@@ -435,7 +435,8 @@ class FlexFlowView(QWidget):
         self.hourly_date_note.setText(
             "Saatlik veriler · "+date.fromisoformat(
                 report["selected_day"]).strftime("%d.%m.%Y"))
-        ranged=report["start"]!=report["end"]
+        ranged=(report["start"]!=report["end"]
+                and not report.get("overview_mode",False))
         counts=report["period"] if ranged else report["selected"]
         title="Seçili dönem" if ranged else "Seçili gün"
         self.cards[0].title.setText(title+" tamamlanan")
