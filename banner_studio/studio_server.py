@@ -180,12 +180,13 @@ class Handler(SimpleHTTPRequestHandler):
         data=_json_bytes(obj)
         self._headers(code,length=len(data))
         self.wfile.write(data)
-    def _binary(self,data,ctype='image/jpeg',filename=None):
+    def _binary(self,data,ctype='image/jpeg',filename=None,archive_id=None):
         self.send_response(200)
         self.send_header('Content-Type',ctype)
         if filename:self.send_header('Content-Disposition',
             'attachment; filename="'+str(filename).encode('ascii','ignore').decode('ascii')+'"')
         self.send_header('Content-Length',str(len(data)))
+        if archive_id:self.send_header('X-ALFA-Archive-ID',str(archive_id))
         self.send_header('Cache-Control','no-store')
         self.end_headers();self.wfile.write(data)
     def do_GET(self):
@@ -376,10 +377,12 @@ class Handler(SimpleHTTPRequestHandler):
                 if body.get('square'):out=square_preview(out)
                 fmt=str(body.get('format') or 'PNG').upper()
                 if fmt not in ('PNG','JPEG'):raise ValueError('Yalnız JPG/PNG dışa aktarılır.')
-                record=library.save_design(
-                    cfg,books,out,COVER_IDX,get_cover,
-                    name=str(body.get('name') or ''), image_format=fmt,reason='export',
-                    record_id=body.get('archive_id') or None)
+                record=None
+                if body.get('archive', True) is not False:
+                    record=library.save_design(
+                        cfg,books,out,COVER_IDX,get_cover,
+                        name=str(body.get('name') or ''), image_format=fmt,reason='export',
+                        record_id=body.get('archive_id') or None)
                 stream=BytesIO()
                 if fmt=='JPEG':out.convert('RGB').save(stream,'JPEG',quality=97,subsampling=0,optimize=True)
                 else:out.save(stream,'PNG',optimize=True)
@@ -387,7 +390,8 @@ class Handler(SimpleHTTPRequestHandler):
                 suffix='jpg' if fmt=='JPEG' else 'png'
                 name=f'{cfg.title_series}_{cfg.title_set}_{label}.{suffix}'
                 return self._binary(stream.getvalue(),
-                    'image/jpeg' if fmt=='JPEG' else 'image/png',filename=name)
+                    'image/jpeg' if fmt=='JPEG' else 'image/png',filename=name,
+                    archive_id=record['id'] if record else None)
             if path=='/api/library/import':
                 name=(parse_qs(urlsplit(self.path).query).get('name') or ['Afiş'])[0]
                 record=library.import_image(_read_body(self,24*1024*1024),name)
