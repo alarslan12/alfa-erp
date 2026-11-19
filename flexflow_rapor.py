@@ -75,7 +75,8 @@ td,th{padding:9px 10px;text-align:left;border-bottom:1px solid #dbe4eb}
 th{background:#e4eff8}.note{padding:12px;border-left:4px solid #e6b35e;background:#fff6e6}
 @media print{body{background:white}.card{break-inside:avoid}}
 </style></head><body>"""
-    ranged=report["start"]!=report["end"]
+    ranged=(report["start"]!=report["end"]
+            and not report.get("overview_mode",False))
     selected=report["period"] if ranged else report["selected"]
     cards=[
         ("Seçili dönemde tamamlanan",str(selected["orders"])+" sipariş"),
