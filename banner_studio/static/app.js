@@ -454,7 +454,7 @@ function archiveDateTR(timestamp){
  if(!timestamp)return 'Tarih yok';
  const raw=String(timestamp).trim();
  // Existing archive data is ISO-8601 UTC (+00:00); render without rewriting it.
- if(!/[zZ]$|[+-]\\d{2}:?\\d{2}$/.test(raw))
+ if(!/[zZ]$|[+-]\d{2}:?\d{2}$/.test(raw))
   return raw.replace('T',' ').slice(0,16);
  const date=new Date(raw);
  if(Number.isNaN(date.getTime()))return raw.replace('T',' ').slice(0,16);
