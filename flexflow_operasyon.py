@@ -308,11 +308,13 @@ def operation_insight(report, now=None):
     headline+=" · "+day_text
     completed=int(values["orders"])
     if completed:
-        observation=(f"Seçilen dönemde {completed} sipariş tamamlandı; "
+        period_text="Seçilen dönemde" if ranged else "Seçilen günde"
+        observation=(f"{period_text} {completed} sipariş tamamlandı; "
                      f"{int(values['books'])} kitap ve {int(values['pages'])} sayfalık "
                      "üretim tamamlanmış sipariş kayıtlarında görünüyor.")
     else:
-        observation=("Seçilen dönemde tamamlanmış sipariş kaydı bulunmuyor; "
+        observation=(("Seçilen dönemde" if ranged else "Seçilen günde")+
+                     " tamamlanmış sipariş kaydı bulunmuyor; "
                      "bu, hiç çalışılmadığı anlamına gelmez.")
     known=bool(report["selected_activity_known"])
     logged=set(report.get("logged_days") or [])
