@@ -49,6 +49,18 @@ class FlexFlowFilterTests(unittest.TestCase):
         self.assertEqual(dates,["2026-11-19","2026-11-18","2026-11-17"])
         self.assertNotIn("2026-11-16",dates)
 
+    def test_global_trends_still_show_todays_daily_assessment(self):
+        now,db,events=fixture()
+        report=daily_dashboard(db,events,now=now,days=90)
+        self.assertTrue(report["overview_mode"])
+        self.assertEqual(report["period"]["orders"],2)
+        self.assertEqual(report["selected"]["orders"],1)
+        insight=operation_insight(report,now=now)
+        self.assertIn("GÜNLÜK",insight["title"])
+        self.assertIn("19.11.2026",insight["title"])
+        self.assertIn("1 sipariş",insight["observation"])
+        self.assertNotIn("2 sipariş",insight["observation"])
+
     def test_exact_historic_day_filters_all_daily_metrics(self):
         now,db,events=fixture()
         report=daily_dashboard(db,events,now=now,
