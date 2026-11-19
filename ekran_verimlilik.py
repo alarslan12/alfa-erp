@@ -164,8 +164,9 @@ class FlexFlowView(QWidget):
         self.period.setObjectName("OrderFilter")
         self.period.setMaxVisibleItems(12)
         self.period.setFixedSize(158,36)
-        self.period.setToolTip("Yalnızca kaydedilmiş üretim hareketi bulunan günler")
-        self.period.addItem("Tüm hareketli günler",None)
+        self.period.setToolTip(
+            "Genel görünüm son 90 günü özetler; tarih listesinde yalnız gerçek üretim hareketleri olan günler bulunur.")
+        self.period.addItem("Genel görünüm",None)
         self.period.currentIndexChanged.connect(self._period_changed)
         filter_row.addWidget(self.period)
         self.calendar_btn=button("▦  Takvim","CalendarTrigger")
@@ -396,7 +397,7 @@ class FlexFlowView(QWidget):
             chosen=self.period.currentData()
             self.period.blockSignals(True)
             self.period.clear()
-            self.period.addItem("Tüm hareketli günler",None)
+            self.period.addItem("Genel görünüm",None)
             for iso in self._activity_days:
                 self.period.addItem(
                     date.fromisoformat(iso).strftime("%d.%m.%Y"),iso)
