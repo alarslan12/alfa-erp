@@ -12,12 +12,15 @@ from PySide6.QtCore import Qt, QUrl
 from PySide6.QtGui import QColor, QDesktopServices
 from PySide6.QtWidgets import (
     QApplication, QFrame, QFileDialog, QGridLayout, QHBoxLayout, QHeaderView,
-    QLabel, QMessageBox, QPushButton, QScrollArea, QComboBox, QProgressBar,
+    QLabel, QMessageBox, QPushButton, QScrollArea, QProgressBar,
     QSizePolicy, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
     QAbstractItemView,
 )
-from flexflow_operasyon import daily_dashboard
+from flexflow_operasyon import daily_dashboard, activity_dates, operation_insight
 from flexflow_rapor import csv_report, html_report
+from takvim import TarihPopup
+from temali_combo import AlfaTemaliCombo
+from widgets import button
 
 
 def fmt(value, places=0):
@@ -126,6 +129,10 @@ class FlexFlowView(QWidget):
         super().__init__(parent)
         self.db=db
         self.latest=None
+        self._calendar_from=None
+        self._calendar_to=None
+        self._activity_days=[]
+        self.popup=None
         self.setObjectName("FlexFlowPage")
         # Import on construction, not at module import: AnalitikView creates
         # this view while ekran_analitik is already being imported.
@@ -148,13 +155,29 @@ class FlexFlowView(QWidget):
         heading.setStyleSheet("font-size:18px;font-weight:900")
         toolbar.addWidget(heading)
         toolbar.addStretch()
-        self.period=QComboBox()
-        self.period.setMinimumWidth(112)
-        for label,n in (("Son 7 gün",7),("Son 14 gün",14),("Son 30 gün",30)):
-            self.period.addItem(label,n)
-        self.period.setCurrentIndex(1)
+        self.filter_segment=QFrame()
+        self.filter_segment.setObjectName("OrderFilterSegment")
+        filter_row=QHBoxLayout(self.filter_segment)
+        filter_row.setContentsMargins(4,3,4,3)
+        filter_row.setSpacing(4)
+        self.period=AlfaTemaliCombo()
+        self.period.setObjectName("OrderFilter")
+        self.period.setMaxVisibleItems(12)
+        self.period.setFixedSize(158,36)
+        self.period.setToolTip("Yalnızca kaydedilmiş üretim hareketi bulunan günler")
+        self.period.addItem("Tüm hareketli günler",None)
         self.period.currentIndexChanged.connect(self._period_changed)
-        toolbar.addWidget(self.period)
+        filter_row.addWidget(self.period)
+        self.calendar_btn=button("▦  Takvim","CalendarTrigger")
+        self.calendar_btn.setFixedSize(94,36)
+        self.calendar_btn.setToolTip("Bir gün seç; Shift+tık ile tarih aralığı belirle")
+        self.calendar_btn.clicked.connect(self.open_calendar)
+        filter_row.addWidget(self.calendar_btn)
+        self.clear_btn=button("Temizle","OrderReset")
+        self.clear_btn.setFixedSize(71,36)
+        self.clear_btn.clicked.connect(self.clear_date_filter)
+        filter_row.addWidget(self.clear_btn)
+        toolbar.addWidget(self.filter_segment)
         self.export_csv=QPushButton("CSV")
         self.export_html=QPushButton("HTML Rapor")
         self.export_csv.clicked.connect(lambda:self.export("csv"))
@@ -165,6 +188,30 @@ class FlexFlowView(QWidget):
         reload.clicked.connect(self.refresh)
         toolbar.addWidget(reload)
         root.addLayout(toolbar)
+
+        # Daily operations interpretation is the first substantial panel,
+        # ahead of KPI cards/charts, and is refreshed from recorded data.
+        self.insight_panel=QFrame()
+        self.insight_panel.setObjectName("FlexFlowInsight")
+        insight_layout=QVBoxLayout(self.insight_panel)
+        insight_layout.setContentsMargins(16,13,16,14)
+        insight_layout.setSpacing(8)
+        self.insight_title=QLabel("GÜNLÜK OPERASYON DEĞERLENDİRMESİ")
+        self.insight_title.setObjectName("FlexFlowInsightTitle")
+        insight_layout.addWidget(self.insight_title)
+        self.insight_observation=QLabel()
+        self.insight_progress=QLabel()
+        self.insight_live=QLabel()
+        self.insight_assessment=QLabel()
+        self.insight_note=QLabel()
+        for label in (self.insight_observation,self.insight_progress,
+                      self.insight_live,self.insight_assessment,self.insight_note):
+            label.setWordWrap(True)
+            label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+            insight_layout.addWidget(label)
+        self.insight_assessment.setObjectName("FlexFlowInsightRisk")
+        self.insight_note.setObjectName("FlexFlowInsightNote")
+        root.addWidget(self.insight_panel)
 
         intro=QLabel(
             "Günlük üretim hareketleri, işlerin ilerlemesi ve tamamlanma temposu. "
@@ -177,9 +224,9 @@ class FlexFlowView(QWidget):
         kpis=QGridLayout()
         kpis.setSpacing(10)
         for i,(name,color) in enumerate((
-            ("Bugün tamamlanan","#51d6a6"),
-            ("Bugün hazırlanan","#6cbcff"),
-            ("Bugün kolilenen","#f1c275"),
+            ("Seçili gün tamamlanan","#51d6a6"),
+            ("Seçili gün hazırlanan","#6cbcff"),
+            ("Seçili gün kolilenen","#f1c275"),
             ("Açık sipariş","#b9a5f5"),
             ("Tamamlama temposu","#5ac9e8"),
             ("Ortalama karşılaştırması","#e3a3d8"),
@@ -222,10 +269,9 @@ class FlexFlowView(QWidget):
         hourly_title.setStyleSheet("font-weight:900;font-size:13px")
         hourly_head.addWidget(hourly_title)
         hourly_head.addStretch()
-        self.selected_day=QComboBox()
-        self.selected_day.setMinimumWidth(135)
-        self.selected_day.currentIndexChanged.connect(self.refresh)
-        hourly_head.addWidget(self.selected_day)
+        self.hourly_date_note=QLabel("Saatlik veriler: seçili gün")
+        self.hourly_date_note.setObjectName("FlexFlowHourlyDate")
+        hourly_head.addWidget(self.hourly_date_note)
         root.addLayout(hourly_head)
 
         self.hourly_chart=LineChart("Seçilen gün · saatlik sipariş akışı",[
@@ -299,65 +345,148 @@ class FlexFlowView(QWidget):
             table.setUpdatesEnabled(True)
 
     def _period_changed(self,*_):
-        self.selected_day.blockSignals(True)
-        self.selected_day.clear()
-        self.selected_day.blockSignals(False)
+        self._calendar_from=self._calendar_to=None
+        self.calendar_btn.setText("▦  Takvim")
+        self.refresh()
+
+    def open_calendar(self):
+        dates=self._activity_days or activity_dates(
+            self.db,getattr(self.db,"production_events",[]))
+        self.popup=TarihPopup(dates,self,
+            heading="FlexFlow · üretim tarihini seç",
+            activity_label="Üretim hareketi kayıtlı gün")
+        self.popup.selected.connect(self.set_range)
+        self.popup.open()
+
+    def set_range(self,start,end):
+        self._calendar_from=start
+        self._calendar_to=(end or start) if start else None
+        self.period.blockSignals(True)
+        self.period.setCurrentIndex(0)
+        self.period.blockSignals(False)
+        if start:
+            if end:
+                self.calendar_btn.setText(
+                    f"▦ {start[8:10]}.{start[5:7]} – {end[8:10]}.{end[5:7]}")
+            else:
+                self.calendar_btn.setText(f"▦ {start[8:10]}.{start[5:7]}")
+            self.calendar_btn.setToolTip(
+                "Seçili üretim dönemi: "+start+
+                (" – "+end if end else "")+" · Değiştirmek için tıkla")
+        else:
+            self.calendar_btn.setText("▦  Takvim")
+        self.refresh()
+
+    def clear_date_filter(self):
+        self._calendar_from=self._calendar_to=None
+        self.period.blockSignals(True)
+        self.period.setCurrentIndex(0)
+        self.period.blockSignals(False)
+        self.calendar_btn.setText("▦  Takvim")
         self.refresh()
 
     def refresh(self,*_):
         try:
-            days=int(self.period.currentData() or 14)
-            current=self.selected_day.currentData()
             events=getattr(self.db,"production_events",[])
-            report=daily_dashboard(self.db,events,days=days,selected_day=current)
+            self._activity_days=activity_dates(self.db,events)
+            # Keep the date selection while cloud events change; rebuild just
+            # the dropdown entries (not the whole view or the cloud snapshot).
+            chosen=self.period.currentData()
+            self.period.blockSignals(True)
+            self.period.clear()
+            self.period.addItem("Tüm hareketli günler",None)
+            for iso in self._activity_days:
+                self.period.addItem(
+                    date.fromisoformat(iso).strftime("%d.%m.%Y"),iso)
+            idx=self.period.findData(chosen)
+            self.period.setCurrentIndex(idx if idx>=0 else 0)
+            self.period.blockSignals(False)
+            selected=self.period.currentData()
+            if self._calendar_from:
+                report=daily_dashboard(
+                    self.db,events,start_date=self._calendar_from,
+                    end_date=self._calendar_to,selected_day=self._calendar_to)
+            elif selected:
+                report=daily_dashboard(
+                    self.db,events,start_date=selected,end_date=selected,
+                    selected_day=selected)
+            else:
+                # No last-7/14/30-day menu: global view shows the last 90
+                # calendar days, with the dropdown listing actual activity days.
+                report=daily_dashboard(self.db,events,days=90)
             self.latest=report
+            insight=operation_insight(report)
         except Exception as exc:
-            QMessageBox.warning(self,"FlexFlow","Üretim panosu yenilenemedi: "+str(exc)[:240])
+            QMessageBox.warning(self,"FlexFlow",
+                "Üretim panosu yenilenemedi: "+str(exc)[:240])
             return
-        options=[(p["date"],p["label"]) for p in report["points"]]
-        self.selected_day.blockSignals(True)
-        self.selected_day.clear()
-        for key,label in reversed(options):
-            self.selected_day.addItem(key,key)
-        selected=current if current in {p[0] for p in options} else report["end"]
-        self.selected_day.setCurrentIndex(
-            next((idx for idx in range(self.selected_day.count())
-                  if self.selected_day.itemData(idx)==selected),0))
-        self.selected_day.blockSignals(False)
-        if selected!=report["selected_day"]:
-            report=daily_dashboard(self.db,events,days=days,selected_day=selected)
-            self.latest=report
-        today=report["today"]
+        self.insight_title.setText(insight["title"])
+        self.insight_observation.setText(insight["observation"])
+        self.insight_progress.setText(insight["progress"])
+        self.insight_live.setText(insight["live"])
+        self.insight_assessment.setText(insight["assessment"])
+        self.insight_note.setText(insight["note"])
+        self.insight_panel.setProperty("insightLevel",insight["severity"])
+        self.insight_panel.style().unpolish(self.insight_panel)
+        self.insight_panel.style().polish(self.insight_panel)
+        self.hourly_date_note.setText(
+            "Saatlik veriler · "+date.fromisoformat(
+                report["selected_day"]).strftime("%d.%m.%Y"))
+        ranged=report["start"]!=report["end"]
+        counts=report["period"] if ranged else report["selected"]
+        title="Seçili dönem" if ranged else "Seçili gün"
+        self.cards[0].title.setText(title+" tamamlanan")
+        self.cards[1].title.setText(title+" hazırlanan")
+        self.cards[2].title.setText(title+" kolilenen")
+        self.cards[4].title.setText("Son günün saatlik temposu" if ranged
+                                    else "Seçili günün temposu")
+        self.cards[5].title.setText("Son günün ortalama kıyası" if ranged
+                                    else "Ortalama karşılaştırması")
         open_work=report["open_work"]
-        self.cards[0].update_values(fmt(today["orders"])+" sipariş","Bugün tamamlanan sipariş")
-        if report["today_activity_known"]:
-            ready=fmt(today["ready"])+" nüsha"
-            boxed=fmt(today["boxed"])+" nüsha"
+        self.cards[0].update_values(fmt(counts["orders"])+" sipariş",
+                                    title+" tamamlanan sipariş")
+        known_dates=set(report["logged_days"])
+        has_log=any(p["date"] in known_dates for p in report["points"]) if ranged else (
+            report["selected_activity_known"])
+        ready=fmt(counts["ready"])+" nüsha" if has_log else "Kayıt yok"
+        boxed=fmt(counts["boxed"])+" nüsha" if has_log else "Kayıt yok"
+        if ranged:
+            progress_note="Seçili dönemde kayıtlı hareketler"
+            self.cards[1].update_values(ready,progress_note)
+            self.cards[2].update_values(boxed,progress_note)
         else:
-            ready=boxed="Kayıt yok"
-        self.cards[1].update_values(
-            ready,"Bugün "+fmt(today["ready_orders"])+" siparişte hazırlama hareketi")
-        self.cards[2].update_values(
-            boxed,"Bugün "+fmt(today["boxed_orders"])+" siparişte kolileme hareketi")
+            self.cards[1].update_values(
+                ready,title+" "+fmt(counts["ready_orders"])+
+                " siparişte hazırlama hareketi" if has_log else
+                "İşlem günlüğünde hazırlama hareketi yok")
+            self.cards[2].update_values(
+                boxed,title+" "+fmt(counts["boxed_orders"])+
+                " siparişte kolileme hareketi" if has_log else
+                "İşlem günlüğünde kolileme hareketi yok")
         self.cards[3].update_values(fmt(report["open_orders"])+" sipariş",
                                     fmt(report["active_orders"])+" aktif · "+
                                     fmt(report["open_orders"]-report["active_orders"])+" havuz")
-        self.cards[4].update_values(fmt(report["today_rate"],2)+" sipariş/sa",
-                                     "Vardiya saati başına tamamlanan")
+        self.cards[4].update_values(fmt(report["selected_rate"],2)+" sipariş/sa",
+                                     "Planlı vardiya saati başına tamamlanan")
         change=report["tempo_change"]
         label=("Veri yok" if change is None else
                ("+" if change>=0 else "")+fmt(change,1)+"%")
         self.cards[5].update_values(label,"Önceki üretim günlerinin saatlik ortalamasına göre")
         self.data_note.setText(
-            "Son "+fmt(report["days"])+" gün: "+
-            fmt(sum(p["orders"] for p in report["points"]))+
-            " tamamlanan sipariş. Önceki üretim günlerinde ortalama "+
+            ("Seçili dönem: " if ranged else "Görüntülenen dönem: ")+
+            report["start"]+" → "+report["end"]+" · "+
+            fmt(report["period"]["orders"])+
+            " tamamlanan sipariş. Önceki kayıtlı üretim günlerinde ortalama "+
             fmt(report["average_orders"],1)+" sipariş/gün."
-            + (" Hazırlama/kolileme saat kayıtları bazı günler için eksiktir."
+            + (" Hazırlama/kolileme işlemi zaman damgası bulunmayan günler için 'Kayıt yok' gösterilir."
                if not report["has_progress_history"] else "")
         )
-        self.completed_chart.set_data(report["points"])
-        self.pages_chart.set_data(report["points"])
+        # Only dates with actual production movement enter the trend; never
+        # manufacture activity points from empty days.
+        activity=set(self._activity_days)
+        plotted_days=[p for p in report["points"] if p["date"] in activity]
+        self.completed_chart.set_data(plotted_days)
+        self.pages_chart.set_data(plotted_days)
         logged=set(report["logged_days"])
         # Missing event history is not a measured zero. Plot only dates
         # with recorded movement; the daily table shows an explicit dash.
@@ -365,7 +494,7 @@ class FlexFlowView(QWidget):
         self.progress_chart.set_data(plotted)
         self.backlog.refresh(open_work)
         self.shift_note.setText(
-            "BUGÜNÜN İŞ PLANI: "+report["workload"]+
+            "ŞU ANKİ AÇIK İŞ PLANI: "+report["workload"]+
             "  ·  Açık işte "+fmt(open_work["print_waiting"])+
             " nüsha baskı/hazırlık bekliyor, "+
             fmt(open_work["pack_ready"])+" nüsha kolilemeye hazır."
