@@ -254,6 +254,7 @@ def daily_dashboard(db, events=(), days=14, now=None, selected_day=None,
     selected_activity_known=selected_day.isoformat() in logged_days
     return {
         "days":days,"start":start.isoformat(),"end":end.isoformat(),
+        "overview_mode":start_date is None,
         "selected_day":selected_day.isoformat(),
         "points":values,"hourly":hourly,"today":today_row,
         "selected":selected_row,
@@ -297,7 +298,8 @@ def operation_insight(report, now=None):
     now=now or datetime.now().astimezone()
     selected=_date(report["selected_day"])
     today=now.date()
-    ranged=report["start"]!=report["end"]
+    ranged=(report["start"]!=report["end"]
+            and not report.get("overview_mode",False))
     values=report["period"] if ranged else report["selected"]
     day_text=(selected.strftime("%d.%m.%Y") if not ranged else
               _date(report["start"]).strftime("%d.%m.%Y")+" – "+
