@@ -8,6 +8,7 @@ from __future__ import annotations
 import csv
 from html import escape
 from io import StringIO
+from flexflow_operasyon import operation_insight
 
 
 def _f(value,places=0):
@@ -34,6 +35,11 @@ def csv_report(report):
     writer.writerow(["Not","İlerleme saatleri yalnız kayıtlı olaylardan; gerçek işçilik saati ölçümü değildir."])
     writer.writerow(["Günlük ortalama tamamlanan",round(report["average_orders"],2),"sipariş/üretim günü"])
     writer.writerow(["Açık sipariş",report["open_orders"]])
+    insight=operation_insight(report)
+    writer.writerow([])
+    writer.writerow([insight["title"]])
+    for key in ("observation","progress","comparison","live","assessment","note"):
+        writer.writerow([insight[key]])
     writer.writerow([])
     writer.writerow(["Tarih","Aktife alınan sipariş","Tamamlanan sipariş","Kitap nüshası","Sayfa",
                      "SB kitap","RNK kitap","Hazırlanan (net nüsha)","Kolilenen (net nüsha)"])
@@ -69,13 +75,15 @@ td,th{padding:9px 10px;text-align:left;border-bottom:1px solid #dbe4eb}
 th{background:#e4eff8}.note{padding:12px;border-left:4px solid #e6b35e;background:#fff6e6}
 @media print{body{background:white}.card{break-inside:avoid}}
 </style></head><body>"""
+    ranged=report["start"]!=report["end"]
+    selected=report["period"] if ranged else report["selected"]
     cards=[
-        ("Bugün tamamlanan",str(report["today"]["orders"])+" sipariş"),
-        ("Açık sipariş",str(report["open_orders"])),
+        ("Seçili dönemde tamamlanan",str(selected["orders"])+" sipariş"),
+        ("Şu an açık sipariş",str(report["open_orders"])),
         ("Önceki üretim günleri ortalaması",_f(report["average_orders"],1)+" sipariş/gün"),
-        ("Bugün saatlik tempo",_f(report["today_rate"],2)+" sipariş/sa"),
-        ("Baskı/hazırlık bekleyen",str(report["open_work"]["print_waiting"])+" nüsha"),
-        ("Kolilemeye hazır",str(report["open_work"]["pack_ready"])+" nüsha"),
+        ("Seçili son günün planlı vardiya temposu",_f(report["selected_rate"],2)+" sipariş/sa"),
+        ("Şu an baskı/hazırlık bekleyen",str(report["open_work"]["print_waiting"])+" nüsha"),
+        ("Şu an kolilemeye hazır",str(report["open_work"]["pack_ready"])+" nüsha"),
     ]
     summary="".join("<div class='card'><small>"+escape(k)+"</small><b>"+escape(v)+"</b></div>"
                     for k,v in cards)
@@ -93,9 +101,16 @@ th{background:#e4eff8}.note{padding:12px;border-left:4px solid #e6b35e;backgroun
                 x["ready"] if known else "Kayıt yok",
                 x["boxed"] if known else "Kayıt yok")
         hour+="<tr>"+"".join("<td>"+escape(str(v))+"</td>" for v in values)+"</tr>"
+    insight=operation_insight(report)
+    interpretation=(
+        "<h2>"+escape(insight["title"])+"</h2><div class='note'>"+
+        "".join("<p>"+escape(insight[key])+"</p>" for key in
+                ("observation","progress","comparison","live","assessment","note"))+
+        "</div>")
     return (
         head+"<h1>FlexFlow · Üretim raporu</h1><small>"+escape(report["start"])+
-        " – "+escape(report["end"])+"</small><div class='grid'>"+summary+
+        " – "+escape(report["end"])+"</small>"+interpretation+
+        "<div class='grid'>"+summary+
         "</div><p class='note'>İşlem günlüğü olmayan hazır/kolileme hareketleri "
         "geriye dönük saatlere dağıtılmaz. Rapor, kayıtlı sipariş ve olaylara "
         "dayanır; gerçek personel çalışma süreleri veya makine telemetrisi "
