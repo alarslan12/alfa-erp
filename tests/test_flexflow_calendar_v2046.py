@@ -4,7 +4,7 @@ import unittest
 from datetime import date, datetime, timedelta, timezone
 
 from flexflow_operasyon import (
-    activity_dates, daily_dashboard, operation_insight,
+    activity_dates, daily_dashboard, local_datetime, operation_insight,
 )
 from flexflow_rapor import csv_report, html_report
 
@@ -72,7 +72,10 @@ class FlexFlowFilterTests(unittest.TestCase):
         self.assertEqual(report["selected"]["pages"],150)
         self.assertEqual(report["today"]["orders"],0)
         self.assertFalse(report["selected_activity_known"])
-        self.assertEqual(report["hourly"][10]["orders"],1)
+        # Production timestamps display in the workstation's local timezone;
+        # Windows GitHub runners may use UTC instead of Turkey (+03:00).
+        completed_local_hour=local_datetime("2026-11-17T10:00:00+03:00").hour
+        self.assertEqual(report["hourly"][completed_local_hour]["orders"],1)
         self.assertIn("2026-11-17",csv_report(report))
         insight=operation_insight(report,now=now)
         self.assertIn("17.11.2026",insight["title"])
