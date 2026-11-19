@@ -201,11 +201,13 @@ class FlexFlowView(QWidget):
         insight_layout.addWidget(self.insight_title)
         self.insight_observation=QLabel()
         self.insight_progress=QLabel()
+        self.insight_comparison=QLabel()
         self.insight_live=QLabel()
         self.insight_assessment=QLabel()
         self.insight_note=QLabel()
         for label in (self.insight_observation,self.insight_progress,
-                      self.insight_live,self.insight_assessment,self.insight_note):
+                      self.insight_comparison,self.insight_live,
+                      self.insight_assessment,self.insight_note):
             label.setWordWrap(True)
             label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
             insight_layout.addWidget(label)
@@ -423,6 +425,7 @@ class FlexFlowView(QWidget):
         self.insight_title.setText(insight["title"])
         self.insight_observation.setText(insight["observation"])
         self.insight_progress.setText(insight["progress"])
+        self.insight_comparison.setText(insight["comparison"])
         self.insight_live.setText(insight["live"])
         self.insight_assessment.setText(insight["assessment"])
         self.insight_note.setText(insight["note"])
@@ -518,11 +521,13 @@ class FlexFlowView(QWidget):
              (fmt(h["boxed"])+" / "+fmt(h["boxed_orders"])) if daily_registered else "—"]
             for h in shown_hours
         ])
+        shown_daily=(report["points"] if self._calendar_from or self.period.currentData()
+                     else [p for p in report["points"] if p["date"] in activity])
         self._rows(self.daily_table,[
             [p["date"],fmt(p["started"]),fmt(p["orders"]),fmt(p["books"]),
              fmt(p["pages"]),fmt(p["ready"]) if p["date"] in logged else "—",
              fmt(p["boxed"]) if p["date"] in logged else "—"]
-            for p in reversed(report["points"])
+            for p in reversed(shown_daily)
         ])
 
     def export(self,kind):
