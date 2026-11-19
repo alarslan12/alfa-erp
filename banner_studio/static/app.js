@@ -4,6 +4,7 @@ const qs = s => [...document.querySelectorAll(s)];
 let state={settings:{},books:[],catalog:[],palettes:{},styles:[],layouts:[],covers:0};
 let renderTimer=null,latestRender=0,selectedCover=null,cropMode=false,customTarget=null;
 let draftTimer=null,draftReady=false,selectedArchiveIds=new Set(),libraryEntries=[];
+let currentArchive=null,archiveSaveBusy=false;
 const studioClientId=(globalThis.crypto?.randomUUID?.() ||
  'studio-'+Math.random().toString(36).slice(2)+'-'+Date.now().toString(36));
 function studioPresence(action){
@@ -27,7 +28,7 @@ const normalize = s => String(s||'').toLocaleLowerCase('tr-TR').normalize('NFD')
 function toast(message){const n=$('toast');n.textContent=message;n.classList.add('show');clearTimeout(n._timer);n._timer=setTimeout(()=>n.classList.remove('show'),3400)}
 function busy(message='',on=true){$('busy').classList.toggle('show',on);if(message)$('busyTitle').textContent=message}
 async function api(url,options={}){const resp=await fetch(url,options);const type=resp.headers.get('Content-Type')||'';const val=type.includes('application/json')?await resp.json():await resp.blob();if(!resp.ok)throw new Error(val.error||`İstek başarısız: ${resp.status}`);return val}
-function draftPayload(){return JSON.stringify({settings:state.settings,books:state.books})}
+function draftPayload(){return JSON.stringify({settings:state.settings,books:state.books,archive_id:currentArchive?.id||null})}
 async function saveDraft(){
  if(!draftReady)return;
  try{await api('/api/draft/save',{method:'POST',headers:{'Content-Type':'application/json'},body:draftPayload()})}
@@ -366,6 +367,27 @@ async function saveImageBlob(blob,name,chosen){
  }
  return true;
 }
+// Remember which archive record is being edited; preserve its ID across saves.
+function setCurrentArchive(entry){
+ currentArchive=entry?{id:entry.id,title:entry.title}:null;
+ $('saveLibrary').textContent=currentArchive?'✓ Değişiklikleri Kaydet':'♡ Arşive Kaydet';
+ $('saveLibrary').title=currentArchive?'“'+currentArchive.title+'” kaydını güncelle':'Yeni arşiv kaydı oluştur';
+ $('saveLibraryAs').style.display=currentArchive?'':'none';
+}
+const archiveTitleKey=s=>normalize(s).replace(/[·\/\\]+/g,' ').replace(/\s+/g,' ').trim();
+async function resolveArchiveTarget(title){
+ const result=await api('/api/library/list');
+ const matches=(result.items||[]).filter(entry=>archiveTitleKey(entry.title)===archiveTitleKey(title));
+ if(!matches.length)return {id:null,title};
+ matches.sort((a,b)=>String(a.created_at||'').localeCompare(String(b.created_at||'')));
+ const entry=matches[0];
+ const explanation=matches.length>1
+  ?'\n\nBu isimle '+matches.length+' kayıt var; en eski kayıt güncellenecek.'
+  :'';
+ if(!confirm('“'+entry.title+'” adıyla arşivde kayıt var.\n\nMevcut tasarımın üzerine yazılsın mı?'+explanation))
+  return {cancelled:true};
+ return {id:entry.id,title:entry.title};
+}
 async function downloadImage(square,format='PNG'){
  if(!state.books.length){toast('Önce afişe kitap ekle.');return}
  const name=currentExportName(square,format);
@@ -373,23 +395,59 @@ async function downloadImage(square,format='PNG'){
  try{destination=await chooseSaveFile(name,format==='JPEG'?'image/jpeg':'image/png')}
  catch(e){toast('Kayıt yeri seçilemedi: '+e.message);return}
  if(destination.cancelled)return;
- busy('Yüksek çözünürlüklü afiş hazırlanıyor…',true);
+ let archiveId=currentArchive?.id||null,archiveTitle=currentArchive?.title||'',archive=true;
+ const automaticTitle=[state.settings.title_series,state.settings.title_set].filter(Boolean).join(' / ')||'İsimsiz afiş';
  try{
-  const blob=await api('/api/export',{method:'POST',headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({settings:state.settings,books:state.books,square,format})});
+  if(!archiveId){
+   const target=await resolveArchiveTarget(automaticTitle);
+   if(target.cancelled)archive=false;
+   else{archiveId=target.id;archiveTitle=target.title}
+  }
+  busy('Yüksek çözünürlüklü afiş hazırlanıyor…',true);
+  const resp=await fetch('/api/export',{method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({settings:state.settings,books:state.books,square,format,
+    archive,archive_id:archiveId})});
+  if(!resp.ok){
+   const detail=await resp.json().catch(()=>({}));
+   throw new Error(detail.error||'Dışa aktarma başarısız: '+resp.status);
+  }
+  const blob=await resp.blob();
+  const savedId=resp.headers.get('X-ALFA-Archive-ID');
+  if(archive&&savedId){
+   setCurrentArchive({id:savedId,title:archiveTitle||automaticTitle});
+   saveDraftSoon();
+  }
   if(await saveImageBlob(blob,name,destination))
-   toast('Görsel kaydedildi ve Tasarım Arşivi’ne eklendi.');
+   toast(archive?'Görsel indirildi; tasarım arşivde kaydedildi/güncellendi.':
+    'Görsel indirildi. Mevcut arşiv kaydına dokunulmadı.');
  }catch(e){toast('Görsel kaydedilemedi: '+e.message)}finally{busy('',false)}
 }
-async function saveToLibrary(){
+async function saveToLibrary(forceNew=false){
+ if(archiveSaveBusy)return;
  if(!state.books.length){toast('Arşive kaydetmek için kitap ekle.');return}
- const name=prompt('Bu tasarım arşivde hangi adla görünsün?',`${state.settings.title_series} · ${state.settings.title_set}`);
+ const editing=!!currentArchive&&!forceNew;
+ let name=editing?currentArchive.title:
+  prompt('Bu tasarım arşivde hangi adla görünsün?',String(state.settings.title_series||'')+' · '+String(state.settings.title_set||''));
  if(name===null)return;
- busy('Afiş kalıcı arşive kaydediliyor…',true);
+ name=String(name).trim();
+ if(!name){toast('Tasarım adı boş olamaz.');return}
+ archiveSaveBusy=true;
  try{
-  const result=await api('/api/library/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({settings:state.settings,books:state.books,name,format:'PNG'})});
-  toast('Tasarım arşive kaydedildi: '+result.saved.title);
- }catch(e){toast('Arşive kaydedilemedi: '+e.message)}finally{busy('',false)}
+  let recordId=editing?currentArchive.id:null;
+  if(!recordId){
+   const target=await resolveArchiveTarget(name);
+   if(target.cancelled)return;
+   recordId=target.id;
+   if(recordId)name=target.title;
+  }
+  busy(editing||recordId?'Mevcut arşiv kaydı güncelleniyor…':'Afiş kalıcı arşive kaydediliyor…',true);
+  const result=await api('/api/library/save',{method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({settings:state.settings,books:state.books,name,format:'PNG',archive_id:recordId})});
+  setCurrentArchive(result.saved);
+  saveDraftSoon();
+  toast((editing||recordId?'Değişiklikler kaydedildi: ':'Tasarım arşive kaydedildi: ')+result.saved.title);
+ }catch(e){toast('Arşive kaydedilemedi: '+e.message)}
+ finally{busy('',false);archiveSaveBusy=false}
 }
 function closeLibrary(){$('libraryModal').classList.remove('show')}
 function libraryMatches(entry){
