@@ -3,6 +3,10 @@ name: ALFACOPYCENTER Suite v2.0.46 Windows build and release
 on:
   push:
     branches: [firebase-rtdb-final]
+    # A feature/bugfix PR can merge without rebuilding an unchanged Setup.
+    # Only a central integration/release PR changes this Inno manifest.
+    paths:
+      - 'ALFACOPYCENTER_Suite.iss'
   workflow_dispatch:
 
 permissions:
@@ -41,6 +45,8 @@ jobs:
         run: |
           python KONTROL_DOSYA_UYUMU.py
           if ($LASTEXITCODE -ne 0) { throw 'Firebase files missing' }
+          python tools/check_release_consistency.py
+          if ($LASTEXITCODE -ne 0) { throw 'Suite version metadata mismatch' }
           python -m compileall -q .
           if ($LASTEXITCODE -ne 0) { throw 'Python syntax failed' }
           node --check banner_studio/static/app.js

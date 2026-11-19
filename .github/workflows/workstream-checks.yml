@@ -1,0 +1,74 @@
+name: ALFACOPYCENTER workstream PR quality gate
+
+on:
+  pull_request:
+    branches: [firebase-rtdb-final]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: workstream-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  scope:
+    name: Workstream scope
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Verify application ownership and workstream status
+        shell: bash
+        env:
+          PR_BRANCH: ${{ github.head_ref }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          python tools/check_workstream.py --branch "$PR_BRANCH" --base "$PR_BASE" --head "$PR_HEAD"
+      - name: Ensure published Suite version is internally consistent
+        run: python tools/check_release_consistency.py
+      - name: Static syntax and source checks
+        shell: bash
+        run: |
+          python -m compileall -q .
+          node --check banner_studio/static/app.js
+          python KONTROL_DOSYA_UYUMU.py
+
+  windows-regression:
+    name: Windows regression tests
+    needs: scope
+    runs-on: windows-2022
+    timeout-minutes: 18
+    env:
+      PYTHONUTF8: '1'
+      PYTHONIOENCODING: utf-8
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+          architecture: x64
+      - name: Install test libraries
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check -r requirements.txt Pillow==11.3.0
+          if ($LASTEXITCODE -ne 0) { throw 'Dependencies failed' }
+      - name: Run ERP, Banner, Mobile, Print regression suite
+        shell: pwsh
+        run: |
+          python -u -c "import unittest,faulthandler,sys;faulthandler.dump_traceback_later(150,exit=True);r=unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.discover('tests'));sys.exit(not r.wasSuccessful())"
+          if ($LASTEXITCODE -ne 0) { throw 'Suite regression tests failed' }
+          python -u -m unittest -v tools.test_print_contract
+          if ($LASTEXITCODE -ne 0) { throw 'Print contract tests failed' }
