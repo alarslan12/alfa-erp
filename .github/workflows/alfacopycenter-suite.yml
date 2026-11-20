@@ -1,4 +1,4 @@
-name: ALFACOPYCENTER Suite v2.0.49 Windows build and release
+name: ALFACOPYCENTER Suite v2.0.50 Windows build and release
 
 on:
   push:
@@ -24,8 +24,8 @@ jobs:
       PYTHONUTF8: '1'
       PYTHONIOENCODING: utf-8
       QT_QPA_PLATFORM: offscreen
-      SUITE_TAG: v2.0.49
-      SUITE_EXE: ALFACOPYCENTER_Suite_Setup_V2_0_49.exe
+      SUITE_TAG: v2.0.50
+      SUITE_EXE: ALFACOPYCENTER_Suite_Setup_V2_0_50.exe
     steps:
       - name: Exclude cancelled v2.0.29 from automatic updates
         shell: pwsh
@@ -171,23 +171,23 @@ jobs:
           if ($file.Length -lt 1000000) { throw 'Setup unexpectedly small' }
           $hash=(Get-FileHash $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
           "$hash  $($file.Name)" | Set-Content -Encoding ascii .\output\SHA256SUMS.txt
-          Copy-Item .\docs\ALFACOPYCENTER_SUITE_V2049_RELEASE.md .\output\RELEASE_NOTES.txt
+          Copy-Item .\docs\ALFACOPYCENTER_SUITE_V2050_RELEASE.md .\output\RELEASE_NOTES.txt
           & .\.buildvenv\Scripts\python.exe -c "from PySide6.QtPdf import QPdfDocument;print('Qt PDF import OK')"
           if ($LASTEXITCODE -ne 0) { throw 'QtPdf unavailable' }
 
       - name: Upload Suite Setup for CI audit
         uses: actions/upload-artifact@v4
         with:
-          name: ALFACOPYCENTER_Suite_v2.0.49_Windows
+          name: ALFACOPYCENTER_Suite_v2.0.50_Windows
           path: |
-            output/ALFACOPYCENTER_Suite_Setup_V2_0_49.exe
+            output/ALFACOPYCENTER_Suite_Setup_V2_0_50.exe
             output/SHA256SUMS.txt
             output/RELEASE_NOTES.txt
           if-no-files-found: error
           retention-days: 30
           compression-level: 0
 
-      - name: Publish verified Suite v2.0.49 stable release
+      - name: Publish verified Suite v2.0.50 stable release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -198,7 +198,7 @@ jobs:
           if ($LASTEXITCODE -eq 0) {
             Write-Host "Suite release already exists: $tag"
           } else {
-            gh release create $tag "output/$env:SUITE_EXE" output/SHA256SUMS.txt output/RELEASE_NOTES.txt --repo $repo --target "${{ github.sha }}" --title "ALFACOPYCENTER Suite v2.0.49" --notes-file output/RELEASE_NOTES.txt --latest
+            gh release create $tag "output/$env:SUITE_EXE" output/SHA256SUMS.txt output/RELEASE_NOTES.txt --repo $repo --target "${{ github.sha }}" --title "ALFACOPYCENTER Suite v2.0.50" --notes-file output/RELEASE_NOTES.txt --latest
             if ($LASTEXITCODE -ne 0) { throw 'Suite release publishing failed' }
           }
           $release=gh release view $tag --repo $repo --json tagName,isPrerelease,isDraft,assets,url | ConvertFrom-Json
