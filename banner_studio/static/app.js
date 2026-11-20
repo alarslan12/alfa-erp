@@ -391,39 +391,104 @@ async function resolveArchiveTarget(title){
   return {cancelled:true};
  return {id:entry.id,title:entry.title};
 }
-async function downloadImage(square,format='PNG'){
- if(!state.books.length){toast('Önce afişe kitap ekle.');return}
- const name=currentExportName(square,format);
- let destination;
- try{destination=await chooseSaveFile(name,format==='JPEG'?'image/jpeg':'image/png')}
- catch(e){toast('Kayıt yeri seçilemedi: '+e.message);return}
- if(destination.cancelled)return;
- let archiveId=currentArchive?.id||null,archiveTitle=currentArchive?.title||'',archive=!square;
- const automaticTitle=[state.settings.title_series,state.settings.title_set].filter(Boolean).join(' / ')||'İsimsiz afiş';
+let exportBusy=false,exportPreviewSequence=0;
+function designArchiveTitle(){
+ return currentArchive?.title||
+  ([state.settings.title_series,state.settings.title_set].filter(x=>String(x||'').trim()).join(' · ')||'İsimsiz afiş');
+}
+function exportExtension(format){return format==='JPEG'?'jpg':format==='PDF'?'pdf':'png'}
+function exportMime(format){return format==='JPEG'?'image/jpeg':format==='PDF'?'application/pdf':'image/png'}
+async function suggestedExportName(title,format,archiveId=null){
+ const params=new URLSearchParams({name:title,format});
+ if(archiveId)params.set('id',archiveId);
+ const result=await api('/api/library/filename?'+params.toString());
+ return result.filename;
+}
+function closeExportDialog(){$('exportModal').classList.remove('show')}
+async function refreshExportName(){
+ const n=++exportPreviewSequence;
  try{
-  if(archive&&!archiveId){
-   const target=await resolveArchiveTarget(automaticTitle);
-   if(target.cancelled)archive=false;
-   else{archiveId=target.id;archiveTitle=target.title}
+  const format=$('exportFormat').value;
+  const filename=await suggestedExportName(designArchiveTitle(),format,currentArchive?.id);
+  if(n===exportPreviewSequence)$('exportNamePreview').textContent=filename;
+ }catch(e){if(n===exportPreviewSequence)$('exportNamePreview').textContent='Dosya adı alınamadı: '+e.message}
+}
+function openExportDialog(){
+ if(!state.books.length){toast('Kaydetmeden önce afişe kitap ekle.');return}
+ $('exportQuality').value=String(state.settings.export_scale||2);
+ $('exportDestination').value='desktop';
+ $('exportModal').classList.add('show');
+ void refreshExportName();
+}
+async function confirmExport(){
+ if(exportBusy)return;
+ if(!state.books.length){toast('Önce afişe kitap ekle.');return}
+ exportBusy=true;
+ $('confirmExport').disabled=true;
+ let processing=false;
+ try{
+  const format=$('exportFormat').value;
+  const quality=Number($('exportQuality').value);
+  const destination=$('exportDestination').value;
+  let title=designArchiveTitle(),archiveId=currentArchive?.id||null;
+  if(!archiveId){
+   const target=await resolveArchiveTarget(title);
+   if(target.cancelled)return;
+   if(target.id){archiveId=target.id;title=target.title}
   }
-  busy('Yüksek çözünürlüklü afiş hazırlanıyor…',true);
-  const resp=await fetch('/api/export',{method:'POST',headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({settings:state.settings,books:state.books,square,format,
-    archive,archive_id:archiveId})});
-  if(!resp.ok){
-   const detail=await resp.json().catch(()=>({}));
-   throw new Error(detail.error||'Dışa aktarma başarısız: '+resp.status);
+  const filename=await suggestedExportName(title,format,archiveId);
+  let selection=null;
+  if(destination==='choose'){
+   if(!window.showSaveFilePicker)throw new Error('Tarayıcıda klasör seçimi desteklenmiyor. Masaüstüne kaydet seçeneğini kullan.');
+   selection=await chooseSaveFile(filename,exportMime(format));
+   if(selection.cancelled)return;
   }
-  const blob=await resp.blob();
-  const savedId=resp.headers.get('X-ALFA-Archive-ID');
-  if(archive&&savedId){
-   setCurrentArchive({id:savedId,title:archiveTitle||automaticTitle});
-   saveDraftSoon();
+  const settings={...state.settings,export_scale:quality};
+  const request={settings,books:state.books,name:title,format,archive:true,
+                 archive_id:archiveId,nonce:studioNonce};
+  busy('Afiş '+format+' olarak hazırlanıyor…',true);processing=true;
+  let saved=null;
+  if(destination==='desktop'){
+   const post=async overwrite=>{
+    const response=await fetch('/api/export/desktop',{
+     method:'POST',headers:{'Content-Type':'application/json'},
+     body:JSON.stringify({...request,overwrite})
+    });
+    const result=await response.json();
+    return {response,result};
+   };
+   let {response,result}=await post(false);
+   if(response.status===409&&result.exists){
+    if(!confirm('Masaüstünde “'+filename+'” dosyası var.\n\nÜzerine yazılsın mı?'))return;
+    ({response,result}=await post(true));
+   }
+   if(!response.ok)throw new Error(result.error||'Masaüstüne kaydedilemedi.');
+   saved=result.saved;
+   toast('Masaüstüne kaydedildi: '+result.filename);
+  }else{
+   const response=await fetch('/api/export',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(request)
+   });
+   if(!response.ok){
+    const result=await response.json().catch(()=>({}));
+    throw new Error(result.error||'Dışa aktarma başarısız.');
+   }
+   const blob=await response.blob();
+   if(!await saveImageBlob(blob,filename,selection))return;
+   const recordId=response.headers.get('X-ALFA-Archive-ID');
+   saved={id:recordId||archiveId,title};
+   toast('Dosya kaydedildi: '+filename);
   }
-  if(await saveImageBlob(blob,name,destination))
-   toast(archive?'Görsel indirildi; tasarım arşivde kaydedildi/güncellendi.':
-    'Görsel indirildi. Mevcut arşiv kaydına dokunulmadı.');
- }catch(e){toast('Görsel kaydedilemedi: '+e.message)}finally{busy('',false)}
+  if(saved?.id)setCurrentArchive(saved);
+  state.settings.export_scale=quality;
+  saveDraftSoon();
+  closeExportDialog();
+ }catch(e){toast('Kaydetme hatası: '+e.message)}
+ finally{
+  if(processing)busy('',false);
+  $('confirmExport').disabled=false;exportBusy=false;
+ }
 }
 async function saveToLibrary(forceNew=false){
  if(archiveSaveBusy)return;
