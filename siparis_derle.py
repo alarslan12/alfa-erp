@@ -176,7 +176,7 @@ def derle_siparis(order, catalog, pdf_folder, desktop, *, codes=None,
     selected = None if codes is None else {str(code) for code in codes}
     if selected is not None and not selected:
         raise DerlemeHatasi('Derlemek için en az bir kitap seçin.')
-    items = []
+    amounts = {}
     for item in order.get('kitaplar', []):
         code = str(item.get('kod', ''))
         if selected is not None and code not in selected:
@@ -191,7 +191,9 @@ def derle_siparis(order, catalog, pdf_folder, desktop, *, codes=None,
         if qty < 0:
             raise DerlemeHatasi('Kitap baskı adedi negatif olamaz.')
         if qty:
-            items.append((code, kind, qty))
+            key = (code, kind)
+            amounts[key] = amounts.get(key, 0) + qty
+    items = [(code, kind, qty) for (code, kind), qty in amounts.items()]
     if not items:
         raise DerlemeHatasi('Seçilen kitaplarda derlenecek baskı bulunamadı.')
     if selected is not None and selected - {code for code, _, _ in items}:
