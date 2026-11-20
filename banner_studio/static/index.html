@@ -7,7 +7,7 @@
   <style>
     :root{--bg:#0b1521;--panel:#142331;--panel2:#192b3a;--line:#294251;--text:#f1f5f2;--muted:#98b0bc;--teal:#76d7bb;--gold:#e2ba74;--shadow:0 20px 60px #020b1280}
     *{box-sizing:border-box}html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:14px/1.45 'Segoe UI',Inter,system-ui,sans-serif}button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{opacity:.4;cursor:not-allowed}label{display:block}
-    .topbar{height:76px;display:flex;align-items:center;gap:22px;border-bottom:1px solid var(--line);padding:0 28px;background:#0e1d29;position:relative;z-index:10}.brand{display:flex;gap:12px;align-items:center;min-width:270px}.logo-sq{width:39px;height:39px;display:grid;place-items:center;border:1px solid #3d736a;background:linear-gradient(135deg,#1d615d,#1b3647);border-radius:13px;font-weight:950;font-size:18px;color:#a9ffda}.brand-name{font-weight:850;font-size:17px;letter-spacing:.6px}.brand-sub{font-size:11px;color:var(--muted)}.header-mid{font-size:12px;color:#b0c1c7}.header-mid b{color:var(--gold)}.top-actions{margin-left:auto;display:flex;align-items:center;gap:9px}
+    .topbar{height:76px;display:flex;align-items:center;gap:22px;border-bottom:1px solid var(--line);padding:0 28px;background:#0e1d29;position:relative;z-index:10}.brand{display:flex;gap:12px;align-items:center;min-width:270px}.logo-sq{width:44px;height:44px;object-fit:contain;border:1px solid #3d736a;background:#fff;border-radius:12px;padding:3px;flex-shrink:0}.brand-name{font-weight:850;font-size:17px;letter-spacing:.6px}.brand-sub{font-size:11px;color:var(--muted)}.header-mid{font-size:12px;color:#b0c1c7}.header-mid b{color:var(--gold)}.top-actions{margin-left:auto;display:flex;align-items:center;gap:9px}
     .btn{border:1px solid var(--line);background:#1e3645;color:var(--text);border-radius:10px;padding:10px 13px;font-weight:650;transition:.15s}.btn:hover{border-color:var(--teal);background:#254a50}.btn.primary{background:var(--teal);color:#082c30;border-color:var(--teal)}.btn.primary:hover{background:#a4f4d4}.btn.gold{background:#dbb16e;color:#30231b;border-color:#edca89}.btn.compact{padding:7px 10px;font-size:12px}.btn.ghost{background:transparent}.btn.wide{width:100%}.muted{color:var(--muted)}
     .workspace{display:grid;grid-template-columns:minmax(280px,330px) minmax(420px,1fr) minmax(320px,365px);height:calc(100vh - 76px);min-height:600px}.sidebar{background:#10202d;border-right:1px solid var(--line);padding:20px 16px;overflow:auto}.sidebar.right{border-left:1px solid var(--line);border-right:none;background:#10202e;padding:0;display:flex;flex-direction:column;overflow:hidden}.side-section{margin-bottom:20px}.section-kicker{font-size:10px;text-transform:uppercase;letter-spacing:2px;font-weight:850;color:var(--gold);margin:1px 0 12px}.row{display:flex;align-items:center;gap:8px}.row.split{justify-content:space-between}.field{display:flex;flex-direction:column;gap:6px;margin-bottom:13px}.field>span{font-size:12px;color:#b5c9ce;font-weight:650}.control{border:1px solid #365361;background:#162b3b;color:white;border-radius:10px;padding:10px 12px;width:100%;outline:none;min-width:0}.control:focus{border-color:var(--teal);box-shadow:0 0 0 2px #3adbaa20}.field textarea{resize:vertical;min-height:67px}.divider{height:1px;background:var(--line);margin:17px 0}.secondary{font-size:12px;color:#9db4bc}.pill{font-size:11px;display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border-radius:100px;background:#23433f;color:#b4efda;border:1px solid #3f7465}.pill.gold{background:#4b3e2b;color:#f1d59d;border-color:#866b43}
     .upload-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}.upload-row .btn{padding:11px 6px;font-size:12px}.data-hint{margin:9px 0 0;font-size:11px;color:#8fa9b0}.search-row{display:flex;gap:7px}.search-row input{flex:1}.scroll-list{height:min(29vh,300px);overflow:auto;margin-top:10px;display:flex;flex-direction:column;gap:5px;padding-right:4px}.catalog-item{border:1px solid #254354;background:#152b3a;color:#e9f0f1;width:100%;text-align:left;display:flex;align-items:center;gap:9px;padding:8px 9px;border-radius:10px}.catalog-item:hover{border-color:var(--teal);background:#214348}.catalog-item .code{font-size:11px;color:var(--teal);font-weight:850;min-width:33px}.catalog-item .name{font-size:12px;flex:1;line-height:1.25}.catalog-item .plus{font-size:21px;color:var(--teal);line-height:1}.selected-list{height:min(31vh,340px);overflow:auto;display:flex;flex-direction:column;gap:6px;padding:2px 3px 3px 0}.selected-item{display:flex;align-items:center;gap:9px;padding:7px;background:#172c3b;border:1px solid #2e4a55;border-radius:11px;cursor:grab}.selected-item:hover{border-color:var(--teal)}.selected-item.dragging{opacity:.35}.selected-item .grip{color:#7198a2;font-size:15px}.selected-item img{width:36px;height:48px;object-fit:contain;border-radius:3px;background:#e4dacf}.selected-item .name{flex:1;min-width:0;font-size:12px;font-weight:700}.selected-item .name small{display:block;color:#93acb6;font-size:10px}.icon-btn{background:transparent;color:#adbfca;border:0;font-size:17px;border-radius:5px;padding:4px 7px}.icon-btn:hover{background:#304650;color:white}.empty{padding:15px;text-align:center;color:#89a4ae;font-size:12px;border:1px dashed #38525e;border-radius:10px}
@@ -31,30 +31,26 @@
     @media(max-width:1100px){.workspace{grid-template-columns:275px minmax(350px,1fr) 300px}.topbar{padding:0 14px;gap:8px}.brand{min-width:235px}.header-mid{display:none}}
     @media(max-width:850px){.workspace{grid-template-columns:1fr;height:auto}.sidebar{height:auto;max-height:650px}.sidebar.right{height:auto;min-height:620px}.stage{min-height:720px}.topbar{flex-wrap:wrap;height:auto;padding:9px 12px}.header-mid{display:none}.preview-shadow{width:min(100%,560px)}.selected-list{height:220px}}
   .library-search-row{display:flex;align-items:center;gap:12px;padding:4px 24px 11px;border-bottom:1px solid #36525e}.library-search-row input{flex:1;max-width:750px}.library-search-row .pill{white-space:nowrap}
+    .export-window{background:#112532;color:#e8f3f1;border:1px solid #57766e;border-radius:18px;padding:25px;width:min(470px,100%);box-shadow:0 24px 75px #000b}.export-window h2{margin:0 0 8px;font-size:21px}.export-window .note{overflow-wrap:anywhere}
   </style>
 </head>
 <body>
 <header class="topbar">
- <div class="brand"><div class="logo-sq">A</div><div><div class="brand-name">ALFA BANNER STUDIO</div><div class="brand-sub">Kitap ilanları · Profesyonel tasarım editörü</div></div></div>
+ <div class="brand"><img class="logo-sq" src="/api/studio/logo" alt="ALFACOPYCENTER logosu"><div><div class="brand-name">ALFA BANNER STUDIO</div><div class="brand-sub">Kitap ilanları · Profesyonel tasarım editörü</div></div></div>
  <div class="header-mid"><span class="pill gold">● YEREL STÜDYO</span>　30 kitaba kadar · Sabit oran 3:4 · <b>HD / Ultra HD</b> · Dolap / Gardrops</div>
- <div class="top-actions"><button id="openLibrary" class="btn compact gold">▤ TASARIM ARŞİVİ</button><button id="saveLibrary" class="btn compact">♡ Arşive Kaydet</button><button id="saveLibraryAs" class="btn compact ghost" style="display:none" title="Mevcut afişi koruyarak ayrı kaydet">＋ Farklı Kaydet</button><button id="saveProject" class="btn compact ghost">JSON yedeği</button><button id="loadProject" class="btn compact ghost">Proje aç</button><button id="downloadSquare" class="btn compact">Kare önizleme indir</button><button id="downloadJpg" class="btn compact">↓ JPG İNDİR</button><button id="downloadPoster" class="btn compact primary">↓ PNG AFİŞ İNDİR</button></div>
+ <div class="top-actions"><button id="openLibrary" class="btn compact gold">▤ TASARIM ARŞİVİ</button><button id="saveLibrary" class="btn compact">♡ Arşive Kaydet</button><button id="saveLibraryAs" class="btn compact ghost" style="display:none" title="Mevcut afişi koruyarak ayrı kaydet">＋ Farklı Kaydet</button><button id="openExport" class="btn compact primary">↓ DIŞA AKTAR</button></div>
 </header>
 <main class="workspace">
  <aside class="sidebar">
   <div class="side-section">
-   <div class="section-kicker">01 · Veri Kaynakları</div>
-   <div class="upload-row"><button class="btn" id="pickExcel">▦ Excel katalog</button><button class="btn" id="pickCovers">▧ Kapak klasörü</button><button class="btn" id="pickCoverZip">⊞ Kapak ZIP</button></div>
-   <p class="data-hint" id="dataStatus">Hazır örnek TTS kataloğu yükleniyor…</p>
-  </div>
-  <div class="side-section">
-   <div class="row split"><div class="section-kicker" style="margin:0 0 9px">02 · Kitap Seç</div><span class="pill" id="catalogCount">—</span></div>
-   <label class="field"><input id="bookSearch" class="control" placeholder="🔎  Kitap kodu, isim, grup ara" autocomplete="off"></label>
+   <div class="row split"><div class="section-kicker" style="margin:0 0 9px">01 · Kitap Seç</div><span class="pill" id="catalogCount">—</span></div>
+   <label class="field"><input id="bookSearch" class="control" placeholder="🔎  Kitap adı veya grup ara" autocomplete="off"></label>
    <label class="field"><select class="control" id="groupFilter"><option value="">Tüm gruplar</option></select></label>
    <div class="row split"><small class="muted">Çift tık gerektirmez; + ile ekle</small><button class="btn compact ghost" id="addFiltered">Görünenleri ekle</button></div>
    <div id="catalogList" class="scroll-list"></div>
   </div>
   <div class="side-section" style="margin-bottom:8px">
-   <div class="row split"><div class="section-kicker" style="margin:0 0 9px">03 · Kapak Yerleşimi</div><span class="pill gold" id="selectedCount">0 / 30</span></div>
+   <div class="row split"><div class="section-kicker" style="margin:0 0 9px">02 · Kapak Yerleşimi</div><span class="pill gold" id="selectedCount">0 / 30</span></div>
    <label class="field"><span>Grup seçimi · tıklayarak seç, kaydırarak gez</span><select id="quickGroup" class="control"><option value="">Grup seçiniz</option></select></label><div class="row" style="margin-bottom:8px"><button class="btn compact" id="addQuickGroup">Seçili grubu afişe ekle</button><span class="hint-label">En fazla 30 kapak</span></div>
    <div id="selectedList" class="selected-list"><div class="empty">Kitap seçerek başlayın.</div></div>
    <div class="row" style="margin-top:9px"><button class="btn compact" id="addCustom">+ Harici JPG kapağı</button><button class="btn compact ghost" id="clearSelection">Listeyi temizle</button></div>
@@ -62,9 +58,9 @@
   </div>
  </aside>
  <section class="stage">
-  <div class="stage-head"><div class="stage-title">Canlı afiş önizlemesi<small id="previewMeta">Tasarım değişiklikleri otomatik uygulanır</small></div><div class="row"><button class="btn compact" id="resetSwap">Swap iptal</button><button class="btn compact" id="toggleCrop">▢ Kare kırpma kontrolü</button></div></div>
+  <div class="stage-head"><div class="stage-title">Canlı afiş önizlemesi<small id="previewMeta">Tasarım değişiklikleri otomatik uygulanır</small></div><div class="pill">3:4 afiş önizlemesi</div></div>
   <div class="preview-shadow"><div class="canvas-wrap" id="canvasWrap"><img id="poster" alt="Dinamik tasarlanmış kitap ilan afişi" draggable="false"><div id="coverOverlay"></div></div></div>
-  <div class="stage-note"><b>Kapak düzenleme:</b> İki kapağa sırayla tıkla → yer değiştir. <b>Sağ tıkla → o kitaba özel baskı numarası / fiyat farkı</b>. Tasarım ve JPG/PNG indirmeleri Arşiv’de kalıcı kaydedilir.</div>
+  <div class="stage-note"><b>Kapak düzenleme:</b> İki kapağa sırayla tıkla → yer değiştir. <b>Sağ tıkla → o kitaba özel baskı numarası / fiyat farkı</b>. JPG, PNG veya PDF olarak dışa aktarabilirsin.</div>
  </section>
  <aside class="sidebar right">
   <nav class="tabbar"><button class="tab active" data-tab="ilan">İLAN</button><button class="tab" data-tab="tasarim">TASARIM</button><button class="tab" data-tab="marka">MARKA</button><button class="tab" data-tab="uyari">UYARILAR</button><button class="tab" data-tab="ayarlar">AYARLAR</button></nav>
@@ -92,29 +88,21 @@
      <label class="field" id="colorPriceRow"><span>Set fiyatı (alt)</span><input class="control" data-setting="color_price" placeholder="3.000 TL"></label>
     </div>
     <div class="divider"></div>
-    <label class="checkline"><input type="checkbox" data-setting="badge_enabled"> Kapakların üzerinde fark etiketi</label>
-    <label class="field"><span>Varsayılan kapak rozeti</span><input class="control" data-setting="badge" placeholder="+100 TL"></label>
     <p class="hint-label">Her kapağa özel fiyat farkı ve baskı numarası için afişte kapağa <strong>sağ tıkla</strong>. Fark sağ üstte, özel baskı numarası alt ortada görünür.</p>
    </div>
    <div class="tabpane" id="tab-tasarim">
     <h2 class="section-title">Şablon kütüphanesi</h2><p class="section-desc">Kitap sayısı 1'den 30'a çıksa bile afişin ölçüsü ve fiyat bloğu değişmez.</p>
     <div class="subhead">Hazır vintage / modern temalar</div>
     <div class="palette-grid" id="paletteGrid"></div>
-    <div class="subhead">Tasarım dili</div><div class="styles-list" id="styleGrid"></div>
+    <label class="field"><span>Tasarım dili</span><select id="styleSelect" class="control"></select></label>
     <label class="field" style="margin-top:16px"><span>Kapak dizilimi</span><select class="control" id="layoutSelect"></select></label>
-    <label class="field"><span>Kapak ölçeği <b id="zoomValue">%100</b></span><input type="range" id="coverZoom" min="72" max="116" value="100" style="width:100%;accent-color:var(--teal)"></label>
+    <label class="field"><span>Kapak ölçeği <b id="zoomValue">%100</b></span><input type="range" id="coverZoom" min="65" max="100" value="100" style="width:100%;accent-color:var(--teal)"></label>
     <label class="field"><span>Kapaklar arası mesafe <b id="spacingValue">12 px</b></span><input type="range" id="coverSpacing" min="0" max="65" value="12" style="width:100%;accent-color:var(--teal)"></label>
     <div class="subhead">Kapak üstündeki yazıların puntosu</div>
     <label class="field"><span>Kitaba özel baskı numarası <b id="coverEditionSizeValue">22 pt</b></span><input type="range" id="coverEditionSize" min="10" max="86" value="22" style="width:100%;accent-color:var(--teal)"></label>
     <label class="field"><span>Kitaba özel ek fiyat <b id="coverBadgeSizeValue">23 pt</b></span><input type="range" id="coverBadgeSize" min="10" max="86" value="23" style="width:100%;accent-color:var(--teal)"></label>
-    <div class="divider"></div>
-    <label class="field"><span>Dışa aktarma kalitesi</span><select class="control" id="outputResolution">
-      <option value="1">Standart · 1200 × 1600</option><option value="2">HD · 2400 × 3200</option><option value="3">Ultra HD · 3600 × 4800</option>
-    </select></label>
-    <p class="hint-label">HD ve Ultra HD'de orijinal kapaklardan, yüksek puntolu fontlarla yeniden çizilir; küçük önizleme büyütülmez. PNG kayıpsızdır.</p>
-    <div class="note">Kapak alanlarının arka planı şeffaftır. Farklı oranlardaki kitaplar çerçeveye sıkıştırılmadan yerleştirilir. Mesafe değerini istediğin an değiştirebilirsin.</div>
-    <label class="checkline"><input type="checkbox" data-setting="show_codes"> Kapaklarda katalog kodları</label>
-    <div class="note"><strong>Thumbnail güvenli alanı</strong><br>Dolap ve Gardrops üst/alt kırpma yapabilir. Kare kontrolüyle afişin kritik kısmını önizle.</div>
+    <p class="hint-label">PNG, JPG ve A4 PDF kalitesi dışa aktarma sırasında seçilir. Kapak kodları afişte gösterilmez.</p>
+    <div class="note">Kitaba özel baskı ve fiyat farkını kapak üzerinde <strong>sağ tık</strong> ile ayarlayabilirsin.</div>
    </div>
    <div class="tabpane" id="tab-marka">
     <h2 class="section-title">Mağaza kimliği</h2><p class="section-desc">Firma adı, hesap adı ve kısa spot; logosuz, dengeli afiş altlığı.</p>
@@ -136,6 +124,11 @@
    </div>
    <div class="tabpane" id="tab-ayarlar">
     <h2 class="section-title">Ayarlar ve güncellemeler</h2>
+    <div class="subhead">Uygulama Yönetimi</div>
+    <div class="upload-row"><button class="btn" id="pickExcel">▦ Excel katalog</button><button class="btn" id="pickCovers">▧ Kapak klasörü</button><button class="btn" id="pickCoverZip">⊞ Kapak ZIP</button><button class="btn" id="saveProject">↓ JSON yedeği</button></div>
+    <p class="data-hint" id="dataStatus">Katalog kontrol ediliyor…</p>
+    <p class="hint-label">Excel ve kapaklar yerel bilgisayarda saklanır. Arşiv kayıtlarına dokunulmaz.</p>
+    <div class="divider"></div>
     <p class="section-desc">Banner Studio, ALFACOPYCENTER Suite'in bir parçasıdır. Güncellemeler aynı güvenli kurulumdan yüklenir.</p>
     <div class="note"><strong>Kurulu sürüm</strong><div id="studioVersion" style="margin-top:6px;font-size:13px">Banner Studio v3.13 · Suite v2.0.12</div></div>
     <div class="divider"></div>
@@ -163,6 +156,17 @@
 <input type="file" accept="application/json,.json" id="fileProject" hidden>
 <input type="file" accept="image/png,image/jpeg,.jpg,.jpeg,.png" id="fileImportArtwork" hidden>
 <div id="coverContext" role="menu" aria-label="Kitap kapağı seçenekleri"></div>
+<div id="exportModal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Afişi dışa aktar">
+ <section class="export-window">
+  <h2>↓ Afişi Kaydet</h2>
+  <p class="section-desc">Dosya adı, Tasarım Arşivi'ndeki alfabetik sıra ve tasarım adından oluşturulur.</p>
+  <label class="field"><span>Dosya türü</span><select id="exportFormat" class="control"><option value="PNG">PNG — kayıpsız görsel</option><option value="JPEG">JPG — yüksek kalite</option><option value="PDF">PDF — A4 baskı</option></select></label>
+  <label class="field"><span>Kalite</span><select id="exportQuality" class="control"><option value="1">Standart · 1200 × 1600</option><option value="2" selected>HD · 2400 × 3200</option><option value="3">Ultra HD · 3600 × 4800</option></select></label>
+  <label class="field"><span>Kayıt konumu</span><select id="exportDestination" class="control"><option value="desktop">Masaüstüne kaydet</option><option value="choose">Dosya konumu seç…</option></select></label>
+  <div id="exportNamePreview" class="note" aria-live="polite">Dosya adı hazırlanıyor…</div>
+  <div class="row" style="justify-content:flex-end;margin-top:20px"><button id="closeExport" class="btn compact ghost">İptal</button><button id="confirmExport" class="btn compact primary">Kaydet</button></div>
+ </section>
+</div>
 <div id="libraryModal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Tasarım Arşivi">
  <section class="library-window">
   <div class="library-head"><div><h2>▤ Tasarım Arşivi</h2><p>Kaydedilmiş afişlerine geri dön, düzenle veya orijinal görseli indir.</p></div>
@@ -178,5 +182,5 @@
   <div id="libraryList" class="library-grid"></div>
  </section>
 </div>
-<script src="/app.js?v=3.16"></script>
+<script src="/app.js?v=3.17"></script>
 </body></html>
