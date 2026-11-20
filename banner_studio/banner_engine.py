@@ -17,8 +17,8 @@ PALETTES={
  'Zeytin / Fildişi': {'base':'#F0E9D6','end':'#BCC5A5','ink':'#3E4736','accent':'#63744C','deep':'#344937','gold':'#CAA360','paper':'#FFFDF5'},
  'Grafit / Bronz': {'base':'#424548','end':'#1E282C','ink':'#F6EADA','accent':'#D7AA76','deep':'#253239','gold':'#D1A268','paper':'#FBF3E8'},
 }
-STYLES=['Vintage Koleksiyon','Modern Vitrin','Editoryal','Sergi Çerçevesi','Raf Düzeni','Minimal Premium']
-LAYOUTS=['Akıllı','Büyük Kapak','Kompakt Izgara','Sergi Dizilimi','Dengeli Sıralar']
+STYLES=['Vintage Koleksiyon','Minimal Premium']
+LAYOUTS=['Akıllı','Dengeli Sıralar']
 SLOGANS=['Güncel kaynaklar · Özenli baskı','Sınava hazırlıkta doğru kaynak','Kitapları keşfet · Setini oluştur','Temel · Klinik · Tam Set','Kitap koduyla hızlı sipariş','Detaylı bilgi için mesaj gönder','Kaynak seçimini kolaylaştırıyoruz']
 
 
@@ -106,60 +106,36 @@ def fitted(draw,text,box,max_size,min_size=14,bold=True,serif=False,fill='#111',
 
 
 def price_badge(draw,text,ix,iy,iw,ih,preferred,accent,gold,paper):
- """Draw a price label with a real adjustable font, not a fixed 1-line fit.
-
- Split an overflowing amount/currency onto two lines so increasing the
- slider can increase its glyph size rather than only its background.
- """
- text=' '.join(str(text).split())
+ """Single-line per-book price label; never reflows onto a second row."""
+ text=' '.join(str(text or '').split())
  if not text:return
  scale=getattr(draw,'scale',1)
  maxw=max(28,iw*.96)
- maxh=max(22,min(ih*.53,150))
- parts=text.split()
- layouts=[[text]]
- if len(parts)>=2:
-  for pos in range(1,len(parts)):
-   layouts.append([' '.join(parts[:pos]),' '.join(parts[pos:])])
- best=None
+ maxh=max(18,min(ih*.28,78))
  for size in range(max(8,int(preferred)),7,-1):
-  f=font(round(size*scale),True,False)
-  for lines in layouts:
-   metrics=[draw.textbbox((0,0),line,font=f) for line in lines]
-   widths=[(bb[2]-bb[0])/scale for bb in metrics]
-   heights=[(bb[3]-bb[1])/scale for bb in metrics]
-   pad=max(5,min(11,size*.18))
-   gap=max(1,size*.09) if len(lines)>1 else 0
-   width=max(widths)+2*pad
-   height=sum(heights)+2*pad+(len(lines)-1)*gap
-   if width<=maxw and height<=maxh:
-    best=(size,lines,width,height,heights,pad,gap)
-    break
-  if best:break
- if best is None:
-  # Respect very small thumbnails without drawing outside the book.
-  size=8;lines=layouts[-1]
-  f=font(round(size*scale),True,False)
-  metrics=[draw.textbbox((0,0),line,font=f) for line in lines]
-  widths=[(bb[2]-bb[0])/scale for bb in metrics]
-  heights=[(bb[3]-bb[1])/scale for bb in metrics]
-  pad=3;gap=1
-  best=(size,lines,min(maxw,max(widths)+2*pad),
-        min(maxh,sum(heights)+2*pad+gap),heights,pad,gap)
- size,lines,bw,bh,heights,pad,gap=best
+  f=font(round(size*scale),True)
+  bounds=draw.textbbox((0,0),text,font=f)
+  width=(bounds[2]-bounds[0])/scale
+  height=(bounds[3]-bounds[1])/scale
+  pad=max(3,min(9,size*.16))
+  if width+2*pad<=maxw and height+2*pad<=maxh:
+   break
+ else:
+  size=8
+  f=font(round(size*scale),True)
+  bounds=draw.textbbox((0,0),text,font=f)
+  width=(bounds[2]-bounds[0])/scale
+  height=(bounds[3]-bounds[1])/scale
+  pad=3
+ bw=min(maxw,width+2*pad)
+ bh=min(maxh,height+2*pad)
  rx=ix+iw-bw
  ry=iy+2
  draw.rounded_rectangle((rx,ry,rx+bw,ry+bh),radius=6,
                         fill=accent,outline=gold,width=2)
- # textbbox reports the true painted glyph bounds: offset the bbox top
- # to center visibly instead of allowing Pillow's ascent to eat the height.
- y=ry+(bh-sum(heights)-(len(lines)-1)*gap)/2
- f=font(round(size*scale),True,False)
- for line,paint_h in zip(lines,heights):
-  bounds=draw.textbbox((0,0),line,font=f)
-  draw.text((rx+bw/2-(bounds[0]+bounds[2])/(2*scale),
-             y-bounds[1]/scale),line,font=f,fill=paper,anchor=None)
-  y+=paint_h+gap
+ draw.text((rx+bw/2-(bounds[0]+bounds[2])/(2*scale),
+            ry+bh/2-(bounds[1]+bounds[3])/(2*scale)),
+           text,font=f,fill=paper,anchor=None)
 
 
 def alpha_surface(size):return Image.new('RGBA',size,(0,0,0,0))
@@ -393,19 +369,11 @@ def get_cover(row,index):
 
 def columns_for(n,layout):
  if n==1:return 1
- if layout=='Kompakt Izgara':
-  return max(2,min(7,math.ceil(math.sqrt(n*1.5))))
- if layout=='Büyük Kapak':
-  for top,bottom in [(2,2),(4,2),(6,3),(8,4),(10,5),(12,4),(15,5),(18,6),(20,5),(24,6),(30,6)]:
-   if n<=top:return bottom
- if layout=='Sergi Dizilimi':
-  return 2 if n<=4 else 3 if n<=9 else 4 if n<=16 else 5 if n<=25 else 6
  if layout=='Dengeli Sıralar':
-  return min(6,max(1,math.ceil(math.sqrt(n*1.2))))
+  return min(n,6,max(1,math.ceil(math.sqrt(n*1.2))))
  for maximum,cols in [(1,1),(2,2),(3,3),(4,2),(6,3),(8,4),(10,5),(12,4),(15,5),(16,4),(20,5),(24,6),(30,6)]:
   if n<=maximum:return cols
  return 6
-
 
 class Renderer:
  def __init__(self,settings,books,index,scale=1):
@@ -533,14 +501,6 @@ class Renderer:
   if not n:return
   x1,y1,x2,y2=rect
   cols=min(n,columns_for(n,cfg.layout))
-  if cfg.layout=='Büyük Kapak':
-   cols=max(1,min(cols,4 if n<=12 else 5))
-  if cfg.layout=='Kompakt Izgara':
-   cols=max(1,min(n,math.ceil(math.sqrt(n*2.0))))
-  if cfg.layout=='Sergi Dizilimi':
-   cols=min(n,2 if n<=5 else 3 if n<=9 else 4 if n<=16 else 5 if n<=25 else 6)
-  if cfg.layout=='Dengeli Sıralar':
-   cols=min(n,max(1,round(math.sqrt(n*1.35))))
   rows=math.ceil(n/cols)
   space=max(0,min(65,int(getattr(cfg,'cover_spacing',12))))
   gapx=space
@@ -550,7 +510,7 @@ class Renderer:
   # All rows stay in the same stage and cannot hit price/footer blocks.
   maxh=(stage_h-gapy*(rows-1))/rows
   maxw=(stage_w-gapx*(cols-1))/cols
-  zoom=max(.70,min(1.18,cfg.cover_zoom/100))
+  zoom=max(.65,min(1.0,cfg.cover_zoom/100))
   cover_h=max(37,min(maxh, maxw/.70)*zoom)
   cover_w=min(maxw,cover_h*.70)
   cover_h=min(maxh,cover_w/.70)
@@ -570,10 +530,6 @@ class Renderer:
    count_this_row=min(cols,n-r*cols)
    width_row=count_this_row*cover_w+(count_this_row-1)*gapx
    row_left=x1+(stage_w-width_row)/2
-   if cfg.layout=='Sergi Dizilimi' and r%2 and count_this_row>1:
-    # Very slight alternating row indentation that visibly differentiates
-    # the "exhibition" preset while staying within the stage.
-    row_left+=min(14,max(0,(stage_w-width_row)/3))
    bx=int(row_left+c*(cover_w+gapx))
    by=int(top+r*row_height)
    cw=int(cover_w);ch=int(cover_h)
@@ -597,15 +553,15 @@ class Renderer:
    # User font sliders go up to 86; a small cover still clamps within the
    # physical book's footprint rather than covering its neighbour.
    custom_badge=str(book.get('badge_override') or '').strip()
-   badge=custom_badge or str(cfg.badge or '').strip()
-   if badge and (bool(custom_badge) or cfg.badge_enabled) and iw>=42:
+   badge=custom_badge
+   if badge and iw>=42:
     pref=max(10,min(86,int(cfg.cover_badge_font_size)))
     price_badge(draw,badge,ix,iy,iw,ih,pref,accent,gold,paper)
-   edition=str(book.get('edition_override') or '').strip()
+   edition=' '.join(str(book.get('edition_override') or '').split())
    if edition and iw>=40:
     pref=max(10,min(86,int(cfg.cover_edition_font_size)))
     limitw=max(38,iw*.98)
-    targetw=len(edition)*pref*.55+18
+    targetw=font(round(pref*self.scale),True).getlength(edition)/self.scale+18
     bw=min(limitw,max(58,targetw))
     bh=min(max(28,pref*1.44),max(28,ih*.32),95)
     ex=ix+iw/2-bw/2;ey=iy+ih-bh-1
@@ -613,11 +569,6 @@ class Renderer:
                            fill=ink,outline=gold,width=2)
     fitted(draw,edition,(ex+3,ey+2,ex+bw-3,ey+bh-2),pref,
            min_size=8,fill=paper)
-   if cfg.show_codes and iw>=90:
-    code=str(book.get('code') or '')
-    if code:
-     draw.rounded_rectangle((ix+4,iy+4,ix+56,iy+25),radius=6,fill=paper)
-     fitted(draw,code,(ix+5,iy+5,ix+55,iy+24),13,min_size=10,fill=ink)
    # Hit-box matches true visible cover, not empty slot.
    self.positions.append((ix,iy,ix+iw,iy+ih,index))
 

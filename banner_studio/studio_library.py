@@ -155,6 +155,13 @@ def save_design(settings, books, image, cover_index, resolve_cover, name='',
                 shutil.rmtree(staging, ignore_errors=True)
 
 
+def _archive_order_key(item):
+    s = unicodedata.normalize('NFKD', str(item.get('title') or '').casefold())
+    s = s.replace('ı', 'i')
+    parts = re.split(r'(\d+)', s)
+    return tuple((0, int(p)) if p.isdigit() else (1, p) for p in parts)
+
+
 def list_designs(limit=500):
     out = []
     if not ARCHIVE.is_dir():
@@ -169,13 +176,7 @@ def list_designs(limit=500):
                 out.append(item)
         except (OSError, ValueError):
             continue
-    # Excel-like natural A-Z order: Kitap 2 before Kitap 10.
-    def order_key(item):
-        s = unicodedata.normalize('NFKD', str(item.get('title') or '').casefold())
-        s = s.replace('ı', 'i')
-        parts = re.split(r'(\d+)', s)
-        return tuple((0, int(p)) if p.isdigit() else (1, p) for p in parts)
-    out.sort(key=lambda x: (order_key(x), x.get('created_at','')))
+    out.sort(key=lambda x: (_archive_order_key(x), x.get('created_at','')))
     return out[:max(1, min(5000, int(limit)))]
 
 
@@ -320,12 +321,36 @@ def export_label(entry,index=None):
     return name
 
 
+def suggested_export_name(title, ext='png', record_id=None, entries=None):
+    """Global natural A–Z archive rank, independent of selected/filtered rows."""
+    ext = str(ext or '').lower().lstrip('.')
+    if ext not in ('png', 'jpg', 'pdf'):
+        raise ValueError('Dosya türü geçersiz.')
+    items = list(entries) if entries is not None else list_designs(limit=5000)
+    if record_id:
+        target = next((entry for entry in items if entry['id'] == record_id), None)
+        if target is None:
+            raise ValueError('Tasarım arşivinde kayıt bulunamadı.')
+    else:
+        target = {'id': '', 'title': _safe_text(title) or 'İsimsiz afiş',
+                  'created_at': '9999'}
+        items.append(target)
+        items.sort(key=lambda x: (_archive_order_key(x), x.get('created_at', '')))
+    index = next((i for i, entry in enumerate(items, 1) if entry is target), None)
+    if index is None:
+        raise ValueError('Arşiv sırası bulunamadı.')
+    safe = re.sub(r'[<>:"/\\|?*\x00-\x1f]+', '_', str(target['title']))
+    safe = re.sub(r'\s+', ' ', safe).strip(' .')[:110] or 'Tasarim'
+    return f'{index:04d}_{safe}.{ext}'
+
+
 def bulk_archive(ids):
     """ZIP with PNG pictures exclusively; never attach archive project JSON."""
     if not isinstance(ids,list) or not 1<=len(ids)<=1000:
         raise ValueError('Toplu indirmede 1–1000 tasarım seçilebilir.')
     wanted=set(str(x) for x in ids)
-    available=[x for x in list_designs(limit=5000) if x['id'] in wanted]
+    ordered=list_designs(limit=5000)
+    available=[x for x in ordered if x['id'] in wanted]
     if len(available)!=len(wanted):
         raise ValueError('Seçilen arşiv kayıtlarından biri bulunamadı.')
     ROOT.mkdir(parents=True,exist_ok=True)
@@ -337,12 +362,12 @@ def bulk_archive(ids):
         total=0
         with LOCK,zipfile.ZipFile(output,'w',compression=zipfile.ZIP_STORED,
                                   allowZip64=True) as package:
-            for i,entry in enumerate(available,1):
+            for entry in available:
                 png=artwork_png(entry['id'])
                 total+=len(png)
                 if total>650*1024*1024:
                     raise ValueError('Toplu PNG boyutu 650 MB sınırını aştı; daha az seç.')
-                package.writestr(export_label(entry,i)+'.png',png)
+                package.writestr(suggested_export_name(entry['title'],'png',entry['id'],ordered),png)
         return output
     except Exception:
         output.unlink(missing_ok=True)

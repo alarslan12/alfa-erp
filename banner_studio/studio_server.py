@@ -117,7 +117,9 @@ def _settings(raw):
     if str(d.get('style','')) not in STYLES:d['style']='Vintage Koleksiyon'
     if str(d.get('layout','')) not in LAYOUTS:d['layout']='Akıllı'
     cfg=Settings(**d)
-    try:cfg.cover_zoom=max(72,min(116,int(cfg.cover_zoom)))
+    cfg.badge_enabled=False
+    cfg.show_codes=False
+    try:cfg.cover_zoom=max(65,min(100,int(cfg.cover_zoom)))
     except (ValueError,TypeError):cfg.cover_zoom=100
     try:cfg.cover_spacing=max(0,min(65,int(cfg.cover_spacing)))
     except (ValueError,TypeError):cfg.cover_spacing=12
@@ -143,6 +145,9 @@ def _rows(raw):
         o={k:x.get(k,'') for k in ('id','code','name','group','pages','color','cover_override','badge_override','edition_override')}
         o['name']=str(o['name'])[:150]
         o['code']=str(o['code'])[:50]
+        # Avoid multi-line drift for cover labels across display/print sizes.
+        for label in ('badge_override','edition_override'):
+            o[label]=' '.join(str(o.get(label) or '').split())[:40]
         override=str(o['cover_override']) if o['cover_override'] else ''
         if override:
             path=Path(override).resolve()
@@ -159,6 +164,65 @@ def _read_body(h, max_bytes=8*1024*1024):
     except ValueError:size=-1
     if not 0<=size<=max_bytes:raise ValueError('Dosya veya istek çok büyük.')
     return h.rfile.read(size)
+
+
+def _desktop_directory():
+    """Windows Explorer's actual Desktop (including redirected OneDrive paths)."""
+    if os.name=='nt':
+        try:
+            import winreg
+            registry=r'Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders'
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER,registry) as handle:
+                raw=winreg.QueryValueEx(handle,'Desktop')[0]
+            folder=Path(os.path.expandvars(str(raw))).expanduser()
+            if folder.is_dir():
+                return folder
+        except (OSError,ValueError):
+            pass
+    for folder in (Path.home()/'Desktop',
+                   Path(os.environ.get('USERPROFILE') or Path.home())/'OneDrive'/'Desktop'):
+        if folder.is_dir():
+            return folder
+    raise OSError('Windows Masaüstü klasörü bulunamadı. Dosya konumu seç seçeneğini kullan.')
+
+
+def _export_bytes(image, image_format, quality):
+    """A4 PDF retains all 3:4 poster content centered without cropping."""
+    buffer=BytesIO()
+    if image_format=='PDF':
+        dpi={1:150,2:240,3:300}[max(1,min(3,int(quality)))]
+        width,height=round(8.2677*dpi),round(11.6929*dpi)
+        page=Image.new('RGB',(width,height),'white')
+        margin=round(dpi*.20)
+        poster=image.convert('RGB')
+        poster.thumbnail((width-2*margin,height-2*margin),Image.Resampling.LANCZOS)
+        page.paste(poster,((width-poster.width)//2,(height-poster.height)//2))
+        page.save(buffer,'PDF',resolution=float(dpi))
+    elif image_format=='JPEG':
+        image.convert('RGB').save(buffer,'JPEG',quality=97,subsampling=0,optimize=True)
+    else:
+        image.convert('RGB').save(buffer,'PNG',optimize=True)
+    return buffer.getvalue()
+
+
+def _write_desktop(file_name, data, overwrite=False):
+    target=_desktop_directory()/file_name
+    if target.is_file() and not overwrite:
+        raise FileExistsError('Bu dosya Masaüstü üzerinde zaten var.')
+    if overwrite:
+        with tempfile.NamedTemporaryFile(dir=target.parent,prefix='.alfa-',suffix='.tmp',
+                                         delete=False) as handle:
+            temp=Path(handle.name)
+            try:
+                handle.write(data)
+            except Exception:
+                temp.unlink(missing_ok=True)
+                raise
+        os.replace(temp,target)
+    else:
+        with target.open('xb') as handle:
+            handle.write(data)
+    return target
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -194,6 +258,13 @@ class Handler(SimpleHTTPRequestHandler):
         if self.headers.get('Host')!=f'127.0.0.1:{self.server.server_port}':
             return self._response({'error':'Yerel sunucu adresi geçersiz.'},403)
         req=urlsplit(self.path);q=parse_qs(req.query)
+        if req.path=='/api/studio/logo':
+            brand=BASE/'assets'/'branding'/'company.png'
+            if not brand.is_file():
+                brand=BASE.parent/'assets'/'branding'/'company.png'
+            if brand.is_file():
+                return self._binary(brand.read_bytes(),'image/png')
+            return self._response({'error':'Logo dosyası bulunamadı'},404)
         if req.path=='/api/studio/info':
             return self._response({'app':'ALFA Banner Studio Pro','pid':os.getpid(),
                                    'port':self.server.server_port})
@@ -215,6 +286,17 @@ class Handler(SimpleHTTPRequestHandler):
                 return self._response({'release':release,'current':SUITE_VERSION})
             except (UpdateError,OSError,ValueError) as exc:
                 return self._response({'error':str(exc)[:280]},503)
+        if req.path=='/api/library/filename':
+            fmt=(q.get('format') or ['PNG'])[0].upper()
+            ext={'PNG':'png','JPEG':'jpg','PDF':'pdf'}.get(fmt)
+            if not ext:return self._response({'error':'Dosya türü geçersiz'},400)
+            record_id=(q.get('id') or [''])[0] or None
+            title=(q.get('name') or [''])[0]
+            try:
+                name=library.suggested_export_name(title,ext,record_id)
+                return self._response({'filename':name})
+            except ValueError as exc:
+                return self._response({'error':str(exc)},400)
         if req.path=='/api/library/list':
             return self._response({'items':library.list_designs(limit=5000),'folder':str(library.ROOT)})
         if req.path=='/api/library/png':
@@ -252,7 +334,7 @@ class Handler(SimpleHTTPRequestHandler):
             return self._response({'catalog':CATALOG,'settings':config,'books':selected,
                    'palettes':PALETTES,'styles':STYLES,'layouts':LAYOUTS,
                    'covers':len(COVER_IDX[0]),'cover_status':_cover_status(),
-                   'version':'3.16 - Arşiv tasarımını yerinde güncelleme',
+                   'version':'3.17 - Sade dışa aktarma, masaüstü kayıt ve tasarım düzeni',
                    'suite_version':SUITE_VERSION,
                    'update_nonce':UPDATE_NONCE,
                    'catalog_error':CATALOG_ERROR,
@@ -345,7 +427,7 @@ class Handler(SimpleHTTPRequestHandler):
                 except Exception:
                     with UPDATE_LOCK:UPDATE_STATE['busy']=False
                     raise
-            if path in ('/api/render','/api/export','/api/library/save'):
+            if path in ('/api/render','/api/export','/api/export/desktop','/api/library/save'):
                 body=json.loads(_read_body(self,1_500_000))
                 cfg=_settings(body.get('settings') or {})
                 books=_rows(body.get('books') or [])
@@ -372,26 +454,46 @@ class Handler(SimpleHTTPRequestHandler):
                         'crop':bool(body.get('square'))})
                     return
                 if not books:raise ValueError('Dışa aktarmadan önce kitap ekle.')
+                fmt=str(body.get('format') or 'PNG').upper()
+                if fmt not in ('PNG','JPEG','PDF'):
+                    raise ValueError('Yalnız JPG, PNG veya PDF dışa aktarılır.')
+                record_id=body.get('archive_id') or None
+                name=str(body.get('name') or '').strip()
+                if not name:
+                    name=' / '.join((cfg.title_series,cfg.title_set)).strip(' /') or 'İsimsiz afiş'
+                ext={'PNG':'png','JPEG':'jpg','PDF':'pdf'}[fmt]
+                desktop=path=='/api/export/desktop'
+                if desktop:
+                    expected=f'http://127.0.0.1:{self.server.server_port}'
+                    if (self.headers.get('Origin')!=expected or
+                            self.headers.get('Content-Type','').split(';')[0].strip()!='application/json' or
+                            body.get('nonce')!=UPDATE_NONCE):
+                        return self._response({'error':'Geçersiz yerel kaydetme oturumu'},403)
+                    suggested=library.suggested_export_name(name,ext,record_id)
+                    if (_desktop_directory()/suggested).exists() and not body.get('overwrite'):
+                        return self._response({'error':'Masaüstünde aynı isimde dosya var.',
+                                               'exists':True,'filename':suggested},409)
                 renderer=Renderer(cfg,books,COVER_IDX,scale=cfg.export_scale)
                 out=renderer.render()
-                if body.get('square'):out=square_preview(out)
-                fmt=str(body.get('format') or 'PNG').upper()
-                if fmt not in ('PNG','JPEG'):raise ValueError('Yalnız JPG/PNG dışa aktarılır.')
                 record=None
-                if body.get('archive', True) is not False:
+                if body.get('archive',True) is not False:
                     record=library.save_design(
                         cfg,books,out,COVER_IDX,get_cover,
-                        name=str(body.get('name') or ''), image_format=fmt,reason='export',
-                        record_id=body.get('archive_id') or None)
-                stream=BytesIO()
-                if fmt=='JPEG':out.convert('RGB').save(stream,'JPEG',quality=97,subsampling=0,optimize=True)
-                else:out.save(stream,'PNG',optimize=True)
-                label='Kare' if body.get('square') else 'Afiş'
-                suffix='jpg' if fmt=='JPEG' else 'png'
-                name=f'{cfg.title_series}_{cfg.title_set}_{label}.{suffix}'
-                return self._binary(stream.getvalue(),
-                    'image/jpeg' if fmt=='JPEG' else 'image/png',filename=name,
-                    archive_id=record['id'] if record else None)
+                        name=name,image_format='PNG' if fmt=='PDF' else fmt,
+                        reason='export',record_id=record_id)
+                raw=_export_bytes(out,fmt,cfg.export_scale)
+                if desktop:
+                    if not record:
+                        raise ValueError('Masaüstüne kayıt için tasarımı arşive kaydedin.')
+                    file_name=library.suggested_export_name(record['title'],ext,record['id'])
+                    saved_path=_write_desktop(file_name,raw,overwrite=bool(body.get('overwrite')))
+                    return self._response({'saved':record,'filename':file_name,
+                                           'path':str(saved_path)})
+                content_type={'PNG':'image/png','JPEG':'image/jpeg','PDF':'application/pdf'}[fmt]
+                file_name=(library.suggested_export_name(record['title'],ext,record['id'])
+                           if record else library.suggested_export_name(name,ext,record_id))
+                return self._binary(raw,content_type,filename=file_name,
+                                    archive_id=record['id'] if record else None)
             if path=='/api/library/import':
                 name=(parse_qs(urlsplit(self.path).query).get('name') or ['Afiş'])[0]
                 record=library.import_image(_read_body(self,24*1024*1024),name)
@@ -415,12 +517,13 @@ class Handler(SimpleHTTPRequestHandler):
                 ids=request.get('ids')
                 if not isinstance(ids,list) or not 1<=len(ids)<=1000:
                     raise ValueError('En fazla 1000 arşiv kaydı seçilebilir.')
-                available={x['id']:x for x in library.list_designs(limit=5000)}
+                ordered=library.list_designs(limit=5000)
+                available={x['id']:x for x in ordered}
                 if any(i not in available for i in ids) or len(set(ids))!=len(ids):
                     raise ValueError('Arşiv seçimi geçersiz.')
                 return self._response({'files':[{
-                    'id':i,'name':library.export_label(available[i],n)+'.png'
-                } for n,i in enumerate(ids,1)]})
+                    'id':i,'name':library.suggested_export_name(available[i]['title'],'png',i,ordered)
+                } for i in ids]})
             if path=='/api/library/bulk-download':
                 request=json.loads(_read_body(self,90_000))
                 package=library.bulk_archive(request.get('ids'))
