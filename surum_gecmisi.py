@@ -6,6 +6,14 @@ https://github.com/alarslan12/alfa-erp/releases.
 """
 
 _RELEASES = [
+    ("2.0.50", "Yerel fason sipariş derlemesi ve Analitik yazdırma", [
+        "Personel/Yönetici Sipariş detayından tüm siparişi, tek kitabı veya seçili kitapları anonim ZIP'e derler.",
+        "PDF sayfaları 300 DPI görüntü olarak yeniden oluşturulur; kaynak PDF metadata, gizli nesneler ve ek dosyalar taşınmaz.",
+        "Siyah/Renkli klasörleri, rastgele PDF adları, tekrar adedi uyarıları ve BASKI_TALIMATI.txt içerir.",
+        "Sipariş numarasıyla ZIP Windows Masaüstüne otomatik kaydedilir; önceki arşivler ezilmez.",
+        "Analitik HTML raporu Masaüstüne kaydedilir ve tarayıcı yazdırma penceresi açılır.",
+        "Yalnız yerel dosyalar kullanılır; Firebase ve önceki siparişler değişmez. Görsel filigranlar PDF sayfalarında kalabilir.",
+    ]),
     ("2.0.49", "Banner Studio tek dışa aktarma ve arayüz sadeleştirme", [
         "Veri kaynakları ve JSON yedeği Ayarlar > Uygulama Yönetimi alanına taşındı.",
         "Tek PNG/JPG/A4 PDF dışa aktarma, kalite seçimi ve doğrudan Masaüstüne kaydetme eklendi.",
