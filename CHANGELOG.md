@@ -1,3 +1,14 @@
+## [v2.0.49] — 2026-11-20
+
+- Banner Studio: Excel/kapak dosyaları ve JSON yedeği Ayarlar → Uygulama Yönetimi'ne taşındı.
+- Tek Dışa Aktar penceresinde PNG, JPG ve A4 PDF; Standart/HD/Ultra HD; Masaüstüne doğrudan kayıt veya dosya konumu seçimi sunuldu.
+- Afiş dosyaları bütün arşivin doğal A–Z sırası ve kayıt adıyla, ör. `0001_TasarimAdi.png`, numaralandırılır; toplu PNG indirmeleri de aynı sırayı korur.
+- Swap iptal, kare kırpma, proje aç ve ayrı JPG/PNG butonları kaldırıldı.
+- Tasarım dilleri Vintage Koleksiyon / Minimal Premium; kapak dizilimleri Akıllı / Dengeli Sıralar seçeneklerine indirildi. Kapak ölçeği en çok %100.
+- Varsayılan fiyat farkı rozeti ve kapak üstü katalog kodları kaldırıldı; kitaba özel etiketler sağ tıkla düzenlenir, fiyat etiketi tek satırda kalır.
+- Uygulamanın sol üstüne ALFACOPYCENTER logosu yerleştirildi.
+- Yerel tasarım/kapak arşivi, Firebase, ERP ve Print Surveillance veri ve işlevleri korunur.
+
 ## [v2.0.48] — 2026-11-20
 
 - FlexFlow'da gerçek tamamlanma sayıları değiştirilmeden ayrıca iki vardiya arasında dağıtılan tahmini standart üretim yükü grafiği eklendi.
