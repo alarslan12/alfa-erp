@@ -6,6 +6,13 @@ https://github.com/alarslan12/alfa-erp/releases.
 """
 
 _RELEASES = [
+    ("2.0.51", "Fason sipariş ZIP'inde hızlı orijinal PDF aktarımı", [
+        "Siparişi Derle PDF'leri yeniden görüntüleyip oluşturmadan ZIP'e doğrudan ekler.",
+        "PDF yeniden sıkıştırması kaldırıldı; kaynak dosyalar, baskı çözünürlüğü ve görünüm birebir korunur.",
+        "Rastgele PDF adı, Siyah/Renkli klasörleri, tekrar adedi ve baskı talimatı korunur.",
+        "PDF içindeki orijinal metaveri ve filigranlar artık temizlenmez; yalnız dosya adı değiştirilir.",
+        "Eksik belgede ZIP oluşturulmaz; Firebase, diğer Suite bileşenleri ve kullanıcı verileri değişmez.",
+    ]),
     ("2.0.50", "Yerel fason sipariş derlemesi ve Analitik yazdırma", [
         "Personel/Yönetici Sipariş detayından tüm siparişi, tek kitabı veya seçili kitapları anonim ZIP'e derler.",
         "PDF sayfaları 300 DPI görüntü olarak yeniden oluşturulur; kaynak PDF metadata, gizli nesneler ve ek dosyalar taşınmaz.",
