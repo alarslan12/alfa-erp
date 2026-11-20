@@ -266,7 +266,7 @@ def build_workload(db, events, start, end, now=None):
             "Gerçek tamamlanmalar değişmez. Önceki güne kayıtlı hazırlama/"
             "kolileme hareketleri gününe yazılır. Kayıtsız hazırlama emeği "
             "yalnız bir önceki güne ait aktivasyon varsa iki vardiyanın "
-            "müsait saatleri ve ideal üretim kapasitesi oranında tahmin "
+            "müsait saatleri ve ideal üretim kapasitesi oranında tahmini "
             "edilir; kolileme tamamlanma gününde kalır. Standart eşdeğer, tamamlanan siparişlerin "
             "medyan tahmini minimum iş yüküne göre hesaplanır. "
             "Gerçek çalışma saati veya fiziksel çıktı ölçümü değildir."
