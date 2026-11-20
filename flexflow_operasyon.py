@@ -10,6 +10,7 @@ from datetime import date, datetime, timedelta
 from math import isfinite
 
 from flexflow import estimate, SHIFT_MINUTES
+from flexflow_emek import build_workload
 from siparis_uretim_ozeti import production_summary
 
 
@@ -212,6 +213,17 @@ def daily_dashboard(db, events=(), days=14, now=None, selected_day=None,
         if done_at and done_at.date()==selected_day:
             hourly[done_at.hour]["orders"]+=1
 
+    workload_history=build_workload(
+        db,events,start.isoformat(),end.isoformat(),now=now)
+    for key,row in points.items():
+        modeled=workload_history["days"].get(key,{})
+        row["modeled"]=modeled.get("equiv")
+        row["modeled_minutes"]=modeled.get("minutes",0.0)
+        row["recorded_work_min"]=modeled.get("logged_minutes",0.0)
+        row["estimated_work_min"]=modeled.get("inferred_minutes",0.0)
+        row["carry_in_min"]=modeled.get("carry_in_min",0.0)
+        row["carry_out_min"]=modeled.get("carry_out_min",0.0)
+        row["unmodeled_orders"]=modeled.get("incomplete_orders",0)
     values=list(points.values())
     for row in values:
         row["ready_orders"]=len(row["ready_orders"])
@@ -286,6 +298,7 @@ def daily_dashboard(db, events=(), days=14, now=None, selected_day=None,
         "selected_activity_known":selected_activity_known,
         "has_progress_history":bool(logged_days),
         "has_missing_pages":forecast["missing_page_copies"]>0,
+        "work_model":workload_history,
     }
 
 
@@ -396,8 +409,43 @@ def operation_insight(report, now=None):
         else:
             assessment="Şu anda kayıtlı açık üretim işi bulunmuyor."
             severity="success"
+    model=report.get("work_model") or {}
+    model_days=model.get("days") or {}
+    relevant=(report["points"] if ranged else [report["selected"]])
+    modeled_sum=sum(float(model_days.get(p["date"],{}).get("equiv") or 0)
+                    for p in relevant)
+    recorded=sum(float(model_days.get(p["date"],{}).get("logged_minutes") or 0)
+                 for p in relevant)
+    inferred=sum(float(model_days.get(p["date"],{}).get("inferred_minutes") or 0)
+                 for p in relevant)
+    gaps=sum(int(model_days.get(p["date"],{}).get("incomplete_orders") or 0)
+             for p in relevant)
+    cap=model.get("capacity",{}).get(report["selected_day"],{})
+    ref=model.get("reference_min")
+    if ref:
+        model_text=(
+            f"Üretim yükü tahmini: {modeled_sum:.2f} standart sipariş eşdeğeri "
+            f"(kayıtlı hareket aşamaları {recorded:.1f}, "
+            f"tahmini aşamalar {inferred:.1f} model dakika). "
+            f"Referans: tamamlanan {model.get('reference_samples',0)} "
+            f"siparişin medyan teorik iş yükü {ref:.1f} model dk."
+        )
+        if gaps:
+            model_text+=f" {gaps} sipariş sayfa verisi eksik olduğundan modele dahil değil."
+        if cap.get("over_capacity"):
+            model_text+=(
+                f" Dikkat: Seçili günün tamamlanan işlerinin teorik alt "
+                f"sınırı {cap['ideal_min']:.0f} dk, o saate kadar geçen "
+                f"planlı mesai {cap['elapsed_min']:.0f} dk; devir veya "
+                "eksik zaman kaydı olası. Kesin geçmiş dağılımı değildir."
+            )
+    else:
+        model_text=(
+            "İş yükü tahmini için sayfa bilgili tamamlanmış sipariş kaydı yok; "
+            "sıfır üretim varsayılmadı."
+        )
     return {"title":headline, "observation":observation, "progress":progress,
             "comparison":comparison, "live":live, "assessment":assessment,
-            "severity":severity,
-            "note":"Karar desteği; gerçek cihaz/çalışan süre ölçümü değildir."}
+            "model":model_text, "severity":severity,
+            "note":"Model ve kapasite analizi tahmindir; gerçek cihaz/çalışan süre ölçümü değildir."}
 
