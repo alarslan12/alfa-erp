@@ -1,4 +1,4 @@
-# ALFACOPYCENTER Suite v2.0.47
+# ALFACOPYCENTER Suite v2.0.48
 
 **Tek Windows kurulumu**, dört seçilebilir bileşen:
 
@@ -10,7 +10,7 @@
 | ALFA Print Center | PrintSurveillance/AlfaPrintSurveillance.exe | Seçilebilir, varsayılan |
 | Arka plan yardımcıları | Bildirim, PrintAgent, PrintSupervisor | Seçilen bileşene bağlı |
 
-Kurulum: `ALFACOPYCENTER_Suite_Setup_V2_0_47.exe`. Aynı Inno Setup AppId
+Kurulum: `ALFACOPYCENTER_Suite_Setup_V2_0_48.exe`. Aynı Inno Setup AppId
 (`ALFACOPYCENTER.Suite`) ve kurulum yolu korundu:
 `%LOCALAPPDATA%\Programs\ALFACOPYCENTER`.
 
