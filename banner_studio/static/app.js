@@ -22,7 +22,7 @@ setInterval(()=>studioPresence('heartbeat'),20000);
 window.addEventListener('pageshow',()=>studioPresence('open'));
 window.addEventListener('visibilitychange',()=>{if(!document.hidden)studioPresence('open')});
 
-const slogans=['Güncel kaynaklar · Özenli baskı','Kitap koduyla hızlı sipariş','Temel · Klinik · Tam Set','Set seçenekleri için mesaj atın','Sınav hazırlığında pratik seçim','Baskı seçeneklerini birlikte belirleyelim','Güncel katalog · Düzenli kitap setleri'];
+const slogans=['Güncel kaynaklar · Özenli baskı','Kitap seçimiyle hızlı sipariş','Temel · Klinik · Tam Set','Set seçenekleri için mesaj atın','Sınav hazırlığında pratik seçim','Baskı seçeneklerini birlikte belirleyelim','Güncel katalog · Düzenli kitap setleri'];
 const escapeHTML = s => String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const normalize = s => String(s||'').toLocaleLowerCase('tr-TR').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/ı/g,'i').replace(/ğ/g,'g').replace(/ş/g,'s').replace(/ç/g,'c').replace(/ö/g,'o').replace(/ü/g,'u');
 function toast(message){const n=$('toast');n.textContent=message;n.classList.add('show');clearTimeout(n._timer);n._timer=setTimeout(()=>n.classList.remove('show'),3400)}
@@ -58,6 +58,10 @@ window.addEventListener('pagehide',()=>{
 
 function updateControls(){
  const s=state.settings;
+ s.style=state.styles.includes(s.style)?s.style:(s.style==='Modern Vitrin'?'Minimal Premium':'Vintage Koleksiyon');
+ s.layout=state.layouts.includes(s.layout)?s.layout:'Akıllı';
+ s.cover_zoom=Math.max(65,Math.min(100,Number(s.cover_zoom)||100));
+ s.show_codes=false;s.badge_enabled=false;
  qs('[data-setting]').forEach(el=>{
   const key=el.dataset.setting;if(!(key in s))return;
   if(el.type==='checkbox')el.checked=!!s[key];else el.value=s[key]||'';
@@ -71,11 +75,11 @@ function updateControls(){
  $('coverZoom').value=s.cover_zoom||100;$('zoomValue').textContent='%'+(s.cover_zoom||100);
  $('coverSpacing').value=s.cover_spacing??12;$('spacingValue').textContent=(s.cover_spacing??12)+' px';
  qs('.palette-card').forEach(el=>el.classList.toggle('active',el.dataset.theme===s.theme));
- qs('.style-pill').forEach(el=>el.classList.toggle('active',el.dataset.style===s.style));
+ $('styleSelect').value=s.style;
  $('layoutSelect').value=s.layout||'Akıllı';
  const sliders=[['editionSize','edition_font_size',' pt'],['coverEditionSize','cover_edition_font_size',' pt'],['coverBadgeSize','cover_badge_font_size',' pt']];
  sliders.forEach(([id,key,suffix])=>{const el=$(id);if(!el)return;el.value=s[key]??20;$(id+'Value').textContent=el.value+suffix});
- if($('outputResolution'))$('outputResolution').value=String(s.export_scale||2);
+ // Dışa aktarma kalitesi artık kaydetme penceresinde seçilir.
 }
 function generatePresets(){
  const p=$('paletteGrid');p.innerHTML='';
@@ -84,10 +88,8 @@ function generatePresets(){
   el.innerHTML=`<div class="palette-demo" style="background:linear-gradient(140deg,${c.base},${c.end});color:${c.ink};border-bottom:5px solid ${c.accent}">Aa</div><span class="palette-title">${escapeHTML(name)}</span>`;
   el.onclick=()=>{state.settings.theme=name;updateControls();scheduleRender()};p.append(el)
  });
- const st=$('styleGrid');st.innerHTML='';state.styles.forEach(name=>{
-  let el=document.createElement('button');el.className='style-pill';el.dataset.style=name;el.textContent=name;
-  el.onclick=()=>{state.settings.style=name;updateControls();scheduleRender()};st.append(el)
- });
+ const st=$('styleSelect');
+ st.innerHTML=state.styles.map(name=>`<option value="${escapeHTML(name)}">${escapeHTML(name)}</option>`).join('');
  const sel=$('layoutSelect');sel.innerHTML=state.layouts.map(s=>`<option value="${escapeHTML(s)}">${escapeHTML(s)}</option>`).join('');
 }
 function normalizeCode(value){
@@ -158,7 +160,7 @@ function renderCatalog(){
  const panel=$('catalogList');panel.innerHTML='';
  for(const book of results){
   const el=document.createElement('button');el.className='catalog-item';
-  el.innerHTML=`<span class="code">${escapeHTML(book.code)}</span><span class="name">${escapeHTML(book.name)}<small style="display:block;color:#9db4bc;font-size:10px;margin-top:3px">Grup: ${escapeHTML(book.group||"Tanımsız")}</small></span><span class="plus">+</span>`;
+  el.innerHTML=`<span class="name">${escapeHTML(book.name)}<small style="display:block;color:#9db4bc;font-size:10px;margin-top:3px">Grup: ${escapeHTML(book.group||"Tanımsız")}</small></span><span class="plus">+</span>`;
   el.title='Excel alt grubu: '+book.group;
   el.onclick=()=>addBook(book);panel.append(el)
  }
@@ -182,7 +184,7 @@ function renderSelected(){
   const fromArchive=/^[a-f0-9]{64}\.(jpe?g|png|webp)$/i.test(coverName);
   let img=book.cover_override?`<img src="${fromArchive?'/api/library/asset':'/api/custom-cover'}?name=${encodeURIComponent(coverName)}" alt="kapak">`:`<img src="/api/cover?code=${encodeURIComponent(book.code)}" alt="kapak">`;
   row.innerHTML=`<span class="grip" title="Sürükleyerek sırala">⠿</span>${img}
-   <span class="name">${escapeHTML(book.name||'Özel Kapak')}<small>#${escapeHTML(book.code)} · ${escapeHTML(book.group||'Harici')}</small></span>
+   <span class="name">${escapeHTML(book.name||'Özel Kapak')}<small>${escapeHTML(book.group||'Harici')}</small></span>
    <button class="icon-btn" title="Kapak görselini değiştir" data-action="cover">▧</button>
    <button class="icon-btn" title="Baskı / fiyat düzenle (sağ tık)" data-action="edit">⋯</button>
    <button class="icon-btn" title="Listeden çıkar" data-action="remove">×</button>`;
@@ -236,19 +238,19 @@ function showCoverMenu(clientX,clientY,index){
  hideCoverMenu();
  const book=state.books[index];if(!book)return;
  const menu=$('coverContext');
- menu.innerHTML=`<div class="context-title">${escapeHTML(book.code+' · '+book.name)}</div>
+ menu.innerHTML=`<div class="context-title">${escapeHTML(book.name)}</div>
   <button data-act="edition">✎ Kitaba özel baskı numarası</button>
   <button data-act="badge">₺ Kitaba özel ekstra fiyat</button>
   <button data-act="clear">⊘ Özel etiketleri kaldır</button>
   <button data-act="remove">× Kitabı afişten kaldır</button>`;
  menu.querySelector('[data-act=edition]').onclick=()=>{
   const result=prompt('Bu kitabın kapağının alt ortasına gelecek baskı numarası (örn. 37. Baskı). Boş = kaldır:',book.edition_override||'');
-  if(result!==null){book.edition_override=result.trim().slice(0,40);afterBooksChanged()}
+  if(result!==null){book.edition_override=result.replace(/\s+/g,' ').trim().slice(0,40);afterBooksChanged()}
   hideCoverMenu();
  };
  menu.querySelector('[data-act=badge]').onclick=()=>{
-  const result=prompt('Bu kitabın kapağının sağ üstüne gelecek ekstra maliyet (örn. +150 TL). Boş = genel ayara dön:',book.badge_override||'');
-  if(result!==null){book.badge_override=result.trim().slice(0,35);afterBooksChanged()}
+  const result=prompt('Bu kitabın kapağının sağ üstüne gelecek ekstra maliyet (örn. +150 TL). Boş = kaldır:',book.badge_override||'');
+  if(result!==null){book.badge_override=result.replace(/\s+/g,' ').trim().slice(0,35);afterBooksChanged()}
   hideCoverMenu();
  };
  menu.querySelector('[data-act=clear]').onclick=()=>{delete book.edition_override;delete book.badge_override;hideCoverMenu();afterBooksChanged()};
@@ -344,15 +346,16 @@ function currentExportName(square,format){
  const subtitle=(s.show_subtitle&&String(s.subtitle||'').trim())?s.subtitle:state.books.length+' Kitap';
  return cleanExportName([s.title_series,s.title_set,subtitle,square?'Kare':''],format==='JPEG'?'jpg':'png');
 }
-function archiveExportName(entry){
- return cleanExportName([entry.series,entry.set||entry.title,entry.subtitle||entry.books_count+' Kitap'],'png');
+async function archiveExportName(entry){
+ const result=await api('/api/library/filename?id='+encodeURIComponent(entry.id)+'&format=PNG');
+ return result.filename;
 }
 async function chooseSaveFile(name,mime){
  if(!window.showSaveFilePicker)return {fallback:true};
  try{
-  const ext=mime==='image/png'?'.png':mime==='application/zip'?'.zip':'.jpg';
+  const ext=mime==='image/png'?'.png':mime==='application/zip'?'.zip':mime==='application/pdf'?'.pdf':'.jpg';
   return {handle:await showSaveFilePicker({suggestedName:name,
-   types:[{description:'ALFA dışa aktarım',accept:{[mime]:[ext]}}]})};
+   startIn:'desktop',types:[{description:'ALFA dışa aktarım',accept:{[mime]:[ext]}}]})};
  }catch(e){if(e.name==='AbortError')return {cancelled:true};throw e}
 }
 async function saveImageBlob(blob,name,chosen){
@@ -495,7 +498,7 @@ function renderLibraryEntries(position=null){
     }catch(e){toast(e.message)}
    };
    card.querySelector('[data-op=download]').onclick=async()=>{
-    const name=archiveExportName(entry);
+    const name=await archiveExportName(entry);
     let chosen;
     try{chosen=await chooseSaveFile(name,'image/png')}
     catch(e){toast('Kayıt yeri: '+e.message);return}
@@ -584,26 +587,29 @@ function bindUI(){
  $('studioCheckUpdate').onclick=studioCheckUpdate;
  $('studioInstallUpdate').onclick=studioInstallUpdate;
  $('clearSelection').onclick=()=>{state.books=[];afterBooksChanged()};
- $('resetSwap').onclick=()=>{selectedCover=null;const marked=qs('.cover-hit.marked');marked.forEach(x=>x.classList.remove('marked'));toast('Kapak seçimi temizlendi.')};
- $('toggleCrop').onclick=()=>{cropMode=!cropMode;$('canvasWrap').classList.toggle('square',cropMode);$('toggleCrop').textContent=cropMode?'▤ Tam afişe dön':'▢ Kare kırpma kontrolü';selectedCover=null;scheduleRender()};
+
+
  qs('[data-tab]').forEach(el=>el.onclick=()=>{qs('[data-tab]').forEach(x=>x.classList.toggle('active',x===el));qs('.tabpane').forEach(x=>x.classList.toggle('active',x.id==='tab-'+el.dataset.tab))});
  qs('[data-setting]').forEach(el=>{
   const key=el.dataset.setting;const event=el.tagName==='SELECT'||el.type==='checkbox'?'change':'input';
   el.addEventListener(event,()=>{state.settings[key]=el.type==='checkbox'?el.checked:el.value;scheduleRender()})
  });
  qs('[data-offer]').forEach(el=>el.onclick=()=>{state.settings.offer=el.dataset.offer;updateControls();scheduleRender()});
+ $('styleSelect').onchange=()=>{state.settings.style=$('styleSelect').value;scheduleRender()};
  $('layoutSelect').onchange=()=>{state.settings.layout=$('layoutSelect').value;scheduleRender()};
  $('coverZoom').oninput=()=>{state.settings.cover_zoom=Number($('coverZoom').value);$('zoomValue').textContent='%'+state.settings.cover_zoom;scheduleRender()};
  $('coverSpacing').oninput=()=>{state.settings.cover_spacing=Number($('coverSpacing').value);$('spacingValue').textContent=state.settings.cover_spacing+' px';scheduleRender()};
  [['editionSize','edition_font_size'],['coverEditionSize','cover_edition_font_size'],['coverBadgeSize','cover_badge_font_size']].forEach(([id,key])=>{
   $(id).oninput=()=>{state.settings[key]=Number($(id).value);$(id+'Value').textContent=$(id).value+' pt';scheduleRender()}
  });
- $('outputResolution').onchange=()=>{state.settings.export_scale=Number($('outputResolution').value);saveDraftSoon();toast('Dışa aktarma: '+(1200*state.settings.export_scale)+' × '+(1600*state.settings.export_scale)+' piksel')};
+
  $('randomSlogan').onclick=()=>{state.settings.slogan=slogans[Math.floor(Math.random()*slogans.length)];updateControls();scheduleRender()};
  $('restoreNotes').onclick=()=>{state.settings.note1='İlan fiyatı yalnız tek kitap içindir; set için mesaj atınız.';state.settings.note2='Lütfen bu ilanı doğrudan satın almayınız.';state.settings.note3='Kitap kodu, set ve baskı türünü mesajla belirtiniz.';updateControls();scheduleRender()};
- $('downloadPoster').onclick=()=>downloadImage(false,'PNG');
- $('downloadJpg').onclick=()=>downloadImage(false,'JPEG');
- $('downloadSquare').onclick=()=>downloadImage(true,'PNG');
+ $('openExport').onclick=()=>openExportDialog();
+ $('closeExport').onclick=closeExportDialog;
+ $('exportFormat').onchange=()=>refreshExportName();
+ $('confirmExport').onclick=()=>confirmExport();
+ $('exportModal').addEventListener('click',e=>{if(e.target.id==='exportModal')closeExportDialog()});
  $('openLibrary').onclick=()=>openLibrary();
  $('archiveSelectAll').onclick=()=>{for(const entry of libraryEntries.filter(libraryMatches))selectedArchiveIds.add(entry.id);renderLibraryEntries();updateLibrarySelection()};
  $('archiveClear').onclick=()=>{selectedArchiveIds.clear();renderLibraryEntries();updateLibrarySelection()};
@@ -656,15 +662,14 @@ function bindUI(){
  };
  $('fileCustom').onchange=async ev=>{const file=ev.target.files[0];if(!file)return;busy('Kapak ekleniyor…',true);try{const result=await uploadBinary('/api/upload/custom?name='+encodeURIComponent(file.name),file);if(customTarget!==null&&state.books[customTarget]){state.books[customTarget].cover_override=result.cover_path}else if(state.books.length<30){state.books.push({id:'EXTRA-'+Date.now(),code:'ÖZEL',name:file.name.replace(/\.[^.]+$/,''),group:'Harici kapak',pages:null,color:false,cover_override:result.cover_path,badge_override:'',edition_override:''})}else{toast('30 kapak sınırı dolu.');return}afterBooksChanged();toast('Harici kapak eklendi')}catch(e){toast(e.message)}finally{busy('',false);ev.target.value=''}};
  $('saveProject').onclick=()=>{const data={schema:3,settings:state.settings,books:state.books};const file=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const url=URL.createObjectURL(file);let a=document.createElement('a');a.href=url;a.download='ALFA_Banner_Proje.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('Proje JSON indirildi.')};
- $('loadProject').onclick=()=>$('fileProject').click();
- $('fileProject').onchange=async ev=>{const file=ev.target.files[0];if(!file)return;try{const obj=JSON.parse(await file.text());if(![3,4].includes(obj.schema)||!Array.isArray(obj.books)||obj.books.length>30||!obj.settings)throw new Error('Banner Studio proje dosyası değil.');setCurrentArchive(null);state.books=obj.books;state.settings={...state.settings,...obj.settings};reconcileSelectedBooks();updateControls();renderSelected();scheduleRender();toast('Proje açıldı.')}catch(e){toast('Proje açılamadı: '+e.message)}ev.target.value=''};
+
  $('fileImportArtwork').onchange=async e=>{const f=e.target.files[0];if(!f)return;busy('Eski afiş arşive alınıyor…',true);try{await uploadBinary('/api/library/import?name='+encodeURIComponent(f.name),f);await openLibrary();toast('Önceden indirilmiş JPG/PNG arşive eklendi.')}catch(err){toast(err.message)}finally{busy('',false);e.target.value=''}};
  $('libraryModal').addEventListener('click',e=>{if(e.target.id==='libraryModal')closeLibrary()});
 }
 async function boot(){try{const result=await api('/api/bootstrap');state={...state,...result};
   studioNonce=result.update_nonce||'';
   studioPresence('open');
-  $('studioVersion').textContent='Banner Studio v3.16 · Suite '+(result.suite_version||'bilinmiyor');
+  $('studioVersion').textContent='Banner Studio v3.17 · Suite '+(result.suite_version||'bilinmiyor');
  const previous=await api('/api/draft').catch(()=>({draft:null}));
  if(previous.draft){
   state.books=previous.draft.books||[];
