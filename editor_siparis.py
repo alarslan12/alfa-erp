@@ -49,7 +49,7 @@ def ciro_metinini_sayiya_cevir(raw):
 
 
 class _DerlemeIsParcacigi(QThread):
-    """Keeps long 300-DPI PDF rasterization away from the GUI thread."""
+    """Copies PDF bytes to ZIP without blocking the GUI thread."""
     completed = Signal(str)
     failed = Signal(str)
     progress = Signal(int, int, int, int)
@@ -169,7 +169,7 @@ class SiparisEditor(QDialog):
         self.header_lay.addStretch()
         if self.mode != 'edit':
             compile_button = button('▣  Siparişi Derle', 'PdfAction')
-            compile_button.setToolTip('Tüm kitapları anonimleştirip Masaüstüne tek ZIP kaydet')
+            compile_button.setToolTip('Tüm kitapların orijinal PDF dosyalarını değiştirmeden ZIP olarak Masaüstüne kaydet')
             compile_button.clicked.connect(lambda checked=False: self.compile_order())
             self.header_lay.addWidget(compile_button)
         close = button('Sekmeyi kapat' if self.embedded else 'Kapat')
@@ -457,7 +457,7 @@ class SiparisEditor(QDialog):
         pdf_actions_row.addWidget(pdf_bulk, 1)
         compile_selected = button('▣  Derle', 'PdfAction')
         compile_selected.setMinimumHeight(46)
-        compile_selected.setToolTip('Seçili kitapları anonim PDF ve baskı talimatıyla tek ZIP yap')
+        compile_selected.setToolTip('Seçili kitapların orijinal PDF dosyalarını baskı talimatıyla tek ZIP yap')
         compile_selected.clicked.connect(self.compile_selected_order)
         pdf_actions_row.addWidget(compile_selected, 1)
         self._bulk_widgets=[self.select_all,self.pending_filters,*segments,pdf_actions]
@@ -575,7 +575,7 @@ class SiparisEditor(QDialog):
         pdf.clicked.connect(lambda checked=False,c=code:self.open_pdfs([c]))
         controls.addWidget(pdf)
         compile_book = button('▣  Derle', 'TrackPdfButton')
-        compile_book.setToolTip('Yalnız bu kitabı anonim ZIP olarak Masaüstüne kaydet')
+        compile_book.setToolTip('Yalnız bu kitabın orijinal PDF dosyasını ZIP olarak Masaüstüne kaydet')
         compile_book.clicked.connect(lambda checked=False,c=code:self.compile_order([c]))
         controls.addWidget(compile_book)
         controls.addStretch()
@@ -823,7 +823,7 @@ class SiparisEditor(QDialog):
         dialog.canceled.connect(worker.requestInterruption)
         worker.progress.connect(
             lambda index, total, page, pages: dialog.setLabelText(
-                f'Kitap {index}/{total} · PDF sayfası {page}/{pages} anonimleştiriliyor...'))
+                f'Kitap {index}/{total} · Orijinal PDF ZIP içine ekleniyor...'))
         worker.completed.connect(
             lambda path: QMessageBox.information(
                 None, 'Sipariş Derlendi',

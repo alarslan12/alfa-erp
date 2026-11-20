@@ -8,7 +8,15 @@
 
 **Korunacaklar:** Onaylanan Katalog/Siparişler arayüzü, ortak Havuz, personel/owner rolleri, Firebase Auth/RTDB, offline işlem kuyruğu, iade/kargo/ciro hesabı, FlexFlow hareketli gün/takvim filtresi ve günlük değerlendirme.
 
-## Son iş: Fason baskı için yerel anonim ZIP derleme
+## Son iş: Fason ZIP derlemeyi hızlandırma (raster/anonimleştirme kaldırıldı)
+**Dal:** `fix/erp-fast-raw-pdf-zip-20261121` · **PR:** Bu dalın GitHub PR'ı.
+
+- `siparis_derle.py`: 300 DPI rasterizasyonu, PDF yeniden yazımı ve metaveri temizleme kaldırıldı. PDF kaynak baytları doğrudan ZIP'e, yeniden sıkıştırılmadan (ZIP_STORED) yazılır. Masaüstü ZIP adı ve Siyah/Renkli klasörleri, rastgele PDF adları, adet uyarıları, talimat dosyası, dosya eksikse işlem iptali korunur.
+- `editor_siparis.py`: anonimleştirme yazıları kaldırıldı; sade orijinal PDF aktarımı ve dosya bazlı ilerleme görünür. Arayüz kilitlenmez.
+- `tests/test_order_compile_zip.py`: ZIP içindeki PDF'nin kaynakla birebir aynı baytlardan oluştuğu, metaveri örneklerinin korunduğu, klasör/adet/iptal/eksik dosya akışı doğrulanır.
+- **Bilgi:** Rastgele dosya adları gerçek kitap ismini yalnız ZIP giriş adından gizler; orijinal PDF metaverisi, içeriği, dosya içi filigranları artık olduğu gibi kalır. Kullanıcı belgeleri ve bulut verileri değiştirilmez. Suite v2.0.50 release halen ayrı merkezi sürüm olarak yönetilir.
+
+## Önceki iş: Fason baskı için yerel anonim ZIP derleme
 **Çalışma dalı:** feature/erp-local-order-anonymous-zip-20261120 · **PR:** https://github.com/alarslan12/alfa-erp/pull/23.
 
 - editor_siparis.py: Havuz, Aktif ve Tamamlanan ayrıntılarının başlığından tüm siparişi; tek kitap kartından tek kitabı; aktif takip seçiminden seçilen kitapları tek tıkla ZIP'e derler. Uzun PDF dönüşümü QThread ile GUI dışında yapılır ve iptal/ilerleme gösterilir.
