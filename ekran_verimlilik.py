@@ -517,7 +517,8 @@ class FlexFlowView(QWidget):
         # The model has no value (not a numerical zero) for days where
         # completed-order page counts are insufficient to model an index.
         self.model_chart.set_data(
-            [row for row in plotted_days if row.get("modeled") is not None]
+            [row for row in plotted_days if row.get("modeled") is not None
+             and not row.get("unmodeled_orders")]
         )
         logged=set(report["logged_days"])
         # Missing event history is not a measured zero. Plot only dates
