@@ -108,8 +108,10 @@ class LocalOrderBundleTests(unittest.TestCase):
         try:
             from PySide6.QtGui import QPdfWriter, QPainter
             from PySide6.QtPdf import QPdfDocument
+            from PySide6.QtWidgets import QApplication
         except ImportError:
             self.skipTest('QtPdf is not installed in this environment')
+        self._qt_app = QApplication.instance() or QApplication([])
         genuine_source = self.pdfs / 'test-metadata.pdf'
         writer = QPdfWriter(str(genuine_source))
         writer.setAuthor('SECRET_AUTHOR_123')
