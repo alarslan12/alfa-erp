@@ -205,7 +205,7 @@ function scheduleRender(){saveDraftSoon();clearTimeout(renderTimer);renderTimer=
 async function renderPoster(){
  const n=++latestRender;
  const request={settings:state.settings,books:state.books,square:cropMode};
- $('previewMeta').textContent=`${state.books.length} kitap · ${state.settings.theme} · ${state.settings.layout} · Dışa aktarma ${1200*(state.settings.export_scale||2)}×${1600*(state.settings.export_scale||2)}`;
+ $('previewMeta').textContent=`${state.books.length} kitap · ${state.settings.theme} · ${state.settings.layout}`;
  try{
   const data=await api('/api/render',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(request)});
   if(n!==latestRender)return;
@@ -563,10 +563,11 @@ function renderLibraryEntries(position=null){
     }catch(e){toast(e.message)}
    };
    card.querySelector('[data-op=download]').onclick=async()=>{
-    const name=await archiveExportName(entry);
-    let chosen;
-    try{chosen=await chooseSaveFile(name,'image/png')}
-    catch(e){toast('Kayıt yeri: '+e.message);return}
+    let name,chosen;
+    try{
+     name=await archiveExportName(entry);
+     chosen=await chooseSaveFile(name,'image/png');
+    }catch(e){toast('Kayıt yeri: '+e.message);return}
     if(chosen.cancelled)return;
     busy('PNG arşiv görseli hazırlanıyor…',true);
     try{
