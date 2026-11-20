@@ -517,11 +517,12 @@ class Handler(SimpleHTTPRequestHandler):
                 ids=request.get('ids')
                 if not isinstance(ids,list) or not 1<=len(ids)<=1000:
                     raise ValueError('En fazla 1000 arşiv kaydı seçilebilir.')
-                available={x['id']:x for x in library.list_designs(limit=5000)}
+                ordered=library.list_designs(limit=5000)
+                available={x['id']:x for x in ordered}
                 if any(i not in available for i in ids) or len(set(ids))!=len(ids):
                     raise ValueError('Arşiv seçimi geçersiz.')
                 return self._response({'files':[{
-                    'id':i,'name':library.suggested_export_name(available[i]['title'],'png',i)
+                    'id':i,'name':library.suggested_export_name(available[i]['title'],'png',i,ordered)
                 } for i in ids]})
             if path=='/api/library/bulk-download':
                 request=json.loads(_read_body(self,90_000))
