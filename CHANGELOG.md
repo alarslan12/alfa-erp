@@ -1,3 +1,11 @@
+## [v2.0.51] — 2026-11-21
+
+- Siparişi Derle işlemi hızlandırıldı: 300 DPI rasterizasyon, PDF içeriği/metaveri temizleme ve yeniden oluşturma kaldırıldı.
+- Kaynak PDF baytları, yeniden sıkıştırma yapılmadan (ZIP_STORED) Siyah/Renkli alt klasörlerine yazılıyor. Dosya isimleri rastgele, adet uyarıları ve BASKI_TALIMATI.txt korunuyor.
+- Kaynak PDF'lerin metaverisi, görünür filigranları ve tüm PDF içeriği birebir taşınır; dosya adına dayalı maskeleme tam anonimlik değildir.
+- Hatalı/eksik PDF varsa eksik ZIP bırakılmaz; kaynaklar ve mevcut Masaüstü ZIP arşivleri değiştirilmez.
+- PR #25; Firebase, canlı siparişler, cihaz yetkileri, diğer uygulamalar ve tek Suite Setup korunur.
+
 ## [v2.0.50] — 2026-11-21
 
 - ERP Personel/Yönetici Sipariş detaylarına **Siparişi Derle** eklendi. Tam sipariş, tek kitap veya seçili kitaplar bir ZIP olarak Windows Masaüstüne kaydedilir.
