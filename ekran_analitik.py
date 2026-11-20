@@ -2,11 +2,11 @@
 import calendar
 from datetime import date, timedelta
 from pathlib import Path
-from PySide6.QtCore import Qt, QSize, QPointF, QDate, QTimer, QEvent
+from PySide6.QtCore import Qt, QSize, QPointF, QDate, QTimer, QEvent, QStandardPaths
 from PySide6.QtGui import QColor, QPainter, QPen, QFont, QPainterPath, QDesktopServices
 from PySide6.QtWidgets import (
     QWidget, QFrame, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel,
-    QPushButton, QFileDialog, QMessageBox, QTableWidget, QTableWidgetItem,
+    QPushButton, QMessageBox, QTableWidget, QTableWidgetItem,
     QHeaderView, QAbstractItemView, QSizePolicy, QApplication, QCheckBox, QTabWidget
 )
 from PySide6.QtCore import QUrl
@@ -314,8 +314,8 @@ class AnalitikView(QWidget):
         header.addStretch()
         self.range_text=text('','AccountingPeriod')
         header.addWidget(self.range_text)
-        export=button('↗ HTML Raporu', 'AnalyticsExport')
-        export.setToolTip('Seçili tamamlanma tarihlerindeki kayıtlarla HTML muhasebe raporu oluştur')
+        export=button('↗ HTML Raporu / Yazdır', 'AnalyticsExport')
+        export.setToolTip('HTML raporunu Masaüstüne kaydet ve yazdırma ekranını aç')
         export.clicked.connect(self.export_html)
         header.addWidget(export)
         reload=button('↻','SmallAction')
@@ -908,15 +908,33 @@ class AnalitikView(QWidget):
         return tbl
 
     def export_html(self):
-        if not self.latest:return
-        file,_=QFileDialog.getSaveFileName(self,'Muhasebe HTML raporu kaydet',
-            f"ALFA_Muhasebe_{self.latest['start']}_{self.latest['end']}.html",'HTML dosyası (*.html)')
-        if not file:return
+        if not self.latest:
+            return
         try:
-            target=Path(file)
-            if target.suffix.lower()!='.html':target=target.with_suffix('.html')
-            target.write_text(html_report(self.latest,self._paid_days,
-                                          self.payments.paid-self._paid_days),encoding='utf-8')
-            QDesktopServices.openUrl(QUrl.fromLocalFile(str(target.resolve())))
+            desktop=Path(QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DesktopLocation))
+            if not desktop.is_dir():
+                raise OSError('Windows Masaüstü klasörü bulunamadı.')
+
+            stem=f"ALFA_Muhasebe_{self.latest['start']}_{self.latest['end']}"
+            target=desktop/f'{stem}.html'
+            number=2
+            while target.exists():
+                target=desktop/f'{stem}_{number}.html'
+                number+=1
+
+            report=html_report(self.latest,self._paid_days,
+                               self.payments.paid-self._paid_days)
+            # Tarayıcı yazdırma iletişim kutusunu açar, otomatik baskı yapmaz.
+            print_script=(
+                '<script>window.addEventListener("load",'
+                'function(){window.print();},{once:true});</script>'
+            )
+            report=report.replace('</body></html>',print_script+'</body></html>',1)
+            target.write_text(report,encoding='utf-8')
+            if not QDesktopServices.openUrl(QUrl.fromLocalFile(str(target.resolve()))):
+                QMessageBox.warning(
+                    self,'Yazdırma ekranı açılamadı',
+                    f'HTML raporu Masaüstüne kaydedildi ancak tarayıcı açılamadı:\n{target}'
+                )
         except Exception as exc:
             QMessageBox.warning(self,'HTML raporu oluşturulamadı',str(exc))

@@ -2,13 +2,20 @@
 
 **Sohbet:** ERP Personel / Yönetici. **Repo:** `alarslan12/alfa-erp`; üretim `firebase-rtdb-final`.
 
-**Son doğrulanmış kararlı Suite:** v2.0.47 (20.11.2026). Yeni görevlerde GitHub Release, üretim SHA ve açık PR'ları yeniden kontrol et.
+**Son doğrulanmış kararlı Suite:** v2.0.49 (20.11.2026). Yeni görevlerde GitHub Release, üretim SHA ve açık PR'ları yeniden kontrol et.
 
 **Kod sahipliği:** `main.py`, `ekran_katalog.py`, `ekran_siparis.py`, `ekran_analitik.py`, `ekran_verimlilik.py`, `flexflow*.py`, ERP/Firebase istemcisi, analitik/muhasebe ve ilgili testler.
 
 **Korunacaklar:** Onaylanan Katalog/Siparişler arayüzü, ortak Havuz, personel/owner rolleri, Firebase Auth/RTDB, offline işlem kuyruğu, iade/kargo/ciro hesabı, FlexFlow hareketli gün/takvim filtresi ve günlük değerlendirme.
 
-## Son iş: İki vardiya arasında üretim yükü dağıtımı
+## Son iş: Analitik HTML raporu / doğrudan yazdır
+**Dal:** `fix/erp-analytics-desktop-print-20261120`. **PR:** Açık PR'dan takip edilir.
+
+- `ekran_analitik.py`: kaydetme diyaloğu kaldırıldı; rapor Windows Masaüstü konumuna benzersiz adla kaydedilir ve varsayılan tarayıcıda otomatik yazdırma diyaloğu tetiklenir.
+- Yazıcıya izinsiz çıktı gönderilmez; kullanıcı tarayıcının yazdırma ekranında onaylar. Browser ayarlarına bağlı olarak otomatik yazdırma engellenebilir.
+- Muhasebe/iade/kargo/Firebase/yerel veriler, diğer uygulamalar ve Suite sürüm sistemi değiştirilmedi. Donanım testi yapılmadı.
+
+## Önceki iş: İki vardiya arasında üretim yükü dağıtımı
 **Çalışma dalı:** `feature/erp-flexflow-shift-workload-allocation-20261120`.
 **PR:** Bu işin PR'ı GitHub'dan doğrulanır; açık PR listesini kontrol et.
 
