@@ -85,39 +85,6 @@ def _shift_minutes(day, begin, end):
     return max(0.0, (b-a).total_seconds() / 60.0)
 
 
-def _alloc(order, finished, events, stage):
-    """Recorded portion of a prepared/boxed stage, honoring signed undos.
-
-    The event log has net copies but cannot identify each copy's actual page
-    length in legacy records. Stage-equivalent effort is proportional to the
-    net logged copy count; its duration remains an estimate.
-    """
-    copies = stage["copies"]
-    yesterday = finished.date() - timedelta(days=1)
-    prev = curr = 0
-    found = False
-    for e in events:
-        at = _dt(e.get("at"))
-        if at is None or at > finished:
-            continue
-        key = at.date()
-        if key not in (yesterday, finished.date()):
-            continue
-        p = int(e.get("ready") or 0)
-        b = int(e.get("boxed") or 0)
-        if p or b:
-            found = True
-        if key == yesterday:
-            prev += p
-        else:
-            curr += p
-        # packed effort is handled separately in the caller
-    # Protect sums from bad or incomplete old event logs.
-    prev = min(copies, max(0, prev))
-    curr = min(copies-prev, max(0, curr))
-    return prev, curr, found
-
-
 def build_workload(db, events, start, end, now=None):
     """Return day-indexed modeled work plus confidence/feasibility metadata.
 
@@ -235,6 +202,21 @@ def build_workload(db, events, start, end, now=None):
         frac = (prev_window / (prev_window+curr_window)
                 if prev_window + curr_window else 0.0)
         predicted_prev = undated_prep * frac
+        # If today's *ideal parallel* machine+staff lower bound exceeds the
+        # hours elapsed before the last completed order, the two-day split
+        # should not casually put almost every unlogged stage on today.
+        # This is a capacity-based HEURISTIC, not proof of which copy was made
+        # yesterday. Apply only when the saved activation was yesterday.
+        day_capacity = capacity.get(day.isoformat(), {})
+        lower = float(day_capacity.get("ideal_min") or 0)
+        elapsed = float(day_capacity.get("elapsed_min") or 0)
+        minimum_previous_fraction = (
+            max(0.0, 1.0 - elapsed / lower) if lower > 0 else 0.0
+        )
+        if preceding and minimum_previous_fraction > 0:
+            goal = max(0.0, stage["prep"] * minimum_previous_fraction
+                       - prep_logged_prev)
+            predicted_prev = min(undated_prep, max(predicted_prev, goal))
         # Packing stays on completion day unless an actual earlier packing
         # event says otherwise. A prior-day activation is not packing evidence.
         prev_total = prep_logged_prev + pack_logged_prev + predicted_prev
@@ -284,8 +266,8 @@ def build_workload(db, events, start, end, now=None):
             "Gerçek tamamlanmalar değişmez. Önceki güne kayıtlı hazırlama/"
             "kolileme hareketleri gününe yazılır. Kayıtsız hazırlama emeği "
             "yalnız bir önceki güne ait aktivasyon varsa iki vardiyanın "
-            "müsait saatleri oranında tahmin edilir; kolileme tamamlanma "
-            "gününde kalır. Standart eşdeğer, tamamlanan siparişlerin "
+            "müsait saatleri ve ideal üretim kapasitesi oranında tahmin "
+            "edilir; kolileme tamamlanma gününde kalır. Standart eşdeğer, tamamlanan siparişlerin "
             "medyan tahmini minimum iş yüküne göre hesaplanır. "
             "Gerçek çalışma saati veya fiziksel çıktı ölçümü değildir."
         ),
