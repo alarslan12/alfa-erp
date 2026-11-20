@@ -170,7 +170,7 @@ class SiparisEditor(QDialog):
         if self.mode != 'edit':
             compile_button = button('▣  Siparişi Derle', 'PdfAction')
             compile_button.setToolTip('Tüm kitapları anonimleştirip Masaüstüne tek ZIP kaydet')
-            compile_button.clicked.connect(self.compile_order)
+            compile_button.clicked.connect(lambda checked=False: self.compile_order())
             self.header_lay.addWidget(compile_button)
         close = button('Sekmeyi kapat' if self.embedded else 'Kapat')
         close.clicked.connect(lambda: self.track_host.close_order_tab(self.sid) if self.embedded and hasattr(self, 'track_host') else self.close())
