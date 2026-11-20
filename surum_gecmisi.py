@@ -6,6 +6,16 @@ https://github.com/alarslan12/alfa-erp/releases.
 """
 
 _RELEASES = [
+    ("2.0.49", "Banner Studio tek dışa aktarma ve arayüz sadeleştirme", [
+        "Veri kaynakları ve JSON yedeği Ayarlar > Uygulama Yönetimi alanına taşındı.",
+        "Tek PNG/JPG/A4 PDF dışa aktarma, kalite seçimi ve doğrudan Masaüstüne kaydetme eklendi.",
+        "Dosyalar Tasarım Arşivi A-Z sırası ve arşiv adıyla numaralandırılır.",
+        "Vintage Koleksiyon/Minimal Premium ve Akıllı/Dengeli Sıralar seçimleri sadeleştirildi.",
+        "Kapak zoom üst sınırı %100; kitap özel etiketler sağ tıkla ve tek satır korunur.",
+        "ALFACOPYCENTER logosu uygulama üstünde; kapak arşivi ve diğer uygulama verileri korunur.",
+    ]),
+
+
     ("2.0.48", "FlexFlow iki vardiyaya dağıtılan tahmini üretim yükü", [
         "Gerçek tamamlanan siparişler korunurken FlexFlow'a ayrı iki çizgili 'Gerçek tamamlanma / Üretim eşdeğeri' grafiği eklendi.",
         "Kayıtlı hazırlandı/kolilendi hareketleri kendi günlerine bağlanır. Eksik hazırlama zamanı, önceki gün aktivasyon kaydı varsa mesai/kaynak kapasitesine göre iki güne tahmini paylaştırılır.",
