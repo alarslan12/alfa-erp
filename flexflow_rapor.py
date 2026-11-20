@@ -24,6 +24,10 @@ def _daily_rows(report):
             item["sb"], item["rnk"],
             item["ready"] if known else "Kayıt yok",
             item["boxed"] if known else "Kayıt yok",
+            _f(item["modeled"],2) if item.get("modeled") is not None and
+                not item.get("unmodeled_orders") else "Eksik veri",
+            _f(item.get("carry_in_min",0),1) if item.get("modeled") is not None
+                else "Kayıt yok",
         )
 
 
@@ -38,11 +42,12 @@ def csv_report(report):
     insight=operation_insight(report)
     writer.writerow([])
     writer.writerow([insight["title"]])
-    for key in ("observation","progress","comparison","live","assessment","note"):
+    for key in ("observation","progress","comparison","live","assessment","model","note"):
         writer.writerow([insight[key]])
     writer.writerow([])
     writer.writerow(["Tarih","Aktife alınan sipariş","Tamamlanan sipariş","Kitap nüshası","Sayfa",
-                     "SB kitap","RNK kitap","Hazırlanan (net nüsha)","Kolilenen (net nüsha)"])
+                     "SB kitap","RNK kitap","Hazırlanan (net nüsha)","Kolilenen (net nüsha)",
+                     "Standart üretim eşdeğeri (tahmin)","Dünden gelen model dakika"])
     for row in _daily_rows(report):
         writer.writerow(row)
     writer.writerow([])
@@ -88,7 +93,9 @@ th{background:#e4eff8}.note{padding:12px;border-left:4px solid #e6b35e;backgroun
     ]
     summary="".join("<div class='card'><small>"+escape(k)+"</small><b>"+escape(v)+"</b></div>"
                     for k,v in cards)
-    daily_headers=["Tarih","Aktife alınan","Tamamlanan","Kitap","Sayfa","SB","RNK","Hazırlanan","Kolilenen"]
+    daily_headers=["Tarih","Aktife alınan","Tamamlanan","Kitap","Sayfa",
+                   "SB","RNK","Hazırlanan","Kolilenen",
+                   "Üretim eşdeğeri (tahmin)","Dünden devreden model dk"]
     daily="<tr>"+"".join("<th>"+escape(x)+"</th>" for x in daily_headers)+"</tr>"
     for values in _daily_rows(report):
         daily+="<tr>"+"".join("<td>"+escape(str(x))+"</td>" for x in values)+"</tr>"
@@ -106,16 +113,20 @@ th{background:#e4eff8}.note{padding:12px;border-left:4px solid #e6b35e;backgroun
     interpretation=(
         "<h2>"+escape(insight["title"])+"</h2><div class='note'>"+
         "".join("<p>"+escape(insight[key])+"</p>" for key in
-                ("observation","progress","comparison","live","assessment","note"))+
+                ("observation","progress","comparison","live","assessment",
+                 "model","note"))+
         "</div>")
     return (
         head+"<h1>FlexFlow · Üretim raporu</h1><small>"+escape(report["start"])+
         " – "+escape(report["end"])+"</small>"+interpretation+
         "<div class='grid'>"+summary+
-        "</div><p class='note'>İşlem günlüğü olmayan hazır/kolileme hareketleri "
-        "geriye dönük saatlere dağıtılmaz. Rapor, kayıtlı sipariş ve olaylara "
-        "dayanır; gerçek personel çalışma süreleri veya makine telemetrisi "
-        "değildir.</p><h2>Günlük üretim</h2><table>"+daily+
+        "</div><p class='note'>Gerçek tamamlanma kayıtları değişmez. "
+        "Kayıtlı hareketler ilgili güne atanır; zamanı bilinmeyen hazırlama "
+        "sadece önceki güne ait aktivasyon varsa vardiya saatlerine göre "
+        "tahmini paylaştırılır. Kargo/ciro kaydı, üretim tahminine katılmaz. "
+        "Model dakika gerçek işçilik saati veya yazıcı telemetrisi değildir. "
+        "Eksik sayfa bilgisi olan siparişler üretim eşdeğeri dışında tutulur."
+        "</p><h2>Günlük üretim</h2><table>"+daily+
         "</table><h2>Saatlik üretim · "+escape(report["selected_day"])+
         "</h2><table>"+hour+"</table></body></html>"
     )
