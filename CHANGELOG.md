@@ -1,3 +1,12 @@
+## [v2.0.50] — 2026-11-21
+
+- ERP Personel/Yönetici Sipariş detaylarına **Siparişi Derle** eklendi. Tam sipariş, tek kitap veya seçili kitaplar bir ZIP olarak Windows Masaüstüne kaydedilir.
+- Yerel PDF kaynakları yeniden rasterize edilerek 300 DPI yeni PDF'lere dönüştürülür; kaynak metadata, gizli metin, ekler ve PDF nesneleri aktarılmaz. SB gri tonlama, RNK renkli olarak ayrı klasörlerde hazırlanır.
+- PDF'ler rastgele adlarla kaydedilir; birden fazla baskı adedi dosya adında ve `BASKI_TALIMATI.txt` içinde belirtilir. Eksik/bozuk PDF için tamamlanmamış ZIP yayınlanmaz; orijinal belgeler korunur.
+- Normal Analitik HTML raporu Masaüstüne otomatik kaydedilir ve tarayıcı yazdırma penceresi tetiklenir.
+- Belgedeki görsel filigranlar/anlatımsal kişisel bilgiler görüntüde kalabilir. PDF dönüştürme çevrimdışı yapılır; Firebase, yerel geçmiş, cihazlar ve diğer Suite uygulamaları değiştirilmez.
+- Kaynak PR'lar: #22 ve #23. Tek ortak Windows Suite Setup ve sürüm kanalı korunur.
+
 ## [v2.0.49] — 2026-11-20
 
 - Banner Studio: Excel/kapak dosyaları ve JSON yedeği Ayarlar → Uygulama Yönetimi'ne taşındı.

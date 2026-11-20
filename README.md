@@ -1,4 +1,4 @@
-# ALFACOPYCENTER Suite v2.0.49
+# ALFACOPYCENTER Suite v2.0.50
 
 **Tek Windows kurulumu**, dört seçilebilir bileşen:
 
@@ -10,9 +10,16 @@
 | ALFA Print Center | PrintSurveillance/AlfaPrintSurveillance.exe | Seçilebilir, varsayılan |
 | Arka plan yardımcıları | Bildirim, PrintAgent, PrintSupervisor | Seçilen bileşene bağlı |
 
-Kurulum: `ALFACOPYCENTER_Suite_Setup_V2_0_49.exe`. Aynı Inno Setup AppId
+Kurulum: `ALFACOPYCENTER_Suite_Setup_V2_0_50.exe`. Aynı Inno Setup AppId
 (`ALFACOPYCENTER.Suite`) ve kurulum yolu korundu:
 `%LOCALAPPDATA%\Programs\ALFACOPYCENTER`.
+
+## v2.0.50 — Fason baskı derleme ve Analitik yazdırma
+
+- Personel/Yönetici: Sipariş detaylarında **Siparişi Derle**. Yerel kitap PDF'leri, kaynak metadata/gizli PDF objeleri taşınmadan 300 DPI sayfa görüntülerinden yeni dosyalara dönüştürülür.
+- Tekli/seçili/tüm kitap derlemesi, Siyah/Renkli klasörleri, rastgele PDF adları, baskı adet talimatı; `Sipariş N.zip` otomatik Masaüstüne kaydedilir.
+- Analitik HTML raporu doğrudan Masaüstüne kaydedilir, varsayılan tarayıcının yazdırma ekranı açılır.
+- Arşiv, kullanıcı belgeleri, Firebase verileri ve cihaz yetkileri korunur. Görsel filigranlar görüntüye gömülüyse kalır; dosyaları üçüncü taraflara göndermeden önce gözden geçirin.
 
 ## v2.0.49 — Banner Studio
 
