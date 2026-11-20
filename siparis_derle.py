@@ -1,21 +1,17 @@
-"""Local outsourced printing bundle; no Firebase traffic and no original PDF copies.
+"""Fast local outsourcing bundle: source PDFs are stored WITHOUT modification.
 
-Every source page is rasterized into a new image-only PDF. This deliberately
-drops source Info/XMP, embedded files, scripts, hidden text/layers, form fields,
-bookmarks and annotations not visible in the rendered page. Printed/visible
-watermarks and personally identifying content in page pixels CANNOT be removed.
-Raster output is no longer searchable; visual review is still recommended.
+Only archive entry names are randomized. The original PDF bytes, including any
+metadata, watermarks, attachments, annotations and other PDF content, remain
+unchanged. No PDF is opened, rendered, re-encoded or uploaded to Firebase.
 """
 from __future__ import annotations
 
-import math
 import os
 from pathlib import Path
 import re
 import secrets
-import shutil
 import tempfile
-from zipfile import ZipFile, ZipInfo, ZIP_DEFLATED
+from zipfile import ZipFile, ZipInfo, ZIP_STORED
 
 from pdf_kitap import PdfKutuphane
 
@@ -30,9 +26,9 @@ def _check_cancel(cancel):
 
 
 def _zip_entry(name):
-    """No source path, creation time, local permissions or username in ZIP headers."""
+    """No source filename, timestamp or local permissions in the ZIP entry."""
     entry = ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
-    entry.compress_type = ZIP_DEFLATED
+    entry.compress_type = ZIP_STORED
     entry.create_system = 0
     entry.external_attr = 0
     entry.comment = b''
@@ -41,6 +37,7 @@ def _zip_entry(name):
 
 
 def _add_file(archive, source, name, cancel):
+    """Stream raw bytes directly to ZIP, no rasterization or compression overhead."""
     _check_cancel(cancel)
     with open(source, 'rb') as input_file, archive.open(_zip_entry(name), 'w', force_zip64=True) as output:
         while True:
@@ -59,115 +56,18 @@ def _random_alias(seen):
             return alias
 
 
-def _rasterize_pdf(source, destination, kind, progress=None, cancel=None):
-    """Page pixels only: never copy a source PDF object, metadata or attachment.
-
-    Uses QtPdf and QPdfWriter already shipped with Personel/Yönetici. 300 DPI
-    keeps ordinary type readable in print; huge pages are rejected instead of
-    exhausting RAM. Color copies retain RGB; SB output is grayscale.
-    """
-    from PySide6.QtCore import QByteArray, QMarginsF, QRectF, QSize, Qt
-    from PySide6.QtGui import QImage, QPageSize, QPdfWriter, QPainter
-    from PySide6.QtPdf import QPdfDocument
-
-    pdf = QPdfDocument()
-    writer = None
-    painter = QPainter()
-    try:
-        _check_cancel(cancel)
-        pdf.load(str(source))
-        if pdf.status() != QPdfDocument.Status.Ready or pdf.pageCount() <= 0:
-            raise DerlemeHatasi('PDF okunamıyor, hasarlı veya parola korumalı.')
-        if pdf.pageCount() > 10000:
-            raise DerlemeHatasi('PDF güvenli sayfa sınırını aşıyor (10.000).')
-
-        writer = QPdfWriter(str(destination))
-        writer.setResolution(300)
-        writer.setAuthor('')
-        writer.setCreator('')
-        writer.setTitle('')
-        writer.setDocumentXmpMetadata(QByteArray())
-        if kind == 'SB':
-            writer.setColorModel(QPdfWriter.ColorModel.Grayscale)
-
-        for page in range(pdf.pageCount()):
-            _check_cancel(cancel)
-            pts = pdf.pagePointSize(page)
-            width, height = pts.width(), pts.height()
-            if not (math.isfinite(width) and math.isfinite(height)
-                    and 30 <= width <= 4000 and 30 <= height <= 4000):
-                raise DerlemeHatasi('PDF geçersiz veya aşırı büyük sayfa boyutu içeriyor.')
-            pixels = QSize(max(1, round(width * 300 / 72)),
-                           max(1, round(height * 300 / 72)))
-            if pixels.width() * pixels.height() > 24_000_000:
-                raise DerlemeHatasi('Sayfa 300 DPI güvenli bellek sınırını aşıyor.')
-            if not writer.setPageSize(QPageSize(pts, QPageSize.Unit.Point)):
-                raise DerlemeHatasi('PDF sayfa boyutu ayarlanamadı.')
-            if not writer.setPageMargins(QMarginsF(0, 0, 0, 0)):
-                raise DerlemeHatasi('PDF sayfa kenarları ayarlanamadı.')
-            if page == 0:
-                if not painter.begin(writer):
-                    raise DerlemeHatasi('Anonim PDF oluşturulamadı.')
-            elif not writer.newPage():
-                raise DerlemeHatasi('PDF sayfası oluşturulamadı.')
-
-            image = pdf.render(page, pixels)
-            if image.isNull():
-                raise DerlemeHatasi('PDF sayfası görüntülenemedi.')
-            # Transparent backgrounds are composited onto white paper.
-            frame = QImage(pixels, QImage.Format.Format_RGB32)
-            frame.fill(Qt.GlobalColor.white)
-            layer = QPainter(frame)
-            layer.drawImage(0, 0, image)
-            layer.end()
-            del image
-            if kind == 'SB':
-                frame = frame.convertToFormat(QImage.Format.Format_Grayscale8)
-            painter.drawImage(QRectF(0, 0, writer.width(), writer.height()), frame)
-            del frame
-            if progress is not None and (page == 0 or (page + 1) % 10 == 0 or page + 1 == pdf.pageCount()):
-                progress(page + 1, pdf.pageCount())
-        if not painter.end():
-            raise DerlemeHatasi('PDF çıktısı tamamlanamadı.')
-        del writer
-        writer = None
-        if not destination.is_file() or destination.stat().st_size < 128:
-            raise DerlemeHatasi('Anonim PDF boş veya geçersiz üretildi.')
-        # Validate PDF can be opened and retains every page.
-        check = QPdfDocument()
-        try:
-            check.load(str(destination))
-            if check.status() != QPdfDocument.Status.Ready or check.pageCount() != pdf.pageCount():
-                raise DerlemeHatasi('Anonim PDF doğrulaması başarısız.')
-        finally:
-            check.close()
-    except Exception:
-        if painter.isActive():
-            painter.end()
-        if writer is not None:
-            del writer
-        try:
-            destination.unlink(missing_ok=True)
-        except OSError:
-            pass
-        raise
-    finally:
-        pdf.close()
-
-
 def derle_siparis(order, catalog, pdf_folder, desktop, *, codes=None,
-                  progress=None, cancel=None, sanitize=None):
-    """Return the final local ZIP path, or leave no ZIP on any failure.
+                  progress=None, cancel=None):
+    """Export one ZIP with the original PDF bytes. No incomplete ZIP on failure.
 
-    codes=None exports every item. A sequence exports only selected book codes,
-    with both SB and RNK variants and all their quantities. No source path or
-    real book title is included in the archive.
+    codes=None exports every book. Specifying codes exports those selected
+    books including all of their SB/RNK variants and quantities.
     """
     sid = str(order.get('id', '')).strip()
     if not re.fullmatch(r'[0-9]{1,10}', sid):
         raise DerlemeHatasi('Geçerli bir sayısal sipariş numarası bulunamadı.')
     root = Path(pdf_folder).expanduser().resolve()
-    desktop = Path(desktop).expanduser()
+    desktop = Path(desktop).expanduser().resolve()
     if not root.is_dir():
         raise DerlemeHatasi('Yerel kitap PDF klasörü bulunamadı.')
     if not desktop.is_dir():
@@ -209,67 +109,52 @@ def derle_siparis(order, catalog, pdf_folder, desktop, *, codes=None,
         if source is None:
             raise DerlemeHatasi('Sipariş #' + sid + ' · PDF bulunamadı: kitap kodu ' + code)
         source = Path(source).resolve()
-        if not source.is_file() or not source.is_relative_to(root):
-            raise DerlemeHatasi('PDF kaynağı belirlenen yerel klasörün dışında.')
-        resolved.append((source, code, kind, qty))
+        if not source.is_file() or not source.is_relative_to(root) or source.stat().st_size == 0:
+            raise DerlemeHatasi('PDF kaynağı geçersiz, boş veya yerel kitap klasörünün dışında.')
+        resolved.append((source, kind, qty))
 
     _check_cancel(cancel)
+    aliases = set()
+    entries = []
+    for source, kind, qty in resolved:
+        alias = _random_alias(aliases)
+        filename = 'DOSYA_' + alias + ('__' + str(qty) + '_ADET_BASILACAK' if qty > 1 else '') + '.pdf'
+        folder = 'Siyah' if kind == 'SB' else 'Renkli'
+        entries.append((source, folder + '/' + filename, qty))
+
+    order_code = str(order.get('kod') or '').replace('\r', ' ').replace('\n', ' ').strip()
+    note = [
+        'ALFA ERP - FASON BASKI TALIMATI',
+        'Siparis No: ' + sid,
+        'Siparis Kodu: ' + order_code if order_code else 'Siparis Kodu: Belirtilmedi',
+        '',
+        'Her dosya tek PDF kopyasidir; yanindaki adet kadar basiniz.',
+        'Siyah klasoru siyah-beyaz; Renkli klasoru renkli basilacaktir.',
+        '',
+    ]
+    for _source, name, qty in entries:
+        note.append(name + ' -> ' + str(qty) + ' ADET BASILACAK')
+    note.extend(('', 'TOPLAM DOSYA CESIDI: ' + str(len(entries)),
+                 'TOPLAM BASILACAK KITAP: ' + str(sum(x[2] for x in entries)), ''))
+
     base = 'Sipariş ' + sid
-    with tempfile.TemporaryDirectory(prefix='alfa_siparis_derleme_') as workspace:
-        workspace = Path(workspace)
-        clean_cache = {}
-        aliases = set()
-        entries = []
-        total = len(resolved)
-        for index, (source, code, kind, qty) in enumerate(resolved, 1):
-            _check_cancel(cancel)
-            # Sanitize each print mode independently: SB grayscale, RNK color.
-            cache_key = (source, kind)
-            if cache_key not in clean_cache:
-                clean = workspace / (secrets.token_hex(12) + '.pdf')
-                method = sanitize or _rasterize_pdf
-                try:
-                    method(source, clean, kind,
-                           progress=(lambda page, pages, idx=index:
-                                     progress(idx, total, page, pages) if progress else None),
-                           cancel=cancel)
-                except Exception as exc:
-                    raise DerlemeHatasi('Kitap kodu ' + code + ' anonimleştirilemedi: ' + str(exc)) from exc
-                if not clean.is_file() or clean.stat().st_size == 0:
-                    raise DerlemeHatasi('Kitap kodu ' + code + ' anonim PDF oluşturamadı.')
-                clean_cache[cache_key] = clean
-
-            alias = _random_alias(aliases)
-            filename = 'DOSYA_' + alias + ('__' + str(qty) + '_ADET_BASILACAK' if qty > 1 else '') + '.pdf'
-            folder = 'Siyah' if kind == 'SB' else 'Renkli'
-            entries.append((clean_cache[cache_key], folder + '/' + filename, qty, folder))
-
-        order_code = str(order.get('kod') or '').replace('\r', ' ').replace('\n', ' ').strip()
-        note = [
-            'ALFA ERP - FASON BASKI TALIMATI',
-            'Siparis No: ' + sid,
-            'Siparis Kodu: ' + order_code if order_code else 'Siparis Kodu: Belirtilmedi',
-            '',
-            'Her dosya tek PDF kopyasidir; yanindaki adet kadar basiniz.',
-            'Siyah klasoru siyah-beyaz; Renkli klasoru renkli basilacaktir.',
-            '',
-        ]
-        for _clean, name, qty, folder in entries:
-            note.append(name + ' -> ' + str(qty) + ' ADET BASILACAK')
-        note.extend(('', 'TOPLAM DOSYA CESIDI: ' + str(len(entries)),
-                     'TOPLAM BASILACAK KITAP: ' + str(sum(x[2] for x in entries)), ''))
-        temp_zip = workspace / 'derleme.zip'
-        with ZipFile(temp_zip, 'w', compression=ZIP_DEFLATED, compresslevel=6,
-                     allowZip64=True) as archive:
+    # Keep the temporary archive on the same drive as the Desktop, so the
+    # final rename is fast and never uses a slow cross-volume copy.
+    with tempfile.TemporaryDirectory(prefix='.alfa_siparis_derleme_', dir=desktop.parent) as workspace:
+        temp_zip = Path(workspace) / 'derleme.zip'
+        with ZipFile(temp_zip, 'w', compression=ZIP_STORED, allowZip64=True) as archive:
             for folder in ('Siyah/', 'Renkli/'):
                 archive.writestr(_zip_entry(folder), b'')
-            for clean, name, _qty, _folder in entries:
-                _add_file(archive, clean, name, cancel)
+            total = len(entries)
+            for index, (source, name, _qty) in enumerate(entries, 1):
+                _add_file(archive, source, name, cancel)
+                if progress is not None:
+                    progress(index, total, 1, 1)
             archive.writestr(_zip_entry('BASKI_TALIMATI.txt'),
                              '\r\n'.join(note).encode('utf-8-sig'))
         _check_cancel(cancel)
 
-        # Reserve a unique destination without clobbering an earlier order ZIP.
+        # Never overwrite a previous bundle.
         for i in range(1, 10000):
             destination = desktop / (base + ('' if i == 1 else ' (' + str(i) + ')') + '.zip')
             try:
