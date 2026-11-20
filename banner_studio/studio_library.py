@@ -321,12 +321,12 @@ def export_label(entry,index=None):
     return name
 
 
-def suggested_export_name(title, ext='png', record_id=None):
+def suggested_export_name(title, ext='png', record_id=None, entries=None):
     """Global natural A–Z archive rank, independent of selected/filtered rows."""
     ext = str(ext or '').lower().lstrip('.')
     if ext not in ('png', 'jpg', 'pdf'):
         raise ValueError('Dosya türü geçersiz.')
-    items = list_designs(limit=5000)
+    items = list(entries) if entries is not None else list_designs(limit=5000)
     if record_id:
         target = next((entry for entry in items if entry['id'] == record_id), None)
         if target is None:
@@ -349,7 +349,8 @@ def bulk_archive(ids):
     if not isinstance(ids,list) or not 1<=len(ids)<=1000:
         raise ValueError('Toplu indirmede 1–1000 tasarım seçilebilir.')
     wanted=set(str(x) for x in ids)
-    available=[x for x in list_designs(limit=5000) if x['id'] in wanted]
+    ordered=list_designs(limit=5000)
+    available=[x for x in ordered if x['id'] in wanted]
     if len(available)!=len(wanted):
         raise ValueError('Seçilen arşiv kayıtlarından biri bulunamadı.')
     ROOT.mkdir(parents=True,exist_ok=True)
@@ -366,7 +367,7 @@ def bulk_archive(ids):
                 total+=len(png)
                 if total>650*1024*1024:
                     raise ValueError('Toplu PNG boyutu 650 MB sınırını aştı; daha az seç.')
-                package.writestr(suggested_export_name(entry['title'],'png',entry['id']),png)
+                package.writestr(suggested_export_name(entry['title'],'png',entry['id'],ordered),png)
         return output
     except Exception:
         output.unlink(missing_ok=True)
