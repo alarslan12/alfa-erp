@@ -1,3 +1,12 @@
+## [v2.0.48] — 2026-11-20
+
+- FlexFlow'da gerçek tamamlanma sayıları değiştirilmeden ayrıca iki vardiya arasında dağıtılan tahmini standart üretim yükü grafiği eklendi.
+- SB/RNK baskı, delme, manuel spiral ve kolileme kapasitesinden teorik dakika yükü oluşturulur. Tamamlanmış siparişlerin medyan iş yükü referans alınarak standart sipariş eşdeğeri hesaplanır.
+- Kaydedilmiş hazırlandı/kolilendi olayları gerçek gününe bağlanır. Kaydı olmayan hazırlama aşaması, yalnız bir önceki gün aktivasyonu kayıtlıysa iki vardiyanın mesai süreleri ve ideal paralel kapasite varsayımıyla tahmini bölünür.
+- Ertesi gün toplu tamamlanma zirvelerinde kapasite uyumsuzluğu ve olası devreden iş günlük değerlendirmede işaretlenir; gerçek çalışma saati veya geçmiş işlem iddiasında bulunulmaz.
+- Günlük tablolar, CSV ve HTML raporları üretim eşdeğerini, veri eksiğini ve dünden devreden model dakikalarını açıkça ayırır.
+- Katalog/Siparişler, Firebase kuralları, muhasebe, Banner Studio, mobil katalog ve Print Surveillance verileri korunur.
+
 ## [v2.0.47] — 2026-11-20
 
 - Banner Studio Tasarım Arşivi'nde “Düzenle” ile açılan tasarımın kimliği korunur; “Değişiklikleri Kaydet” mevcut kaydın üzerine yazar, kopya üretmez.
