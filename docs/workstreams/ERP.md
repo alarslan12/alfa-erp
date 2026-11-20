@@ -8,7 +8,16 @@
 
 **Korunacaklar:** Onaylanan Katalog/Siparişler arayüzü, ortak Havuz, personel/owner rolleri, Firebase Auth/RTDB, offline işlem kuyruğu, iade/kargo/ciro hesabı, FlexFlow hareketli gün/takvim filtresi ve günlük değerlendirme.
 
-## Son iş: Analitik HTML raporu / doğrudan yazdır
+## Son iş: Fason baskı için yerel anonim ZIP derleme
+**Çalışma dalı:** feature/erp-local-order-anonymous-zip-20261120 · **PR:** https://github.com/alarslan12/alfa-erp/pull/23.
+
+- editor_siparis.py: Havuz, Aktif ve Tamamlanan ayrıntılarının başlığından tüm siparişi; tek kitap kartından tek kitabı; aktif takip seçiminden seçilen kitapları tek tıkla ZIP'e derler. Uzun PDF dönüşümü QThread ile GUI dışında yapılır ve iptal/ilerleme gösterilir.
+- siparis_derle.py: PDF kütüphanesini yalnız yerelde tarar; seçilen her SB/RNK türünü 300 DPI resim tabanlı yeni PDF'ye dönüştürür. Kaynak Info/XMP, gömülü ekler, form/JS/gizli metin/katmanlar, yer işaretleri ve dosya yolları ZIP'e kopyalanmaz. SB gri tonlama, RNK renkli. Baskı adetleri rastgele dosya adında ve BASKI_TALIMATI.txt içinde belirtilir. Sipariş N.zip Masaüstüne otomatik oluşturulur; önceki ZIP ezilmez.
+- tests/test_order_compile_zip.py: varyant/çoklu adet, seçili kitap, özel ad, yanlış/eksik dosya, iptal, PDF kaynak metadata anonimleştirme doğrulamaları.
+- Eksik/bozuk PDF varsa ZIP üretimi iptal edilir, geçici dosyalar silinir. PDF'ler sunucuya gönderilmez ve orijinaller değiştirilmez. Görünür sayfa filigranları/gizli işaretler piksel olduğu için silinemez; çıktı rasterdır, arama/vektör niteliği kaybolur ve dosya boyutu büyüyebilir.
+- Suite sürüm/Setup, Firebase, diğer uygulamalar ve kullanıcı yerel geçmişi değişmez. Gerçek fason/yazıcı denemesi yapılmadı.
+
+## Önceki iş: Analitik HTML raporu / doğrudan yazdır
 **Dal:** `fix/erp-analytics-desktop-print-20261120`. **PR:** Açık PR'dan takip edilir.
 
 - `ekran_analitik.py`: kaydetme diyaloğu kaldırıldı; rapor Windows Masaüstü konumuna benzersiz adla kaydedilir ve varsayılan tarayıcıda otomatik yazdırma diyaloğu tetiklenir.

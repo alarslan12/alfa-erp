@@ -1,16 +1,17 @@
 """Yerel Qt pencereleri: takip ve düzenleme ayrı açılır."""
 from pathlib import Path
 from utils import otomatik_platform_bul, format_kargo_kodu
-from PySide6.QtCore import Qt, QUrl, QTimer, QMimeData, Signal
+from PySide6.QtCore import Qt, QUrl, QTimer, QMimeData, Signal, QThread, QStandardPaths
 from PySide6.QtGui import QDesktopServices, QColor, QDrag
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QWidget, QFrame, QLabel, QScrollArea,
     QCheckBox, QSpinBox, QDoubleSpinBox, QLineEdit, QComboBox, QFormLayout, QGridLayout, QAbstractSpinBox,
-    QMessageBox, QFileDialog, QTabWidget, QTabBar, QPushButton, QSizePolicy, QApplication, QPlainTextEdit
+    QMessageBox, QFileDialog, QTabWidget, QTabBar, QPushButton, QSizePolicy, QApplication, QPlainTextEdit, QProgressDialog
 )
 from widgets import text, button, cover_label, scrollable, clear_layout, error, confirm
 from kart_siparis import ProgressCover, set_boxed_card_style
 from pdf_kitap import PdfKutuphane
+from siparis_derle import derle_siparis
 from ilerleme_kontrol import sonraki_ilerleme, buton_durumlari
 from siparis_uyari import pending_notice, revision, initial_note_notice
 from siparis_uyari_ui import plain
@@ -45,6 +46,33 @@ def ciro_metinini_sayiya_cevir(raw):
     if not 0 <= amount < 1_000_000_000:
         raise ValueError('Ciro tutarı 0 ile 1 milyar TL arasında olmalıdır.')
     return round(amount, 2)
+
+
+class _DerlemeIsParcacigi(QThread):
+    """Keeps long 300-DPI PDF rasterization away from the GUI thread."""
+    completed = Signal(str)
+    failed = Signal(str)
+    progress = Signal(int, int, int, int)
+
+    def __init__(self, snapshot, catalog, folder, desktop, codes, parent=None):
+        super().__init__(parent)
+        self.snapshot = snapshot
+        self.catalog = catalog
+        self.folder = folder
+        self.desktop = desktop
+        self.codes = codes
+
+    def run(self):
+        try:
+            path = derle_siparis(
+                self.snapshot, self.catalog, self.folder, self.desktop,
+                codes=self.codes, progress=lambda a, b, c, d: self.progress.emit(a, b, c, d),
+                cancel=self.isInterruptionRequested,
+            )
+        except Exception as exc:
+            self.failed.emit(str(exc))
+        else:
+            self.completed.emit(str(path))
 
 
 class SiparisEditor(QDialog):
@@ -139,6 +167,11 @@ class SiparisEditor(QDialog):
             self.header_summary = text(f"SB {summary['sb']} · RNK {summary['rnk']} · Hazır {summary['hazir']}/{summary['adet']} · Koli {summary['koli']}/{summary['adet']}", 'Muted')
             self.header_lay.addWidget(self.header_summary)
         self.header_lay.addStretch()
+        if self.mode != 'edit':
+            compile_button = button('▣  Siparişi Derle', 'PdfAction')
+            compile_button.setToolTip('Tüm kitapları anonimleştirip Masaüstüne tek ZIP kaydet')
+            compile_button.clicked.connect(lambda checked=False: self.compile_order())
+            self.header_lay.addWidget(compile_button)
         close = button('Sekmeyi kapat' if self.embedded else 'Kapat')
         close.clicked.connect(lambda: self.track_host.close_order_tab(self.sid) if self.embedded and hasattr(self, 'track_host') else self.close())
         self.header_lay.addWidget(close)
@@ -211,6 +244,10 @@ class SiparisEditor(QDialog):
                 info.addWidget(text(f"SB {entry.get('sb',0)}  ·  RNK {entry.get('rnk',0)}",'PoolOverviewCounts'))
                 info.addStretch()
                 lay.addLayout(info,1)
+                compile_book = button('▣ Derle', 'PdfAction')
+                compile_book.setToolTip('Yalnız bu kitabı ZIP olarak hazırla')
+                compile_book.clicked.connect(lambda checked=False,c=code:self.compile_order([c]))
+                lay.addWidget(compile_book)
                 grid.addWidget(card,idx//3,idx%3)
             group_lay.addLayout(grid)
             outer.addWidget(group_frame)
@@ -259,6 +296,10 @@ class SiparisEditor(QDialog):
             info.addWidget(text(f"{group.get('adet',0)} kitap · {group.get('sayfa',group.get('adet',0)*group.get('sayfa_birim',0))} sayfa",'Muted'))
             info.addStretch()
             row.addLayout(info,1)
+            compile_book = button('▣ Derle', 'PdfAction')
+            compile_book.setToolTip('Yalnız bu kitabı ZIP olarak hazırla')
+            compile_book.clicked.connect(lambda checked=False,c=code:self.compile_order([c]))
+            row.addWidget(compile_book)
             grid.addWidget(card,i//3,i%3)
         grid.setColumnStretch(0,1);grid.setColumnStretch(1,1);grid.setColumnStretch(2,1)
         self.body_lay.addWidget(scrollable(content),1)
@@ -405,11 +446,21 @@ class SiparisEditor(QDialog):
             segment_row.addWidget(plus)
             segment_row.addWidget(minus)
             segments.append(segment)
-        pdf_bulk = button('▣  Seçilen PDF’leri Aç','PdfAction')
+        pdf_actions = QWidget()
+        pdf_actions_row = QHBoxLayout(pdf_actions)
+        pdf_actions_row.setContentsMargins(0, 0, 0, 0)
+        pdf_actions_row.setSpacing(4)
+        pdf_bulk = button('▣  PDF Aç', 'PdfAction')
         pdf_bulk.setMinimumHeight(46)
-        pdf_bulk.setToolTip('Seçili kitapların koduna göre PDF dosyalarını açar')
+        pdf_bulk.setToolTip('Seçili kitapların yerel PDF dosyalarını açar')
         pdf_bulk.clicked.connect(self.open_selected_pdfs)
-        self._bulk_widgets=[self.select_all,self.pending_filters,*segments,pdf_bulk]
+        pdf_actions_row.addWidget(pdf_bulk, 1)
+        compile_selected = button('▣  Derle', 'PdfAction')
+        compile_selected.setMinimumHeight(46)
+        compile_selected.setToolTip('Seçili kitapları anonim PDF ve baskı talimatıyla tek ZIP yap')
+        compile_selected.clicked.connect(self.compile_selected_order)
+        pdf_actions_row.addWidget(compile_selected, 1)
+        self._bulk_widgets=[self.select_all,self.pending_filters,*segments,pdf_actions]
         self.body_lay.addWidget(toolbar)
 
         self.code_checks = {}
@@ -523,6 +574,10 @@ class SiparisEditor(QDialog):
         pdf.setToolTip(f'#{code} numaralı kitabın PDF dosyasını aç')
         pdf.clicked.connect(lambda checked=False,c=code:self.open_pdfs([c]))
         controls.addWidget(pdf)
+        compile_book = button('▣  Derle', 'TrackPdfButton')
+        compile_book.setToolTip('Yalnız bu kitabı anonim ZIP olarak Masaüstüne kaydet')
+        compile_book.clicked.connect(lambda checked=False,c=code:self.compile_order([c]))
+        controls.addWidget(compile_book)
         controls.addStretch()
         root.addWidget(control_zone, 1)
         return card
@@ -718,6 +773,73 @@ class SiparisEditor(QDialog):
             return False
         QMessageBox.information(self, 'PDF klasörü', f'PDF dosyaları bu klasörde aranacak:\n{path}')
         return True
+
+    def compile_selected_order(self):
+        codes = [code for code, checkbox in self.code_checks.items()
+                 if checkbox.isChecked()]
+        if not codes:
+            return error(self, 'Derlemek için önce kitapları seç.')
+        self.compile_order(codes)
+
+    def compile_order(self, codes=None):
+        """Local-only package; full order, selected books or a single book."""
+        order = self.current()
+        if not order:
+            return error(self, 'Sipariş bulunamadı.')
+        if self.pdfs.folder is None or not self.pdfs.folder.is_dir():
+            if not self.choose_pdf_folder():
+                return
+        desktop = QStandardPaths.writableLocation(
+            QStandardPaths.StandardLocation.DesktopLocation)
+        if not desktop or not Path(desktop).is_dir():
+            return error(self, 'Windows Masaüstü klasörüne erişilemiyor.')
+
+        application = QApplication.instance()
+        jobs = getattr(application, '_alfa_order_compile_jobs', None)
+        if jobs is None:
+            jobs = {}
+            application._alfa_order_compile_jobs = jobs
+        job_key = str(order.get('id'))
+        if job_key in jobs:
+            return error(self, 'Bu siparişin derlemesi halen devam ediyor.')
+
+        # Snapshot: Firebase/local order data is never edited by the worker.
+        snapshot = {
+            'id': order.get('id'),
+            'kod': order.get('kod'),
+            'kitaplar': [dict(row) for row in order.get('kitaplar', [])],
+        }
+        catalog = {str(code): dict(book) for code, book in self.db.katalog.items()}
+        worker = _DerlemeIsParcacigi(
+            snapshot, catalog, str(self.pdfs.folder), desktop,
+            None if codes is None else list(codes), application)
+        dialog = QProgressDialog('Sipariş PDF dosyaları yerelde hazırlanıyor...',
+                                 'İptal', 0, 0)
+        dialog.setWindowTitle('Sipariş Derleniyor')
+        dialog.setWindowModality(Qt.WindowModality.NonModal)
+        dialog.setMinimumDuration(0)
+        dialog.setAutoClose(False)
+        jobs[job_key] = (worker, dialog)
+        dialog.canceled.connect(worker.requestInterruption)
+        worker.progress.connect(
+            lambda index, total, page, pages: dialog.setLabelText(
+                f'Kitap {index}/{total} · PDF sayfası {page}/{pages} anonimleştiriliyor...'))
+        worker.completed.connect(
+            lambda path: QMessageBox.information(
+                None, 'Sipariş Derlendi',
+                'Sipariş ZIP dosyası Masaüstüne kaydedildi:\n' + path))
+        worker.failed.connect(
+            lambda detail: QMessageBox.warning(
+                None, 'Sipariş Derlenemedi',
+                detail + '\nEksik bir ZIP Masaüstüne kaydedilmedi.'))
+        def finish():
+            dialog.close()
+            dialog.deleteLater()
+            jobs.pop(job_key, None)
+        worker.finished.connect(finish)
+        worker.finished.connect(worker.deleteLater)
+        dialog.show()
+        worker.start()
 
     def open_selected_pdfs(self):
         codes = [code for code, check in self.code_checks.items() if check.isChecked()]
