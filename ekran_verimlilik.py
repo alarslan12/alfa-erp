@@ -205,14 +205,17 @@ class FlexFlowView(QWidget):
         self.insight_comparison=QLabel()
         self.insight_live=QLabel()
         self.insight_assessment=QLabel()
+        self.insight_model=QLabel()
         self.insight_note=QLabel()
         for label in (self.insight_observation,self.insight_progress,
                       self.insight_comparison,self.insight_live,
-                      self.insight_assessment,self.insight_note):
+                      self.insight_assessment,self.insight_model,
+                      self.insight_note):
             label.setWordWrap(True)
             label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
             insight_layout.addWidget(label)
         self.insight_assessment.setObjectName("FlexFlowInsightRisk")
+        self.insight_model.setObjectName("FlexFlowInsightModel")
         self.insight_note.setObjectName("FlexFlowInsightNote")
         root.addWidget(self.insight_panel)
 
@@ -245,23 +248,40 @@ class FlexFlowView(QWidget):
 
         charts=QGridLayout()
         charts.setSpacing(10)
-        self.completed_chart=LineChart("Günlük tamamlanan sipariş",[
+        self.completed_chart=LineChart("Gerçek tamamlanan sipariş",[
             ("orders","Sipariş","#51d6a6")])
+        self.model_chart=LineChart("Tamamlanma / vardiyalara dağıtılan iş yükü",[
+            ("orders","Gerçek tamamlanma","#6cbcff"),
+            ("modeled","Üretim eşdeğeri (tahmin)","#f1c275"),
+        ])
         self.pages_chart=LineChart("Tamamlanan işlerin sayfa hacmi",[
             ("pages","Sayfa","#b597ff")])
         self.progress_chart=LineChart("Kayıtlı günlerde hazırlanan / kolilenen",[
             ("ready","Hazırlandı","#60baff"),("boxed","Kolilendi","#f1c275")
         ])
         self.backlog=BacklogPanel()
-        for chart in (self.completed_chart,self.pages_chart,self.progress_chart):
+        for chart in (self.completed_chart,self.pages_chart,
+                      self.progress_chart,self.model_chart):
             chart.setFixedHeight(235)
         charts.addWidget(self.completed_chart,0,0)
         charts.addWidget(self.pages_chart,0,1)
         charts.addWidget(self.progress_chart,1,0)
         charts.addWidget(self.backlog,1,1)
+        charts.addWidget(self.model_chart,2,0,1,2)
         charts.setColumnStretch(0,1)
         charts.setColumnStretch(1,1)
         root.addLayout(charts)
+        self.model_note=QLabel(
+            "Mavi çizgi gerçek tamamlanan sipariş adedidir. Sarı çizgi "
+            "sayfa, SB/RNK, delme, spiral ve kolileme kapasitesiyle hesaplanan "
+            "tahmini standart sipariş eşdeğeridir. Hazırlama/kolileme "
+            "günlüğü önceliklidir; eksik emek yalnız önceki gün aktife alınan "
+            "işlerde vardiya saatlerine göre paylaştırılır. Gerçek işçilik "
+            "veya cihaz süreleri ölçülmüş değildir."
+        )
+        self.model_note.setWordWrap(True)
+        self.model_note.setStyleSheet("font-size:11px;")
+        root.addWidget(self.model_note)
         self.shift_note=QLabel()
         self.shift_note.setWordWrap(True)
         self.shift_note.setStyleSheet("font-size:12px;font-weight:800;padding:8px;")
@@ -304,7 +324,8 @@ class FlexFlowView(QWidget):
         root.addWidget(daily_title)
         self.daily_table=self._table(
             ["Tarih","Aktife alınan","Tamamlanan","Kitap","Sayfa",
-             "Hazırlanan","Kolilenen"],315,
+             "Hazırlanan","Kolilenen","Üretim eşdeğeri (tahmin)",
+             "Dünden devreden model dk"],315,
         )
         root.addWidget(self.daily_table)
         info=QLabel(
@@ -429,6 +450,7 @@ class FlexFlowView(QWidget):
         self.insight_comparison.setText(insight["comparison"])
         self.insight_live.setText(insight["live"])
         self.insight_assessment.setText(insight["assessment"])
+        self.insight_model.setText(insight["model"])
         self.insight_note.setText(insight["note"])
         self.insight_panel.setProperty("insightLevel",insight["severity"])
         self.insight_panel.style().unpolish(self.insight_panel)
@@ -492,6 +514,11 @@ class FlexFlowView(QWidget):
         plotted_days=[p for p in report["points"] if p["date"] in activity]
         self.completed_chart.set_data(plotted_days)
         self.pages_chart.set_data(plotted_days)
+        # The model has no value (not a numerical zero) for days where
+        # completed-order page counts are insufficient to model an index.
+        self.model_chart.set_data(
+            [row for row in plotted_days if row.get("modeled") is not None]
+        )
         logged=set(report["logged_days"])
         # Missing event history is not a measured zero. Plot only dates
         # with recorded movement; the daily table shows an explicit dash.
@@ -528,7 +555,10 @@ class FlexFlowView(QWidget):
         self._rows(self.daily_table,[
             [p["date"],fmt(p["started"]),fmt(p["orders"]),fmt(p["books"]),
              fmt(p["pages"]),fmt(p["ready"]) if p["date"] in logged else "—",
-             fmt(p["boxed"]) if p["date"] in logged else "—"]
+             fmt(p["boxed"]) if p["date"] in logged else "—",
+             fmt(p["modeled"],2) if p["modeled"] is not None and
+               p["unmodeled_orders"]==0 else "Eksik veri",
+             fmt(p["carry_in_min"],1) if p["modeled"] is not None else "—"]
             for p in reversed(shown_daily)
         ])
 
