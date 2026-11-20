@@ -27,3 +27,8 @@ Bu durum kaydını **yalnız Banner sohbeti** kendi feature/fix PR'larında gün
 - Arayüz sol üst logosu paketli `assets/branding/company.png` kaynağından servis edilir. Banner içine logo çizilmez.
 - **Veri riski:** Arşiv ve kapak klasörleri korunur; yalnız kullanıcı onaylı masaüstü dosya yazması yapılır. Firebase/ERP/Mobil/Print dosyaları değişmedi.
 - **CI:** PR açıldıktan sonra Workstream scope + Windows regression; Suite v2.0.48 ortak sürüm numarası değiştirilmez, Setup yayınlanmaz.
+
+## 20.11.2026 — Ortak Suite v2.0.49 yayını
+- Banner Studio düzenlemeleri PR #20'den üretime birleştirildi (809ff9c).
+- `integration/release-v2.0.49-banner-studio` dalı/PR'ı tek Windows kurulumunu derlemek için sürüm metadata'sını birlikte yükseltir.
+- Test/derleme/Release sonuçları birbirinden ayrı doğrulanmalı; kullanıcı arşivi korunur.
