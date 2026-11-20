@@ -6,6 +6,15 @@ https://github.com/alarslan12/alfa-erp/releases.
 """
 
 _RELEASES = [
+    ("2.0.48", "FlexFlow iki vardiyaya dağıtılan tahmini üretim yükü", [
+        "Gerçek tamamlanan siparişler korunurken FlexFlow'a ayrı iki çizgili 'Gerçek tamamlanma / Üretim eşdeğeri' grafiği eklendi.",
+        "Kayıtlı hazırlandı/kolilendi hareketleri kendi günlerine bağlanır. Eksik hazırlama zamanı, önceki gün aktivasyon kaydı varsa mesai/kaynak kapasitesine göre iki güne tahmini paylaştırılır.",
+        "Makine+işçilik referansları SB/RNK sayfa, delme, spiral ve kolileme alt sınırlarıdır; gerçek çalışan saat ölçümü değildir.",
+        "Günlük yorum ve CSV/HTML raporlarında kaydedilmiş ve modellenmiş iş yükleri, dünden devreden katkı, eksik sayfalar ve kapasite uyumsuzluğu açıkça gösterilir.",
+        "Sipariş durumları, Firebase/yerel veri, muhasebe, Banner Studio, mobil katalog ve Print Surveillance değiştirilmez.",
+    ]),
+
+
     ("2.0.47", "Banner Studio arşiv kaydı ve Türkiye saat dilimi düzeltmesi", [
         "Tasarım Arşivi > Düzenle akışı mevcut arşiv kimliğini korur; Değişiklikleri Kaydet kopya oluşturmaz.",
         "Farklı Kaydet yeni kayıt oluşturur; aynı isimli tasarım için üzerine yazma onayı gerekir.",
