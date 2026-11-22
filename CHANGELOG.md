@@ -1,3 +1,11 @@
+## [v2.0.52] — 2026-11-22
+
+- Fason sipariş ZIP PDF dosya adları, baskı adedi önde olacak şekilde düzenlendi: `2 ADET - DOSYA_XXXXXXXXXXXX.pdf`.
+- `BASKI_TALIMATI.txt` yalnız sipariş kodu, toplam sayfa sayısı ve toplam kitap sayısını içerir.
+- Sayfa hesabı siparişin tarihsel sayfa bilgisini, yoksa katalog verisini kullanır; SB/RNK nüshaları dahildir. Tek kitap ve seçili kitap ZIP'inde yalnız seçilenlerin toplamı hesaplanır.
+- Yerel PDF dosyaları birebir korunur, yeniden sıkıştırma veya anonimleştirme yoktur; Firebase ve diğer Suite uygulamaları değiştirilmez.
+- Kaynak ERP PR #27, tek Suite Setup ve mevcut güncelleme kanalı korunur.
+
 ## [v2.0.51] — 2026-11-21
 
 - Siparişi Derle işlemi hızlandırıldı: 300 DPI rasterizasyon, PDF içeriği/metaveri temizleme ve yeniden oluşturma kaldırıldı.
