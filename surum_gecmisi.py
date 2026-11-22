@@ -6,6 +6,13 @@ https://github.com/alarslan12/alfa-erp/releases.
 """
 
 _RELEASES = [
+    ("2.0.52", "Fason ZIP adet etiketi ve sade baskı talimatı", [
+        "Siparişi Derle PDF dosyalarının başına 1 ADET, 2 ADET gibi baskı miktarı ekler.",
+        "Baskı talimatı yalnız sipariş kodu, toplam sayfa sayısı ve toplam kitap sayısını içerir.",
+        "Sayfa toplamında tarihsel sipariş sayfa kaydı, yoksa katalog sayfa sayısı esas alınır.",
+        "Tekli veya seçili kitap ZIP'lerinde toplamlar yalnız paketteki kitaplara aittir.",
+        "PDF içerikleri aynen korunur; Firebase, yerel kullanıcı kayıtları ve diğer Suite uygulamaları değişmez.",
+    ]),
     ("2.0.51", "Fason sipariş ZIP'inde hızlı orijinal PDF aktarımı", [
         "Siparişi Derle PDF'leri yeniden görüntüleyip oluşturmadan ZIP'e doğrudan ekler.",
         "PDF yeniden sıkıştırması kaldırıldı; kaynak dosyalar, baskı çözünürlüğü ve görünüm birebir korunur.",

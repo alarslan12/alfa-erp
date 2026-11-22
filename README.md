@@ -1,4 +1,4 @@
-# ALFACOPYCENTER Suite v2.0.51
+# ALFACOPYCENTER Suite v2.0.52
 
 **Tek Windows kurulumu**, dört seçilebilir bileşen:
 
@@ -10,9 +10,16 @@
 | ALFA Print Center | PrintSurveillance/AlfaPrintSurveillance.exe | Seçilebilir, varsayılan |
 | Arka plan yardımcıları | Bildirim, PrintAgent, PrintSupervisor | Seçilen bileşene bağlı |
 
-Kurulum: `ALFACOPYCENTER_Suite_Setup_V2_0_51.exe`. Aynı Inno Setup AppId
+Kurulum: `ALFACOPYCENTER_Suite_Setup_V2_0_52.exe`. Aynı Inno Setup AppId
 (`ALFACOPYCENTER.Suite`) ve kurulum yolu korundu:
 `%LOCALAPPDATA%\Programs\ALFACOPYCENTER`.
+
+## v2.0.52 — Fason ZIP adet etiketleri ve üç satırlık baskı talimatı
+
+- `Siparişi Derle` ZIP'inde PDF dosya adının başında baskı miktarı gösterilir: `2 ADET - DOSYA_XXXXXXXXXXXX.pdf` (1 adet için de).
+- `BASKI_TALIMATI.txt` yalnız sipariş kodu, toplam basılacak sayfa sayısı ve toplam kitap sayısı içerir.
+- Sipariş sayfa toplamında kayıtlı tarihsel sayfa bilgisi önceliklidir; yoksa katalog bilgisi kullanılır. Tekli/seçili ZIP özetleri yalnız paketteki kitapları kapsar.
+- Kaynak PDF'ler değiştirilmez, sıkıştırılmaz ve Firebase'e yüklenmez. Siyah/Renkli klasörleri, rastgele adlar ve tek Windows Suite kurulumu korunur.
 
 ## v2.0.51 — Hızlı fason sipariş ZIP
 
