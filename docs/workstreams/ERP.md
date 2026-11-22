@@ -2,13 +2,21 @@
 
 **Sohbet:** ERP Personel / Yönetici. **Repo:** `alarslan12/alfa-erp`; üretim `firebase-rtdb-final`.
 
-**Son doğrulanmış kararlı Suite:** v2.0.49 (20.11.2026). Yeni görevlerde GitHub Release, üretim SHA ve açık PR'ları yeniden kontrol et.
+**Son doğrulanmış kararlı Suite:** v2.0.51 (21.11.2026). Yeni görevlerde GitHub Release, üretim SHA ve açık PR'ları yeniden kontrol et.
 
 **Kod sahipliği:** `main.py`, `ekran_katalog.py`, `ekran_siparis.py`, `ekran_analitik.py`, `ekran_verimlilik.py`, `flexflow*.py`, ERP/Firebase istemcisi, analitik/muhasebe ve ilgili testler.
 
 **Korunacaklar:** Onaylanan Katalog/Siparişler arayüzü, ortak Havuz, personel/owner rolleri, Firebase Auth/RTDB, offline işlem kuyruğu, iade/kargo/ciro hesabı, FlexFlow hareketli gün/takvim filtresi ve günlük değerlendirme.
 
-## Son iş: Fason ZIP derlemeyi hızlandırma (raster/anonimleştirme kaldırıldı)
+## Son iş: ZIP kitap miktarı öne alındı ve talimat özeti sadeleşti
+**Dal:** `fix/erp-zip-quantity-prefix-summary-20261122` · **PR:** GitHub'da bu dalın PR'ı.
+
+- `siparis_derle.py`: PDF adları `2 ADET - DOSYA_<rastgele>.pdf` (1 adet dahil) biçiminde; arşiv adından yalnız miktar ve rastgele kimlik okunur. Baskı talimatı yalnız **Sipariş Kodu**, **Toplam Sayfa Sayısı** ve **Toplam Kitap Sayısı** alanlarını içerir.
+- Sayfa hesabı `Database._book_page_count` ile eşdeğer: sipariş satırındaki tarihsel `sayfa_birim` / `sayfa` değeri, yoksa katalogdaki sayfa sayısı. Siyah/renkli kopyalar ve tekrarlar adetle çarpılır. Tekli/seçili ZIP'in sayfa/kitap toplamı yalnız paket içindeki kitaplara aittir.
+- `tests/test_order_compile_zip.py`: dosya adı başındaki 1/2/5 adet, üç satırlık özet, seçili sipariş, tarihsel sayfa ve katalog fallback testleri.
+- PDF kaynak baytları olduğu gibi ZIP'e aktarılır; yeniden sıkıştırma/anonimleştirme ve Firebase aktarımı yoktur. Diğer Suite uygulamaları, sürüm ve kullanıcı verileri değişmez. Windows CI PR üzerinde kontrol edilir.
+
+## Önceki iş: Fason ZIP derlemeyi hızlandırma (raster/anonimleştirme kaldırıldı)
 **Dal:** `fix/erp-fast-raw-pdf-zip-20261121` · **PR:** Bu dalın GitHub PR'ı.
 
 - `siparis_derle.py`: 300 DPI rasterizasyonu, PDF yeniden yazımı ve metaveri temizleme kaldırıldı. PDF kaynak baytları doğrudan ZIP'e, yeniden sıkıştırılmadan (ZIP_STORED) yazılır. Masaüstü ZIP adı ve Siyah/Renkli klasörleri, rastgele PDF adları, adet uyarıları, talimat dosyası, dosya eksikse işlem iptali korunur.

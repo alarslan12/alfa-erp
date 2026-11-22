@@ -56,6 +56,22 @@ def _random_alias(seen):
             return alias
 
 
+def _book_pages(item, catalog):
+    """Match Database._book_page_count: prefer historical per-book snapshot."""
+    code = str(item.get('kod') or '').strip()
+    raw = item.get('sayfa_birim') if item.get('sayfa_birim') is not None else item.get('sayfa')
+    try:
+        saved = max(0, int(raw or 0))
+    except (TypeError, ValueError):
+        saved = 0
+    if saved:
+        return saved
+    try:
+        return max(0, int((catalog.get(code) or {}).get('sayfa') or 0))
+    except (TypeError, ValueError):
+        return 0
+
+
 def derle_siparis(order, catalog, pdf_folder, desktop, *, codes=None,
                   progress=None, cancel=None):
     """Export one ZIP with the original PDF bytes. No incomplete ZIP on failure.
@@ -77,6 +93,7 @@ def derle_siparis(order, catalog, pdf_folder, desktop, *, codes=None,
     if selected is not None and not selected:
         raise DerlemeHatasi('Derlemek için en az bir kitap seçin.')
     amounts = {}
+    total_pages = 0
     for item in order.get('kitaplar', []):
         code = str(item.get('kod', ''))
         if selected is not None and code not in selected:
@@ -93,6 +110,7 @@ def derle_siparis(order, catalog, pdf_folder, desktop, *, codes=None,
         if qty:
             key = (code, kind)
             amounts[key] = amounts.get(key, 0) + qty
+            total_pages += qty * _book_pages(item, catalog)
     items = [(code, kind, qty) for (code, kind), qty in amounts.items()]
     if not items:
         raise DerlemeHatasi('Seçilen kitaplarda derlenecek baskı bulunamadı.')
@@ -118,24 +136,16 @@ def derle_siparis(order, catalog, pdf_folder, desktop, *, codes=None,
     entries = []
     for source, kind, qty in resolved:
         alias = _random_alias(aliases)
-        filename = 'DOSYA_' + alias + ('__' + str(qty) + '_ADET_BASILACAK' if qty > 1 else '') + '.pdf'
+        filename = str(qty) + ' ADET - DOSYA_' + alias + '.pdf'
         folder = 'Siyah' if kind == 'SB' else 'Renkli'
         entries.append((source, folder + '/' + filename, qty))
 
     order_code = str(order.get('kod') or '').replace('\r', ' ').replace('\n', ' ').strip()
     note = [
-        'ALFA ERP - FASON BASKI TALIMATI',
-        'Siparis No: ' + sid,
-        'Siparis Kodu: ' + order_code if order_code else 'Siparis Kodu: Belirtilmedi',
-        '',
-        'Her dosya tek PDF kopyasidir; yanindaki adet kadar basiniz.',
-        'Siyah klasoru siyah-beyaz; Renkli klasoru renkli basilacaktir.',
-        '',
+        'Sipariş Kodu: ' + (order_code if order_code else 'Belirtilmedi'),
+        'Toplam Sayfa Sayısı: ' + str(total_pages),
+        'Toplam Kitap Sayısı: ' + str(sum(x[2] for x in entries)),
     ]
-    for _source, name, qty in entries:
-        note.append(name + ' -> ' + str(qty) + ' ADET BASILACAK')
-    note.extend(('', 'TOPLAM DOSYA CESIDI: ' + str(len(entries)),
-                 'TOPLAM BASILACAK KITAP: ' + str(sum(x[2] for x in entries)), ''))
 
     base = 'Sipariş ' + sid
     # Keep the temporary archive on the same drive as the Desktop, so the

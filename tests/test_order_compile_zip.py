@@ -26,7 +26,7 @@ class LocalOrderBundleTests(unittest.TestCase):
                 {'kod': '11', 'tur': 'RNK', 'adet': 1},
             ],
         }
-        self.catalog = {'11': {'isim': 'Orijinal Gizli Kitap'}}
+        self.catalog = {'11': {'isim': 'Orijinal Gizli Kitap', 'sayfa': 100}}
 
     def test_single_zip_separates_print_type_and_quantities_without_title(self):
         target = derle_siparis(self.order, self.catalog, self.pdfs, self.desktop)
@@ -38,8 +38,8 @@ class LocalOrderBundleTests(unittest.TestCase):
             self.assertEqual(len([x for x in names if x.endswith('.pdf')]), 2)
             black = next(name for name in names if name.startswith('Siyah/') and name.endswith('.pdf'))
             color = next(name for name in names if name.startswith('Renkli/') and name.endswith('.pdf'))
-            self.assertIn('2_ADET_BASILACAK', black)
-            self.assertNotIn('2_ADET_BASILACAK', color)
+            self.assertRegex(black, r'^Siyah/2 ADET - DOSYA_[0-9A-F]{12}\.pdf$')
+            self.assertRegex(color, r'^Renkli/1 ADET - DOSYA_[0-9A-F]{12}\.pdf$')
             self.assertNotIn('Konfidentiel', '|'.join(names))
             self.assertNotIn('Gizli', '|'.join(names))
             # No metadata stripping, grayscale conversion or PDF re-encoding:
@@ -48,27 +48,33 @@ class LocalOrderBundleTests(unittest.TestCase):
             self.assertEqual(archive.read(color), self.original_bytes)
             self.assertEqual(archive.getinfo(black).compress_type, ZIP_STORED)
             note = archive.read('BASKI_TALIMATI.txt').decode('utf-8-sig')
-            self.assertIn('Siparis No: 76', note)
-            self.assertIn('Siparis Kodu: KARGO-XX-99', note)
-            self.assertIn('TOPLAM BASILACAK KITAP: 3', note)
-            self.assertIn(black + ' -> 2 ADET BASILACAK', note)
-            self.assertIn(color + ' -> 1 ADET BASILACAK', note)
+            self.assertEqual(note.splitlines(), [
+                'Sipariş Kodu: KARGO-XX-99',
+                'Toplam Sayfa Sayısı: 300',
+                'Toplam Kitap Sayısı: 3',
+            ])
         self.assertEqual(self.source.read_bytes(), self.original_bytes)
 
     def test_selected_book_only_and_existing_zip_not_overwritten(self):
         other = self.pdfs / '12-Diger-Gizli.pdf'
         other.write_bytes(b'%PDF-1.4\nother')
         self.order['kitaplar'].append({'kod': '12', 'tur': 'SB', 'adet': 3})
-        self.catalog['12'] = {'isim': 'Diger'}
+        self.catalog['12'] = {'isim': 'Diger', 'sayfa': 80}
         first = derle_siparis(self.order, self.catalog, self.pdfs, self.desktop, codes=['11'])
         second = derle_siparis(self.order, self.catalog, self.pdfs, self.desktop, codes=['12'])
         self.assertEqual(second.name, 'Sipariş 76 (2).zip')
         with ZipFile(first) as archive:
-            self.assertIn('TOPLAM BASILACAK KITAP: 3',
-                          archive.read('BASKI_TALIMATI.txt').decode('utf-8-sig'))
+            self.assertEqual(
+                archive.read('BASKI_TALIMATI.txt').decode('utf-8-sig').splitlines(),
+                ['Sipariş Kodu: KARGO-XX-99',
+                 'Toplam Sayfa Sayısı: 300',
+                 'Toplam Kitap Sayısı: 3'])
         with ZipFile(second) as archive:
-            self.assertIn('TOPLAM BASILACAK KITAP: 3',
-                          archive.read('BASKI_TALIMATI.txt').decode('utf-8-sig'))
+            self.assertEqual(
+                archive.read('BASKI_TALIMATI.txt').decode('utf-8-sig').splitlines(),
+                ['Sipariş Kodu: KARGO-XX-99',
+                 'Toplam Sayfa Sayısı: 240',
+                 'Toplam Kitap Sayısı: 3'])
             self.assertEqual(len([name for name in archive.namelist()
                                   if name.endswith('.pdf')]), 1)
 
@@ -79,7 +85,24 @@ class LocalOrderBundleTests(unittest.TestCase):
             entries = [n for n in archive.namelist()
                        if n.startswith('Siyah/') and n.endswith('.pdf')]
             self.assertEqual(len(entries), 1)
-            self.assertIn('5_ADET_BASILACAK', entries[0])
+            self.assertRegex(entries[0], r'^Siyah/5 ADET - DOSYA_[0-9A-F]{12}\.pdf$')
+            self.assertEqual(
+                archive.read('BASKI_TALIMATI.txt').decode('utf-8-sig').splitlines(),
+                ['Sipariş Kodu: KARGO-XX-99',
+                 'Toplam Sayfa Sayısı: 600',
+                 'Toplam Kitap Sayısı: 6'])
+
+    def test_historical_page_snapshot_precedes_catalog_and_invalid_value_falls_back(self):
+        self.order['kitaplar'][0]['sayfa_birim'] = 125
+        self.order['kitaplar'][0]['sayfa'] = 900
+        self.order['kitaplar'][1]['sayfa_birim'] = 'invalid'
+        target = derle_siparis(self.order, self.catalog, self.pdfs, self.desktop)
+        with ZipFile(target) as archive:
+            self.assertEqual(
+                archive.read('BASKI_TALIMATI.txt').decode('utf-8-sig').splitlines(),
+                ['Sipariş Kodu: KARGO-XX-99',
+                 'Toplam Sayfa Sayısı: 350',
+                 'Toplam Kitap Sayısı: 3'])
 
     def test_missing_pdf_does_not_create_partial_zip(self):
         self.order['kitaplar'].append({'kod': '98', 'tur': 'SB', 'adet': 1})
