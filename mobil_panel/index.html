@@ -10,6 +10,7 @@
 @media (max-width:480px){.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.book{min-width:0;min-height:0;padding:10px;gap:7px}.book strong{font-size:13px;line-height:1.3;flex:0 0 auto;overflow-wrap:anywhere}.book .code,.book .mini{font-size:11px;overflow-wrap:anywhere}.book .actions{margin-top:auto;flex-wrap:nowrap;gap:5px}.book .actions button{min-width:0;padding:6px 2px;font-size:11px;min-height:38px}}
 #toast{position:fixed;bottom:calc(24px + env(safe-area-inset-bottom));left:50%;transform:translate(-50%,12px);z-index:20;max-width:calc(100vw - 28px);min-width:190px;padding:12px 18px;border:1px solid var(--line);border-radius:12px;background:var(--fg);color:var(--bg);font-weight:650;text-align:center;box-shadow:0 8px 28px #0006;opacity:0;pointer-events:none;transition:opacity .18s,transform .18s}#toast.show{opacity:1;transform:translate(-50%,0)}
 .tabs{display:flex;gap:8px;margin:0 0 16px}.tabs button{flex:1}.tracking-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:14px}.tracking-stats>div{padding:12px;background:var(--card);border-radius:10px;text-align:center}.tracking-stats strong{display:block;font-size:22px}.tracking-list{display:grid;gap:9px}.tracking-order{padding:12px;background:var(--card);border:1px solid var(--line);border-radius:12px}.tracking-order summary{cursor:pointer;font-weight:700}.tracking-order .mini{margin:7px 0 0}.tracking-status{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0}.tracking-status button{flex:1;font-size:12px;padding:7px 5px}.tracking-status button.is-active{background:var(--accent);color:var(--accent-fg)}
+.order-history{margin-top:18px;padding-top:14px;border-top:1px solid var(--line)}.history-heading{display:flex;align-items:center;justify-content:space-between;gap:8px}.history-heading h3{font-size:14px;margin:0}.history-list{display:grid;gap:7px;max-height:350px;overflow:auto}.history-row{border:1px solid var(--line);border-radius:9px;background:var(--card);padding:9px 10px}.history-row strong{font-size:12px;overflow-wrap:anywhere}.history-row .mini{font-size:11px}.history-empty{padding:12px;text-align:center;color:var(--muted);font-size:12px}
 .tracking-order{overflow:hidden}.tracking-order-header{display:flex;justify-content:space-between;align-items:start;gap:8px;flex-wrap:wrap}.tracking-order-title{font-size:16px;font-weight:800}.tracking-ids{font-size:11px;color:var(--muted)}.tracking-code{margin:8px 0 5px;padding:8px 10px;background:var(--panel);border:1px solid var(--line);border-radius:8px;font-size:13px;overflow-wrap:anywhere}.tracking-code b{color:var(--accent)}.tracking-summary{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:8px 0}.tracking-books{display:grid;gap:7px;margin-top:10px}.tracking-book{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:9px}.tracking-book-head{display:flex;gap:7px;align-items:start}.tracking-book-code{font-weight:800;color:var(--accent);white-space:nowrap;font-size:12px}.tracking-book-name{font-size:13px;font-weight:650;overflow-wrap:anywhere;min-width:0;flex:1}.tracking-book-meta{display:flex;align-items:center;gap:6px;margin:5px 0 0;font-size:11px;color:var(--muted)}.tracking-progress{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:8px}.tracking-progress>span{border:1px solid var(--line);border-radius:6px;padding:6px 7px;font-size:11px;text-align:center}.tracking-progress .done{color:var(--ok);border-color:var(--ok)}.tracking-empty{border:1px dashed var(--line);border-radius:10px;padding:17px;text-align:center}
 .tracking-order{padding:10px 11px}.tracking-order-header{align-items:center;gap:6px}.tracking-head-actions{display:flex;align-items:center;gap:8px}.tracking-expand{display:grid;place-items:center;min-width:38px;width:38px;height:38px;min-height:38px;padding:0;border:1px solid var(--line);border-radius:9px;background:var(--panel);color:var(--fg);font-size:23px;line-height:1;cursor:pointer}.tracking-expand[aria-expanded="true"]{border-color:var(--accent);color:var(--accent)}.tracking-order-title{font-size:14px}.tracking-code{margin:6px 0 4px;padding:6px 8px;font-size:12px}.tracking-summary{gap:5px 12px;margin:6px 0 0;font-size:11px}.tracking-books{margin-top:10px}.tracking-books[hidden]{display:none!important}.tracking-book{padding:7px 8px}.tracking-book-head{display:flex;flex-wrap:wrap;align-items:center;gap:5px}.tracking-book-name{flex:1 1 125px;font-size:12px}.tracking-inline-progress{display:flex;gap:4px;align-items:center;margin-left:auto;flex-wrap:wrap}.tracking-inline-progress span{font-size:10px;padding:3px 5px;border:1px solid var(--line);border-radius:5px;white-space:nowrap}.tracking-inline-progress .done{border-color:var(--ok);color:var(--ok)}.tracking-book-meta{margin:3px 0 0;font-size:10px}
 :focus-visible{outline:3px solid var(--accent);outline-offset:2px}
@@ -18,7 +19,7 @@
 <header><div><h1>ALFA <span style="color:var(--accent)">ERP</span></h1><small>Mobil sipariş kataloğu · Firebase</small></div><div class="mobile-tools"><button class="quiet" id="theme" title="Tema değiştir">◐</button><button class="quiet hide" id="logout">Çıkış</button></div></header>
 <div id="toast" role="status" aria-live="polite"></div><div class="container"><div id="message" role="status" aria-live="polite" class="banner hide"></div>
 <section id="login-screen" class="panel auth hide"><h2>Buluta giriş</h2><p class="muted">Yalnızca ALFA ERP çalışma alanına yetkili kullanıcılar sipariş oluşturabilir.</p><form id="login-form"><div class="field"><label>E-posta</label><input id="email" type="email" autocomplete="username" required></div><div class="field"><label>Parola</label><input id="password" type="password" autocomplete="current-password" minlength="8" required></div><div class="actions"><button class="primary" type="submit">Giriş Yap</button></div></form><p class="foot">Doğrulanmış ALFA ERP kullanıcı hesabınla giriş yap. Şifreler bu sayfada saklanmaz.</p></section>
-<nav class="tabs" aria-label="Mobil bölümler"><button id="tab-catalog" class="primary" type="button">Kitap kataloğu</button><button id="tab-tracking" class="secondary" type="button">Sipariş takip</button></nav><section id="tracking-screen" class="hide"><h2>Sipariş Takip</h2><p class="muted mini" id="tracking-note">Bu ekran yalnızca Firebase'de yetkilendirilmiş cihazlara açıktır.</p><div id="tracking-setup" class="panel"><p>Bu telefonda siparişleri görmek için cihazını ALFA ERP yönetici panelinden yetkilendirmen gerekir. Yetki verildikten sonra bu tarayıcıda oturum hatırlanır.</p><button class="primary" id="tracking-connect" type="button">Cihaz bağlantısını başlat</button><p class="mini muted" id="tracking-device"></p></div><div id="tracking-content" class="hide"><div class="tracking-stats" id="tracking-stats"></div><div class="tracking-status"><button class="secondary is-active" data-status="aktif">Aktif</button><button class="secondary" data-status="havuz">Havuz</button><button class="secondary" data-status="tamamlandi">Tamamlanan</button></div><div class="tracking-list" id="tracking-list"></div></div></section><section id="main-screen"><div class="main-grid"><section><h2 class="section-title">Kitap kataloğu <span class="mini muted" id="book-count"></span></h2><div class="search-bar"><input id="filter" type="search" placeholder="Kod, kitap, seri veya alt grup ara (ÇTS Klinik)..."><select id="group"><option value="">Tüm kategoriler</option></select></div><div class="quick-filters" id="quick-filters" aria-label="Hızlı grup filtreleri"><button type="button" class="filter-chip" data-query="çts klinik">ÇTS Klinik</button><button type="button" class="filter-chip" data-query="çts temel">ÇTS Temel</button><button type="button" class="filter-chip" data-query="tts klinik">TTS Klinik</button><button type="button" class="filter-chip" data-query="tts temel">TTS Temel</button><button type="button" class="filter-chip" data-query="">Tümü</button></div><div class="bulk-panel"><div class="bulk-head"><strong>Filtredeki kitapları toplu ekle</strong><small class="muted" id="bulk-info">Önce kitap ara veya kategori seç</small></div><div class="bulk-actions"><button class="bulk-btn secondary" type="button" data-kind="SB" data-delta="1">+ SB</button><button class="bulk-btn secondary" type="button" data-kind="SB" data-delta="-1">− SB</button><button class="bulk-btn primary" type="button" data-kind="RNK" data-delta="1">+ RNK</button><button class="bulk-btn secondary" type="button" data-kind="RNK" data-delta="-1">− RNK</button><button class="bulk-btn secondary" type="button" data-kind="BOTH" data-delta="1">+ SB &amp; RNK</button></div><p class="bulk-help muted">Aramaya veya seçilen kategoriye uyan <b>tüm kitaplara</b> uygulanır; yalnızca ekranda görünen kartlarla sınırlı değildir. RNK uygun olmayan kitaplar atlanır.</p></div><div id="books" class="grid"></div></section><aside class="panel cart"><h2>Yeni sipariş</h2><p class="muted mini">Seçtiğin kitapları SB veya RNK baskı olarak sepete ekle.</p><div id="cart-items"></div><p class="total" id="cart-count">0 adet</p><form id="order-form"><div class="field"><label>Kargo kodu / açık adres</label><input id="shipping" type="text" inputmode="text" autocomplete="off" spellcheck="false" required maxlength="500" placeholder="123 456 789 veya açık adres"><small class="muted mini">Sayısal kodlar yazarken otomatik boşluklandırılır. Platform koddan belirlenir.</small></div><div class="field"><label>Sipariş türü</label><select id="order-type"><option value="">Normal</option><option value="Telafi">Telafi</option><option value="Açık Adres">Açık Adres</option></select></div><div class="field"><label>Ciro (₺)</label><input id="amount" type="number" min="0" max="999999999" step="0.01" value="0" required></div><button class="primary" type="submit" style="width:100%">Siparişi Havuz'a Gönder</button></form><p class="foot">Siparişleri merkezi havuza iletir. Gönderim sırasında bağlantı koparsa aynı işlem kimliğiyle tekrar dener.</p></aside></div></section></div>
+<nav class="tabs" aria-label="Mobil bölümler"><button id="tab-catalog" class="primary" type="button">Kitap kataloğu</button><button id="tab-tracking" class="secondary" type="button">Sipariş takip</button></nav><section id="tracking-screen" class="hide"><h2>Sipariş Takip</h2><p class="muted mini" id="tracking-note">Bu ekran yalnızca Firebase'de yetkilendirilmiş cihazlara açıktır.</p><div id="tracking-setup" class="panel"><p>Bu telefonda siparişleri görmek için cihazını ALFA ERP yönetici panelinden yetkilendirmen gerekir. Yetki verildikten sonra bu tarayıcıda oturum hatırlanır.</p><button class="primary" id="tracking-connect" type="button">Cihaz bağlantısını başlat</button><p class="mini muted" id="tracking-device"></p></div><div id="tracking-content" class="hide"><div class="tracking-stats" id="tracking-stats"></div><div class="tracking-status"><button class="secondary is-active" data-status="aktif">Aktif</button><button class="secondary" data-status="havuz">Havuz</button><button class="secondary" data-status="tamamlandi">Tamamlanan</button></div><div class="tracking-list" id="tracking-list"></div></div></section><section id="main-screen"><div class="main-grid"><section><h2 class="section-title">Kitap kataloğu <span class="mini muted" id="book-count"></span></h2><div class="search-bar"><input id="filter" type="search" placeholder="Kod, kitap, seri veya alt grup ara (ÇTS Klinik)..."></div><div class="bulk-panel"><div class="bulk-head"><strong>Filtredeki kitapları toplu ekle</strong><small class="muted" id="bulk-info">Önce kitap ara</small></div><div class="bulk-actions"><button class="bulk-btn secondary" type="button" data-kind="SB" data-delta="1">+ SB</button><button class="bulk-btn secondary" type="button" data-kind="SB" data-delta="-1">− SB</button><button class="bulk-btn primary" type="button" data-kind="RNK" data-delta="1">+ RNK</button><button class="bulk-btn secondary" type="button" data-kind="RNK" data-delta="-1">− RNK</button><button class="bulk-btn secondary" type="button" data-kind="BOTH" data-delta="1">+ SB &amp; RNK</button></div><p class="bulk-help muted">Aramana uyan <b>tüm kitaplara</b> uygulanır; yalnızca ekranda görünen kartlarla sınırlı değildir. RNK uygun olmayan kitaplar atlanır.</p></div><div id="books" class="grid"></div></section><aside class="panel cart"><h2>Yeni sipariş</h2><p class="muted mini">Seçtiğin kitapları SB veya RNK baskı olarak sepete ekle.</p><div id="cart-items"></div><p class="total" id="cart-count">0 adet</p><form id="order-form"><div class="field"><label>Kargo kodu / açık adres</label><input id="shipping" type="text" inputmode="text" autocomplete="off" spellcheck="false" required maxlength="500" placeholder="123 456 789 veya açık adres"><small class="muted mini">Sayısal kodlar platforma göre otomatik gruplandırılır. Tekrar girilen kodlar bu cihazda engellenir.</small></div><div class="field"><label>Sipariş türü</label><select id="order-type"><option value="">Normal</option><option value="Telafi">Telafi</option><option value="Açık Adres">Açık Adres</option></select></div><div class="field"><label>Ciro (₺)</label><input id="amount" type="number" min="0" max="999999999" step="0.01" value="0" required></div><button class="primary" type="submit" style="width:100%">Siparişi Havuz'a Gönder</button></form><p class="foot">Siparişleri merkezi havuza iletir. Gönderim sırasında bağlantı koparsa aynı işlem kimliğiyle tekrar dener.</p><section class="order-history" aria-label="Bu cihazın sipariş geçmişi"><div class="history-heading"><h3>Bu telefondaki geçmiş</h3><span class="mini muted" id="history-count"></span></div><p class="mini muted">Başarıyla gönderdiğin siparişler burada saklanır. Aynı kargo koduyla tekrar gönderim engellenir.</p><div id="history-list" class="history-list"></div></section></aside></div></section></div>
 <script type="module">
 'use strict';
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
@@ -190,10 +191,6 @@ onValue(catalogRef, snapshot=>{
   if(!updated||(line.kind==='RNK'&&!updated.supports_color))cart.delete(key);
   else line.book=updated;
  }
- const groups=[...new Set(books.map(b=>b.group_name).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'tr'));
- const oldGroup=$('#group').value;
- $('#group').replaceChildren(new Option('Tüm kategoriler',''),...groups.map(v=>new Option(v,v)));
- if(groups.includes(oldGroup))$('#group').value=oldGroup;
  render();
  if(trackingStarted)trackingRender();
  if(!books.length)msg("Firebase kataloğu henüz aktarılmadı.");
@@ -201,15 +198,20 @@ onValue(catalogRef, snapshot=>{
 },error=>msg("Firebase katalog bağlantısı: "+error.message));
 // Katalog herkese açık, yönetim kayıtları asla bu ekrana aktarılmaz.
 $('#theme').addEventListener('click',()=>document.documentElement.classList.toggle('light'));
-$('#filter').addEventListener('input',render);$('#group').addEventListener('change',render);
-$('#quick-filters').addEventListener('click',event=>{const btn=event.target.closest('button[data-query]');if(!btn)return;$('#group').value='';$('#filter').value=btn.dataset.query;render();});
-// Masaüstündeki utils.format_kargo_kodu ile aynı 3-3-3-kalan davranışı.
+$('#filter').addEventListener('input',render);
+// Masaüstü utils.format_kargo_kodu: Dolap için son 4 rakam her zaman ayrı blok.
 function addressOrText(value){return /[a-zA-ZçğıöşüÇĞİÖŞÜ.,\/:;()#@]/.test(value)}
-function formatShipping(value){if(addressOrText(value))return value;const digits=value.replace(/\D/g,'');if(!digits)return value;
- if(digits.length<=3)return digits;if(digits.length<=6)return digits.slice(0,3)+' '+digits.slice(3);
- if(digits.length<=9)return digits.slice(0,3)+' '+digits.slice(3,6)+' '+digits.slice(6);
- return digits.slice(0,3)+' '+digits.slice(3,6)+' '+digits.slice(6,9)+' '+digits.slice(9);}
-function autoPlatform(shipping){if(addressOrText(shipping))return 'Açık Adres / Manuel';const digits=shipping.replace(/\D/g,'');return digits.length===9?'Gardrops':'Dolap';}
+function shippingKey(value){const normalized=String(value||'').trim();return addressOrText(normalized)?normalized.toLocaleLowerCase('tr-TR').replace(/\s+/g,' '):normalized.replace(/\D/g,'');}
+function formatShipping(value){
+ if(addressOrText(value))return value;
+ const digits=value.replace(/\D/g,'');if(!digits)return value;
+ if(digits.length>=13){const prefix=digits.slice(0,-4),blocks=prefix.match(/.{1,3}/g)||[];return [...blocks,digits.slice(-4)].join(' ');}
+ return (digits.match(/.{1,3}/g)||[]).join(' ');
+}
+function autoPlatform(shipping){
+ if(addressOrText(shipping))return 'Açık Adres / Manuel';
+ return shipping.replace(/\D/g,'').length===9?'Gardrops':'Dolap';
+}
 $('#shipping').addEventListener('input',event=>{const field=event.currentTarget,old=field.value,formatted=formatShipping(old);if(old===formatted)return;
  const oldCursor=field.selectionStart??old.length,digitsBefore=old.slice(0,oldCursor).replace(/\D/g,'').length;
  field.value=formatted;if(addressOrText(formatted))return;
@@ -218,11 +220,36 @@ $('#shipping').addEventListener('input',event=>{const field=event.currentTarget,
  if(oldCursor>=old.length)pos=formatted.length;
  field.setSelectionRange(pos,pos);
 });
+// Telefon içi hafıza. Firebase tarafındaki geçmiş ve diğer cihazlarla karıştırılmaz.
+const HISTORY_KEY='alfa-mobile-order-history-v1',HISTORY_LIMIT=500;
+function readHistory(){try{const value=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');return Array.isArray(value)?value.filter(x=>x&&typeof x==='object'&&typeof x.key==='string').slice(0,HISTORY_LIMIT):[];}catch{return []}}
+function writeHistory(rows){try{localStorage.setItem(HISTORY_KEY,JSON.stringify(rows.slice(0,HISTORY_LIMIT)));return true}catch{return false}}
+let localHistory=readHistory();
+function recordedOrder(shipping){const key=shippingKey(shipping);return key?localHistory.find(row=>row.key===key):null;}
+function historyAdd(record){
+ localHistory=[record,...localHistory.filter(row=>row.key!==record.key)].slice(0,HISTORY_LIMIT);
+ const saved=writeHistory(localHistory);historyRender();return saved;
+}
+function historyRender(){
+ const list=$('#history-list');list.replaceChildren();
+ $('#history-count').textContent=localHistory.length+' kayıt';
+ if(!localHistory.length){const el=document.createElement('p');el.className='history-empty';el.textContent='Bu cihazdan henüz sipariş gönderilmedi.';list.append(el);return;}
+ for(const row of localHistory.slice(0,50)){
+  const card=document.createElement('article');card.className='history-row';
+  const title=document.createElement('strong');title.textContent=row.shipping||'Kargo kodu bulunamadı';card.append(title);
+  const detail=document.createElement('div');detail.className='mini muted';
+  const date=new Date(row.at);const dateStr=Number.isFinite(date.getTime())?date.toLocaleString('tr-TR'):'';
+  detail.textContent=[dateStr,row.platform,row.count+' kitap','İstek '+String(row.requestId||'').slice(0,8).toUpperCase()].filter(Boolean).join(' · ');
+  card.append(detail);list.append(card);
+ }
+ if(localHistory.length>50){const more=document.createElement('p');more.className='mini muted';more.textContent='Son 50 kayıt gösteriliyor; toplam '+localHistory.length+' kayıt saklandı.';list.append(more);}
+}
+historyRender();
 $('#order-form').addEventListener('change',()=>{if(!busy)requestId=crypto.randomUUID()});
 $('#order-form').addEventListener('input',event=>{if(!busy&&event.target.id!=='shipping')requestId=crypto.randomUUID()});
 $('#shipping').addEventListener('input',()=>{if(!busy)requestId=crypto.randomUUID()});
 function normalizeTr(value){return String(value??'').replace(/İ/g,'i').replace(/I/g,'i').replace(/ı/g,'i').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('tr').replace(/[^a-z0-9]+/g,' ').trim()}
-function getFiltered(){const group=$('#group').value,query=normalizeTr($('#filter').value),words=query.split(' ').filter(Boolean);return books.filter(book=>{if(group&&book.group_name!==group)return false;
+function getFiltered(){const query=normalizeTr($('#filter').value),words=query.split(' ').filter(Boolean);return books.filter(book=>{
  if(!words.length)return true;
  const name=normalizeTr(book.name),series=normalizeTr(book.group_name),code=String(book.code??'').trim();
  // A code only matches when the complete search is an exact code or an explicit #code.
@@ -230,11 +257,11 @@ function getFiltered(){const group=$('#group').value,query=normalizeTr($('#filte
  // Match words against name/group, not numeric substrings of the internal ID.
  const haystack=name+' '+series;
  return words.every(word=>haystack.split(' ').some(token=>token===word||(!/^\\d+$/.test(word)&&token.startsWith(word))));});}
-function canBulk(){return Boolean($('#filter').value.trim()||$('#group').value);}
+function canBulk(){return Boolean($('#filter').value.trim());}
 function syncBulkControls(){const ok=canBulk()&&visibleBooks.length>0;document.querySelectorAll('.bulk-btn').forEach(btn=>btn.disabled=!ok);
- $('#bulk-info').textContent=ok?visibleBooks.length+' kitap hedefte (tamamı)': 'Önce kitap ara veya kategori seç';
- document.querySelectorAll('.filter-chip').forEach(btn=>btn.classList.toggle('is-active',normalizeTr($('#filter').value)===normalizeTr(btn.dataset.query)&&(!$('#group').value)));}
-function bulkAction(kind,delta){if(!canBulk())return msg('Yanlışlıkla tüm kataloğu eklememek için önce kitap ara veya kategori seç.');
+ $('#bulk-info').textContent=ok?visibleBooks.length+' kitap hedefte (tamamı)': 'Önce kitap ara';
+}
+function bulkAction(kind,delta){if(!canBulk())return msg('Yanlışlıkla tüm kataloğu eklememek için önce kitap ara.');
  const targets=getFiltered();if(!targets.length)return msg('Filtrede hiç kitap bulunamadı.');
  if(targets.length>=20&&!window.confirm(targets.length+' kitap için toplu '+(delta>0?'ekleme':'çıkarma')+' yapılsın mı?'))return;
  const nextCart=new Map(cart);let changed=0,skipped=0;
@@ -268,7 +295,10 @@ $('#order-form').addEventListener('submit',async e=>{e.preventDefault();if(busy)
  const payload={platform:autoPlatform($('#shipping').value.trim()),
  shipping_reference:$('#shipping').value.trim(),order_type:$('#order-type').value,
  gross_amount:amount,items:[...cart.values()].map(x=>({code:x.book.code,print_type:x.kind,quantity:x.qty})),request_id:requestId};
- if(!payload.shipping_reference)return msg('Kargo kodu / adres gerekli.');busy=true;$('#order-form').classList.add('busy');msg('Sipariş kaydediliyor...');
+ if(!payload.shipping_reference)return msg('Kargo kodu / adres gerekli.');
+ const existing=recordedOrder(payload.shipping_reference);
+ if(existing)return msg('Bu sipariş kodu daha önce bu telefondan gönderildi ('+new Date(existing.at).toLocaleString('tr-TR')+'). Tekrar gönderim engellendi.');
+ busy=true;$('#order-form').classList.add('busy');msg('Sipariş kaydediliyor...');
  try{
   const user=auth.currentUser||(await signInAnonymously(auth)).user;
   const orderRef=ref(realtime,"alfa/"+workspaceId+"/checkout/"+user.uid+"/"+requestId);
@@ -282,8 +312,10 @@ $('#order-form').addEventListener('submit',async e=>{e.preventDefault();if(busy)
    });
   }
   const received=requestId.slice(0,8).toUpperCase();
+  const saved=historyAdd({key:shippingKey(payload.shipping_reference),shipping:payload.shipping_reference,platform:payload.platform,count:payload.items.reduce((n,x)=>n+x.quantity,0),at:new Date().toISOString(),requestId});
   cart.clear();requestId=crypto.randomUUID();$('#shipping').value='';$('#amount').value='0';renderCart();
-  msg('Sipariş talebi '+received+' alındı. Ortak havuza aktarılmak üzere kaydedildi.');
+  msg('Sipariş talebi '+received+' alındı. '+(saved?'Telefon geçmişine kaydedildi.':'Telefon geçmişine yazılamadı; tarayıcı depolamasını kontrol et.'));
+
  }catch(err){msg('Sipariş doğrulanamadı: '+err.message+' · Yeniden denersen aynı istek kimliği kullanılır.');}
  finally{busy=false;$('#order-form').classList.remove('busy')}
 });
