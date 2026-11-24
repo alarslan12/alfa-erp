@@ -19,7 +19,7 @@
 Bu durum kaydını **yalnız Mobil sohbeti** kendi PR'larında yeniler.
 
 ## 24.11.2026 — Mobil sipariş girişinde yerel geçmiş ve Dolap kodu
-- Dal: `feature/mobile-order-history-dolap-code-20261124`; PR: açılacak.
+- Dal: `feature/mobile-order-history-dolap-code-20261124`; PR: [#29](https://github.com/alarslan12/alfa-erp/pull/29).
 - `mobil_panel/index.html`: Dolap kodu son dört hane ayrı blok; kategori açılır menüsü ve hızlı kategori düğmeleri kaldırıldı; cihazda `localStorage` tabanlı son 500 başarılı gönderim kaydı, 50 kayıt görünümü ve cihaz içi mükerrer kod engeli eklendi.
 - Kapsam: yalnız bu tarayıcı/cihaz. Önceden girilmiş siparişler geriye dönük alınmaz; farklı cihaz/masaüstü siparişleri kontrol edilmez. Tarayıcı site verisi silinirse geçmiş kaybolur. Yeni Firebase izinleri, sunucu fonksiyonları, merkezi mükerrer koruması veya Rules değişikliği yok.
 - Test/CI: test çalıştırılmadı; PR CI durumu ayrıca doğrulanacak. Üretim dalına birleştirilmedi, Hosting'e yayımlanmadı; Suite sürümü değiştirilmedi.
