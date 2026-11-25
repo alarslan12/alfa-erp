@@ -8,7 +8,16 @@
 
 **Korunacaklar:** Onaylanan Katalog/Siparişler arayüzü, ortak Havuz, personel/owner rolleri, Firebase Auth/RTDB, offline işlem kuyruğu, iade/kargo/ciro hesabı, FlexFlow hareketli gün/takvim filtresi ve günlük değerlendirme.
 
-## Son iş: ZIP kitap miktarı öne alındı ve talimat özeti sadeleşti
+## Son iş: Mobil checkout sipariş notunu ERP uyarı sistemine aktar
+**Dal:** `integration/checkout-note-erp-rules-20261125` · PR: Bu dalın entegrasyon PR'ı.
+
+- `alfa_rtdb.py::_adopt_checkout`: mobil `order_note` alanının tipini ve 0–2000 karakter sınırını doğrular, mevcut `siparis_uyari.clean_note` ile temizler. Boş not uyarı doğurmaz; dolu not siparişin `order_note` alanına ve `make_notice(None, order)` aracılığıyla `initial_note` / okunmamış `order_notice` uyarısına aktarılır.
+- `firebase/database.rules.json`: checkout içinde isteğe bağlı `order_note` yalnız string, en fazla 2000 karakter. Mülkiyet doğrulaması, oluşturma-only koşulu, istenmeyen alan reddi ve diğer güvenlik kuralları aynı kalır. **Canlı Rules/Hosting yayını yapılmadı.**
+- `tests/test_mobile_checkout_note_adoption.py`: notlu/notsuz sipariş, tam 2000 sınırı, geçersiz değer, ilk uyarı/onay ve tekrarlı checkout idempotensi için çevrimdışı test.
+- **Bağımlılık:** mobil PR #29 açık ve mobil payload notları şu an bilerek gönderemiyor. Bu entegrasyon PR'ı mobil dosyaları değiştirmez. PR #29 mobil sahipliğinde tamamlanmalı; canlı notlu sipariş için ayrıca açık Rules dağıtım onayı ve mobil gönderimin etkinleştirilmesi gerekir.
+- Suite sürümü ve kurulum dosyaları, canlı Firebase siparişleri ve diğer uygulamalar değişmez.
+
+## Önceki iş: ZIP kitap miktarı öne alındı ve talimat özeti sadeleşti
 **Dal:** `fix/erp-zip-quantity-prefix-summary-20261122` · **PR:** GitHub'da bu dalın PR'ı.
 
 - `siparis_derle.py`: PDF adları `2 ADET - DOSYA_<rastgele>.pdf` (1 adet dahil) biçiminde; arşiv adından yalnız miktar ve rastgele kimlik okunur. Baskı talimatı yalnız **Sipariş Kodu**, **Toplam Sayfa Sayısı** ve **Toplam Kitap Sayısı** alanlarını içerir.
