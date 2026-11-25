@@ -99,6 +99,9 @@
               "order_type": {
                 ".validate": true
               },
+              "order_note": {
+                ".validate": "newData.isString() && newData.val().length <= 2000"
+              },
               "gross_amount": {
                 ".validate": true
               }
