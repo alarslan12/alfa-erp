@@ -949,6 +949,13 @@ class Workstation:
                     shipping=str(entry.get("shipping_reference") or "")[:500]
                     if not shipping:
                         continue
+                    # A mobile checkout note must follow the exact desktop note
+                    # contract. Reject malformed values; never silently drop
+                    # oversized notes or truncate content before validation.
+                    raw_note = entry.get("order_note", "")
+                    if not isinstance(raw_note, str):
+                        raise ValueError("Invalid mobile order note")
+                    note = clean_note(raw_note)
                     def create(current):
                         if current is not None:
                             return None, None
@@ -970,6 +977,9 @@ class Workstation:
                                 "device_name":socket.gethostname()[:120],"order_ids":[order_id],
                                 "created_at":now,"details":{"source":"mobile"}}},
                             "items":self._make_items(order_id, items)}
+                        if note:
+                            order["order_note"] = note
+                            order["order_notice"] = make_notice(None, order)
                         return order,None
                     self._atomic_order(order_id, create, allow_create=True)
                     if existing_order_ids is not None:
