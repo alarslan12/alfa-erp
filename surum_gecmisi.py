@@ -6,6 +6,14 @@ https://github.com/alarslan12/alfa-erp/releases.
 """
 
 _RELEASES = [
+    ("2.1.0", "Yönetici ve Personel çalışma alanı yenilemesi", [
+        "Hata Merkezi toplu inceleme ve silme, arama, hata kodu ve ayrıntı görünümü.",
+        "Bağlı Bilgisayarlar UID, özel ad ve güvenli pasif cihaz temizliği.",
+        "İşlem günlüğü tarih ve 120 saniyelik aktivite grupları; filtre ve zaman damgaları.",
+        "PDF, Excel ve görünüm tek Uygulama Ayarları sayfasında; sistem sağlığı kaldırıldı.",
+        "Derleme yalnız Yönetici; geçmiş not kurtarma kaldırıldı, yeni mobil notlar korunuyor.",
+        "Bulut çakışma uyarısı 14 saniye; ElevenLabs kaldırıldı, yerel anons desteği eklendi.",
+    ]),
     ("2.0.53", "Mobil not havuz aktarımı ve güvenli eski checkout onarımı", [
         "Mobil checkout sipariş notları masaüstü havuz siparişine ve ilk not uyarısına aktarılır.",
         "Eski sürümden notsuz kalan siparişler, kaynak checkout notu mevcutsa güvenli koşullu yazmayla kurtarılır.",
