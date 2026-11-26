@@ -11,7 +11,7 @@
         "members": {
           "$uid": {
             ".read": "auth !== null && (auth.uid === $uid || (root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'owner' && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true))",
-            ".write": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'owner' && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true && ((!newData.exists() && data.exists() && auth.uid !== $uid) || (newData.hasChildren(['role','active']) && (newData.child('role').val() === 'owner' || newData.child('role').val() === 'staff') && newData.child('active').isBoolean()))"
+            ".write": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'owner' && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true && ((!newData.exists() && data.exists() && data.child('active').val() === false && auth.uid !== $uid) || (newData.hasChildren(['role','active']) && (newData.child('role').val() === 'owner' || newData.child('role').val() === 'staff') && newData.child('active').isBoolean()))"
           },
           ".read": "auth !== null && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/role').val() === 'owner' && root.child('alfa/'+$workspace+'/members/'+auth.uid+'/active').val() === true"
         },
