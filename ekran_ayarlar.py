@@ -209,7 +209,7 @@ class SettingsPage(QWidget):
             app.aboutToQuit.connect(self._stop_cover_worker)
         if self.pdf.folder:
             QTimer.singleShot(2400,self.generate_pdf_covers)
-        # One background release check at most once per 24h. No periodic timer.
+        # Release checks are owned by the main window HUD.
 
     def _set_unknown_page_visibility(self,checked):
         self.config.set('show_books_without_pages',bool(checked))
@@ -273,8 +273,11 @@ class SettingsPage(QWidget):
         self.device_uid.setText('Cihaz kimliği (UID): '+str(getattr(client,'uid','') or 'Henüz oluşturulmadı'))
 
     def preview_sound(self,mode='ozan_karisik'):
-        if not play_order_sound(mode,self.config.data_dir):
-            QMessageBox.information(self,'Bildirim sesi','Ozan ses dosyası oynatılamadı.')
+        def failed():
+            QTimer.singleShot(0,lambda:QMessageBox.information(
+                self,'Bildirim sesi','Ozan ses dosyası oynatılamadı. Ses çıkışını kontrol edin.'))
+        if not play_order_sound(mode,self.config.data_dir,on_error=failed):
+            failed()
 
     def select_pdf(self):
         folder=QFileDialog.getExistingDirectory(
