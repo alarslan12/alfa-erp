@@ -167,6 +167,11 @@ class ErrorInbox(QWidget):
             "503":("Geçici hizmet hatası","İşlemi zorla tekrar göndermeyin; bağlantı ve kuyruk durumunu kontrol edin."),
         }
         number=code.group(1) if code else ""
+        stages={'commit':'Sipariş kayıt/düzenleme','status':'Sipariş durum geçişi',
+                'progress':'Hazırlama / kolileme','notice_ack':'Sipariş notu onayı',
+                'shipping_fee':'Kargo ücreti','return_state':'İade işlemi'}
+        stage=next((label for key,label in stages.items()
+                    if "RejectedWrite_"+key+"Error" in kind),"Bu raporda belirtilmemiş")
         heading,help_text=descriptions.get(number,("Teknik olay",
             "Kesin neden için olay kaynağı ve varsa Python yığınını inceleyin."))
         trace="\n".join(f"{x.get('file','?')}:{x.get('line','?')} → {x.get('function','?')}"
@@ -174,6 +179,7 @@ class ErrorInbox(QWidget):
         details.setPlainText(
             "OLAY SINIFI: "+heading+"\n"
             +"HTTP KODU: "+(number or "Kayıtlı değil")+"\n"
+            +"İŞLEM AŞAMASI: "+stage+"\n"
             +"OLASI NEDEN / KONTROL: "+help_text+"\n\n"
             +"TEKNİK YIĞIN\n"+(trace or "Bu olay için Python yığını kaydedilmemiş.")+
             "\n\nNot: Raporlar gizlilik nedeniyle müşteri verisi ve ham hata metni içermez.")
