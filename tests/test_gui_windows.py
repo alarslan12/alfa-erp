@@ -168,6 +168,13 @@ class WindowsGuiTests(unittest.TestCase):
                 try:
                     self.assertEqual(win.stack.count(),5)
                     self.assertIsNotNone(win.settings_page)
+                    self.assertEqual(win.settings_page.stack.count(),4)
+                    self.assertEqual(win.settings_page.nav[1].text(),"Bildirimler & Cihazlar")
+                    self.assertEqual(win.settings_page.notification_split.count(),2)
+                    self.assertEqual(win.settings_page._owner_tabs["devices"],1)
+                    self.assertEqual(win.settings_page._owner_tabs["errors"],3)
+                    self.assertEqual(win.update_button.size(),win.cloud_connect.size())
+                    self.assertEqual(win.settings_btn.size(),win.cloud_connect.size())
                     self.assertTrue(callable(win.db.owner_admin_request))
                     app.processEvents()
                 finally:

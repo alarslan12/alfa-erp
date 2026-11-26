@@ -1,8 +1,8 @@
 """Offline order announcements. No cloud synthesis or customer data transfers.
 
 Canva Ozan M4A clips play directly from assets/notifications using Qt
-Multimedia; WAV and MP3 are accepted too. Without the actual clips, installed
-Turkish Windows speech is used and must not be described as Canva Ozan.
+Multimedia; WAV and MP3 alternatives of the same recordings are accepted.
+No Windows TTS, cloud synthesis, or unrelated tones are played.
 """
 from pathlib import Path
 import random
@@ -13,7 +13,6 @@ ANNOUNCEMENTS=(
     "Dikkat. Yeni sipariş işleme hazır.",
     "Yeni sipariş bildirimi. Sipariş listesini kontrol ediniz.",
 )
-_speaker=None
 _media_player=None
 _AUDIO_EXTENSIONS=(".m4a",".wav",".mp3")
 
@@ -39,18 +38,6 @@ def _play_wav(path):
     try:
         import winsound
         winsound.PlaySound(str(path),winsound.SND_FILENAME|winsound.SND_ASYNC|winsound.SND_NODEFAULT)
-        return True
-    except (ImportError,OSError,RuntimeError):
-        return False
-
-
-def _voice_or_tone(text):
-    if play_windows_voice("tts_erkek",text):
-        return True
-    try:
-        import winsound
-        winsound.PlaySound("SystemExclamation",
-            winsound.SND_ALIAS|winsound.SND_ASYNC|winsound.SND_NODEFAULT)
         return True
     except (ImportError,OSError,RuntimeError):
         return False
@@ -101,51 +88,22 @@ def _play_compressed(path,fallback):
         return False
 
 
-def play_windows_voice(mode, text=None):
-    """Use only an installed Turkish voice, with no network/API fallback."""
-    global _speaker
-    try:
-        from PySide6.QtTextToSpeech import QTextToSpeech,QVoice
-        from PySide6.QtWidgets import QApplication
-        if QApplication.instance() is None:
-            return False
-        if _speaker is None:
-            engines=QTextToSpeech.availableEngines()
-            selected="winrt" if "winrt" in engines else ("sapi" if "sapi" in engines else "")
-            _speaker=QTextToSpeech(selected) if selected else QTextToSpeech()
-        turkish=next((x for x in _speaker.availableLocales()
-                      if x.name().lower().startswith("tr")),None)
-        if turkish is None:
-            return False
-        _speaker.setLocale(turkish)
-        voices=list(_speaker.availableVoices())
-        if not voices:
-            return False
-        preferred=QVoice.Gender.Female if mode=="tts_kadin" else QVoice.Gender.Male
-        matching=[v for v in voices if v.gender()==preferred]
-        choice=random.choice(voices) if mode=="tts_karisik" else (matching or voices)[0]
-        _speaker.setVoice(choice)
-        _speaker.say(text or ANNOUNCEMENTS[0])
-        return True
-    except Exception:
-        return False
-
-
-def play_local_announcement(mode):
+def play_local_announcement(mode,on_error=None):
     index=random.randrange(len(ANNOUNCEMENTS)) if mode=="ozan_karisik" else int(mode[-1])-1
     path=announcement_asset(index)
-    text=ANNOUNCEMENTS[index]
-
     def fallback():
+        # Only an alternate encoding of the same Ozan recording is permitted.
         wav=path.with_suffix(".wav")
-        if path.suffix!=".wav" and wav.is_file() and _play_wav(wav):
-            return True
-        return _voice_or_tone(text)
+        return path.suffix!=".wav" and wav.is_file() and _play_wav(wav)
+
+    def media_failed():
+        if not fallback() and on_error is not None:
+            on_error()
 
     stop_local_media()
     if path.is_file():
         if path.suffix==".wav" and _play_wav(path):
             return True
-        if path.suffix in (".m4a",".mp3") and _play_compressed(path,fallback):
+        if path.suffix in (".m4a",".mp3") and _play_compressed(path,media_failed):
             return True
     return fallback()
