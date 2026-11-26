@@ -6,6 +6,13 @@ https://github.com/alarslan12/alfa-erp/releases.
 """
 
 _RELEASES = [
+    ("2.1.1", "Ayar kartları, cihaz paneli ve bildirim iyileştirmeleri", [
+        "PDF, Excel ve görünüm kartları hizalandı; ayar sekmeleri pillbox görünümünde.",
+        "Bildirimler & Cihazlar ortak ekranı: Yönetici cihaz listesi, Personel kendi cihazı.",
+        "Otomatik bildirimde yalnız dört özgün Ozan anonsu rastgele; ayrı ve rastgele dinleme düğmeleri.",
+        "Güncelleme denetimi üst çubuğa taşındı; eş boyutlu ikonlar ve kompakt bulut durumu.",
+        "Yönetici cihaz panelinin Windows yerleşimi düzeltildi; mevcut kullanıcı verileri korunur.",
+    ]),
     ("2.1.0", "Yönetici ve Personel çalışma alanı yenilemesi", [
         "Hata Merkezi toplu inceleme ve silme, arama, hata kodu ve ayrıntı görünümü.",
         "Bağlı Bilgisayarlar UID, özel ad ve güvenli pasif cihaz temizliği.",
