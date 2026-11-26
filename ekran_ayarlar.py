@@ -1,17 +1,17 @@
 """ALFA ERP desktop settings: appearance, notification tones and local PDF covers."""
 from pathlib import Path
 
-from PySide6.QtCore import QThread, Signal, QTimer
+from PySide6.QtCore import QThread, Signal, QTimer, Qt
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QFrame, QComboBox,
-    QFileDialog, QMessageBox, QStackedWidget, QLabel, QPushButton, QLineEdit, QCheckBox, QScrollArea
+    QFileDialog, QMessageBox, QStackedWidget, QLabel, QPushButton, QLineEdit, QCheckBox, QScrollArea, QSplitter
 )
 from ayar_yonetimi import theme_styles, apply_visual_preferences
 from tema import QSS
 from pdf_kitap import PdfKutuphane
 from pdf_kapak import refresh_pdf_covers
-from bildirim_sesleri import SOUND_CHOICES, play_order_sound
-from guncelleme_arayuzu import (UpdateDialog,CheckWorker,should_check_today,mark_checked)
+from bildirim_sesleri import play_order_sound
+from guncelleme_arayuzu import UpdateDialog
 from widgets import (
     button, text, refresh_cover_placeholders, refresh_all_cover_labels
 )
@@ -66,32 +66,37 @@ class SettingsPage(QWidget):
         self.config=config
         self.pdf=PdfKutuphane(Path(db.siparis_dosyasi).parent)
         self._cover_worker=None
-        self._update_check_worker=None
         self._excel_job=None
         self._excel_rows=[]
         root=QVBoxLayout(self)
+        root.setContentsMargins(12,8,12,12);root.setSpacing(10)
         root.addWidget(text('ÇALIŞMA AYARLARI','SettingsTitle'))
         self.nav=[]
-        nav=QHBoxLayout()
-        for i,label in enumerate(('Uygulama Ayarları','Bildirimler ve Güncelleme')):
+        nav_frame=QFrame();nav_frame.setObjectName('SettingsNavShell')
+        nav=QHBoxLayout(nav_frame);nav.setContentsMargins(6,6,6,6);nav.setSpacing(6)
+        self.settings_nav=nav
+        for i,label in enumerate(('Uygulama Ayarları','Bildirimler & Cihazlar')):
             tab=button(label,'SettingsNav')
+            self.style_nav(tab)
             tab.setCheckable(True)
             tab.clicked.connect(lambda checked=False,x=i:self.show_tab(x))
             nav.addWidget(tab)
             self.nav.append(tab)
         nav.addStretch()
-        root.addLayout(nav)
+        root.addWidget(nav_frame)
         self.stack=QStackedWidget()
-        root.addWidget(self.stack)
+        root.addWidget(self.stack,1)
 
         # Existing appearance tab, adding sound selection in the SAME page
         # (keeps owner settings' tab indices and navigation unchanged).
         page=QWidget()
         col=QVBoxLayout(page)
+        col.setContentsMargins(0,0,0,0);col.setSpacing(12)
         application_page=page
         application_col=col
         card=QFrame();card.setObjectName('SettingsCard')
         controls=QVBoxLayout(card)
+        controls.setContentsMargins(16,14,16,14);controls.setSpacing(10)
         controls.addWidget(text('Görünüm','SettingsHeading'))
         theme_row=QHBoxLayout()
         self.themes=[]
@@ -116,59 +121,48 @@ class SettingsPage(QWidget):
         controls.addWidget(self.show_unknown_pages)
         appearance_card=card
         notification_page=QWidget()
-        col=QVBoxLayout(notification_page)
-
+        col=QVBoxLayout(notification_page);col.setContentsMargins(0,0,0,0)
+        self.notification_split=QSplitter(Qt.Orientation.Horizontal)
+        self.notification_split.setChildrenCollapsible(False)
+        self.notification_split.setHandleWidth(12)
+        col.addWidget(self.notification_split,1)
         sound_card=QFrame();sound_card.setObjectName('SettingsCard')
         sound_col=QVBoxLayout(sound_card)
-        sound_col.addWidget(text('Yeni sipariş bildirim sesi','SettingsHeading'))
-        explain=QLabel('Personel bildirici çalışırken de geçerlidir. '
-            'Farklı tonları dinleyebilir veya her siparişte değişen sesi seçebilirsin.')
-        explain.setObjectName('SettingsHint')
-        explain.setWordWrap(True)
-        sound_col.addWidget(explain)
-        sound_row=QHBoxLayout()
-        self.sound=QComboBox()
-        for mode,label in SOUND_CHOICES:
-            self.sound.addItem(label,mode)
-        chosen=str(config.get('bildirim_sesi','klasik'))
-        index=self.sound.findData(chosen)
-        self.sound.setCurrentIndex(max(0,index))
-        self.sound.currentIndexChanged.connect(self.save_sound)
-        sound_row.addWidget(self.sound,1)
-        preview=button('▶  Sesi dinle','Accent')
-        preview.clicked.connect(self.preview_sound)
-        sound_row.addWidget(preview)
-        sound_col.addLayout(sound_row)
-        from bildirim_dogal_ses import announcement_asset
+        sound_col.setContentsMargins(16,16,16,16);sound_col.setSpacing(10)
+        sound_col.addWidget(text('Sipariş anonsları','SettingsHeading'))
+        sound_col.addWidget(text('Her yeni siparişte dört Ozan anonsundan biri rastgele çalar. Düğmeler yalnızca ses testi içindir.','SettingsHint',wrap=True))
+        sound_col.addWidget(text('● Otomatik · Rastgele Ozan','SettingsStatusPill'))
+        from bildirim_dogal_ses import ANNOUNCEMENTS, announcement_asset
+        for i,phrase in enumerate(ANNOUNCEMENTS):
+            row=QFrame();row.setObjectName('SettingsInset')
+            line=QHBoxLayout(row);line.setContentsMargins(12,8,12,8);line.setSpacing(10)
+            label=QVBoxLayout();label.setSpacing(3)
+            label.addWidget(text(f'Ozan {i+1}','SettingsHeading'))
+            label.addWidget(text(phrase,'SettingsHint',wrap=True))
+            line.addLayout(label,1)
+            preview=button('▶ Dinle','SettingsControl')
+            preview.setFixedHeight(36)
+            preview.setAccessibleName(f'Ozan {i+1} anonsunu dinle')
+            preview.clicked.connect(lambda _=False,n=i+1:self.preview_sound(f'ozan_{n}'))
+            line.addWidget(preview)
+            sound_col.addWidget(row)
+        random_preview=button('▶ Rastgele dinle','Accent')
+        random_preview.setFixedHeight(38)
+        random_preview.clicked.connect(lambda _=False:self.preview_sound())
+        sound_col.addWidget(random_preview)
         available=sum(announcement_asset(i).is_file() for i in range(4))
-        sound_col.addWidget(text(
-            'Yerel anonslar · '+str(available)+'/4 ses dosyası (M4A / WAV / MP3). '
-            'Dosya yoksa yüklü Türkçe Windows sesi, o da yoksa uyarı tonu kullanılır. '
-            'Bulut ses API bağlantısı kullanılmaz.','SettingsHint',wrap=True))
-        col.addWidget(sound_card)
-        update_card=QFrame();update_card.setObjectName('SettingsCard')
-        update_layout=QVBoxLayout(update_card)
-        update_layout.addWidget(text('Güncelleme Merkezi','SettingsHeading'))
-        self.update_notice=QLabel(
-            'Kararlı güncellemeler GitHub Releases üzerinden kontrol edilir. '
-            'İndirme ve yükleme için onayın gerekir.')
-        self.update_notice.setObjectName('SettingsHint')
-        self.update_notice.setWordWrap(True)
-        update_layout.addWidget(self.update_notice)
-        open_update=button('↻ Güncelleme Merkezi’ni aç','Accent')
-        open_update.clicked.connect(self.open_update_center)
-        update_layout.addWidget(open_update)
-        col.addWidget(update_card)
-        col.addStretch()
+        sound_col.addWidget(text(f'{available}/4 yerel Ozan anonsu · İnternet gerekmez.','SettingsHint',wrap=True))
+        sound_col.addStretch()
+        self.notification_split.addWidget(sound_card)
+        self.notification_split.addWidget(self._own_device_card())
+        self.notification_split.setStretchFactor(0,1)
+        self.notification_split.setStretchFactor(1,2)
         # PDF and Excel catalog controls share the first settings tab.
         columns=QHBoxLayout()
         columns.setSpacing(14)
         application_col.addLayout(columns)
-        pdf_page=QWidget()
-        col=QVBoxLayout(pdf_page)
-        col.setContentsMargins(0,0,0,0)
         card=QFrame();card.setObjectName('SettingsCard')
-        controls=QVBoxLayout(card)
+        controls=QVBoxLayout(card);controls.setContentsMargins(16,14,16,14);controls.setSpacing(10)
         controls.addWidget(text('PDF kütüphanesi ve otomatik kitap kapakları','SettingsHeading'))
         note=QLabel('PDF dosya adında kitap kodu bulunması yeterli: '
             '31.pdf, kitap_31.pdf veya 31-endodonti.pdf. '
@@ -191,17 +185,21 @@ class SettingsPage(QWidget):
         self.pdf_status.setObjectName('SettingsHint')
         self.pdf_status.setWordWrap(True)
         controls.addWidget(self.pdf_status)
-        col.addWidget(card)
-        col.addStretch()
-        columns.addWidget(pdf_page,1)
+        controls.addStretch()
+        columns.addWidget(card,1)
         columns.addWidget(self._excel_settings_page(),1)
         application_col.addWidget(appearance_card)
         application_col.addStretch()
         application_scroll=QScrollArea()
         application_scroll.setWidgetResizable(True)
+        application_scroll.setFrameShape(QFrame.Shape.NoFrame)
         application_scroll.setWidget(application_page)
         self.stack.addWidget(application_scroll)
-        self.stack.addWidget(notification_page)
+        notification_scroll=QScrollArea()
+        notification_scroll.setWidgetResizable(True)
+        notification_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        notification_scroll.setWidget(notification_page)
+        self.stack.addWidget(notification_scroll)
 
         self.show_tab(0)
         # Only filesystem mtime checks on later app launches; no PDF pages
@@ -209,11 +207,9 @@ class SettingsPage(QWidget):
         app=QApplication.instance()
         if app:
             app.aboutToQuit.connect(self._stop_cover_worker)
-            app.aboutToQuit.connect(self._stop_update_worker)
         if self.pdf.folder:
             QTimer.singleShot(2400,self.generate_pdf_covers)
         # One background release check at most once per 24h. No periodic timer.
-        QTimer.singleShot(11000,self.check_updates_on_startup)
 
     def _set_unknown_page_visibility(self,checked):
         self.config.set('show_books_without_pages',bool(checked))
@@ -229,6 +225,8 @@ class SettingsPage(QWidget):
         for key,tab in self.themes:
             tab.setChecked(self.config.get('tema','koyu')==key)
         self.path.setText('PDF klasörü: '+str(self.pdf.folder or 'Henüz seçilmedi'))
+        if index==1:
+            self.refresh_own_device()
 
     def set_theme(self,key):
         self.config.set('tema',key)
@@ -240,15 +238,43 @@ class SettingsPage(QWidget):
         self.config.set('colorblind_mode',bool(enabled))
         apply_visual_preferences(self.config)
 
-    def save_sound(self,*_):
-        mode=str(self.sound.currentData() or 'klasik')
-        self.config.set('bildirim_sesi',mode)
+    @staticmethod
+    def style_nav(tab):
+        tab.setFixedHeight(40)
+        tab.setMinimumWidth(144)
 
-    def preview_sound(self):
-        mode=str(self.sound.currentData() or 'klasik')
+    def _own_device_card(self):
+        card=QFrame();card.setObjectName('SettingsCard')
+        layout=QVBoxLayout(card);layout.setContentsMargins(16,16,16,16);layout.setSpacing(12)
+        layout.addWidget(text('Bu bilgisayar','SettingsHeading'))
+        self.device_summary=text('Cihaz bağlantısı hazırlanıyor…','SettingsStatusPill',wrap=True)
+        layout.addWidget(self.device_summary)
+        self.device_uid=text('','SettingsHint',wrap=True)
+        self.device_uid.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        layout.addWidget(self.device_uid)
+        access=button('🛡 Cihaz yetkisini aç','SettingsControl')
+        access.setFixedHeight(38)
+        access.clicked.connect(lambda _=False:self._open_own_device())
+        layout.addWidget(access)
+        layout.addStretch()
+        return card
+
+    def _open_own_device(self):
+        main=self.window()
+        if hasattr(main,'connect_cloud'):
+            main.connect_cloud()
+        self.refresh_own_device()
+
+    def refresh_own_device(self):
+        client=getattr(self.window(),'device',None)
+        if client is None or self.device_summary is None:
+            return
+        self.device_summary.setText('● Cihaz eşleştirildi' if client.paired else '○ Yetkilendirme gerekli')
+        self.device_uid.setText('Cihaz kimliği (UID): '+str(getattr(client,'uid','') or 'Henüz oluşturulmadı'))
+
+    def preview_sound(self,mode='ozan_karisik'):
         if not play_order_sound(mode,self.config.data_dir):
-            QMessageBox.information(self,'Bildirim sesi',
-                'Bu bilgisayarda Windows ses çıkışı kullanılamıyor.')
+            QMessageBox.information(self,'Bildirim sesi','Ozan ses dosyası oynatılamadı.')
 
     def select_pdf(self):
         folder=QFileDialog.getExistingDirectory(
@@ -305,7 +331,13 @@ class SettingsPage(QWidget):
             "Eşleşmeyen PDF'ler: "+(", ".join(examples) or "Yok")+
             "\nİşleme sorunları: "+(", ".join(counts.get('error_examples') or []) or "Yok")+
             "\nTam rapor: "+str(self.pdf.data_dir/"alfa_pdf_eslestirme_raporu.json"))
-        self.pdf_status.setText(result)
+        self.pdf_status.setText(
+            f"{counts.get('pdf_found',0)} PDF  ·  {counts.get('matched',0)} eşleşen kitap\n"
+            f"{counts.get('created',0)} güncellenen  ·  {counts.get('unchanged',0)} önbellek  ·  "
+            f"{counts.get('manual',0)} elle eklenen\n"
+            f"{counts.get('unmatched_pdf',0)} eşleşmeyen  ·  {counts.get('missing',0)} eksik PDF  ·  "
+            f"{counts.get('errors',0)} hata")
+        self.pdf_status.setToolTip(result+"\n"+self.pdf_status.toolTip())
         main=self.window()
         covers=getattr(main,'covers',None)
         if covers:
@@ -323,10 +355,8 @@ class SettingsPage(QWidget):
         return self._staff_excel_page()
 
     def _staff_excel_page(self):
-        page=QWidget()
-        col=QVBoxLayout(page)
         card=QFrame();card.setObjectName("SettingsCard")
-        layout=QVBoxLayout(card)
+        layout=QVBoxLayout(card);layout.setContentsMargins(16,14,16,14);layout.setSpacing(10)
         layout.addWidget(text("Excel kitap kataloğu","SettingsHeading"))
         note=QLabel(
             "Onaylı personel cihazı Excel kataloğunu ortak Firebase kitap "
@@ -346,8 +376,8 @@ class SettingsPage(QWidget):
         self.excel_note=QLabel("Excel henüz seçilmedi.")
         self.excel_note.setWordWrap(True)
         layout.addWidget(self.excel_note)
-        col.addWidget(card);col.addStretch()
-        return page
+        layout.addStretch()
+        return card
 
     def _staff_select_excel(self):
         source,_=QFileDialog.getOpenFileName(
@@ -412,46 +442,6 @@ class SettingsPage(QWidget):
         version,edition=self._update_identity()
         dialog=UpdateDialog(version,edition,self.config.data_dir,self)
         dialog.exec()
-
-    def check_updates_on_startup(self):
-        version,edition=self._update_identity()
-        if self._update_check_worker is not None:
-            return
-        if not should_check_today(self.config.data_dir,edition):
-            return
-        try:mark_checked(self.config.data_dir,edition)
-        except (OSError,ValueError):
-            return
-        job=CheckWorker(version,edition,self)
-        self._update_check_worker=job
-        outcome={"value":None}
-        job.done.connect(lambda result:outcome.update(value=result))
-        def finished():
-            job.wait()
-            self._update_check_worker=None
-            result=outcome["value"]
-            if result and result.get("available"):
-                newer=str(result.get("version") or "?")
-                self.update_notice.setText(
-                    f"Yeni kararlı sürüm: V{newer} · Güncelleme Merkezi'nden indir.")
-                parent=self.window()
-                if hasattr(parent,"statusBar"):
-                    parent.statusBar().showMessage(
-                        f"ALFA ERP V{newer} güncellemesi mevcut · Ayarlar → Güncelleme Merkezi",
-                        16000)
-        job.finished.connect(finished)
-        job.finished.connect(job.deleteLater)
-        job.start()
-
-    def _stop_update_worker(self):
-        job=self._update_check_worker
-        if job is not None:
-            try:
-                if job.isRunning():
-                    job.requestInterruption()
-                    job.wait()
-            except RuntimeError:
-                pass
 
     def _stop_cover_worker(self):
         worker=self._cover_worker
