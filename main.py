@@ -536,7 +536,8 @@ class AlfaMain(QMainWindow):
                 ('Bulut bağlı.\n' if online else 'Güncel eşitleme hatası: '+message[:190]+'\n')
                 +'Bunlar daha önce reddedilmiş ve arşivlenmiş işlemlerdir; '
                 'şu anda bekleyen kuyruk sayısı değildir.\n'
-                'Ayarlar → Hata Merkezi → Eski bulut hatalarını incele.\n'
+                +('Ayarlar → Hata Merkezi → Eski bulut hatalarını incele.\n'
+                  if OWNER_EDITION else 'Yönetici Hata Merkezi üzerinden ayrıntıları incele.\n')
                 +reason[:220])
             if count>last:
                 self.statusBar().showMessage('Bulut işlemi reddedildi: '+reason[:170],14000)
@@ -591,7 +592,7 @@ class AlfaMain(QMainWindow):
     def notify_admin_error(self,count):
         """One user-visible notification per real incoming cloud event."""
         msg=f"⚠ {count} yeni bilgisayar hata raporu · Ayarlar → Hata Merkezi"
-        self.statusBar().showMessage(msg,18000)
+        self.statusBar().showMessage(msg,14000)
         tray=getattr(self,"_error_tray",None)
         if tray and tray.isVisible():
             tray.showMessage("ALFA ERP · Yeni hata raporu",msg,
