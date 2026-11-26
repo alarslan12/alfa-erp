@@ -391,14 +391,22 @@ def admin_request(cloud,action,timeout=None,**kwargs):
     if action=="admin_devices":
         members=client._get("members") or {}
         requests=client._get("device_requests") or {}
-        return {"devices":[{"id":uid, "device_name":row.get("name") or
-                (requests.get(uid) or {}).get("name") or uid,
-                "active":bool(row.get("active")),
+        if not isinstance(members,dict) or not isinstance(requests,dict):
+            raise DeviceError("Cihaz listesi veri biçimi geçersiz",422)
+        devices=[]
+        for uid,row in members.items():
+            if not isinstance(row,dict):
+                continue
+            request=requests.get(uid) or {}
+            if not isinstance(request,dict):
+                request={}
+            devices.append({"id":uid,"device_name":row.get("name") or request.get("name") or uid,
+                "active":row.get("active") is True,
                 "device_role":row.get("role"),
                 "last_seen_at":row.get("last_seen_at"),
-                "created_at":row.get("created_at") or (requests.get(uid) or {}).get("created_at"),
-                "is_current":uid==client.uid}
-                for uid,row in members.items() if isinstance(row,dict)]}
+                "created_at":row.get("created_at") or request.get("created_at"),
+                "is_current":uid==client.uid})
+        return {"devices":devices}
     if action in ("admin_revoke","admin_rename_device"):
         uid=str(kwargs.get("id") or "")
         if not uid or len(uid)>128 or any(c in uid for c in ".#$[]/"):
