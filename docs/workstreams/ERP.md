@@ -8,7 +8,15 @@
 
 **Korunacaklar:** Onaylanan Katalog/Siparişler arayüzü, ortak Havuz, personel/owner rolleri, Firebase Auth/RTDB, offline işlem kuyruğu, iade/kargo/ciro hesabı, FlexFlow hareketli gün/takvim filtresi ve günlük değerlendirme.
 
-## Son iş: Mobil checkout sipariş notunu ERP uyarı sistemine aktar
+## Son iş: Sipariş notunu fason baskı talimatına ekleme
+**Dal:** `fix/erp-compile-print-instruction-order-note-20261126` · **PR:** GitHub'da bu dalın PR'ı.
+
+- `editor_siparis.py`: derleme worker'ının sipariş snapshot'ına mevcut `order_note` alanı eklenir.
+- `siparis_derle.py`: `BASKI_TALIMATI.txt` önceki sipariş kodu / toplam sayfa / toplam kitap özetini korur; not varsa boş satır ve **Sipariş Notu:** başlığı altında tam metni ekler. Boş notta üç satırlık çıktı değişmez.
+- `tests/test_order_compile_zip.py`: çok satırlı Türkçe notun ZIP'e aktarıldığı ve boş notun çıktıyı değiştirmediği kontrolü.
+- Kapsam yalnız ERP Personel/Yönetici, yerel ZIP; Firebase, mobil katalog, diğer Suite uygulamaları, ortak sürüm ve veri kayıtları değiştirilmez.
+
+## Önceki iş: Mobil checkout sipariş notunu ERP uyarı sistemine aktar
 **Dal:** `integration/checkout-note-erp-rules-20261125` · PR: Bu dalın entegrasyon PR'ı.
 
 - `alfa_rtdb.py::_adopt_checkout`: mobil `order_note` alanının tipini ve 0–2000 karakter sınırını doğrular, mevcut `siparis_uyari.clean_note` ile temizler. Boş not uyarı doğurmaz; dolu not siparişin `order_note` alanına ve `make_notice(None, order)` aracılığıyla `initial_note` / okunmamış `order_notice` uyarısına aktarılır.
