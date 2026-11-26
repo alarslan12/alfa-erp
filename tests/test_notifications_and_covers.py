@@ -140,6 +140,19 @@ class NotificationDeploymentContracts(unittest.TestCase):
         self.assertNotIn("api.elevenlabs.io",voices)
         self.assertNotIn("urllib.request",voices)
 
+    def test_automatic_notification_ignores_old_preferences(self):
+        from bildirim_sesleri import configured_sound,play_order_sound
+        with tempfile.TemporaryDirectory() as folder:
+            path=Path(folder)/"alfa_ayarlar.json"
+            for legacy in ("klasik","sessiz","tts_erkek","eleven_a","ozan_2"):
+                path.write_text(json.dumps({"bildirim_sesi":legacy}),encoding="utf-8")
+                self.assertEqual(configured_sound(folder),"ozan_karisik")
+        with patch("bildirim_dogal_ses.play_local_announcement",return_value=True) as play:
+            self.assertTrue(play_order_sound("klasik"))
+            play.assert_called_with("ozan_karisik")
+            self.assertTrue(play_order_sound("ozan_3"))
+            play.assert_called_with("ozan_3")
+
     def test_packaged_ozan_audio_matches_original_uploads(self):
         import hashlib
         expected=(
