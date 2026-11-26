@@ -40,9 +40,13 @@ class OwnerSettingsPage(SettingsPage):
         # Settings remain one built-in owner page; no separate admin app.
         nav=self.settings_nav
         self._owner_tabs={'devices':1}
-        own=self.notification_split.replaceWidget(1,self.devices_page())
+        # Detach the staff-only placeholder before inserting the owner pane.
+        # QSplitter.replaceWidget can leave an incomplete splitter on Windows.
+        own=self.notification_split.widget(1)
         self.device_summary=None
+        own.setParent(None)
         own.deleteLater()
+        self.notification_split.addWidget(self.devices_page())
         self.notification_split.setStretchFactor(0,1)
         self.notification_split.setStretchFactor(1,2)
         self.notification_split.setSizes([360,760])
