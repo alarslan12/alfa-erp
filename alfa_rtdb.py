@@ -965,9 +965,15 @@ class Workstation:
                     else:
                         exists = self._get("orders/" + order_id) is not None
                     if exists:
-                        if note and order_id not in self._checkout_notes_checked:
-                            self._recover_checkout_note(order_id, request_id, note)
-                            self._checkout_notes_checked.add(order_id)
+                        # Older test adapters bind _adopt_checkout without
+                        # implementing optional reconciliation methods/cache.
+                        checked = getattr(self, "_checkout_notes_checked", None)
+                        repair = getattr(self, "_recover_checkout_note", None)
+                        if note and callable(repair) and (
+                                checked is None or order_id not in checked):
+                            repair(order_id, request_id, note)
+                            if checked is not None:
+                                checked.add(order_id)
                         continue
                     raw_items = (list(entry["items"].values())
                                  if isinstance(entry["items"],dict) else entry["items"])
@@ -1016,7 +1022,9 @@ class Workstation:
                         return order,None
                     self._atomic_order(order_id, create, allow_create=True)
                     if note:
-                        self._checkout_notes_checked.add(order_id)
+                        checked = getattr(self, "_checkout_notes_checked", None)
+                        if checked is not None:
+                            checked.add(order_id)
                     if existing_order_ids is not None:
                         existing_order_ids.add(order_id)
                 except (DeviceError, ValueError, TypeError, OverflowError):
