@@ -1,4 +1,4 @@
-# ALFACOPYCENTER Suite v2.1.0
+# ALFACOPYCENTER Suite v2.1.1
 
 **Tek Windows kurulumu**, dört seçilebilir bileşen:
 
@@ -10,9 +10,18 @@
 | ALFA Print Center | PrintSurveillance/AlfaPrintSurveillance.exe | Seçilebilir, varsayılan |
 | Arka plan yardımcıları | Bildirim, PrintAgent, PrintSupervisor | Seçilen bileşene bağlı |
 
-Kurulum: `ALFACOPYCENTER_Suite_Setup_V2_1_0.exe`. Aynı Inno Setup AppId
+Kurulum: `ALFACOPYCENTER_Suite_Setup_V2_1_1.exe`. Aynı Inno Setup AppId
 (`ALFACOPYCENTER.Suite`) ve kurulum yolu korundu:
 `%LOCALAPPDATA%\Programs\ALFACOPYCENTER`.
+
+## v2.1.1 — Ayar kartları, cihaz paneli ve bildirim iyileştirmeleri
+
+- PDF kitaplık, Excel katalog ve görünüm kartlarının hizası; çalışma ayarlarında eş yükseklikte pillbox gezinme.
+- Bildirimler & Cihazlar ortak bölümü: solda dört Ozan kaydının önizlemeleri, sağda Yönetici cihaz yönetimi veya Personel kendi cihazı.
+- Personel sipariş anonslarında yalnız dört özgün yerel Ozan kaydı rastgele oynatılır. Eski sesler ve TTS/uyarı tonu kaldırıldı; dört ayrı ve rastgele dinleme düğmesi.
+- Güncelleme denetimi, cihaz yetkisi, ayarlar ve diğer üst araçlar eş boyutlu ikonlar; bağlantı durumu renkli ve dar ekranlarda uyarlanabilir.
+- Yönetici cihaz panelinin Windows QSplitter yerleşimi düzeltildi; PR #39 Windows regresyon ve kapsam kontrolleri başarılı.
+- Canlı Firebase Rules, Hosting ve kullanıcı verileri değiştirilmedi; diğer Suite uygulamalarının iş mantığı korundu.
 
 ## v2.1.0 — ERP Yönetici ve Personel yenilemesi
 
