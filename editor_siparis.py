@@ -11,7 +11,6 @@ from PySide6.QtWidgets import (
 from widgets import text, button, cover_label, scrollable, clear_layout, error, confirm
 from kart_siparis import ProgressCover, set_boxed_card_style
 from pdf_kitap import PdfKutuphane
-from siparis_derle import derle_siparis
 from ilerleme_kontrol import sonraki_ilerleme, buton_durumlari
 from siparis_uyari import pending_notice, revision, initial_note_notice
 from siparis_uyari_ui import plain
@@ -64,6 +63,8 @@ class _DerlemeIsParcacigi(QThread):
 
     def run(self):
         try:
+            # The Personel build deliberately excludes this owner-only module.
+            from siparis_derle import derle_siparis
             path = derle_siparis(
                 self.snapshot, self.catalog, self.folder, self.desktop,
                 codes=self.codes, progress=lambda a, b, c, d: self.progress.emit(a, b, c, d),
