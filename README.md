@@ -1,4 +1,4 @@
-# ALFACOPYCENTER Suite v2.0.53
+# ALFACOPYCENTER Suite v2.1.0
 
 **Tek Windows kurulumu**, dört seçilebilir bileşen:
 
@@ -10,9 +10,20 @@
 | ALFA Print Center | PrintSurveillance/AlfaPrintSurveillance.exe | Seçilebilir, varsayılan |
 | Arka plan yardımcıları | Bildirim, PrintAgent, PrintSupervisor | Seçilen bileşene bağlı |
 
-Kurulum: `ALFACOPYCENTER_Suite_Setup_V2_0_53.exe`. Aynı Inno Setup AppId
+Kurulum: `ALFACOPYCENTER_Suite_Setup_V2_1_0.exe`. Aynı Inno Setup AppId
 (`ALFACOPYCENTER.Suite`) ve kurulum yolu korundu:
 `%LOCALAPPDATA%\Programs\ALFACOPYCENTER`.
+
+## v2.1.0 — ERP Yönetici ve Personel yenilemesi
+
+- Yönetici Hata Merkezi: filtreler, toplu inceleme/silme, HTTP hata kodları, işlem aşaması ve açıklamalı ayrıntılar.
+- Bağlı Bilgisayarlar: UID, arama, özel cihaz adı, koşullu pasif cihaz temizleme. Canlı Rules dağıtımı ayrı ve owner onayına bağlı.
+- İşlem günlüğü: tarih başlıkları, gerçek zaman damgaları, 120 saniyelik gruplama ve aktivite filtreleri.
+- PDF/Excel/görünüm ortak Uygulama Ayarları sayfası; sistem sağlığı kaldırıldı.
+- Sipariş derleme yalnız Yönetici. Geçmiş checkout not kurtarma kaldırıldı; yeni mobil not aktarımı ve baskı talimatı notları korunur.
+- Bulut uyarıları 14 saniyede normale döner; sayaç yarışları geçici hata olarak sırada tutulur.
+- ElevenLabs kaldırıldı; dört özgün Türkçe Canva Ozan M4A anonsu gömülü ve çevrimdışı oynatılır. Kaynak dosyaların SHA-256 değerleri doğrulandı; Windows Türkçe ses/uyarı tonu alternatif olarak korunur.
+- Diğer Suite bileşenlerinin iş mantığı, canlı veri ve Hosting değiştirilmedi.
 
 ## v2.0.53 — Mobil sipariş notları ve güvenli eski checkout kurtarma
 

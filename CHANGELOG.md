@@ -1,3 +1,14 @@
+## [v2.1.0] — 2026-11-26 (sürüm adayı)
+
+- Yönetici Hata Merkezi: filtreler, toplu inceleme/silme, HTTP hata kodları, işlem aşaması ve açıklamalı ayrıntılar.
+- Bağlı Bilgisayarlar: UID, arama, özel cihaz adı, koşullu pasif cihaz temizleme. Canlı Rules dağıtımı ayrı ve owner onayına bağlı.
+- İşlem günlüğü: tarih başlıkları, gerçek zaman damgaları, 120 saniyelik gruplama ve aktivite filtreleri.
+- PDF/Excel/görünüm ortak Uygulama Ayarları sayfası; sistem sağlığı kaldırıldı.
+- Sipariş derleme yalnız Yönetici. Geçmiş checkout not kurtarma kaldırıldı; yeni mobil not aktarımı ve baskı talimatı notları korunur.
+- Bulut uyarıları 14 saniyede normale döner; sayaç yarışları geçici hata olarak sırada tutulur.
+- ElevenLabs kaldırıldı; dört özgün Türkçe Canva Ozan M4A anonsu gömülü ve çevrimdışı oynatılır. Kaynak dosyaların SHA-256 değerleri doğrulandı; Windows Türkçe ses/uyarı tonu alternatif olarak korunur.
+- Diğer Suite bileşenlerinin iş mantığı, canlı veri ve Hosting değiştirilmedi.
+
 ## [v2.0.53] — 2026-11-26
 
 - **Issue #32:** PR #30 ve PR #31'de üretime alınmış fakat v2.0.52 Setup'ta bulunmayan mobil sipariş notu aktarımı ve ZIP baskı talimatındaki not alanı ortak Windows kurulumuna eklendi.
