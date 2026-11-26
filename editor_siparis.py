@@ -11,7 +11,6 @@ from PySide6.QtWidgets import (
 from widgets import text, button, cover_label, scrollable, clear_layout, error, confirm
 from kart_siparis import ProgressCover, set_boxed_card_style
 from pdf_kitap import PdfKutuphane
-from siparis_derle import derle_siparis
 from ilerleme_kontrol import sonraki_ilerleme, buton_durumlari
 from siparis_uyari import pending_notice, revision, initial_note_notice
 from siparis_uyari_ui import plain
@@ -64,6 +63,8 @@ class _DerlemeIsParcacigi(QThread):
 
     def run(self):
         try:
+            # The Personel build deliberately excludes this owner-only module.
+            from siparis_derle import derle_siparis
             path = derle_siparis(
                 self.snapshot, self.catalog, self.folder, self.desktop,
                 codes=self.codes, progress=lambda a, b, c, d: self.progress.emit(a, b, c, d),
@@ -167,7 +168,7 @@ class SiparisEditor(QDialog):
             self.header_summary = text(f"SB {summary['sb']} · RNK {summary['rnk']} · Hazır {summary['hazir']}/{summary['adet']} · Koli {summary['koli']}/{summary['adet']}", 'Muted')
             self.header_lay.addWidget(self.header_summary)
         self.header_lay.addStretch()
-        if self.mode != 'edit':
+        if self.mode != 'edit' and self._can_compile():
             compile_button = button('▣  Siparişi Derle', 'PdfAction')
             compile_button.setToolTip('Tüm kitapların orijinal PDF dosyalarını değiştirmeden ZIP olarak Masaüstüne kaydet')
             compile_button.clicked.connect(lambda checked=False: self.compile_order())
@@ -244,10 +245,11 @@ class SiparisEditor(QDialog):
                 info.addWidget(text(f"SB {entry.get('sb',0)}  ·  RNK {entry.get('rnk',0)}",'PoolOverviewCounts'))
                 info.addStretch()
                 lay.addLayout(info,1)
-                compile_book = button('▣ Derle', 'PdfAction')
-                compile_book.setToolTip('Yalnız bu kitabı ZIP olarak hazırla')
-                compile_book.clicked.connect(lambda checked=False,c=code:self.compile_order([c]))
-                lay.addWidget(compile_book)
+                if self._can_compile():
+                    compile_book = button('▣ Derle', 'PdfAction')
+                    compile_book.setToolTip('Yalnız bu kitabı ZIP olarak hazırla')
+                    compile_book.clicked.connect(lambda checked=False,c=code:self.compile_order([c]))
+                    lay.addWidget(compile_book)
                 grid.addWidget(card,idx//3,idx%3)
             group_lay.addLayout(grid)
             outer.addWidget(group_frame)
@@ -296,10 +298,11 @@ class SiparisEditor(QDialog):
             info.addWidget(text(f"{group.get('adet',0)} kitap · {group.get('sayfa',group.get('adet',0)*group.get('sayfa_birim',0))} sayfa",'Muted'))
             info.addStretch()
             row.addLayout(info,1)
-            compile_book = button('▣ Derle', 'PdfAction')
-            compile_book.setToolTip('Yalnız bu kitabı ZIP olarak hazırla')
-            compile_book.clicked.connect(lambda checked=False,c=code:self.compile_order([c]))
-            row.addWidget(compile_book)
+            if self._can_compile():
+                compile_book = button('▣ Derle', 'PdfAction')
+                compile_book.setToolTip('Yalnız bu kitabı ZIP olarak hazırla')
+                compile_book.clicked.connect(lambda checked=False,c=code:self.compile_order([c]))
+                row.addWidget(compile_book)
             grid.addWidget(card,i//3,i%3)
         grid.setColumnStretch(0,1);grid.setColumnStretch(1,1);grid.setColumnStretch(2,1)
         self.body_lay.addWidget(scrollable(content),1)
@@ -455,11 +458,12 @@ class SiparisEditor(QDialog):
         pdf_bulk.setToolTip('Seçili kitapların yerel PDF dosyalarını açar')
         pdf_bulk.clicked.connect(self.open_selected_pdfs)
         pdf_actions_row.addWidget(pdf_bulk, 1)
-        compile_selected = button('▣  Derle', 'PdfAction')
-        compile_selected.setMinimumHeight(46)
-        compile_selected.setToolTip('Seçili kitapların orijinal PDF dosyalarını baskı talimatıyla tek ZIP yap')
-        compile_selected.clicked.connect(self.compile_selected_order)
-        pdf_actions_row.addWidget(compile_selected, 1)
+        if self._can_compile():
+            compile_selected = button('▣  Derle', 'PdfAction')
+            compile_selected.setMinimumHeight(46)
+            compile_selected.setToolTip('Seçili kitapların orijinal PDF dosyalarını baskı talimatıyla tek ZIP yap')
+            compile_selected.clicked.connect(self.compile_selected_order)
+            pdf_actions_row.addWidget(compile_selected, 1)
         self._bulk_widgets=[self.select_all,self.pending_filters,*segments,pdf_actions]
         self.body_lay.addWidget(toolbar)
 
@@ -574,10 +578,11 @@ class SiparisEditor(QDialog):
         pdf.setToolTip(f'#{code} numaralı kitabın PDF dosyasını aç')
         pdf.clicked.connect(lambda checked=False,c=code:self.open_pdfs([c]))
         controls.addWidget(pdf)
-        compile_book = button('▣  Derle', 'TrackPdfButton')
-        compile_book.setToolTip('Yalnız bu kitabın orijinal PDF dosyasını ZIP olarak Masaüstüne kaydet')
-        compile_book.clicked.connect(lambda checked=False,c=code:self.compile_order([c]))
-        controls.addWidget(compile_book)
+        if self._can_compile():
+            compile_book = button('▣  Derle', 'TrackPdfButton')
+            compile_book.setToolTip('Yalnız bu kitabın orijinal PDF dosyasını ZIP olarak Masaüstüne kaydet')
+            compile_book.clicked.connect(lambda checked=False,c=code:self.compile_order([c]))
+            controls.addWidget(compile_book)
         controls.addStretch()
         root.addWidget(control_zone, 1)
         return card
@@ -774,7 +779,13 @@ class SiparisEditor(QDialog):
         QMessageBox.information(self, 'PDF klasörü', f'PDF dosyaları bu klasörde aranacak:\n{path}')
         return True
 
+    def _can_compile(self):
+        # The edition is assigned by the actual desktop entry point.
+        return bool(getattr(self.db, 'owner_admin_request', None))
+
     def compile_selected_order(self):
+        if not self._can_compile():
+            return error(self, 'Sipariş derleme yalnız Yönetici uygulamasında kullanılabilir.')
         codes = [code for code, checkbox in self.code_checks.items()
                  if checkbox.isChecked()]
         if not codes:
@@ -783,6 +794,8 @@ class SiparisEditor(QDialog):
 
     def compile_order(self, codes=None):
         """Local-only package; full order, selected books or a single book."""
+        if not self._can_compile():
+            return error(self, 'Sipariş derleme yalnız Yönetici uygulamasında kullanılabilir.')
         order = self.current()
         if not order:
             return error(self, 'Sipariş bulunamadı.')

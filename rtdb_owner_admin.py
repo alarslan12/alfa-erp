@@ -354,6 +354,35 @@ def _payment(client,days,paid,fingerprints):
     return {"accounting_days":list((client._get("accounting") or {}).values())}
 
 
+def _report_keys(raw):
+    if not isinstance(raw,list) or len(raw)>70:
+        raise DeviceError("En fazla 70 hata kaydı seçilebilir.",422)
+    keys=list(dict.fromkeys(str(x) for x in raw))
+    if any(not k or len(k)>90 or any(c in k for c in ".#$[]/") for k in keys):
+        raise DeviceError("Hata raporu kimliği geçersiz",422)
+    return keys
+
+
+def _remove_error_reports(client,ids,reviewed_only=False):
+    reviewed=client.read_error_acks() if reviewed_only else None
+    removed=0
+    failures=[]
+    for key in _report_keys(ids):
+        if reviewed is not None and key not in reviewed:
+            continue
+        try:
+            # Delete the report first; if live rules reject deletion, keep its
+            # review receipt. A missing report can still have an orphan ack.
+            if client._get("error_reports/"+key) is not None:
+                client._request("DELETE","error_reports/"+key)
+            if client._get("error_acks/"+key) is not None:
+                client._request("DELETE","error_acks/"+key)
+            removed+=1
+        except DeviceError as exc:
+            failures.append({"id":key,"status":exc.status})
+    return {"removed":removed,"failures":failures}
+
+
 def admin_request(cloud,action,timeout=None,**kwargs):
     client=cloud if isinstance(cloud,Workstation) else Workstation()
     _owner(client)
@@ -362,21 +391,47 @@ def admin_request(cloud,action,timeout=None,**kwargs):
     if action=="admin_devices":
         members=client._get("members") or {}
         requests=client._get("device_requests") or {}
-        return {"devices":[{"id":uid, "device_name":row.get("name") or
-                (requests.get(uid) or {}).get("name") or uid,
-                "active":bool(row.get("active")),
+        if not isinstance(members,dict) or not isinstance(requests,dict):
+            raise DeviceError("Cihaz listesi veri biçimi geçersiz",422)
+        devices=[]
+        for uid,row in members.items():
+            if not isinstance(row,dict):
+                continue
+            request=requests.get(uid) or {}
+            if not isinstance(request,dict):
+                request={}
+            devices.append({"id":uid,"device_name":row.get("name") or request.get("name") or uid,
+                "active":row.get("active") is True,
                 "device_role":row.get("role"),
-                "last_seen_at":row.get("last_seen_at")}
-                for uid,row in members.items() if isinstance(row,dict)]}
-    if action=="admin_revoke":
+                "last_seen_at":row.get("last_seen_at"),
+                "created_at":row.get("created_at") or request.get("created_at"),
+                "is_current":uid==client.uid})
+        return {"devices":devices}
+    if action in ("admin_revoke","admin_rename_device"):
         uid=str(kwargs.get("id") or "")
-        if not uid or uid==client.uid:
-            raise DeviceError("Kendi yönetici cihazını iptal edemezsin", 422)
-        old=client._get("members/"+uid)
-        if not old:
-            raise DeviceError("Cihaz bulunamadı", 404)
-        client._request("PUT","members/"+uid,{**old,"active":False})
-        return {"revoked":True}
+        if not uid or len(uid)>128 or any(c in uid for c in ".#$[]/"):
+            raise DeviceError("Cihaz kimliği geçersiz",422)
+        if action=="admin_revoke" and uid==client.uid:
+            raise DeviceError("Kendi yönetici cihazını iptal edemezsin",422)
+        name=str(kwargs.get("name") or "").strip()
+        if action=="admin_rename_device" and (not name or len(name)>120):
+            raise DeviceError("Cihaz adı 1–120 karakter olmalıdır",422)
+        for _ in range(4):
+            old,etag,_=client._request("GET","members/"+uid,etag=True)
+            if not isinstance(old,dict) or not etag:
+                raise DeviceError("Cihaz bulunamadı veya sürümü doğrulanamadı",404)
+            fresh=dict(old)
+            if action=="admin_revoke":
+                fresh["active"]=False
+            else:
+                fresh["name"]=name
+            try:
+                client._request("PUT","members/"+uid,fresh,match=etag)
+                return {"updated":True}
+            except DeviceError as exc:
+                if exc.status!=409:
+                    raise
+        raise DeviceError("Cihaz başka bir yönetici tarafından değiştirildi",409)
     if action=="admin_prune_devices":
         members=client._get("members") or {}
         if not isinstance(members,dict):
@@ -385,41 +440,48 @@ def admin_request(cloud,action,timeout=None,**kwargs):
                     if isinstance(record,dict) and record.get("active") is False
                     and uid!=client.uid][:80]
         removed=0
+        failures=[]
         for uid in candidates:
-            record=client._get("members/"+uid)
-            if not isinstance(record,dict) or record.get("active") is not False:
-                continue
-            client._request("DELETE","members/"+uid)
             try:
-                client._request("DELETE","device_requests/"+uid)
-            except DeviceError:
-                pass
-            removed+=1
-        return {"removed":removed}
+                record,etag,_=client._request("GET","members/"+uid,etag=True)
+                if (not isinstance(record,dict) or record.get("active") is not False
+                        or uid==client.uid):
+                    continue
+                # A concurrently re-approved device must never be deleted.
+                if not etag:
+                    raise DeviceError("Cihaz sürümü doğrulanamadı",409)
+                client._request("DELETE","members/"+uid,match=etag)
+                removed+=1
+                try:
+                    request,request_etag,_=client._request(
+                        "GET","device_requests/"+uid,etag=True)
+                    if request is not None and request_etag:
+                        client._request("DELETE","device_requests/"+uid,match=request_etag)
+                except DeviceError:
+                    # The inactive membership was removed. Leave an unrelated
+                    # or newly changed pairing request for explicit review.
+                    pass
+            except DeviceError as exc:
+                failures.append({"id":uid,"status":exc.status})
+        return {"removed":removed,"failures":failures}
+    if action=="admin_review_errors":
+        done=0
+        failures=[]
+        for key in _report_keys(kwargs.get("ids")):
+            try:
+                if client._get("error_reports/"+key) is not None:
+                    if client._get("error_acks/"+key) is None:
+                        client.review_error_report(key)
+                    done+=1
+            except DeviceError as exc:
+                failures.append({"id":key,"status":exc.status})
+        return {"reviewed":done,"failures":failures}
     if action=="admin_delete_error":
-        key=str(kwargs.get("id") or "")
-        if not key or len(key)>90 or any(c in key for c in ".#$[]/"):
-            raise DeviceError("Hata raporu kimliği geçersiz",422)
-        if client._get("error_acks/"+key) is not None:
-            client._request("DELETE","error_acks/"+key)
-        client._request("DELETE","error_reports/"+key)
-        return {"deleted":1}
+        return _remove_error_reports(client,[kwargs.get("id") or ""])
+    if action=="admin_delete_errors":
+        return _remove_error_reports(client,kwargs.get("ids"))
     if action=="admin_purge_reviewed_errors":
-        ids=kwargs.get("ids")
-        if not isinstance(ids,list) or len(ids)>70:
-            raise DeviceError("En fazla 70 hata kaydı temizlenebilir",422)
-        reviewed=client.read_error_acks()
-        removed=0
-        for raw in list(dict.fromkeys(ids)):
-            key=str(raw)
-            if not key or len(key)>90 or any(c in key for c in ".#$[]/"):
-                continue
-            if key not in reviewed:
-                continue
-            client._request("DELETE","error_acks/"+key)
-            client._request("DELETE","error_reports/"+key)
-            removed+=1
-        return {"removed":removed}
+        return _remove_error_reports(client,kwargs.get("ids"),reviewed_only=True)
     if action=="admin_audit":
         # Archived legacy records are intentionally NOT readable by
         # staff/owner RTDB rules. Fetching it used to return HTTP 401, falsely
@@ -433,9 +495,17 @@ def admin_request(cloud,action,timeout=None,**kwargs):
                 if isinstance(event,dict):activities.append(event)
         # Old imported audit records can be large; read only once on demand.
         # Production reset removes legacy audit while preserving book catalog.
-        audit=client._get("audit") or {}
+        legacy_unavailable=False
+        try:
+            audit=client._get("audit") or {}
+        except DeviceError as exc:
+            if exc.status not in (403,404):
+                raise
+            audit={}
+            legacy_unavailable=True
         return {"device_activity":activities,
-                "audit_events":list(audit.values()) if isinstance(audit,dict) else []}
+                "audit_events":list(audit.values()) if isinstance(audit,dict) else [],
+                "legacy_unavailable":legacy_unavailable}
     if action=="admin_inventory_upsert":
         return _upsert_product(client,kwargs.get("product"))
     if action=="admin_inventory_archive":

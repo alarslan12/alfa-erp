@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 from utils import format_kargo_kodu
 from bildirim_durumu import classify_new_orders
-from bildirim_dogal_ses import cached_voice_path,validate_voice_id
+from bildirim_dogal_ses import ANNOUNCEMENTS, announcement_asset
 
 
 class DolapFormattingTests(unittest.TestCase):
@@ -131,20 +131,13 @@ class NotificationDeploymentContracts(unittest.TestCase):
         self.assertIn("[UninstallRun]",installer)
         self.assertIn("Components: staff",installer)
 
-    def test_cloud_voice_configuration_is_not_a_plaintext_api_key(self):
+    def test_announcements_have_four_offline_scripts(self):
+        self.assertEqual(len(ANNOUNCEMENTS),4)
+        self.assertEqual(announcement_asset(0).name,"ozan_1.wav")
         root=Path(__file__).resolve().parents[1]
         voices=(root/"bildirim_dogal_ses.py").read_text("utf-8")
-        self.assertIn("store_api_key",voices)
-        self.assertIn("crypt(key.encode",voices)
-        self.assertIn("xi-api-key",voices)
-        self.assertNotIn("sk_",voices)
-
-    def test_cache_identifies_voice_and_does_not_leak_api_key(self):
-        with tempfile.TemporaryDirectory() as folder:
-            path=cached_voice_path(folder,"123456789ABCDefghij")
-            self.assertIn("notification_voice_cache",str(path))
-            self.assertNotIn("123456789ABCDefghij",path.name)
-        self.assertRaises(ValueError,validate_voice_id,"danger/../123456789")
+        self.assertNotIn("api.elevenlabs.io",voices)
+        self.assertNotIn("urllib.request",voices)
 
 
 if __name__=="__main__":

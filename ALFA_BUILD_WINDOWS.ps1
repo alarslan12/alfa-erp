@@ -37,9 +37,10 @@ if($Edition -eq 'personel') {
  # are embedded in executable assets.
  Run $Virtual @('-m','PyInstaller','--noconfirm','--clean','--onedir','--windowed',
   '--name','AlfaERP','--icon=assets\icons\alfa_personel.ico','--add-data','KİTAPS.xlsx;.','--add-data','katalog.json;.',
-  '--add-data','assets;assets','--hidden-import=PySide6.QtPdf','main.py')
+  '--add-data','assets;assets','--exclude-module=siparis_derle','--hidden-import=PySide6.QtPdf','main.py')
  Run $Virtual @('-m','PyInstaller','--noconfirm','--clean','--onedir','--windowed',
   '--name','AlfaBildirim','--icon=assets\icons\alfa_personel.ico',
+  '--add-data','assets;assets',
   '--hidden-import=PySide6.QtTextToSpeech',
   '--hidden-import=PySide6.QtMultimedia','bildirim_servisi.py')
  Run $Virtual @('-m','PyInstaller','--noconfirm','--clean','--onedir','--windowed',

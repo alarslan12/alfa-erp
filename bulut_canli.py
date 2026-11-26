@@ -296,7 +296,11 @@ class Sync(QObject):
                 if batch['kind']=='notice_ack':
                     self.changed.emit([e['local_id'] for e in batch['events']])
                 from alfa_hatalar import record_operational_error
-                record_operational_error("RejectedWrite",status)
+                kind=batch.get('kind')
+                allowed={'commit','status','progress','notice_ack','shipping_fee','return_state'}
+                # Whitelisted operation category only; never send the raw
+                # conflict reason, order ID or payload in telemetry.
+                record_operational_error("RejectedWrite_"+(kind if kind in allowed else "other"),status)
                 self.retry_after=time.monotonic()+0.25
                 self._status(True,
                     f'{len(self.db._conflicts)} çakışma kayıt altına alındı · '
