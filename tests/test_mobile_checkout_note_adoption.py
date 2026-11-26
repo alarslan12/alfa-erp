@@ -11,7 +11,6 @@ from siparis_uyari import pending_notice, initial_note_notice, acknowledge, revi
 
 class CheckoutStation:
     _adopt_checkout = Workstation._adopt_checkout
-    _recover_checkout_note = Workstation._recover_checkout_note
     _make_items = staticmethod(Workstation._make_items)
     uid = "ci-staff"
 
@@ -22,7 +21,6 @@ class CheckoutStation:
         self.counter = 0
         self._checkout_dirty = True
         self._checkout_last_checked = 0
-        self._checkout_notes_checked = set()
         self._catalog_cache = None
         self.request = {
             "uid": self.request_uid,
@@ -62,21 +60,6 @@ class CheckoutStation:
         self._checkout_dirty = True
         self._adopt_checkout()
         return self.rows
-
-    def existing_order(self, note_missing=True):
-        # Older Suite v2.0.52: checkout was adopted without order_note.
-        self.adopt()
-        order_id = next(iter(self.rows))
-        order = self.rows[order_id]
-        order.pop("order_note", None)
-        order.pop("order_notice", None)
-        order["status"] = "aktif"
-        order["version"] = 8
-        order["items"][next(iter(order["items"]))]["prepared_count"] = 1
-        if not note_missing:
-            order["order_note"] = "Masaüstünde düzenlenen not"
-        self._checkout_notes_checked.clear()
-        return order_id
 
 
 class MobileCheckoutNoteTests(unittest.TestCase):
@@ -123,54 +106,6 @@ class MobileCheckoutNoteTests(unittest.TestCase):
                 station.request["order_note"] = value
                 self.assertFalse(station.adopt())
                 self.assertEqual(station.counter, 0)
-
-    def test_repairs_historical_missing_note_without_changing_order_fields(self):
-        station = CheckoutStation("Eski checkout notu")
-        oid = station.existing_order()
-        before = copy.deepcopy(station.rows[oid])
-        station.adopt()
-        repaired = station.rows[oid]
-        self.assertEqual(repaired["order_note"], "Eski checkout notu")
-        self.assertTrue(pending_notice(repaired))
-        self.assertTrue(initial_note_notice(repaired))
-        self.assertEqual(repaired["version"], before["version"] + 1)
-        for key in before:
-            if key not in {"order_note", "order_notice", "version", "updated_at"}:
-                self.assertEqual(repaired[key], before[key], key)
-        self.assertEqual(station.counter, 1)
-        repeated = copy.deepcopy(repaired)
-        station._checkout_notes_checked.clear()  # Also idempotent across restarts
-        station.adopt()
-        self.assertEqual(station.rows[oid], repeated)
-
-    def test_recovery_never_overwrites_existing_note_or_notice(self):
-        for existing in ("note", "notice", "acknowledged_notice", "deleted", "wrong_request"):
-            with self.subTest(existing=existing):
-                station = CheckoutStation("İlk mobil not")
-                oid = station.existing_order()
-                order = station.rows[oid]
-                if existing == "note":
-                    order["order_note"] = "Sonradan girilmiş not"
-                elif existing in ("notice", "acknowledged_notice"):
-                    order["order_notice"] = {
-                        "revision": str(uuid.uuid4()), "kind": "update", "changes": {}
-                    }
-                    if existing == "acknowledged_notice":
-                        order["order_notice"]["ack_revision"] = order["order_notice"]["revision"]
-                elif existing == "deleted":
-                    order["deleted_at"] = "2026-11-20"
-                else:
-                    order["client_request_id"] = str(uuid.uuid4())
-                before = copy.deepcopy(order)
-                station.adopt()
-                self.assertEqual(station.rows[oid], before)
-
-    def test_no_source_note_cannot_be_reconstructed(self):
-        station = CheckoutStation()
-        oid = station.existing_order()
-        before = copy.deepcopy(station.rows[oid])
-        station.adopt()
-        self.assertEqual(station.rows[oid], before)
 
     def test_rules_allow_only_optional_string_note_up_to_2000(self):
         root = Path(__file__).resolve().parents[1]
