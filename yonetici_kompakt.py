@@ -4,7 +4,7 @@ ROOT=Path(__file__).resolve().parent
 import tempfile,uuid,time
 from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QLabel,QLineEdit,
     QPushButton,QFileDialog,QMessageBox,QTableWidget,QTableWidgetItem,QAbstractItemView,
-    QFrame,QHeaderView,QDialog,QTextEdit,QCheckBox)
+    QFrame,QHeaderView,QDialog,QTextEdit,QCheckBox,QInputDialog)
 from PySide6.QtCore import Qt,QThread,Signal
 from ekran_ayarlar import SettingsPage
 from database import ERPDatabase
@@ -153,6 +153,10 @@ class OwnerSettingsPage(SettingsPage):
         self.show_inactive.setChecked(False)
         self.show_inactive.toggled.connect(self._render_devices)
         col.addWidget(self.show_inactive)
+        self.device_search=QLineEdit()
+        self.device_search.setPlaceholderText('Bilgisayar adı veya cihaz kimliği ile ara…')
+        self.device_search.textChanged.connect(self._render_devices)
+        col.addWidget(self.device_search)
         self.code_note=QLineEdit();self.code_note.setObjectName('OwnerCode')
         self.code_note.setReadOnly(True)
         self.code_note.setPlaceholderText('Firebase cihaz kimliği (UID) ile yetkilendirme')
@@ -177,7 +181,11 @@ class OwnerSettingsPage(SettingsPage):
         clean=QPushButton("Pasif cihaz kayıtlarını temizle")
         clean.setObjectName('OwnerDanger')
         clean.clicked.connect(self.prune_devices)
-        col.addWidget(revoke);col.addWidget(clean)
+        rename=QPushButton('Seçili cihazı adlandır')
+        rename.setObjectName('OwnerPrimary');rename.clicked.connect(self.rename_device)
+        actions=QHBoxLayout()
+        actions.addWidget(rename);actions.addWidget(revoke);actions.addWidget(clean)
+        col.addLayout(actions)
         return page
 
     def export_staff_package(self):
@@ -210,6 +218,10 @@ class OwnerSettingsPage(SettingsPage):
         inactive=sorted((r for r in data if not r.get("active")),
                         key=lambda r:str(r.get("device_name","")).casefold())
         visible=active+(inactive if self.show_inactive.isChecked() else [])
+        needle=self.device_search.text().strip().casefold()
+        if needle:
+            visible=[r for r in visible if needle in
+                     (str(r.get("device_name") or "")+" "+str(r.get("id") or "")).casefold()]
         self.device_table.setRowCount(len(visible))
         for i,r in enumerate(visible):
             for col,value in enumerate([
@@ -227,6 +239,23 @@ class OwnerSettingsPage(SettingsPage):
         self.code_note.setText(
             str(len(active))+" aktif cihaz · "+str(len(inactive))+
             " pasif kayıt"+(" (gizli)" if inactive and not self.show_inactive.isChecked() else ""))
+
+    def rename_device(self):
+        row=self.device_table.currentRow()
+        if row<0:
+            return
+        cell=self.device_table.item(row,0)
+        if cell is None:
+            return
+        uid=cell.data(Qt.ItemDataRole.UserRole)
+        target=next((x for x in self._all_device_rows if x.get("id")==uid),None)
+        if not target:
+            return
+        name,ok=QInputDialog.getText(self,"Bilgisayar adı","Görünen ad:",
+             QLineEdit.EchoMode.Normal,str(target.get("device_name") or ""))
+        if ok and name.strip():
+            self._job(lambda:self._admin("admin_rename_device",id=uid,name=name),
+                      lambda _result:self.refresh_devices())
 
     def revoke(self):
         row=self.device_table.currentRow()
