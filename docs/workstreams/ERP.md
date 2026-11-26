@@ -15,7 +15,7 @@
 - `alfa_rtdb.py`: `_adopt_checkout` mevcut UUIDv5 checkout order'ı için orijinal istekte dolu not varsa ETag korumalı salt alan onarımı yapar. Sadece mevcut `id`, `workspace_id`, `client_request_id` eşleşiyorsa; `order_note` ve `order_notice` anahtarları hiç yoksa onarım yapılır. Başka not, mevcut/okunmuş uyarı, silinmiş sipariş, sahipsiz kayıt korunur.
 - Kurtarılan note + `make_notice(None, order)` ile `initial_note` bir defada eklenir; sadece `version`, `updated_at` güncellenir. Mevcut sipariş numarası, kitaplar, hazırlık/koli, durum, ciro, kargo, geçmiş ve event_log dokunulmaz. ETag yarışında yeniden kontrol edilir; yinelenen order oluşturulmaz.
 - Bellek içi `_checkout_notes_checked` aynı oturumda eski checkout kayıtlarının sürekli yeniden sorgulanmasını azaltır; tekrar başlatma/retry idempotenttir.
-- `tests/test_mobile_checkout_note_adoption.py`: önceden notsuz içe alınmış sipariş, mevcut farklı not/uyarı/okunmuş uyarı/silinmiş/mismatch kayıt, tekrar çalışma, kaynakta not yoksa onarımsız bırakma testleri.
+- `tests/test_checkout_note_recovery_erp.py`: önceden notsuz içe alınmış sipariş, mevcut farklı not/uyarı/okunmuş uyarı/silinmiş/mismatch kayıt, tekrar çalışma, kaynakta not yoksa onarımsız bırakma testleri.
 - **Sınırlar:** Yalnız Firebase checkout isteğinde hâlâ saklı not kurtarılabilir. Kaynak checkout notu yoksa uydurulmaz. Canlı Firebase erişimi veya veri onarımı bu PR'da yapılmadı; düzeltilmiş importer ancak güncellenen Windows kurulumundan sonra çalışır. Canlı Rules ve Hosting değiştirilmez.
 - Mobil PR #33 dosyalarına dokunulmaz. Merkezi Suite Release ayrı `integration/release-...` PR'ıyla yürütülür.
 
