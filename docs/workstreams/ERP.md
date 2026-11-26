@@ -11,7 +11,7 @@
 ## Son iş: Canva Ozan M4A yerel anons desteği (v2.1.0)
 
 - Canva Türkçe Ozan sesinin indirilen M4A dosyaları doğrudan desteklenir; `ozan_1.m4a`–`ozan_4.m4a` tercih edilir. WAV ve MP3 alternatifleri de korunur. Qt Multimedia yerel oynatma, asenkron hata sonrası WAV/Windows Türkçe ses/ton fallback'i ve oynatıcı ömrü yönetimi eklendi.
-- Personel, Yönetici ve AlfaBildirim paketlerine Qt Multimedia ve assets dahil edilir; ElevenLabs bağlantısı geri eklenmez. Dört gerçek Canva Ozan ses çıktısı henüz depoda yok; bağlı Canva aracı bağımsız TTS üretimi/indirme sağlamıyor.
+- Personel, Yönetici ve AlfaBildirim paketlerine Qt Multimedia ve assets dahil edilir; ElevenLabs bağlantısı geri eklenmez. Dört gerçek Canva Ozan M4A çıktısı kullanıcı tarafından depoya eklendi; boyutları ve SHA-256 değerleri özgün dosyalarla birebir eşleşiyor.
 - Mevcut canlı Firebase Rules değiştirilmedi. Yayındaki Suite v2.0.53, merkezi 2.1.0 taslak PR #37 henüz yayınlanmadı. Bu değişiklik ayrı entegrasyon PR'ıyla birleştirilip sürüm adayına dahil edilir.
 
 ## Önceki iş: v2.1.0 Yönetici / Personel sadeleştirme ve kararlılık
@@ -23,9 +23,9 @@
 - İşlem günlüğü: tarih başlıkları, yeni/eskiden yeniye göre zaman gruplaması, aynı sipariş/cihaz/aktivitenin 120 saniyelik grupları, her hareketin gerçek zaman damgası, arama/aktivite filtresi, temaya uygun renk/hover. Erişilemeyen eski audit kaydı yeni işlem listesini bozmaz. Sistem sağlığı ekranı kaldırıldı.
 - Derleme yalnız Yönetici'de: bütün ZIP kontrolleri ve giriş koruması, Personel PyInstaller paketinde `siparis_derle` modülü hariç bırakıldı. Personel PDF açma/kapak işlemleri korunur.
 - Uygulama Ayarları: PDF kitaplık sol, Excel katalog sağ, temalar ve kontrast altında; ayrı Bildirimler ve Güncelleme tabı. Sağ üstte kalkan cihaz yetkisi ve en sağda ayarlar, çakışma uyarısı 14 saniye.
-- ElevenLabs ağ/API ve UI entegrasyonu kaldırıldı. Dört sabit Türkçe anons metni, yerel WAV oynatma ve yüklü Windows Türkçe sesi/ton fallback'i. Canva Ozan gerçek ses varlıkları **henüz temin edilemedi**; bu dosyalar olmadan Ozan sesi olduğu iddia edilmez. Eski şifreli dosyalar ve kullanıcı ayarları zorla silinmedi.
+- ElevenLabs ağ/API ve UI entegrasyonu kaldırıldı. Dört sabit Türkçe anons metni, yerel WAV oynatma ve yüklü Windows Türkçe sesi/ton fallback'i. Canva Ozan gerçek ses varlıkları PR #38 kapsamında sonradan temin edildi. Eski şifreli dosyalar ve kullanıcı ayarları zorla silinmedi.
 - **Denetim:** Başlangıçta 52 dal ve sıfır açık PR incelendi; kapatılmış PR kayıtları ve 11 seçili eski ERP/Firebase dalının ancestry/diff özeti kontrol edildi. Eski ayrışmış dallar yeniden merge edilmedi; diğer workstream'ler değiştirilmedi. Artık depoda olmayan auto_eslestir modülüne bağlı eski Personel giriş dosyası güncel, yetki ayrımlı girişe uyarlandı. Kullanıcı isteğine uygun elle test/Windows derlemesi çalıştırılmadı; otomatik PR kapıları devreye girebilir. Gerçek Firebase canlı izinleri ve kullanıcı bilgisayarları test edilmedi.
-- **Yayın:** Hedef 2.1.0 ayrı merkezi release dalında hazırlanacak. PR/CI/Release ve canlı Rules onayı ayrı tutulur. Canva Ozan WAV kaynakları ve canlı yetkiler doğrulanmadan tüm istekler bitmiş/yayımlanmış sayılmaz.
+- **Yayın:** Hedef 2.1.0 ayrı merkezi release dalında hazırlanacak. PR/CI/Release ve canlı Rules onayı ayrı tutulur. Ozan M4A kaynakları PR #38'de doğrulandı; canlı yetkiler ve Setup yayını ayrıca doğrulanır.
 
 ## Önceki iş: Issue #32 — Eski mobil checkout notlarını zarar vermeden kurtarma (kaldırıldı)
 **Dal:** `fix/erp-reconcile-mobile-checkout-notes-issue32` · **PR:** Bu dalın ERP PR'ı.
