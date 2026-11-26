@@ -8,7 +8,13 @@
 
 **Korunacaklar:** Onaylanan Katalog/Siparişler arayüzü, ortak Havuz, personel/owner rolleri, Firebase Auth/RTDB, offline işlem kuyruğu, iade/kargo/ciro hesabı, FlexFlow hareketli gün/takvim filtresi ve günlük değerlendirme.
 
-## Son iş: v2.1.0 Yönetici / Personel sadeleştirme ve kararlılık
+## Son iş: Canva Ozan M4A yerel anons desteği (v2.1.0)
+
+- Canva Türkçe Ozan sesinin indirilen M4A dosyaları doğrudan desteklenir; `ozan_1.m4a`–`ozan_4.m4a` tercih edilir. WAV ve MP3 alternatifleri de korunur. Qt Multimedia yerel oynatma, asenkron hata sonrası WAV/Windows Türkçe ses/ton fallback'i ve oynatıcı ömrü yönetimi eklendi.
+- Personel, Yönetici ve AlfaBildirim paketlerine Qt Multimedia ve assets dahil edilir; ElevenLabs bağlantısı geri eklenmez. Dört gerçek Canva Ozan ses çıktısı henüz depoda yok; bağlı Canva aracı bağımsız TTS üretimi/indirme sağlamıyor.
+- Mevcut canlı Firebase Rules değiştirilmedi. Yayındaki Suite v2.0.53, merkezi 2.1.0 taslak PR #37 henüz yayınlanmadı. Bu değişiklik ayrı entegrasyon PR'ıyla birleştirilip sürüm adayına dahil edilir.
+
+## Önceki iş: v2.1.0 Yönetici / Personel sadeleştirme ve kararlılık
 **Dal:** `integration/erp-v210-admin-refurb` · ERP + ortak Rules/kurulum hazırlığı içeren entegrasyon PR'ı. Mobil, Banner ve Print iş mantığı değiştirilmez.
 
 - Kullanıcı isteğiyle geçmiş checkout notlarının otomatik kurtarması tamamen kaldırıldı. Yeni mobil siparişlerde `order_note`, 2000 karakter ve ilk uyarı davranışı korunur. Mevcut siparişler ve geçmiş notlar yeniden yazılmaz. ETag sayaç/revision çakışmasının tekrarı 503 geçici durumudur; iş kuyruğu kalıcı reddedilmiş sayılmaz.
