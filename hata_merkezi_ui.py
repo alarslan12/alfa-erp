@@ -58,10 +58,10 @@ class ErrorInbox(QWidget):
         select=QPushButton('Tümünü seç');select.clicked.connect(self.table_select_all)
         actions.addWidget(select)
         root.addLayout(actions)
-        self.table=QTableWidget(0,6)
+        self.table=QTableWidget(0,7)
         self.table.setObjectName("OwnerErrorTable")
         self.table.setHorizontalHeaderLabels(
-            ["Zaman","Bilgisayar","Sürüm","Hata türü","Durum","Kaynak"])
+            ["Zaman","Bilgisayar","Sürüm","Hata türü","Kod","Durum","Kaynak"])
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
@@ -128,13 +128,16 @@ class ErrorInbox(QWidget):
                 str(entry.get("device_name") or "?")[:80],
                 str(entry.get("version") or "?")[:24],
                 str(entry.get("type") or "?")[:80],
+                (re.search(r"(\d{3})$",str(entry.get("type") or "")).group(1)
+                 if re.search(r"(\d{3})$",str(entry.get("type") or "")) else "—"),
                 "İncelendi" if reviewed else "Yeni",
-                "Personel" if entry.get("edition")=="staff" else "Yönetici",
+                ("Personel" if entry.get("edition")=="staff" else "Yönetici")+
+                " · "+str(entry.get("source") or "—")[:30],
             ]
             for col,value in enumerate(values):
                 cell=QTableWidgetItem(value)
                 cell.setData(Qt.ItemDataRole.UserRole,report_id)
-                if not reviewed and col==4:
+                if not reviewed and col==5:
                     from PySide6.QtGui import QColor
                     cell.setForeground(QColor("#ffbc62"))
                 self.table.setItem(row,col,cell)
