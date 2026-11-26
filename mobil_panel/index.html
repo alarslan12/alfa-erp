@@ -90,7 +90,7 @@ function trackingRender(){
   trackingLabel(code,'span','',String(order.shipping_reference||'Kayıtlı kod yok'));
   const items=trackingItems(order),t=trackingCounts(items);
   const orderNote=typeof order.order_note==='string'?order.order_note.trim():'';
-  if(orderNote)trackingLabel(card,'div','tracking-note-card','Not: '+orderNote);
+  if(orderNote)trackingLabel(headActions,'span','tag','NOT');
   const summary=trackingLabel(card,'div','tracking-summary','');
   trackingLabel(summary,'span','',items.length+' çeşit · '+t.qty+' kitap');
   trackingLabel(summary,'span','','Hazır '+t.ready+'/'+t.qty);
@@ -100,6 +100,7 @@ function trackingRender(){
   const itemlist=trackingLabel(card,'div','tracking-books','');
   const itemlistId='tracking-books-'+trackingKey.replace(/[^a-zA-Z0-9_-]/g,'');
   itemlist.id=itemlistId;itemlist.hidden=!initiallyExpanded;
+  if(orderNote)trackingLabel(itemlist,'div','tracking-note-card','Not: '+orderNote);
   expandButton.setAttribute('aria-controls',itemlistId);
   expandButton.setAttribute('aria-label',initiallyExpanded?'Sipariş kitaplarını gizle':'Sipariş kitaplarını göster');
   expandButton.addEventListener('click',()=>{
@@ -247,7 +248,7 @@ function writeHistory(rows){try{localStorage.setItem(HISTORY_KEY,JSON.stringify(
 let localHistory=readHistory();
 function readPending(){try{const p=JSON.parse(localStorage.getItem(PENDING_KEY)||'{}');return p&&typeof p==='object'&&!Array.isArray(p)?p:{};}catch{return {}}}
 function persistPending(p){localStorage.setItem(PENDING_KEY,JSON.stringify(p));}
-function recordedOrder(shipping){const key=shippingKey(shipping);return key?localHistory.find(row=>row.key===key):null;}
+function recordedOrder(shipping){const key=shippingKey(shipping);return key?localHistory.find(row=>row.key===key)||readHistory().find(row=>row.key===key):null;}
 function historyAdd(record){
  localHistory=[record,...localHistory.filter(row=>row.key!==record.key)].slice(0,HISTORY_LIMIT);
  const saved=writeHistory(localHistory);historyRender();return saved;
