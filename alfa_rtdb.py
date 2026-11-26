@@ -110,7 +110,6 @@ class Workstation:
         self._token_expires = 0.0
         self._checkout_dirty = True
         self._checkout_last_checked = 0.0
-        self._checkout_notes_checked = set()
         self._catalog_cache = None
         self._last_catalog_revision = None
         self.token = self._identity.get("refresh_token") if self._identity else None
@@ -867,35 +866,6 @@ class Workstation:
         raise DeviceError("Stok eşzamanlı değişti; yeniden deneyin",409)
 
 
-    def _recover_checkout_note(self, order_id, request_id, note):
-        """CAS-only recovery of a note omitted by an older checkout importer.
-
-        Never create an order during recovery. Do not overwrite an existing
-        note, notice, or concurrent edit. Only modify a matching checkout
-        order, preserving its status, books, order number, and other fields.
-        """
-        def recover(current):
-            if (not isinstance(current, dict) or
-                    str(current.get("id") or "") != order_id or
-                    str(current.get("client_request_id") or "") != request_id or
-                    str(current.get("workspace_id") or "") != WORKSPACE_ID or
-                    current.get("deleted_at") or
-                    "order_note" in current or
-                    "order_notice" in current):
-                return None, False
-            # Historical orders may already be in production/completed. Never
-            # reset status, counts, or versions to their checkout defaults.
-            before_version = int(current.get("version") or 0)
-            if before_version < 1:
-                return None, False
-            current["order_note"] = note
-            current["order_notice"] = make_notice(None, current)
-            current["version"] = before_version + 1
-            current["updated_at"] = datetime.now(timezone.utc).isoformat()
-            return current, True
-
-        return self._atomic_order(order_id, recover)
-
     def _adopt_checkout(self):
         """Promote public inbox to the existing orders pool.
 
@@ -954,27 +924,15 @@ class Workstation:
                             # Some installations may reject shallow reads.
                             # Fall back once to the original per-order lookup.
                             use_shallow_lookup=False
-                    # Reconcile an omitted historical note without opening a
-                    # duplicate order or overwriting later desktop edits.
+                    if use_shallow_lookup:
+                        if order_id in existing_order_ids:
+                            continue
+                    elif self._get("orders/" + order_id) is not None:
+                        continue
                     raw_note = entry.get("order_note", "")
-                    if not isinstance(raw_note, str):
+                    if not isinstance(raw_note, str) or len(raw_note) > 2000:
                         raise ValueError("Invalid mobile order note")
                     note = clean_note(raw_note)
-                    if use_shallow_lookup:
-                        exists = order_id in existing_order_ids
-                    else:
-                        exists = self._get("orders/" + order_id) is not None
-                    if exists:
-                        # Older test adapters bind _adopt_checkout without
-                        # implementing optional reconciliation methods/cache.
-                        checked = getattr(self, "_checkout_notes_checked", None)
-                        repair = getattr(self, "_recover_checkout_note", None)
-                        if note and callable(repair) and (
-                                checked is None or order_id not in checked):
-                            repair(order_id, request_id, note)
-                            if checked is not None:
-                                checked.add(order_id)
-                        continue
                     raw_items = (list(entry["items"].values())
                                  if isinstance(entry["items"],dict) else entry["items"])
                     if not 1 <= len(raw_items) <= 300:
@@ -1021,10 +979,6 @@ class Workstation:
                             order["order_notice"] = make_notice(None, order)
                         return order,None
                     self._atomic_order(order_id, create, allow_create=True)
-                    if note:
-                        checked = getattr(self, "_checkout_notes_checked", None)
-                        if checked is not None:
-                            checked.add(order_id)
                     if existing_order_ids is not None:
                         existing_order_ids.add(order_id)
                 except (DeviceError, ValueError, TypeError, OverflowError):
