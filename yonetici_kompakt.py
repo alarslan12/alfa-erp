@@ -1,7 +1,7 @@
 """Single owner settings page inside the normal ERP. No second admin dashboard."""
 from pathlib import Path
 ROOT=Path(__file__).resolve().parent
-import tempfile,uuid,time,webbrowser
+import tempfile,uuid,time
 from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QLabel,QLineEdit,
     QPushButton,QFileDialog,QMessageBox,QTableWidget,QTableWidgetItem,QAbstractItemView,
     QFrame,QHeaderView,QDialog,QTextEdit,QCheckBox)
@@ -39,12 +39,12 @@ class OwnerSettingsPage(SettingsPage):
         self._all_device_rows=[]
         # Settings remain one built-in owner page; no separate admin app.
         nav=self.layout().itemAt(1).layout()
-        for title,page in [('Excel kataloğu',self.catalog_page()),
-                           ('Bilgisayarlar',self.devices_page()),
-                           ('İşlem günlüğü',self.audit_page()),
-                           ('Sistem sağlığı',self.health_page()),
-                           ('Hata Merkezi',self.error_page())]:
+        self._owner_tabs={}
+        for key,title,page in [('devices','Bağlı Bilgisayarlar',self.devices_page()),
+                           ('audit','İşlem Günlüğü',self.audit_page()),
+                           ('errors','Hata Merkezi',self.error_page())]:
             idx=self.stack.count()
+            self._owner_tabs[key]=idx
             b=button(title,'SettingsNav');b.setCheckable(True)
             b.clicked.connect(lambda _=False,i=idx:self.show_tab(i))
             nav.insertWidget(len(self.nav),b)
@@ -81,6 +81,9 @@ class OwnerSettingsPage(SettingsPage):
         work.finished.connect(finished)
         work.finished.connect(work.deleteLater)
         work.start()
+
+    def _excel_settings_page(self):
+        return self.catalog_page()
 
     def catalog_page(self):
         page=QWidget();page.setObjectName('OwnerToolPage');col=QVBoxLayout(page)
@@ -259,9 +262,6 @@ class OwnerSettingsPage(SettingsPage):
         page=QWidget();page.setObjectName('OwnerToolPage')
         layout=QVBoxLayout(page);layout.setContentsMargins(12,12,12,8)
         actions=QHBoxLayout();actions.addStretch(1)
-        review=QPushButton('⚠ Eski bulut hatalarını incele')
-        review.setObjectName('OwnerDanger');review.clicked.connect(self.review_cloud_conflicts)
-        actions.addWidget(review)
         refresh=QPushButton('↻ İşlem günlüğünü yenile')
         refresh.setObjectName('OwnerPrimary');refresh.clicked.connect(lambda:self.refresh_audit(force=True))
         actions.addWidget(refresh);layout.addLayout(actions)
@@ -341,7 +341,14 @@ class OwnerSettingsPage(SettingsPage):
         self.error_inbox.review_requested.connect(self.review_error_report)
         self.error_inbox.remove_requested.connect(self.delete_error_report)
         self.error_inbox.purge_reviewed_requested.connect(self.purge_reviewed_errors)
-        return self.error_inbox
+        page=QWidget();page.setObjectName('OwnerToolPage')
+        layout=QVBoxLayout(page)
+        archive=QPushButton('⚠ Eski bulut işlem çakışmalarını incele')
+        archive.setObjectName('OwnerDanger')
+        archive.clicked.connect(self.review_cloud_conflicts)
+        layout.addWidget(archive)
+        layout.addWidget(self.error_inbox,1)
+        return page
 
     def enable_error_stream(self,client):
         """One owner-only SSE connection, not a recurring query timer."""
@@ -387,8 +394,9 @@ class OwnerSettingsPage(SettingsPage):
             self._error_known=ids  # bounded to visible report window
             pending=self.error_inbox.set_entries(
                 reports,result.get("acks") or {})
-            if self.nav and len(self.nav)>6:
-                self.nav[6].setText(
+            idx=self._owner_tabs.get('errors')
+            if idx is not None:
+                self.nav[idx].setText(
                     "⚠ Hata Merkezi ("+str(pending)+")" if pending else "Hata Merkezi")
             if new:
                 parent=self.window()
@@ -428,80 +436,6 @@ class OwnerSettingsPage(SettingsPage):
                 QMessageBox.information(
                     self,"Hata Merkezi",
                     str(result.get("removed",0))+" incelenmiş rapor temizlendi.")))
-
-    def health_page(self):
-        """Lightweight on-demand diagnostics. No Firebase polling added."""
-        page=QWidget();page.setObjectName('OwnerToolPage')
-        root=QVBoxLayout(page);root.setContentsMargins(16,16,16,16);root.setSpacing(12)
-        heading=QLabel('SİSTEM SAĞLIĞI VE KOTA TAKİBİ')
-        heading.setObjectName('OwnerHeading');root.addWidget(heading)
-        explanation=QLabel(
-            'Bu ekranda uygulamanın mevcut eşitleme durumu gösterilir. '
-            'Firebase saklama/indirme ve GitHub kota tüketiminin GERÇEK '
-            'değerleri yalnızca ilgili resmî konsoldan okunur. '
-            'Ek ağ trafiği oluşturan otomatik kota taraması yapılmaz.')
-        explanation.setObjectName('OwnerMuted')
-        explanation.setWordWrap(True);root.addWidget(explanation)
-        self.health_label=QLabel('')
-        self.health_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        self.health_label.setWordWrap(True)
-        self.health_label.setObjectName('OwnerBody')
-        root.addWidget(self.health_label)
-        limits=QLabel(
-            'Firebase Spark ücretsiz sınırlar: Realtime Database '
-            '1 GB veri saklama, 10 GB/ay indirme, 100 eşzamanlı bağlantı. '
-            'Hosting 10 GB saklama, 360 MB/gün aktarım. '
-            'Bu sınırlar TÜKETİMİ değil, plan limitlerini gösterir.')
-        limits.setObjectName('OwnerMuted');limits.setWordWrap(True)
-        root.addWidget(limits)
-        row=QHBoxLayout()
-        refresh=QPushButton('↻ Yerel durumu yenile')
-        refresh.setObjectName('OwnerPrimary')
-        refresh.clicked.connect(self.refresh_health)
-        row.addWidget(refresh);row.addStretch(1)
-        root.addLayout(row)
-        destinations=(
-            ('Firebase · Veritabanı kullanımı',
-             'https://console.firebase.google.com/project/alfa-erp-8700c/database'),
-            ('Firebase · Hosting kullanımı',
-             'https://console.firebase.google.com/project/alfa-erp-8700c/hosting'),
-            ('Firebase · Proje faturası ve kullanım',
-             'https://console.firebase.google.com/project/alfa-erp-8700c/usage'),
-            ('GitHub · Derlemeler',
-             'https://github.com/alarslan12/alfa-erp/actions'),
-            ('GitHub · Sürüm dosyaları',
-             'https://github.com/alarslan12/alfa-erp/releases'),
-        )
-        for label,url in destinations:
-            link=QPushButton('↗  '+label)
-            link.setObjectName('OwnerPrimary')
-            link.clicked.connect(lambda _checked=False,u=url:webbrowser.open(u))
-            root.addWidget(link)
-        root.addStretch()
-        return page
-
-    def refresh_health(self):
-        db=self.db
-        live=getattr(self.window(),'live',None)
-        connected=bool(live and getattr(live,'_last_status',None)
-                       and live._last_status[0])
-        status='Bağlı' if connected else 'Bağlantı bekleniyor'
-        pending=db.pending_count
-        conflicts=len(db.unreviewed_cloud_conflicts)
-        pulse=getattr(live,'last_pulse',None) or {}
-        revisions=('Sipariş: '+str(pulse.get('orders_revision','—'))+
-                   ' / Katalog: '+str(pulse.get('catalog_revision','—'))+
-                   ' / Envanter: '+str(pulse.get('inventory_revision','—')))
-        lines=[
-            'Firebase bağlantısı: '+status,
-            'Yerel katalog: '+str(len(db.katalog))+' kitap',
-            'Yerelde görünen sipariş: '+str(len(db.siparisler)),
-            'Gönderilmeyi bekleyen işlem: '+str(pending),
-            'İncelenmemiş işlem çakışması: '+str(conflicts),
-            'Veritabanı revizyonları: '+revisions,
-            'Gerçek Firebase kota tüketimi: resmî Usage konsolunda',
-        ]
-        self.health_label.setText('\n'.join(lines))
 
     def _apply_owner_theme(self):
         # Three palettes keep the same hierarchy and contrast in every theme.
@@ -581,7 +515,7 @@ class OwnerSettingsPage(SettingsPage):
     def show_tab(self,index):
         super().show_tab(index)
         self._apply_owner_theme()
-        if index==3:self.refresh_devices()
-        if index==4:self.refresh_audit()
-        if index==5:self.refresh_health()
-        if index==6:self.refresh_error_reports()
+        tabs=getattr(self,'_owner_tabs',{})
+        if index==tabs.get('devices'):self.refresh_devices()
+        if index==tabs.get('audit'):self.refresh_audit()
+        if index==tabs.get('errors'):self.refresh_error_reports()
