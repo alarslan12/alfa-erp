@@ -40,6 +40,7 @@ if($Edition -eq 'personel') {
   '--add-data','assets;assets','--hidden-import=PySide6.QtPdf','main.py')
  Run $Virtual @('-m','PyInstaller','--noconfirm','--clean','--onedir','--windowed',
   '--name','AlfaBildirim','--icon=assets\icons\alfa_personel.ico',
+  '--add-data','assets;assets',
   '--hidden-import=PySide6.QtTextToSpeech',
   '--hidden-import=PySide6.QtMultimedia','bildirim_servisi.py')
  Run $Virtual @('-m','PyInstaller','--noconfirm','--clean','--onedir','--windowed',
