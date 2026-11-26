@@ -807,6 +807,7 @@ class SiparisEditor(QDialog):
         snapshot = {
             'id': order.get('id'),
             'kod': order.get('kod'),
+            'order_note': order.get('order_note'),
             'kitaplar': [dict(row) for row in order.get('kitaplar', [])],
         }
         catalog = {str(code): dict(book) for code, book in self.db.katalog.items()}
