@@ -487,9 +487,17 @@ def admin_request(cloud,action,timeout=None,**kwargs):
                 if isinstance(event,dict):activities.append(event)
         # Old imported audit records can be large; read only once on demand.
         # Production reset removes legacy audit while preserving book catalog.
-        audit=client._get("audit") or {}
+        legacy_unavailable=False
+        try:
+            audit=client._get("audit") or {}
+        except DeviceError as exc:
+            if exc.status not in (403,404):
+                raise
+            audit={}
+            legacy_unavailable=True
         return {"device_activity":activities,
-                "audit_events":list(audit.values()) if isinstance(audit,dict) else []}
+                "audit_events":list(audit.values()) if isinstance(audit,dict) else [],
+                "legacy_unavailable":legacy_unavailable}
     if action=="admin_inventory_upsert":
         return _upsert_product(client,kwargs.get("product"))
     if action=="admin_inventory_archive":
