@@ -475,6 +475,10 @@ class OwnerSettingsPage(SettingsPage):
         QLabel#OwnerHeading {color:%(text)s;font-size:16px;font-weight:900;padding:5px 0;}
         QLabel#OwnerMuted {color:%(muted)s;font-size:11px;}
         QLabel#OwnerAuditTitle {color:%(text)s;font-size:13px;font-weight:850;}
+        QLabel#OwnerAuditTime {color:%(minor)s;font-size:12px;font-weight:750;}
+        QLabel#OwnerAuditDay {color:%(major)s;font-size:12px;font-weight:900;padding:8px 3px;}
+        QFrame#OwnerAuditCard:hover QLabel#OwnerAuditTime {color:%(major)s;}
+        QFrame#OwnerAuditCard:hover QLabel#OwnerAuditTitle {text-decoration:underline;}
         QLabel#OwnerBody {color:%(text)s;font-size:12px;}
         QFrame#OwnerAuditCard {
             background:%(card)s;border:1px solid %(border)s;
