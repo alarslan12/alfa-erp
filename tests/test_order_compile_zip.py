@@ -70,7 +70,7 @@ class LocalOrderBundleTests(unittest.TestCase):
                  'İkinci satır Türkçe not.'])
 
     def test_whitespace_only_note_does_not_change_three_line_instruction(self):
-        self.order['order_note'] = '  \\n  '
+        self.order['order_note'] = '  \n  '
         target = derle_siparis(self.order, self.catalog, self.pdfs, self.desktop)
         with ZipFile(target) as archive:
             self.assertEqual(
