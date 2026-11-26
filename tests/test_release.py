@@ -76,7 +76,8 @@ class ReleaseContractTests(unittest.TestCase):
             self.assertIn("v"+release,notes)
         staff=(ROOT/"ekran_ayarlar.py").read_text("utf-8")
         self.assertIn("def _staff_send_excel",staff)
-        self.assertIn("Excel Katalog",staff)
+        self.assertIn("Uygulama Ayarları",staff)
+        self.assertIn("_excel_settings_page",staff)
         rules=__import__("json").loads(
             (ROOT/"firebase/database.rules.json").read_text("utf-8"))["rules"]["alfa"]["$workspace"]
         self.assertIn("staff",rules["books"]["$id"][".write"])
