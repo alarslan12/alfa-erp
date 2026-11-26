@@ -6,6 +6,13 @@ https://github.com/alarslan12/alfa-erp/releases.
 """
 
 _RELEASES = [
+    ("2.0.53", "Mobil not havuz aktarımı ve güvenli eski checkout onarımı", [
+        "Mobil checkout sipariş notları masaüstü havuz siparişine ve ilk not uyarısına aktarılır.",
+        "Eski sürümden notsuz kalan siparişler, kaynak checkout notu mevcutsa güvenli koşullu yazmayla kurtarılır.",
+        "Mevcut sipariş notları, okunmuş veya bekleyen uyarılar ve diğer sipariş verileri değiştirilmez.",
+        "Fason ZIP baskı talimatına kayıtlı sipariş notu varsa eklenir.",
+        "Firebase canlı Rules/Hosting yayını yapılmaz; tüm Suite uygulamaları tek Setup içinde güncellenir.",
+    ]),
     ("2.0.52", "Fason ZIP adet etiketi ve sade baskı talimatı", [
         "Siparişi Derle PDF dosyalarının başına 1 ADET, 2 ADET gibi baskı miktarı ekler.",
         "Baskı talimatı yalnız sipariş kodu, toplam sayfa sayısı ve toplam kitap sayısını içerir.",
