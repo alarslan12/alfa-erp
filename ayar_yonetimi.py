@@ -7,7 +7,6 @@ import shutil
 import zipfile
 
 DEFAULTS = {'tema': 'koyu', 'colorblind_mode': False, 'ozel_katalog': None, 'bildirim_sesi': 'klasik',
-            'elevenlabs_voice_a': '', 'elevenlabs_voice_b': '',
             'show_books_without_pages': False,
             'hide_blank_pages_migrated_v2026': False}
 BACKUP_NAMES = ('alfa_siparisler.json', 'alfa_sepet_hafiza.json', 'alfa_siparis_sayac.json',
@@ -28,6 +27,10 @@ class UserSettings:
                     self.values.update({k:v for k,v in stored.items() if k in DEFAULTS})
             except (OSError,ValueError,TypeError):
                 pass
+        # Migrate retired cloud audio preferences without deleting user files.
+        if str(self.values.get('bildirim_sesi') or '').startswith('eleven_'):
+            self.values['bildirim_sesi']='ozan_karisik'
+            self.save()
         # One-time preference migration: users requested blank-page books
         # hidden by default, including when previous release stored True.
         # After migrating, later manual checkbox decisions remain respected.
