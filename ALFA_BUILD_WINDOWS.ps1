@@ -57,6 +57,21 @@ if($Edition -eq 'personel') {
 } else {
  throw 'ALFA_BUILD_WINDOWS.ps1 sadece ERP personel / yonetici bilesenlerini derler. Suite icin ALFA_BUILD_SUITE_WINDOWS.ps1 kullanin.'
 }
+# Ensure every ERP executable bundle contains all four original local clips.
+$audioBundles = if ($Edition -eq 'personel') { @('AlfaERP','AlfaBildirim') } else { @('AlfaERPYonetici') }
+foreach ($bundle in $audioBundles) {
+ foreach ($index in 1..4) {
+  $relative = "assets\notifications\ozan_${index}.m4a"
+  $source = Join-Path $PSScriptRoot $relative
+  $packaged = Join-Path $PSScriptRoot ("dist\$bundle\_internal\" + $relative)
+  if (!(Test-Path -LiteralPath $source) -or !(Test-Path -LiteralPath $packaged)) {
+   throw "Missing local announcement: $bundle / $relative"
+  }
+  if ((Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash -ne (Get-FileHash -LiteralPath $packaged -Algorithm SHA256).Hash) {
+   throw "Announcement checksum mismatch: $bundle / $relative"
+  }
+ }
+}
 if(-not $SkipInstaller) {
  Write-Host 'Tek dagitim bicimi Suite Setup. ALFA_BUILD_SUITE_WINDOWS.ps1 dosyasini kullanin.'
 }
