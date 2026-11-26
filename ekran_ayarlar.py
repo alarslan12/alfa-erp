@@ -4,14 +4,13 @@ from pathlib import Path
 from PySide6.QtCore import QThread, Signal, QTimer
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QFrame, QComboBox,
-    QFileDialog, QMessageBox, QStackedWidget, QLabel, QPushButton, QLineEdit, QCheckBox
+    QFileDialog, QMessageBox, QStackedWidget, QLabel, QPushButton, QLineEdit, QCheckBox, QScrollArea
 )
 from ayar_yonetimi import theme_styles, apply_visual_preferences
 from tema import QSS
 from pdf_kitap import PdfKutuphane
 from pdf_kapak import refresh_pdf_covers
 from bildirim_sesleri import SOUND_CHOICES, play_order_sound
-from bildirim_dogal_ses import (store_api_key,remove_api_key,validate_voice_id,voice_key_path)
 from guncelleme_arayuzu import (UpdateDialog,CheckWorker,should_check_today,mark_checked)
 from widgets import (
     button, text, refresh_cover_placeholders, refresh_all_cover_labels
@@ -74,7 +73,7 @@ class SettingsPage(QWidget):
         root.addWidget(text('ÇALIŞMA AYARLARI','SettingsTitle'))
         self.nav=[]
         nav=QHBoxLayout()
-        for i,label in enumerate(('Görünüm ve bildirimler','Kitap PDF klasörü')):
+        for i,label in enumerate(('Uygulama Ayarları','Bildirimler ve Güncelleme')):
             tab=button(label,'SettingsNav')
             tab.setCheckable(True)
             tab.clicked.connect(lambda checked=False,x=i:self.show_tab(x))
@@ -89,6 +88,8 @@ class SettingsPage(QWidget):
         # (keeps owner settings' tab indices and navigation unchanged).
         page=QWidget()
         col=QVBoxLayout(page)
+        application_page=page
+        application_col=col
         card=QFrame();card.setObjectName('SettingsCard')
         controls=QVBoxLayout(card)
         controls.addWidget(text('Görünüm','SettingsHeading'))
@@ -113,7 +114,9 @@ class SettingsPage(QWidget):
             bool(self.config.get('show_books_without_pages', False)))
         self.show_unknown_pages.toggled.connect(self._set_unknown_page_visibility)
         controls.addWidget(self.show_unknown_pages)
-        col.addWidget(card)
+        appearance_card=card
+        notification_page=QWidget()
+        col=QVBoxLayout(notification_page)
 
         sound_card=QFrame();sound_card.setObjectName('SettingsCard')
         sound_col=QVBoxLayout(sound_card)
@@ -136,43 +139,7 @@ class SettingsPage(QWidget):
         preview.clicked.connect(self.preview_sound)
         sound_row.addWidget(preview)
         sound_col.addLayout(sound_row)
-        cloud_help=QLabel(
-            'Doğal Windows sesleri ücretsizdir (yüklü Türkçe seslere bağlı). '
-            'ElevenLabs doğal sesleri isteğe bağlıdır; API kullanımı ücretli '
-            'olabilir. Anahtar yalnız bu Windows kullanıcısında şifrelenir. '
-            'Yalnız sabit sipariş uyarı cümlesi gönderilir, müşteri bilgileri gönderilmez.')
-        cloud_help.setObjectName('SettingsHint')
-        cloud_help.setWordWrap(True)
-        sound_col.addWidget(cloud_help)
-        cloud_voice_row=QHBoxLayout()
-        self.eleven_a=QLineEdit()
-        self.eleven_a.setPlaceholderText('ElevenLabs ses A · Voice ID')
-        self.eleven_a.setText(str(config.get('elevenlabs_voice_a','') or ''))
-        self.eleven_b=QLineEdit()
-        self.eleven_b.setPlaceholderText('ElevenLabs ses B · Voice ID')
-        self.eleven_b.setText(str(config.get('elevenlabs_voice_b','') or ''))
-        cloud_voice_row.addWidget(self.eleven_a)
-        cloud_voice_row.addWidget(self.eleven_b)
-        sound_col.addLayout(cloud_voice_row)
-        api_row=QHBoxLayout()
-        self.eleven_key=QLineEdit()
-        self.eleven_key.setEchoMode(QLineEdit.EchoMode.Password)
-        self.eleven_key.setPlaceholderText(
-            'ElevenLabs API anahtarı (yalnız değiştirmek için gir)')
-        api_row.addWidget(self.eleven_key,1)
-        voice_save=button('Sesleri kaydet','Accent')
-        voice_save.clicked.connect(self.save_cloud_voices)
-        api_row.addWidget(voice_save)
-        voice_remove=button('API anahtarını sil','SmallAction')
-        voice_remove.clicked.connect(self.remove_cloud_key)
-        api_row.addWidget(voice_remove)
-        sound_col.addLayout(api_row)
-        self.voice_status=QLabel(
-            'API anahtarı: '+
-            ('şifreli olarak kayıtlı' if voice_key_path(config.data_dir).exists()
-             else 'henüz kaydedilmedi'))
-        self.voice_status.setObjectName('SettingsHint')
-        sound_col.addWidget(self.voice_status)
+        sound_col.addWidget(text('Sesler cihazda oynatılır; bulut ses API bağlantısı kullanılmaz.','SettingsHint',wrap=True))
         col.addWidget(sound_card)
         update_card=QFrame();update_card.setObjectName('SettingsCard')
         update_layout=QVBoxLayout(update_card)
@@ -188,11 +155,13 @@ class SettingsPage(QWidget):
         update_layout.addWidget(open_update)
         col.addWidget(update_card)
         col.addStretch()
-        self.stack.addWidget(page)
-
-        # Existing PDF folder selection, now also drives incremental covers.
-        page=QWidget()
-        col=QVBoxLayout(page)
+        # PDF and Excel catalog controls share the first settings tab.
+        columns=QHBoxLayout()
+        columns.setSpacing(14)
+        application_col.addLayout(columns)
+        pdf_page=QWidget()
+        col=QVBoxLayout(pdf_page)
+        col.setContentsMargins(0,0,0,0)
         card=QFrame();card.setObjectName('SettingsCard')
         controls=QVBoxLayout(card)
         controls.addWidget(text('PDF kütüphanesi ve otomatik kitap kapakları','SettingsHeading'))
@@ -219,18 +188,15 @@ class SettingsPage(QWidget):
         controls.addWidget(self.pdf_status)
         col.addWidget(card)
         col.addStretch()
-        self.stack.addWidget(page)
-
-        # The owner already has a dedicated Excel tab. Only staff gets this
-        # compact import-only tab; Catalog / Orders remain visually unchanged.
-        app=QApplication.instance()
-        if type(self) is SettingsPage:
-            import_tab=button('Excel Katalog','SettingsNav')
-            import_tab.setCheckable(True)
-            import_tab.clicked.connect(lambda _=False:self.show_tab(2))
-            nav.insertWidget(len(self.nav),import_tab)
-            self.nav.append(import_tab)
-            self.stack.addWidget(self._staff_excel_page())
+        columns.addWidget(pdf_page,1)
+        columns.addWidget(self._excel_settings_page(),1)
+        application_col.addWidget(appearance_card)
+        application_col.addStretch()
+        application_scroll=QScrollArea()
+        application_scroll.setWidgetResizable(True)
+        application_scroll.setWidget(application_page)
+        self.stack.addWidget(application_scroll)
+        self.stack.addWidget(notification_page)
 
         self.show_tab(0)
         # Only filesystem mtime checks on later app launches; no PDF pages
@@ -279,34 +245,6 @@ class SettingsPage(QWidget):
             QMessageBox.information(self,'Bildirim sesi',
                 'Bu bilgisayarda Windows ses çıkışı kullanılamıyor.')
 
-    def save_cloud_voices(self):
-        try:
-            voice_a=validate_voice_id(self.eleven_a.text())
-            voice_b=validate_voice_id(self.eleven_b.text())
-            secret=self.eleven_key.text().strip()
-            if secret:
-                store_api_key(self.config.data_dir,secret)
-                self.eleven_key.clear()
-            self.config.set('elevenlabs_voice_a',voice_a)
-            self.config.set('elevenlabs_voice_b',voice_b)
-            self.voice_status.setText('ElevenLabs: '+(
-                'API anahtarı şifreli kayıtlı.' if voice_key_path(
-                    self.config.data_dir).exists() else
-                'Voice ID kaydedildi; API anahtarı gerekli.'))
-        except Exception as exc:
-            QMessageBox.warning(self,'Doğal ses ayarları',str(exc))
-
-    def remove_cloud_key(self):
-        if QMessageBox.question(
-            self,'ElevenLabs bağlantısını kaldır',
-            'Bu bilgisayarda saklanan ElevenLabs API anahtarı silinsin mi?',
-            QMessageBox.StandardButton.Yes|QMessageBox.StandardButton.No
-        )!=QMessageBox.StandardButton.Yes:
-            return
-        remove_api_key(self.config.data_dir)
-        self.eleven_key.clear()
-        self.voice_status.setText('API anahtarı silindi. Yerel sesler çalışır.')
-
     def select_pdf(self):
         folder=QFileDialog.getExistingDirectory(
             self,'PDF klasörünü seç',str(self.pdf.folder or Path.home()))
@@ -314,7 +252,7 @@ class SettingsPage(QWidget):
             return
         try:
             self.pdf.set_folder(folder)
-            self.show_tab(1)
+            self.show_tab(0)
             self.generate_pdf_covers()
         except Exception as exc:
             QMessageBox.warning(self,'PDF',str(exc))
@@ -375,6 +313,9 @@ class SettingsPage(QWidget):
     def _cover_finished(self,worker):
         if self._cover_worker is worker:
             self._cover_worker=None
+
+    def _excel_settings_page(self):
+        return self._staff_excel_page()
 
     def _staff_excel_page(self):
         page=QWidget()
