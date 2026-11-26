@@ -83,39 +83,41 @@ class AlfaMain(QMainWindow):
             self.nav[index]=action
             nav_row.addWidget(action)
         main_bar.addWidget(nav_box,0,1,Qt.AlignmentFlag.AlignCenter)
-        right_box=QWidget();right_row=QHBoxLayout(right_box)
-        right_row.setContentsMargins(0,0,0,0);right_row.setSpacing(10)
-        settings_btn=button('⚙','SettingsGear')
-        settings_btn.setToolTip('Ayarlar · '+('Excel, cihazlar, işlem günlüğü, PDF' if OWNER_EDITION else 'Excel katalog, görünüm ve PDF'))
-        settings_btn.setAccessibleName('Ayarlar menüsünü aç')
-        settings_btn.setCheckable(True)
-        settings_btn.clicked.connect(lambda checked=False:self.navigate(4))
-        self.settings_btn=settings_btn
-        settings_btn.setVisible(True)
-        self.announcements_button=QPushButton('◉ Duyurular')
-        self.announcements_button.setToolTip('Sürüm notları ve Güncelleme Merkezi')
-        self.announcements_button.clicked.connect(self.open_announcements)
-        right_row.addWidget(self.announcements_button)
-        self.cloud_badge=text('◌ Bağlanıyor…','Tiny')
+        right_box=QFrame();right_box.setObjectName('HudShell');right_row=QHBoxLayout(right_box)
+        right_row.setContentsMargins(5,4,5,4);right_row.setSpacing(5)
+        def hud_action(symbol,label,callback,checkable=False):
+            action=button(symbol,'HudAction')
+            action.setFixedSize(38,38)
+            action.setToolTip(label);action.setAccessibleName(label)
+            action.setCheckable(checkable)
+            action.clicked.connect(lambda _=False:callback())
+            return action
+        self.settings_btn=hud_action('⚙','Ayarlar',lambda:self.navigate(4),True)
+        self.cloud_badge=text('◌ Bağlanıyor…','HudCloud')
+        self.cloud_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.cloud_badge.setFixedSize(134,38)
+        self.cloud_badge.setProperty('connectionState','pending')
         self.cloud_badge.setToolTip('Siparişler yalnızca eşleştirilmiş cihazlarda buluta aktarılır.')
         right_row.addWidget(self.cloud_badge)
+        self.announcements_button=hud_action('◉','Duyurular ve sürüm notları',self.open_announcements)
+        right_row.addWidget(self.announcements_button)
         if not OWNER_EDITION:
-            self.report_button=QPushButton('⚠ Hata Bildir')
-            self.report_button.setToolTip('Seçilen teknik hata türünü Yönetici Hata Merkezi’ne bildir')
-            self.report_button.clicked.connect(self.open_manual_report)
+            self.report_button=hud_action('⚠','Hata bildir',self.open_manual_report)
             right_row.addWidget(self.report_button)
-        self.cloud_connect=QPushButton('🛡')
-        self.cloud_connect.setObjectName('CloudConnect')
-        self.cloud_connect.setToolTip(
-            'İlk kurulumda bir kez cihazı yetkilendir; sonraki açılışlar girişsiz.')
-        self.cloud_connect.clicked.connect(self.connect_cloud)
-        self.cloud_connect.setAccessibleName('Cihaz yetkisi')
-        self.cloud_connect.setFixedWidth(44)
+        self.cloud_connect=hud_action('🛡','Cihaz yetkisi',self.connect_cloud)
         right_row.addWidget(self.cloud_connect)
-        right_row.addWidget(settings_btn)
+        self.update_button=hud_action('↻','Güncellemeleri denetle',
+                                      lambda:self.settings_page.open_update_center())
+        right_row.addWidget(self.update_button)
+        right_row.addWidget(self.settings_btn)
         main_bar.addWidget(right_box,0,2,Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignVCenter)
-        header.setFixedHeight(57)
+        header.setFixedHeight(60)
+        self._hud_header=header
+        self._hud_grid=main_bar
+        self._hud_nav=nav_box
+        self._hud_compact=None
         root.addWidget(header)
+        self._arrange_header()
 
         # Siparişler'e tıklanınca hemen ALTINDA, sabit yatay ikinci menü.
         self.orders_subbar=QFrame();self.orders_subbar.setObjectName('OrdersSubbar')
@@ -218,7 +220,8 @@ class AlfaMain(QMainWindow):
         self.db.cloud_required=True
         self.live=Sync(self.device,self.db,parent=self)
         if not self.device.paired:
-            self.cloud_badge.setText('◌ Buluta bağlı değil')
+            self.cloud_badge.setText('◌ Bağlı değil')
+            self._hud_cloud_state('offline')
             self.cloud_badge.setToolTip(
                 'Uygulama girişsiz açıldı. Katalog yerelde kullanılabilir. '
                 'Bulut siparişlerini görmek ve değiştirmek için cihazı bir kez eşleştir.')
@@ -290,8 +293,25 @@ class AlfaMain(QMainWindow):
             frame.moveCenter(area.center())
             self.move(frame.topLeft())
 
+    def _arrange_header(self):
+        if not hasattr(self,'_hud_grid'):
+            return
+        compact=self.width()<1180
+        if compact==self._hud_compact:
+            return
+        self._hud_compact=compact
+        grid=self._hud_grid
+        grid.removeWidget(self._hud_nav)
+        if compact:
+            grid.addWidget(self._hud_nav,1,0,1,3,Qt.AlignmentFlag.AlignCenter)
+            self._hud_header.setFixedHeight(100)
+        else:
+            grid.addWidget(self._hud_nav,0,1,Qt.AlignmentFlag.AlignCenter)
+            self._hud_header.setFixedHeight(60)
+
     def resizeEvent(self,event):
         super().resizeEvent(event)
+        self._arrange_header()
         if hasattr(self,'body'):
             narrow=self.width()<1120
             self.body.setContentsMargins(7 if narrow else 13,4 if narrow else 5,7 if narrow else 13,6 if narrow else 8)
@@ -357,6 +377,10 @@ class AlfaMain(QMainWindow):
             if data and data.get('available'):
                 self._update_available=data
                 tag=str(data.get('version') or '')
+                self.update_button.setProperty('updateAvailable',True)
+                self.update_button.setToolTip('Yeni sürüm v'+tag+' · Güncellemeleri denetle')
+                self.update_button.style().unpolish(self.update_button)
+                self.update_button.style().polish(self.update_button)
                 notice=Path(self.config.data_dir)/('alfa_last_update_popup_'+edition+'.json')
                 try:
                     saved=json.loads(notice.read_text(encoding='utf-8'))
@@ -439,7 +463,8 @@ class AlfaMain(QMainWindow):
                 self.settings_page.enable_error_stream(self.device)
             self.cloud_badge.setToolTip('Firebase Realtime Database eşitlemesi kontrol ediliyor.')
         except Exception as exc:
-            self.cloud_badge.setText('◌ Bulut bağlantısı beklemede')
+            self.cloud_badge.setText('◌ Bağlantı bekliyor')
+            self._hud_cloud_state('offline')
             QMessageBox.warning(self,'Firebase eşitleme başlatılamadı',
                 str(exc) + '\\nCihaz kaydı korunuyor; yeniden yetkilendirme gerekmez.')
         finally:
@@ -465,7 +490,7 @@ class AlfaMain(QMainWindow):
             self.analytics.refresh()
         elif index==3:
             self.select_inventory(self.inventory_view.currentIndex())
-        elif index==4 and OWNER_EDITION:
+        elif index==4:
             self.settings_page.show_tab(self.settings_page.current_tab)
 
     def _cloud_orders_changed(self,ids):
@@ -503,6 +528,12 @@ class AlfaMain(QMainWindow):
         if page is self.analytics and (order_changed or '__muhasebe__' in ids):
             self.analytics.refresh()
 
+    def _hud_cloud_state(self,state):
+        if self.cloud_badge.property('connectionState')!=state:
+            self.cloud_badge.setProperty('connectionState',state)
+            self.cloud_badge.style().unpolish(self.cloud_badge)
+            self.cloud_badge.style().polish(self.cloud_badge)
+
     def _cloud_status(self,online,message):
         # Pending crash reports retry ONLY on an actual connectivity transition,
         # not from a polling timer or on every ordinary sync status string.
@@ -530,8 +561,9 @@ class AlfaMain(QMainWindow):
         if conflicts and time.monotonic()<getattr(self,'_conflict_until',0):
             count=len(conflicts)
             reason=str(conflicts[-1].get('reason') or 'Bilinmeyen işlem çakışması')
-            self.cloud_badge.setText(f'⚠ {count} geçmiş çakışma' if online
-                else f'◌ Eşitleme hatası · {count} eski kayıt')
+            self._hud_cloud_state('warning')
+            self.cloud_badge.setText(f'⚠ {count} çakışma' if online
+                else f'⚠ Eşitleme · {count}')
             self.cloud_badge.setToolTip(
                 ('Bulut bağlı.\n' if online else 'Güncel eşitleme hatası: '+message[:190]+'\n')
                 +'Bunlar daha önce reddedilmiş ve arşivlenmiş işlemlerdir; '
@@ -542,9 +574,11 @@ class AlfaMain(QMainWindow):
             if count>last:
                 self.statusBar().showMessage('Bulut işlemi reddedildi: '+reason[:170],14000)
             return
+        self._hud_cloud_state('pending' if online and self.db.pending_count else
+                              'online' if online else 'offline')
         marker='● ' if online else '◌ '
         self.cloud_badge.setText(marker + ('Bulut bağlı' if online and not self.db.pending_count
-            else f'{self.db.pending_count} işlem sırada' if online else 'Çevrimdışı · kuyrukta'))
+            else f'{self.db.pending_count} işlem sırada' if online else 'Çevrimdışı'))
         if online and conflicts and 'çakışma' in str(message).lower():
             message='Bulut bağlı · eski çakışmalar arşivde'
         self.cloud_badge.setToolTip(message)
