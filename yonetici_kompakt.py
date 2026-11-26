@@ -38,14 +38,19 @@ class OwnerSettingsPage(SettingsPage):
         self._error_refresh_again=False
         self._all_device_rows=[]
         # Settings remain one built-in owner page; no separate admin app.
-        nav=self.layout().itemAt(1).layout()
-        self._owner_tabs={}
-        for key,title,page in [('devices','Bağlı Bilgisayarlar',self.devices_page()),
-                           ('audit','İşlem Günlüğü',self.audit_page()),
+        nav=self.settings_nav
+        self._owner_tabs={'devices':1}
+        own=self.notification_split.replaceWidget(1,self.devices_page())
+        self.device_summary=None
+        own.deleteLater()
+        self.notification_split.setStretchFactor(0,1)
+        self.notification_split.setStretchFactor(1,2)
+        self.notification_split.setSizes([360,760])
+        for key,title,page in [('audit','İşlem Günlüğü',self.audit_page()),
                            ('errors','Hata Merkezi',self.error_page())]:
             idx=self.stack.count()
             self._owner_tabs[key]=idx
-            b=button(title,'SettingsNav');b.setCheckable(True)
+            b=button(title,'SettingsNav');self.style_nav(b);b.setCheckable(True)
             b.clicked.connect(lambda _=False,i=idx:self.show_tab(i))
             nav.insertWidget(len(self.nav),b)
             self.nav.append(b);self.stack.addWidget(page)
@@ -86,13 +91,16 @@ class OwnerSettingsPage(SettingsPage):
         return self.catalog_page()
 
     def catalog_page(self):
-        page=QWidget();page.setObjectName('OwnerToolPage');col=QVBoxLayout(page)
-        col.addWidget(QLabel('Excel katalog güncellemesi · tüm bilgisayarlar ve mobil katalog'))
-        row=QHBoxLayout();pick=QPushButton('Excel seç');pick.clicked.connect(self.pick_catalog)
-        row.addWidget(pick);self.upload_btn=QPushButton('Buluta güncelle')
+        page=QFrame();page.setObjectName('SettingsCard');col=QVBoxLayout(page)
+        col.setContentsMargins(16,14,16,14);col.setSpacing(10)
+        heading=QLabel('Excel kitap kataloğu');heading.setObjectName('SettingsHeading');col.addWidget(heading)
+        note=QLabel('Excel kataloğunu güncelle · Tüm bilgisayarlar ve mobil katalog.')
+        note.setObjectName('SettingsHint');note.setWordWrap(True);col.addWidget(note)
+        row=QHBoxLayout();pick=button('Excel seç','Accent');pick.clicked.connect(self.pick_catalog)
+        row.addWidget(pick);self.upload_btn=button('Buluta güncelle','SmallAction')
         self.upload_btn.setEnabled(False);self.upload_btn.clicked.connect(self.upload_catalog)
         row.addWidget(self.upload_btn);col.addLayout(row)
-        self.catalog_note=QLabel('Yüklenecek Excel seçilmedi.');self.catalog_note.setWordWrap(True)
+        self.catalog_note=QLabel('Yüklenecek Excel seçilmedi.');self.catalog_note.setObjectName('SettingsHint');self.catalog_note.setWordWrap(True)
         col.addWidget(self.catalog_note);col.addStretch();self.catalog_rows=[]
         return page
 
@@ -138,15 +146,16 @@ class OwnerSettingsPage(SettingsPage):
                 live.pull()
 
     def devices_page(self):
-        page=QWidget();page.setObjectName('OwnerToolPage');col=QVBoxLayout(page)
-        heading=QLabel('BAĞLI BİLGİSAYARLAR');heading.setObjectName('OwnerHeading')
+        page=QFrame();page.setObjectName('SettingsCard');col=QVBoxLayout(page)
+        col.setContentsMargins(16,16,16,16);col.setSpacing(10)
+        heading=QLabel('Bağlı bilgisayarlar');heading.setObjectName('SettingsHeading')
         col.addWidget(heading)
         sub=QLabel('Cihazları görüntüle, yeni personel bilgisayarı ekle veya erişimi iptal et.')
         sub.setObjectName('OwnerMuted');sub.setWordWrap(True);col.addWidget(sub)
-        top=QHBoxLayout();new=QPushButton('Personel cihazını onayla')
+        top=QHBoxLayout();new=QPushButton('Cihaz onayla')
         new.setObjectName('OwnerPrimary');new.clicked.connect(self.create_code)
         reload=QPushButton('Yenile');reload.clicked.connect(self.refresh_devices)
-        package=QPushButton('Kurulum yönergesi')
+        package=QPushButton('Kurulum')
         package.clicked.connect(self.export_staff_package)
         top.addWidget(new);top.addWidget(reload);top.addWidget(package);col.addLayout(top)
         self.show_inactive=QCheckBox("Pasif cihazları göster")
@@ -165,7 +174,8 @@ class OwnerSettingsPage(SettingsPage):
         self.device_table.setObjectName('OwnerDeviceTable')
         self.device_table.setHorizontalHeaderLabels(['Bilgisayar','Yetki / durum','Cihaz kimliği','Kayıt zamanı','Son bağlantı'])
         self.device_table.horizontalHeader().setStretchLastSection(True)
-        self.device_table.horizontalHeader().setMinimumSectionSize(100)
+        self.device_table.horizontalHeader().setMinimumSectionSize(82)
+        self.device_table.setMinimumHeight(210)
         self.device_table.horizontalHeader().setSectionResizeMode(0,QHeaderView.ResizeMode.Stretch)
         self.device_table.horizontalHeader().setSectionResizeMode(1,QHeaderView.ResizeMode.ResizeToContents)
         self.device_table.setAlternatingRowColors(True)
@@ -176,12 +186,12 @@ class OwnerSettingsPage(SettingsPage):
         self.device_table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.device_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         col.addWidget(self.device_table)
-        revoke=QPushButton('Seçili cihaz erişimini iptal et')
+        revoke=QPushButton('Yetkiyi iptal et')
         revoke.setObjectName('OwnerDanger');revoke.clicked.connect(self.revoke)
-        clean=QPushButton("Pasif cihaz kayıtlarını temizle")
+        clean=QPushButton("Pasifleri temizle")
         clean.setObjectName('OwnerDanger')
         clean.clicked.connect(self.prune_devices)
-        rename=QPushButton('Seçili cihazı adlandır')
+        rename=QPushButton('Adlandır')
         rename.setObjectName('OwnerPrimary');rename.clicked.connect(self.rename_device)
         actions=QHBoxLayout()
         actions.addWidget(rename);actions.addWidget(revoke);actions.addWidget(clean)
