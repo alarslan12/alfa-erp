@@ -6,7 +6,7 @@
 - PDF/Excel/görünüm ortak Uygulama Ayarları sayfası; sistem sağlığı kaldırıldı.
 - Sipariş derleme yalnız Yönetici. Geçmiş checkout not kurtarma kaldırıldı; yeni mobil not aktarımı ve baskı talimatı notları korunur.
 - Bulut uyarıları 14 saniyede normale döner; sayaç yarışları geçici hata olarak sırada tutulur.
-- ElevenLabs kaldırıldı; yerel dört anons için paketleme desteği ve Windows Türkçe ses fallback'i hazır. Gerçek Canva Ozan WAV dosyaları henüz temin edilmedi.
+- ElevenLabs kaldırıldı; dört özgün Türkçe Canva Ozan M4A anonsu gömülü ve çevrimdışı oynatılır. Kaynak dosyaların SHA-256 değerleri doğrulandı; Windows Türkçe ses/uyarı tonu alternatif olarak korunur.
 - Diğer Suite bileşenlerinin iş mantığı, canlı veri ve Hosting değiştirilmedi.
 
 ## [v2.0.53] — 2026-11-26
