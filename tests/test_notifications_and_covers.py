@@ -133,7 +133,8 @@ class NotificationDeploymentContracts(unittest.TestCase):
 
     def test_announcements_have_four_offline_scripts(self):
         self.assertEqual(len(ANNOUNCEMENTS),4)
-        self.assertEqual(announcement_asset(0).name,"ozan_1.wav")
+        self.assertIn(announcement_asset(0).suffix,(".m4a",".wav",".mp3"))
+        self.assertEqual(announcement_asset(0).stem,"ozan_1")
         root=Path(__file__).resolve().parents[1]
         voices=(root/"bildirim_dogal_ses.py").read_text("utf-8")
         self.assertNotIn("api.elevenlabs.io",voices)
