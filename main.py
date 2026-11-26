@@ -92,20 +92,10 @@ class AlfaMain(QMainWindow):
         settings_btn.clicked.connect(lambda checked=False:self.navigate(4))
         self.settings_btn=settings_btn
         settings_btn.setVisible(True)
-        right_row.addWidget(settings_btn)
         self.announcements_button=QPushButton('◉ Duyurular')
         self.announcements_button.setToolTip('Sürüm notları ve Güncelleme Merkezi')
         self.announcements_button.clicked.connect(self.open_announcements)
         right_row.addWidget(self.announcements_button)
-        if not OWNER_EDITION:
-            self.staff_theme_switch=QPushButton('')
-            self.staff_theme_switch.setObjectName('StaffThemeSwitch')
-            self.staff_theme_switch.setCheckable(True)
-            self.staff_theme_switch.setChecked(self.config.get('tema')=='acik')
-            self.staff_theme_switch.setText('☼ Açık' if self.staff_theme_switch.isChecked() else '☾ Koyu')
-            self.staff_theme_switch.setToolTip('Açık / koyu görünümü anında değiştir')
-            self.staff_theme_switch.clicked.connect(self.toggle_staff_theme)
-            right_row.addWidget(self.staff_theme_switch)
         self.cloud_badge=text('◌ Bağlanıyor…','Tiny')
         self.cloud_badge.setToolTip('Siparişler yalnızca eşleştirilmiş cihazlarda buluta aktarılır.')
         right_row.addWidget(self.cloud_badge)
@@ -114,12 +104,15 @@ class AlfaMain(QMainWindow):
             self.report_button.setToolTip('Seçilen teknik hata türünü Yönetici Hata Merkezi’ne bildir')
             self.report_button.clicked.connect(self.open_manual_report)
             right_row.addWidget(self.report_button)
-        self.cloud_connect=QPushButton('Buluta bağla')
+        self.cloud_connect=QPushButton('🛡')
         self.cloud_connect.setObjectName('CloudConnect')
         self.cloud_connect.setToolTip(
             'İlk kurulumda bir kez cihazı yetkilendir; sonraki açılışlar girişsiz.')
         self.cloud_connect.clicked.connect(self.connect_cloud)
+        self.cloud_connect.setAccessibleName('Cihaz yetkisi')
+        self.cloud_connect.setFixedWidth(44)
         right_row.addWidget(self.cloud_connect)
+        right_row.addWidget(settings_btn)
         main_bar.addWidget(right_box,0,2,Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignVCenter)
         header.setFixedHeight(57)
         root.addWidget(header)
@@ -229,9 +222,8 @@ class AlfaMain(QMainWindow):
             self.cloud_badge.setToolTip(
                 'Uygulama girişsiz açıldı. Katalog yerelde kullanılabilir. '
                 'Bulut siparişlerini görmek ve değiştirmek için cihazı bir kez eşleştir.')
-        self.cloud_connect.setText(
-            'Cihaz yetkisi' if OWNER_EDITION else
-            'Yeniden eşleştir' if self.device.paired else 'Buluta bağla')
+        self.cloud_connect.setText('🛡')
+        self.cloud_connect.setToolTip('Cihaz yetkisi · '+('Bağlı cihaz' if self.device.paired else 'Cihazı eşleştir'))
         # Merge rapid cloud signals and never repaint hidden order cards.
         self._cloud_changed_ids=set()
         self._cloud_orders_dirty=False
@@ -317,18 +309,6 @@ class AlfaMain(QMainWindow):
         paint.drawText(pix.rect(),Qt.AlignmentFlag.AlignCenter,'A')
         paint.end()
         return QIcon(pix)
-
-    def toggle_staff_theme(self):
-        if OWNER_EDITION:return
-        key='acik' if self.staff_theme_switch.isChecked() else 'koyu'
-        self.staff_theme_switch.setText('☼ Açık' if key=='acik' else '☾ Koyu')
-        self.config.set('tema',key)
-        app=QApplication.instance()
-        apply_visual_preferences(self.config)
-        self.inventory.apply_theme()
-        self.general_catalog.apply_theme()
-        from widgets import refresh_cover_placeholders
-        refresh_cover_placeholders()
 
     def open_manual_report(self):
         if not OWNER_EDITION:
@@ -453,7 +433,7 @@ class AlfaMain(QMainWindow):
                 self.live.pull()
             else:
                 self.live.activate()
-            self.cloud_connect.setText('Cihaz yetkisi')
+            self.cloud_connect.setText('🛡')
             connect_device(lambda:self.device)
             if OWNER_EDITION:
                 self.settings_page.enable_error_stream(self.device)
@@ -537,7 +517,17 @@ class AlfaMain(QMainWindow):
         # QWidget tooltips inherit to the entire analytics canvas and
         # shadow hover tooltips for graphs. The cloud badge below owns it.
         conflicts=self.db.unreviewed_cloud_conflicts
-        if conflicts:
+        count=len(conflicts)
+        last=getattr(self,'_last_conflict_notice',0)
+        self._last_conflict_notice=count
+        if count>last:
+            import time
+            self._conflict_until=time.monotonic()+14
+            QTimer.singleShot(14100,lambda:self._cloud_status(
+                *getattr(self,'_last_cloud_state',(online,message))))
+        self._last_cloud_state=(online,message)
+        import time
+        if conflicts and time.monotonic()<getattr(self,'_conflict_until',0):
             count=len(conflicts)
             reason=str(conflicts[-1].get('reason') or 'Bilinmeyen işlem çakışması')
             self.cloud_badge.setText(f'⚠ {count} geçmiş çakışma' if online
@@ -546,12 +536,10 @@ class AlfaMain(QMainWindow):
                 ('Bulut bağlı.\n' if online else 'Güncel eşitleme hatası: '+message[:190]+'\n')
                 +'Bunlar daha önce reddedilmiş ve arşivlenmiş işlemlerdir; '
                 'şu anda bekleyen kuyruk sayısı değildir.\n'
-                'Ayarlar → İşlem günlüğü → Eski bulut hatalarını incele.\n'
+                'Ayarlar → Hata Merkezi → Eski bulut hatalarını incele.\n'
                 +reason[:220])
-            previous=getattr(self,'_last_conflict_notice',None)
-            self._last_conflict_notice=count
-            if previous is not None and count>previous:
-                self.statusBar().showMessage('Bulut işlemi reddedildi: '+reason[:170],20000)
+            if count>last:
+                self.statusBar().showMessage('Bulut işlemi reddedildi: '+reason[:170],14000)
             return
         marker='● ' if online else '◌ '
         self.cloud_badge.setText(marker + ('Bulut bağlı' if online and not self.db.pending_count
