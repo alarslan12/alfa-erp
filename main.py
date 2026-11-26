@@ -545,7 +545,10 @@ class AlfaMain(QMainWindow):
         marker='● ' if online else '◌ '
         self.cloud_badge.setText(marker + ('Bulut bağlı' if online and not self.db.pending_count
             else f'{self.db.pending_count} işlem sırada' if online else 'Çevrimdışı · kuyrukta'))
-        self.cloud_badge.setToolTip(message)
+        normal_message=message
+        if online and conflicts and 'çakışma' in str(message).lower():
+            normal_message='Bulut bağlı · eski çakışmalar arşivde'
+        self.cloud_badge.setToolTip(normal_message)
 
     def open_order_status(self,status):
         if status not in ('havuz','aktif','tamamlandi'):
