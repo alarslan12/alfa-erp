@@ -251,7 +251,7 @@ class Workstation:
             except DeviceError as error:
                 if error.status != 409:
                     raise
-        raise DeviceError("Eşitleme revision çakışması", 409)
+        raise DeviceError("Eşitleme yoğun; revision yeniden denenecek", 503)
 
     def sync(self, known=None, notification=False, last_order_number=0):
         meta = self._get("meta")
@@ -343,7 +343,8 @@ class Workstation:
             except DeviceError as exc:
                 if exc.status != 409:
                     raise
-        raise DeviceError("Sipariş sıra numarası çakışması", 409)
+        # Counter CAS exhaustion is transient, not a permanent order conflict.
+        raise DeviceError("Sipariş sıra numarası yoğun; işlem sırada tutuldu", 503)
 
     def _atomic_order(self, order_id, mutate, allow_create=False):
         for _ in range(8):
@@ -939,6 +940,8 @@ class Workstation:
                         continue
                     items=[]
                     for item in raw_items:
+                        if not isinstance(item,dict):
+                            raise ValueError("Invalid public item")
                         book = books.get(str(item.get("code") or ""))
                         qty = int(item.get("quantity") or 0)
                         kind = str(item.get("print_type") or "")
