@@ -1,4 +1,4 @@
-# ALFACOPYCENTER Suite v2.0.52
+# ALFACOPYCENTER Suite v2.0.53
 
 **Tek Windows kurulumu**, dört seçilebilir bileşen:
 
@@ -10,9 +10,16 @@
 | ALFA Print Center | PrintSurveillance/AlfaPrintSurveillance.exe | Seçilebilir, varsayılan |
 | Arka plan yardımcıları | Bildirim, PrintAgent, PrintSupervisor | Seçilen bileşene bağlı |
 
-Kurulum: `ALFACOPYCENTER_Suite_Setup_V2_0_52.exe`. Aynı Inno Setup AppId
+Kurulum: `ALFACOPYCENTER_Suite_Setup_V2_0_53.exe`. Aynı Inno Setup AppId
 (`ALFACOPYCENTER.Suite`) ve kurulum yolu korundu:
 `%LOCALAPPDATA%\Programs\ALFACOPYCENTER`.
+
+## v2.0.53 — Mobil sipariş notları ve güvenli eski checkout kurtarma
+
+- Mobil checkout `order_note` (en fazla 2000 karakter) mevcut ERP havuz siparişine ve `Yeni sipariş notu` uyarısına aktarılır (PR #30).
+- Önceki Windows importer'ın notsuz oluşturduğu checkout siparişleri, kaynak checkout'ta not duruyorsa UUIDv5 / istek kimliği doğrulanarak ETag (CAS) ile onarılır (Issue #32, PR #34). Mevcut not/uyarı, silinmiş veya uyuşmayan sipariş asla ezilmez; aynı sipariş iki kez oluşturulmaz.
+- `Siparişi Derle` ZIP içindeki `BASKI_TALIMATI.txt` dosyasına not varsa mevcut 3 satırın ardından `Sipariş Notu` ve notun tamamı eklenir (PR #31).
+- Mobil PR #33 entegrasyon kodu üretimde. Canlı Firebase Rules ve Hosting bu Windows release tarafından değiştirilmez; gerçek geçmiş not kurtarma yalnız checkout kaynağında not bulunuyorsa mümkündür.
 
 ## v2.0.52 — Fason ZIP adet etiketleri ve üç satırlık baskı talimatı
 
