@@ -60,6 +60,29 @@ function makeScenario(){
 
 (async()=>{
  assert.equal(await uuid('ci-mobile','11111111-2222-4333-8444-555555555555'),'2e7673b7-5762-5b5b-9f7c-0b0cea7a7c06');
+ const requestId='11111111-2222-4333-8444-555555555555',user={uid:'ci-mobile'};
+ const legacy={key:'2624140909632909',shipping:'2624140909632909',requestId,count:1};
+ const checkout={uid:user.uid,request_id:requestId,shipping_reference:legacy.shipping,order_note:'Özel not',items:{0:{code:'33',print_type:'SB',quantity:2}}};
+ let erp={client_request_id:requestId,order_number:123,items:{0:{book_code:'33',print_type:'SB',quantity:2,book_name_snapshot:'Arşiv kitap adı'}}};
+ const historyCloud=new Map(),readPaths=[];
+ const hydrate=new Function('env',pure+
+  "const {historyCloud,workspaceId,books,ref,realtime,get,checkoutOrderId,trackingItems,requestKey}=env;\n"+
+  part('async function hydrateHistoryRow','async function historyRefresh')+'return hydrateHistoryRow;')({
+   historyCloud,workspaceId,books:[{code:'33',name:'Güncel kitap adı'}],ref:(_,path)=>path,realtime:{},
+   get:async path=>{readPaths.push(path);const data=path.includes('/checkout/')?checkout:erp;return {exists:()=>!!data,val:()=>data};},
+   checkoutOrderId:uuid,trackingItems:o=>Object.values(o.items||{}),requestKey:r=>r.requestId
+  });
+ await hydrate(legacy,user,false);
+ assert.equal(readPaths.length,1);assert.equal(legacy.count,2);assert.equal(legacy.orderNote,'Özel not');
+ assert.equal(legacy.orderNumber,undefined);
+ await hydrate(legacy,user,true);
+ assert.equal(legacy.orderNumber,123);assert.equal(legacy.books[0].name,'Arşiv kitap adı');
+ assert(historyCloud.get(requestId).noteState.includes('farklı veya eksik'));
+ erp={...erp,order_note:'Özel not'};
+ await hydrate(legacy,user,true);
+ assert(historyCloud.get(requestId).noteState.includes('doğrulandı'));
+ const beforeReads=readPaths.length;await hydrate(legacy,{uid:'other-session'},true);
+ assert.equal(readPaths.length,beforeReads);
  const s=makeScenario();
  await s.submit();let state=s.inspect();
  assert.equal(state.writes,1);assert.equal(state.ids,1);assert.equal(state.history.length,0);
