@@ -2,13 +2,20 @@
 
 **Sohbet:** ERP Personel / Yönetici. **Repo:** `alarslan12/alfa-erp`; üretim `firebase-rtdb-final`.
 
-**Son doğrulanmış kararlı Suite:** v2.0.53 (26.11.2026); hedef yeni ortak sürüm **v2.1.0**. Yeni görevlerde GitHub Release, üretim SHA ve açık PR'ları yeniden kontrol et.
+**Son doğrulanmış kararlı Suite:** v2.1.0 (26.11.2026). Yeni görevlerde GitHub Release, üretim SHA ve açık PR'ları yeniden kontrol et.
 
 **Kod sahipliği:** `main.py`, `ekran_katalog.py`, `ekran_siparis.py`, `ekran_analitik.py`, `ekran_verimlilik.py`, `flexflow*.py`, ERP/Firebase istemcisi, analitik/muhasebe ve ilgili testler.
 
 **Korunacaklar:** Onaylanan Katalog/Siparişler arayüzü, ortak Havuz, personel/owner rolleri, Firebase Auth/RTDB, offline işlem kuyruğu, iade/kargo/ciro hesabı, FlexFlow hareketli gün/takvim filtresi ve günlük değerlendirme.
 
-## Son iş: Canva Ozan M4A yerel anons desteği (v2.1.0)
+## Son iş: Çalışma ayarları, birleşik cihaz/bildirim sekmesi ve HUD
+
+- v2.1.0 kullanıcı ekran görüntülerine göre PDF ve Excel eş hizalı kartlar; ortak görünüm kartı, eş yükseklikte pillbox gezinme ve temaya uyumlu HUD.
+- Yönetici ve Personel: Bildirimler & Cihazlar; sol dört gerçek Ozan anonsunun ayrı dinleme düğmeleri ve rastgele dinleme, sağ Yönetici cihaz yönetimi veya Personel kendi cihazı. Güncelleme merkezi üst HUD'da, cihaz kalkanıyla ayarlar yanında; küçük ekranlarda ana gezinme ikinci satıra iner.
+- Otomatik Personel anonsu yalnız dört Ozan kaydından rastgele biri. Eski ses seçenekleri ve Windows TTS/ton fallback kaldırıldı; eski ayarlar otomatik yeni moda geçer. Yönetici önizleme sipariş oluşturmadan çalışır. Başka uygulama, Firebase, canlı veriler ve Suite sürüm numarası değiştirilmez.
+- Ayrı entegrasyon PR'ı; otomatik kontroller ve Setup yayını ayrı doğrulanır.
+
+## Önceki iş: Canva Ozan M4A yerel anons desteği (v2.1.0)
 
 - Canva Türkçe Ozan sesinin indirilen M4A dosyaları doğrudan desteklenir; `ozan_1.m4a`–`ozan_4.m4a` tercih edilir. WAV ve MP3 alternatifleri de korunur. Qt Multimedia yerel oynatma, asenkron hata sonrası WAV/Windows Türkçe ses/ton fallback'i ve oynatıcı ömrü yönetimi eklendi.
 - Personel, Yönetici ve AlfaBildirim paketlerine Qt Multimedia ve assets dahil edilir; ElevenLabs bağlantısı geri eklenmez. Dört gerçek Canva Ozan M4A çıktısı kullanıcı tarafından depoya eklendi; boyutları ve SHA-256 değerleri özgün dosyalarla birebir eşleşiyor.
