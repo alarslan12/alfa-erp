@@ -54,9 +54,10 @@ class AlfaMain(QMainWindow):
         root=QVBoxLayout(holder);root.setContentsMargins(0,0,0,0);root.setSpacing(0)
 
         # Ana ERP gezintisi: katalog, sipariş, analitik ve envanter.
-        header=QFrame();header.setObjectName('Header')
+        header=QFrame();header.setObjectName('ErpHudHeader')
         main_bar=QGridLayout(header)
-        main_bar.setContentsMargins(14,0,14,0)
+        main_bar.setContentsMargins(12,4,12,4)
+        main_bar.setHorizontalSpacing(8);main_bar.setVerticalSpacing(4)
         main_bar.setColumnStretch(0,0)
         main_bar.setColumnStretch(1,1)
         main_bar.setColumnStretch(2,0)
@@ -296,7 +297,7 @@ class AlfaMain(QMainWindow):
     def _arrange_header(self):
         if not hasattr(self,'_hud_grid'):
             return
-        compact=self.width()<1180
+        compact=self.width()<max(1180,self._hud_nav.minimumSizeHint().width()+610)
         if compact==self._hud_compact:
             return
         self._hud_compact=compact
@@ -304,7 +305,7 @@ class AlfaMain(QMainWindow):
         grid.removeWidget(self._hud_nav)
         if compact:
             grid.addWidget(self._hud_nav,1,0,1,3,Qt.AlignmentFlag.AlignCenter)
-            self._hud_header.setFixedHeight(100)
+            self._hud_header.setFixedHeight(106)
         else:
             grid.addWidget(self._hud_nav,0,1,Qt.AlignmentFlag.AlignCenter)
             self._hud_header.setFixedHeight(60)
