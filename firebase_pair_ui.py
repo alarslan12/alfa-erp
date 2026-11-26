@@ -200,8 +200,20 @@ class PairDialog(QDialog):
             index=options.index(selected)
             target=rows[index][0]
             def approve():
-                self.client._request("PUT","members/"+target,
-                    {"active":True,"role":"staff","name":rows[index][1]})
+                from datetime import datetime, timezone
+                old,etag,_=self.client._request("GET","members/"+target,etag=True)
+                if isinstance(old,dict) and old.get("active") is True:
+                    raise DeviceError("Cihaz zaten yetkilendirildi; listeyi yenile.",409)
+                if old is not None and (not isinstance(old,dict) or not etag):
+                    raise DeviceError("Cihaz kaydı doğrulanamadı.",409)
+                # Do not silently turn an existing owner into a staff member.
+                if isinstance(old,dict) and old.get("role")=="owner":
+                    raise DeviceError("Yönetici cihazı personel olarak onaylanamaz.",422)
+                record={**(old or {}),"active":True,"role":"staff",
+                        "name":str((old or {}).get("name") or rows[index][1])[:120],
+                        "created_at":(old or {}).get("created_at") or datetime.now(timezone.utc).isoformat()}
+                self.client._request("PUT","members/"+target,record,
+                    match=etag if old is not None else "null_etag")
                 return target
             self._work(approve,lambda value:self.status.setText(
                 "Personel onaylandı: "+value))
