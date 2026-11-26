@@ -1,16 +1,16 @@
 <!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#121e2c"><meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer"><meta name="description" content="ALFA ERP mobil katalog ve sipariş oluşturma paneli"><title>ALFA ERP · Mobil</title><link rel="manifest" href="manifest.webmanifest"><style>
 :root{color-scheme:dark;--bg:#101b29;--panel:#18283a;--card:#1d3145;--line:#324a60;--fg:#eff5fd;--muted:#acbed0;--accent:#dfae6d;--accent-fg:#132235;--ok:#77d0bb;--input:#142338;--danger:#ff9a9a}
 :root.light{color-scheme:light;--bg:#f6f1e8;--panel:#fffaf2;--card:#f2e7d7;--line:#cdbda6;--fg:#263c51;--muted:#6b7c8e;--accent:#d29a56;--accent-fg:#fff;--ok:#387a6a;--input:#fffdf7;--danger:#b54b49}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px system-ui,-apple-system,"Segoe UI",sans-serif}button,input,select{font:inherit}button{cursor:pointer;min-height:44px;transition:background .16s,transform .16s,border-color .16s}button:hover:not(:disabled){transform:translateY(-1px);filter:brightness(1.08)}button:disabled{opacity:.5;cursor:not-allowed}a{color:var(--ok)}header{position:sticky;top:0;z-index:4;background:var(--panel);border-bottom:1px solid var(--line);padding:12px max(16px,calc((100vw - 1140px)/2));display:flex;justify-content:space-between;align-items:center;gap:16px}h1,h2,h3,p{margin-top:0}h1{font-size:20px;margin-bottom:0;letter-spacing:.4px}header small{font-size:11px;display:block;color:var(--muted)}h2{font-size:20px}.container{max-width:1140px;padding:22px 16px 60px;margin:auto}.panel{border:1px solid var(--line);border-radius:15px;background:var(--panel);padding:20px}.auth{max-width:460px;margin:50px auto}.field{display:flex;flex-direction:column;gap:5px;margin:12px 0}.field label{color:var(--muted);font-size:13px}input,select{width:100%;border:1px solid var(--line);border-radius:9px;background:var(--input);color:var(--fg);padding:12px;outline:none}input:focus,select:focus{border-color:var(--accent)}.primary,.secondary,.quiet,.remove{border-radius:10px;padding:9px 14px;border:1px solid var(--line);background:var(--card);color:var(--fg);font-weight:650}.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}.remove{color:var(--danger)}.actions{display:flex;flex-wrap:wrap;gap:9px}.muted{color:var(--muted)}.mini{font-size:12px}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:12px}.book{border:1px solid var(--line);border-radius:13px;background:var(--panel);padding:15px;display:flex;flex-direction:column;gap:10px;min-height:200px}.book strong{font-size:15px;line-height:1.35;flex:1}.book .code{font-size:12px;color:var(--muted)}.book .actions{display:flex;gap:6px}.book .actions button{flex:1;font-size:13px}.main-grid{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:18px;align-items:start}.cart{position:sticky;top:86px}.cart-row{display:flex;align-items:center;gap:7px;border-bottom:1px solid var(--line);padding:10px 0}.cart-row .description{flex:1;font-size:12px;min-width:0}.cart-row button{min-width:30px;min-height:34px;padding:3px}.hide{display:none!important}.banner{margin:10px 0;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--muted);white-space:pre-wrap}.search-bar{display:flex;gap:10px;margin:15px 0}.search-bar input{flex:1}.mobile-tools{display:flex;align-items:center;gap:8px}.total{font-size:20px;font-weight:800;text-align:right;margin:10px 0}.tag{color:var(--ok);font-size:12px;font-weight:700}#cart-items:empty:after{content:'Sepet henüz boş';display:block;color:var(--muted);padding:20px 0}.section-title{margin:14px 0}.foot{font-size:12px;color:var(--muted);margin:24px 0 0}.busy{opacity:.7;pointer-events:none}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px system-ui,-apple-system,"Segoe UI",sans-serif}button,input,select,textarea{font:inherit}button{cursor:pointer;min-height:44px;transition:background .16s,transform .16s,border-color .16s}button:hover:not(:disabled){transform:translateY(-1px);filter:brightness(1.08)}button:disabled{opacity:.5;cursor:not-allowed}a{color:var(--ok)}header{position:sticky;top:0;z-index:4;background:var(--panel);border-bottom:1px solid var(--line);padding:12px max(16px,calc((100vw - 1140px)/2));display:flex;justify-content:space-between;align-items:center;gap:16px}h1,h2,h3,p{margin-top:0}h1{font-size:20px;margin-bottom:0;letter-spacing:.4px}header small{font-size:11px;display:block;color:var(--muted)}h2{font-size:20px}.container{max-width:1140px;padding:22px 16px 60px;margin:auto}.panel{border:1px solid var(--line);border-radius:15px;background:var(--panel);padding:20px}.auth{max-width:460px;margin:50px auto}.field{display:flex;flex-direction:column;gap:5px;margin:12px 0}.field label{color:var(--muted);font-size:13px}input,select,textarea{width:100%;border:1px solid var(--line);border-radius:9px;background:var(--input);color:var(--fg);padding:12px;outline:none}input:focus,select:focus,textarea:focus{border-color:var(--accent)}textarea{resize:vertical;min-height:74px}.primary,.secondary,.quiet,.remove{border-radius:10px;padding:9px 14px;border:1px solid var(--line);background:var(--card);color:var(--fg);font-weight:650}.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}.remove{color:var(--danger)}.actions{display:flex;flex-wrap:wrap;gap:9px}.muted{color:var(--muted)}.mini{font-size:12px}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:12px}.book{border:1px solid var(--line);border-radius:13px;background:var(--panel);padding:15px;display:flex;flex-direction:column;gap:10px;min-height:200px}.book strong{font-size:15px;line-height:1.35;flex:1}.book .code{font-size:12px;color:var(--muted)}.book .actions{display:flex;gap:6px}.book .actions button{flex:1;font-size:13px}.main-grid{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:18px;align-items:start}.cart{position:sticky;top:86px}.cart-row{display:flex;align-items:center;gap:7px;border-bottom:1px solid var(--line);padding:10px 0}.cart-row .description{flex:1;font-size:12px;min-width:0}.cart-row button{min-width:30px;min-height:34px;padding:3px}.hide{display:none!important}.banner{margin:10px 0;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--muted);white-space:pre-wrap}.search-bar{display:flex;gap:10px;margin:15px 0}.search-bar input{flex:1}.mobile-tools{display:flex;align-items:center;gap:8px}.total{font-size:20px;font-weight:800;text-align:right;margin:10px 0}.tag{color:var(--ok);font-size:12px;font-weight:700}#cart-items:empty:after{content:'Sepet henüz boş';display:block;color:var(--muted);padding:20px 0}.section-title{margin:14px 0}.foot{font-size:12px;color:var(--muted);margin:24px 0 0}.busy{opacity:.7;pointer-events:none}
 @media(max-width:830px){.main-grid{grid-template-columns:1fr}.cart{position:static;order:-1}.book{min-height:180px}.search-bar{flex-wrap:wrap}}@media(max-width:540px){header{padding:10px 12px}header h1{font-size:17px}.container{padding:12px 12px 40px}.panel{padding:14px}.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.book{padding:11px;min-height:175px}.book strong{font-size:13px}.book .actions{flex-wrap:wrap}.book .actions button{font-size:12px;padding:7px 5px;min-height:40px}.search-bar{display:block}.search-bar select{margin-top:8px}.cart-row{gap:5px}}
 
-.bulk-panel{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:12px 14px;margin:0 0 17px}.bulk-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}.bulk-head small{font-size:12px}.bulk-actions{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px}.bulk-btn{min-height:42px;padding:7px 4px;font-size:12px}.bulk-help{margin:10px 0 0;font-size:11px;line-height:1.5}.field small{line-height:1.45}
-@media(max-width:700px){.bulk-actions{grid-template-columns:repeat(3,minmax(0,1fr))}.bulk-actions button:last-child{grid-column:span 2}}@media(max-width:420px){.bulk-head{display:block}.bulk-head small{display:block;margin-top:4px}.bulk-actions{grid-template-columns:repeat(2,minmax(0,1fr))}.bulk-actions button:last-child{grid-column:span 2}}
+.bulk-panel{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:8px 8px;margin:0 0 10px}.bulk-head{display:flex;align-items:center;justify-content:space-between;gap:5px;flex-wrap:wrap;margin-bottom:6px;font-size:12px}.bulk-head small{font-size:12px}.bulk-actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) minmax(0,1.3fr);gap:4px}.bulk-btn{min-height:40px;min-width:0;padding:5px 1px;font-size:clamp(9px,2.6vw,12px);white-space:nowrap}.field small{line-height:1.45}
+@media(max-width:350px){.bulk-head small{font-size:10px}.bulk-actions{gap:3px}.bulk-btn{font-size:9px}}
 
 @media (max-width:480px){.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.book{min-width:0;min-height:0;padding:10px;gap:7px}.book strong{font-size:13px;line-height:1.3;flex:0 0 auto;overflow-wrap:anywhere}.book .code,.book .mini{font-size:11px;overflow-wrap:anywhere}.book .actions{margin-top:auto;flex-wrap:nowrap;gap:5px}.book .actions button{min-width:0;padding:6px 2px;font-size:11px;min-height:38px}}
 #toast{position:fixed;bottom:calc(24px + env(safe-area-inset-bottom));left:50%;transform:translate(-50%,12px);z-index:20;max-width:calc(100vw - 28px);min-width:190px;padding:12px 18px;border:1px solid var(--line);border-radius:12px;background:var(--fg);color:var(--bg);font-weight:650;text-align:center;box-shadow:0 8px 28px #0006;opacity:0;pointer-events:none;transition:opacity .18s,transform .18s}#toast.show{opacity:1;transform:translate(-50%,0)}
 .tabs{display:flex;gap:8px;margin:0 0 16px}.tabs button{flex:1}.tracking-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:14px}.tracking-stats>div{padding:12px;background:var(--card);border-radius:10px;text-align:center}.tracking-stats strong{display:block;font-size:22px}.tracking-list{display:grid;gap:9px}.tracking-order{padding:12px;background:var(--card);border:1px solid var(--line);border-radius:12px}.tracking-order summary{cursor:pointer;font-weight:700}.tracking-order .mini{margin:7px 0 0}.tracking-status{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0}.tracking-status button{flex:1;font-size:12px;padding:7px 5px}.tracking-status button.is-active{background:var(--accent);color:var(--accent-fg)}
-.order-history{margin-top:18px;padding-top:14px;border-top:1px solid var(--line)}.history-heading{display:flex;align-items:center;justify-content:space-between;gap:8px}.history-heading h3{font-size:14px;margin:0}.history-list{display:grid;gap:7px;max-height:350px;overflow:auto}.history-row{border:1px solid var(--line);border-radius:9px;background:var(--card);padding:9px 10px}.history-row strong{font-size:12px;overflow-wrap:anywhere}.history-row .mini{font-size:11px}.history-empty{padding:12px;text-align:center;color:var(--muted);font-size:12px}
+.order-history{margin-top:16px;padding:12px;background:var(--panel);border:1px solid var(--line);border-radius:12px}.history-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;list-style:none;font-size:13px}.history-heading::before{content:'▸';color:var(--accent)}.order-history[open]>.history-heading::before{content:'▾'}.history-heading strong{flex:1}.history-tools{display:flex;gap:6px;margin-top:9px}.history-tools input{min-width:0;padding:8px;font-size:12px}.history-tools button,.history-pages button{min-height:36px;padding:6px 9px;font-size:12px}.history-pages{display:flex;justify-content:center;align-items:center;gap:8px;margin-top:6px}#history-status{margin:5px 0 0;overflow-wrap:anywhere}.history-note{white-space:pre-wrap;overflow-wrap:anywhere;color:var(--accent);font-size:12px;margin:7px 0 0}.tracking-note-card{white-space:pre-wrap;overflow-wrap:anywhere;margin:6px 0;padding:8px;background:var(--panel);border-left:3px solid var(--accent);font-size:12px}.history-list{display:grid;gap:7px;max-height:60vh;overflow:auto;margin-top:8px}.history-books{margin-top:8px;border-top:1px solid var(--line);padding-top:7px}.history-books summary{font-size:12px;color:var(--accent);cursor:pointer}.history-books ul{padding-left:18px;margin:7px 0 0}.history-books li{font-size:12px;padding:3px 0;overflow-wrap:anywhere}.history-row{border:1px solid var(--line);border-radius:9px;background:var(--card);padding:9px 10px}.history-row strong{font-size:12px;overflow-wrap:anywhere}.history-row .mini{font-size:11px}.history-empty{padding:12px;text-align:center;color:var(--muted);font-size:12px}
 .tracking-order{overflow:hidden}.tracking-order-header{display:flex;justify-content:space-between;align-items:start;gap:8px;flex-wrap:wrap}.tracking-order-title{font-size:16px;font-weight:800}.tracking-ids{font-size:11px;color:var(--muted)}.tracking-code{margin:8px 0 5px;padding:8px 10px;background:var(--panel);border:1px solid var(--line);border-radius:8px;font-size:13px;overflow-wrap:anywhere}.tracking-code b{color:var(--accent)}.tracking-summary{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:8px 0}.tracking-books{display:grid;gap:7px;margin-top:10px}.tracking-book{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:9px}.tracking-book-head{display:flex;gap:7px;align-items:start}.tracking-book-code{font-weight:800;color:var(--accent);white-space:nowrap;font-size:12px}.tracking-book-name{font-size:13px;font-weight:650;overflow-wrap:anywhere;min-width:0;flex:1}.tracking-book-meta{display:flex;align-items:center;gap:6px;margin:5px 0 0;font-size:11px;color:var(--muted)}.tracking-progress{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:8px}.tracking-progress>span{border:1px solid var(--line);border-radius:6px;padding:6px 7px;font-size:11px;text-align:center}.tracking-progress .done{color:var(--ok);border-color:var(--ok)}.tracking-empty{border:1px dashed var(--line);border-radius:10px;padding:17px;text-align:center}
 .tracking-order{padding:10px 11px}.tracking-order-header{align-items:center;gap:6px}.tracking-head-actions{display:flex;align-items:center;gap:8px}.tracking-expand{display:grid;place-items:center;min-width:38px;width:38px;height:38px;min-height:38px;padding:0;border:1px solid var(--line);border-radius:9px;background:var(--panel);color:var(--fg);font-size:23px;line-height:1;cursor:pointer}.tracking-expand[aria-expanded="true"]{border-color:var(--accent);color:var(--accent)}.tracking-order-title{font-size:14px}.tracking-code{margin:6px 0 4px;padding:6px 8px;font-size:12px}.tracking-summary{gap:5px 12px;margin:6px 0 0;font-size:11px}.tracking-books{margin-top:10px}.tracking-books[hidden]{display:none!important}.tracking-book{padding:7px 8px}.tracking-book-head{display:flex;flex-wrap:wrap;align-items:center;gap:5px}.tracking-book-name{flex:1 1 125px;font-size:12px}.tracking-inline-progress{display:flex;gap:4px;align-items:center;margin-left:auto;flex-wrap:wrap}.tracking-inline-progress span{font-size:10px;padding:3px 5px;border:1px solid var(--line);border-radius:5px;white-space:nowrap}.tracking-inline-progress .done{border-color:var(--ok);color:var(--ok)}.tracking-book-meta{margin:3px 0 0;font-size:10px}
 :focus-visible{outline:3px solid var(--accent);outline-offset:2px}
@@ -19,7 +19,7 @@
 <header><div><h1>ALFA <span style="color:var(--accent)">ERP</span></h1><small>Mobil sipariş kataloğu · Firebase</small></div><div class="mobile-tools"><button class="quiet" id="theme" title="Tema değiştir">◐</button><button class="quiet hide" id="logout">Çıkış</button></div></header>
 <div id="toast" role="status" aria-live="polite"></div><div class="container"><div id="message" role="status" aria-live="polite" class="banner hide"></div>
 <section id="login-screen" class="panel auth hide"><h2>Buluta giriş</h2><p class="muted">Yalnızca ALFA ERP çalışma alanına yetkili kullanıcılar sipariş oluşturabilir.</p><form id="login-form"><div class="field"><label>E-posta</label><input id="email" type="email" autocomplete="username" required></div><div class="field"><label>Parola</label><input id="password" type="password" autocomplete="current-password" minlength="8" required></div><div class="actions"><button class="primary" type="submit">Giriş Yap</button></div></form><p class="foot">Doğrulanmış ALFA ERP kullanıcı hesabınla giriş yap. Şifreler bu sayfada saklanmaz.</p></section>
-<nav class="tabs" aria-label="Mobil bölümler"><button id="tab-catalog" class="primary" type="button">Kitap kataloğu</button><button id="tab-tracking" class="secondary" type="button">Sipariş takip</button></nav><section id="tracking-screen" class="hide"><h2>Sipariş Takip</h2><p class="muted mini" id="tracking-note">Bu ekran yalnızca Firebase'de yetkilendirilmiş cihazlara açıktır.</p><div id="tracking-setup" class="panel"><p>Bu telefonda siparişleri görmek için cihazını ALFA ERP yönetici panelinden yetkilendirmen gerekir. Yetki verildikten sonra bu tarayıcıda oturum hatırlanır.</p><button class="primary" id="tracking-connect" type="button">Cihaz bağlantısını başlat</button><p class="mini muted" id="tracking-device"></p></div><div id="tracking-content" class="hide"><div class="tracking-stats" id="tracking-stats"></div><div class="tracking-status"><button class="secondary is-active" data-status="aktif">Aktif</button><button class="secondary" data-status="havuz">Havuz</button><button class="secondary" data-status="tamamlandi">Tamamlanan</button></div><div class="tracking-list" id="tracking-list"></div></div></section><section id="main-screen"><div class="main-grid"><section><h2 class="section-title">Kitap kataloğu <span class="mini muted" id="book-count"></span></h2><div class="search-bar"><input id="filter" type="search" placeholder="Kod, kitap, seri veya alt grup ara (ÇTS Klinik)..."></div><div class="bulk-panel"><div class="bulk-head"><strong>Filtredeki kitapları toplu ekle</strong><small class="muted" id="bulk-info">Önce kitap ara</small></div><div class="bulk-actions"><button class="bulk-btn secondary" type="button" data-kind="SB" data-delta="1">+ SB</button><button class="bulk-btn secondary" type="button" data-kind="SB" data-delta="-1">− SB</button><button class="bulk-btn primary" type="button" data-kind="RNK" data-delta="1">+ RNK</button><button class="bulk-btn secondary" type="button" data-kind="RNK" data-delta="-1">− RNK</button><button class="bulk-btn secondary" type="button" data-kind="BOTH" data-delta="1">+ SB &amp; RNK</button></div><p class="bulk-help muted">Aramana uyan <b>tüm kitaplara</b> uygulanır; yalnızca ekranda görünen kartlarla sınırlı değildir. RNK uygun olmayan kitaplar atlanır.</p></div><div id="books" class="grid"></div></section><aside class="panel cart"><h2>Yeni sipariş</h2><p class="muted mini">Seçtiğin kitapları SB veya RNK baskı olarak sepete ekle.</p><div id="cart-items"></div><p class="total" id="cart-count">0 adet</p><form id="order-form"><div class="field"><label>Kargo kodu / açık adres</label><input id="shipping" type="text" inputmode="text" autocomplete="off" spellcheck="false" required maxlength="500" placeholder="123 456 789 veya açık adres"><small class="muted mini">Sayısal kodlar platforma göre otomatik gruplandırılır. Tekrar girilen kodlar bu cihazda engellenir.</small></div><div class="field"><label>Sipariş türü</label><select id="order-type"><option value="">Normal</option><option value="Telafi">Telafi</option><option value="Açık Adres">Açık Adres</option></select></div><div class="field"><label>Ciro (₺)</label><input id="amount" type="number" min="0" max="999999999" step="0.01" value="0" required></div><div class="field"><label for="order-note">Sipariş notu (isteğe bağlı)</label><textarea id="order-note" maxlength="2000" rows="3" placeholder="Baskı veya hazırlama için personel notu"></textarea><small class="muted mini" id="order-note-status">Not, siparişle birlikte masaüstüne iletilir. Yeni not için inceleme uyarısı oluşturulur.</small></div><button class="primary" type="submit" style="width:100%">Siparişi Havuz'a Gönder</button></form><p class="foot">Siparişleri merkezi havuza iletir. Gönderim sırasında bağlantı koparsa aynı işlem kimliğiyle tekrar dener.</p><section class="order-history" aria-label="Bu cihazın sipariş geçmişi"><div class="history-heading"><h3>Bu telefondaki geçmiş</h3><span class="mini muted" id="history-count"></span></div><p class="mini muted">Başarıyla gönderdiğin siparişler burada saklanır. Aynı kargo koduyla tekrar gönderim engellenir.</p><div id="history-list" class="history-list"></div></section></aside></div></section></div>
+<nav class="tabs" aria-label="Mobil bölümler"><button id="tab-catalog" class="primary" type="button">Kitap kataloğu</button><button id="tab-tracking" class="secondary" type="button">Sipariş takip</button></nav><section id="tracking-screen" class="hide"><h2>Sipariş Takip</h2><details class="order-history" id="order-history" aria-label="Bu cihazın sipariş geçmişi"><summary class="history-heading"><strong>Bu telefondaki geçmiş</strong><span class="mini muted" id="history-count"></span></summary><div class="history-tools"><input type="search" id="history-search" placeholder="Geçmişte kod veya sipariş no ara" aria-label="Geçmişte ara"><button class="secondary" id="history-refresh" type="button">Yenile</button></div><p class="mini muted" id="history-status" aria-live="polite"></p><div id="history-list" class="history-list"></div><div class="history-pages"><button class="secondary hide" id="history-prev" type="button">‹ Önceki</button><span class="mini muted" id="history-page"></span><button class="secondary hide" id="history-more" type="button">Sonraki ›</button></div></details><p class="muted mini" id="tracking-note">Canlı takip yalnızca Firebase'de yetkilendirilmiş cihazlara açıktır. Telefon geçmişi yerel olarak korunur.</p><div id="tracking-setup" class="panel"><p>Bu telefonda siparişleri görmek için cihazını ALFA ERP yönetici panelinden yetkilendirmen gerekir. Yetki verildikten sonra bu tarayıcıda oturum hatırlanır.</p><button class="primary" id="tracking-connect" type="button">Cihaz bağlantısını başlat</button><p class="mini muted" id="tracking-device"></p></div><div id="tracking-content" class="hide"><div class="tracking-stats" id="tracking-stats"></div><div class="tracking-status"><button class="secondary is-active" data-status="aktif">Aktif</button><button class="secondary" data-status="havuz">Havuz</button><button class="secondary" data-status="tamamlandi">Tamamlanan</button></div><div class="tracking-list" id="tracking-list"></div></div></section><section id="main-screen"><div class="main-grid"><section><h2 class="section-title">Kitap kataloğu <span class="mini muted" id="book-count"></span></h2><div class="search-bar"><input id="filter" type="search" placeholder="Kod, kitap, seri veya alt grup ara (ÇTS Klinik)..."></div><div class="bulk-panel"><div class="bulk-head"><strong>Filtredeki kitapları toplu ekle</strong><small class="muted" id="bulk-info">Önce kitap ara</small></div><div class="bulk-actions"><button class="bulk-btn secondary" type="button" data-kind="SB" data-delta="1">+ SB</button><button class="bulk-btn secondary" type="button" data-kind="SB" data-delta="-1">− SB</button><button class="bulk-btn primary" type="button" data-kind="RNK" data-delta="1">+ RNK</button><button class="bulk-btn secondary" type="button" data-kind="RNK" data-delta="-1">− RNK</button><button class="bulk-btn secondary" type="button" data-kind="BOTH" data-delta="1" aria-label="Siyah beyaz ve renkli toplu ekle" title="SB ve RNK toplu ekle">+ İkisi</button></div></div><div id="books" class="grid"></div></section><aside class="panel cart"><h2>Yeni sipariş</h2><p class="muted mini">Seçtiğin kitapları SB veya RNK baskı olarak sepete ekle.</p><div id="cart-items"></div><p class="total" id="cart-count">0 adet</p><form id="order-form"><div class="field"><label>Kargo kodu / açık adres</label><input id="shipping" type="text" inputmode="text" autocomplete="off" spellcheck="false" required maxlength="500" placeholder="123 456 789 veya açık adres"><small class="muted mini">Sayısal kodlar platforma göre otomatik gruplandırılır. Tekrar girilen kodlar bu cihazda engellenir.</small></div><div class="field"><label>Sipariş türü</label><select id="order-type"><option value="">Normal</option><option value="Telafi">Telafi</option><option value="Açık Adres">Açık Adres</option></select></div><div class="field"><label>Ciro (₺)</label><input id="amount" type="number" min="0" max="999999999" step="0.01" value="0" required></div><div class="field"><label for="order-note">Sipariş notu (isteğe bağlı)</label><textarea id="order-note" maxlength="2000" rows="3" placeholder="Baskı veya hazırlama için personel notu"></textarea><small class="muted mini" id="order-note-status">Not, siparişle birlikte masaüstüne iletilir. Yeni not için inceleme uyarısı oluşturulur.</small></div><button class="primary" type="submit" style="width:100%">Siparişi Havuz'a Gönder</button></form><p class="foot">Siparişleri merkezi havuza iletir. Gönderim sırasında bağlantı koparsa aynı işlem kimliğiyle tekrar dener.</p></aside></div></section></div>
 <script type="module">
 'use strict';
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
@@ -36,12 +36,17 @@ const firebaseConfig = {
 };
 const workspaceId="e2fc57b1-ef52-47b2-a6c9-ecd2e3832756";
 const app=initializeApp(firebaseConfig), auth=getAuth(app), realtime=getDatabase(app);
-let workspace=null,books=[],cart=new Map(),requestId=crypto.randomUUID(),busy=false;
+let workspace=null,books=[],cart=new Map(),busy=false;
 const $=s=>document.querySelector(s);
 let visibleBooks=[];
 // Firebase'deki gerçek sipariş şeması: orders/{uuid}, items/{itemId}.
-let trackingStatus='aktif',trackingStarted=false,trackingDay='',trackingUnsubscribers=[];
+let trackingStatus='aktif',trackingStarted=false,trackingDay='',trackingUnsubscribers=[],trackingGeneration=0;
 const trackingExpanded=new Set();
+let mobileAuthPromise=null;
+async function mobileUser(){
+ if(!mobileAuthPromise)mobileAuthPromise=(async()=>{await auth.authStateReady();return auth.currentUser||(await signInAnonymously(auth)).user;})().finally(()=>{mobileAuthPromise=null;});
+ return mobileAuthPromise;
+}
 const trackingBuckets={aktif:[],havuz:[],tamamlandi:[]};
 function trackingText(value){$('#tracking-note').textContent=value;}
 function trackingToday(){return new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Istanbul',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());}
@@ -49,7 +54,7 @@ function trackingDate(value){if(!value)return '';const d=new Date(value);return 
 function trackingTime(value){if(!value)return '';const d=new Date(value);return Number.isNaN(d.getTime())?'':new Intl.DateTimeFormat('tr-TR',{timeZone:'Europe/Istanbul',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).format(d);}
 function trackingItems(order){const values=order.items&&typeof order.items==='object'?Object.values(order.items):[];return values.filter(x=>x&&typeof x==='object');}
 function trackingCounts(items){return items.reduce((acc,item)=>{acc.qty+=Number(item.quantity)||0;acc.ready+=Number(item.prepared_count)||0;acc.boxed+=Number(item.boxed_count)||0;return acc;},{qty:0,ready:0,boxed:0});}
-function trackingStop(){for(const stop of trackingUnsubscribers)stop();trackingUnsubscribers=[];trackingStarted=false;}
+function trackingStop(){trackingGeneration++;for(const stop of trackingUnsubscribers)stop();trackingUnsubscribers=[];trackingStarted=false;}
 function trackingOrdersFor(status){return trackingBuckets[status].filter(o=>o.status===status&&!o.deleted_at&&(status!=='tamamlandi'||trackingDate(o.completed_at)===trackingToday()));}
 function trackingLabel(parent,tag,css,text){const el=document.createElement(tag);if(css)el.className=css;el.textContent=text;parent.append(el);return el;}
 function trackingRender(){
@@ -84,6 +89,8 @@ function trackingRender(){
   trackingLabel(code,'b','','Kargo / sipariş kodu: ');
   trackingLabel(code,'span','',String(order.shipping_reference||'Kayıtlı kod yok'));
   const items=trackingItems(order),t=trackingCounts(items);
+  const orderNote=typeof order.order_note==='string'?order.order_note.trim():'';
+  if(orderNote)trackingLabel(headActions,'span','tag','NOT');
   const summary=trackingLabel(card,'div','tracking-summary','');
   trackingLabel(summary,'span','',items.length+' çeşit · '+t.qty+' kitap');
   trackingLabel(summary,'span','','Hazır '+t.ready+'/'+t.qty);
@@ -93,6 +100,7 @@ function trackingRender(){
   const itemlist=trackingLabel(card,'div','tracking-books','');
   const itemlistId='tracking-books-'+trackingKey.replace(/[^a-zA-Z0-9_-]/g,'');
   itemlist.id=itemlistId;itemlist.hidden=!initiallyExpanded;
+  if(orderNote)trackingLabel(itemlist,'div','tracking-note-card','Not: '+orderNote);
   expandButton.setAttribute('aria-controls',itemlistId);
   expandButton.setAttribute('aria-label',initiallyExpanded?'Sipariş kitaplarını gizle':'Sipariş kitaplarını göster');
   expandButton.addEventListener('click',()=>{
@@ -123,11 +131,13 @@ function trackingRender(){
  if(trackingOrdersFor(trackingStatus).length>100)trackingLabel(list,'p','muted mini','İlk 100 sipariş gösteriliyor.');
 }
 async function trackingConnect(){
+ const generation=++trackingGeneration;
  trackingText('Cihaz oturumu kontrol ediliyor...');
  try{
-  const user=auth.currentUser||(await signInAnonymously(auth)).user,uid=user.uid;
+  const user=await mobileUser(),uid=user.uid;
   $('#tracking-device').textContent='Cihaz kimliği: '+uid;
   const member=await get(ref(realtime,'alfa/'+workspaceId+'/members/'+uid));
+  if(generation!==trackingGeneration||document.hidden||$('#tracking-screen').classList.contains('hide'))return;
   if(!member.exists()||member.val().active!==true){
    const requestRef=ref(realtime,'alfa/'+workspaceId+'/device_requests/'+uid);
    const existing=await get(requestRef);
@@ -135,7 +145,7 @@ async function trackingConnect(){
    trackingText('Cihaz yetkilendirme isteği oluşturuldu. Yönetici onayından sonra tekrar Bağlantıyı başlat düğmesine dokun.');
    return;
   }
-  trackingStop();
+  for(const stop of trackingUnsubscribers)stop();trackingUnsubscribers=[];
   trackingStarted=true;trackingDay=trackingToday();
   const base=ref(realtime,'alfa/'+workspaceId+'/orders');
   const queries={
@@ -145,19 +155,22 @@ async function trackingConnect(){
    tamamlandi:query(base,orderByChild('completed_at'),startAt(new Date(trackingDay+'T00:00:00+03:00').toISOString()))
   };
   $('#tracking-setup').classList.add('hide');$('#tracking-content').classList.remove('hide');
+  if($('#order-history').open)historyRefresh();
   trackingText('Canlı siparişler · Tamamlananlarda yalnızca bugün · Salt okunur');
   for(const [status,request] of Object.entries(queries)){
    trackingBuckets[status]=[];
    const unsub=onValue(request,snapshot=>{
+    if(generation!==trackingGeneration)return;
     trackingBuckets[status]=Object.entries(snapshot.val()||{}).filter(([,o])=>o&&typeof o==='object').map(([id,o])=>({...o,_firebaseId:id}));
     trackingRender();
    },err=>{
+    if(generation!==trackingGeneration)return;
     trackingText('Sipariş erişimi engellendi: '+err.message);
     trackingStop();$('#tracking-content').classList.add('hide');$('#tracking-setup').classList.remove('hide');
    });
    trackingUnsubscribers.push(unsub);
   }
- }catch(err){trackingText('Bağlantı kurulamadı: '+err.message);trackingStarted=false;}
+ }catch(err){if(generation===trackingGeneration){trackingText('Bağlantı kurulamadı: '+err.message);trackingStarted=false;}}
 }
 $('#tab-catalog').addEventListener('click',()=>{
  trackingStop();$('#main-screen').classList.remove('hide');$('#tracking-screen').classList.add('hide');
@@ -193,6 +206,7 @@ onValue(catalogRef, snapshot=>{
  }
  render();
  if(trackingStarted)trackingRender();
+ if($('#order-history').open)historyRender();
  if(!books.length)msg("Firebase kataloğu henüz aktarılmadı.");
  else msg("");
 },error=>msg("Firebase katalog bağlantısı: "+error.message));
@@ -226,46 +240,162 @@ const ORDER_NOTE_DRAFT_KEY='alfa-mobile-order-note-draft-v1';
 const noteField=$('#order-note');
 try{noteField.value=localStorage.getItem(ORDER_NOTE_DRAFT_KEY)||'';}catch{}
 noteField.addEventListener('input',()=>{try{localStorage.setItem(ORDER_NOTE_DRAFT_KEY,noteField.value)}catch{}});
+const PENDING_KEY='alfa-mobile-pending-checkout-v1',HISTORY_PAGE=20;
+const historyExpanded=new Set(),historyCloud=new Map();
+let historyPage=0,historyRefreshing=false,historyAgain=false;
 function readHistory(){try{const value=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');return Array.isArray(value)?value.filter(x=>x&&typeof x==='object'&&typeof x.key==='string').slice(0,HISTORY_LIMIT):[];}catch{return []}}
-function writeHistory(rows){try{localStorage.setItem(HISTORY_KEY,JSON.stringify(rows.slice(0,HISTORY_LIMIT)));return true}catch{return false}}
+function writeHistory(rows){
+ try{localStorage.setItem(HISTORY_KEY,JSON.stringify(rows.slice(0,HISTORY_LIMIT)));return true}catch{return false}
+}
+function mergeHistory(stored,updated){
+ const byKey=new Map();
+ for(const row of [...stored,...updated]){
+  if(!row||typeof row.key!=='string')continue;
+  const old=byKey.get(row.key);
+  if(!old||old.requestId===row.requestId)byKey.set(row.key,{...old,...row});
+  else if((Date.parse(row.at)||0)>=(Date.parse(old.at)||0))byKey.set(row.key,row);
+ }
+ return [...byKey.values()].sort((a,b)=>(Date.parse(b.at)||0)-(Date.parse(a.at)||0)).slice(0,HISTORY_LIMIT);
+}
+function withDeviceLock(task){
+ return typeof navigator!=='undefined'&&navigator.locks?.request?navigator.locks.request('alfa-mobile-checkout-v1',task):task();
+}
 let localHistory=readHistory();
-function recordedOrder(shipping){const key=shippingKey(shipping);return key?localHistory.find(row=>row.key===key):null;}
+function readPending(){try{const p=JSON.parse(localStorage.getItem(PENDING_KEY)||'{}');return p&&typeof p==='object'&&!Array.isArray(p)?p:{};}catch{return {}}}
+function persistPending(p){localStorage.setItem(PENDING_KEY,JSON.stringify(p));}
+function recordedOrder(shipping){const key=shippingKey(shipping);return key?localHistory.find(row=>row.key===key)||readHistory().find(row=>row.key===key):null;}
 function historyAdd(record){
- localHistory=[record,...localHistory.filter(row=>row.key!==record.key)].slice(0,HISTORY_LIMIT);
+ localHistory=mergeHistory(readHistory(),[...localHistory,record]);
  const saved=writeHistory(localHistory);historyRender();return saved;
 }
+function requestKey(row){return String(row.requestId||'');}
+function historyFiltered(){
+ const q=normalizeTr($('#history-search').value).replace(/\s+/g,'');
+ return localHistory.filter(row=>!q||normalizeTr([row.shipping,row.requestId,row.orderNumber].filter(Boolean).join(' ')).replace(/\s+/g,'').includes(q));
+}
+function historySelection(){const rows=historyFiltered();historyPage=Math.max(0,Math.min(historyPage,Math.ceil(rows.length/HISTORY_PAGE)-1));return rows.slice(historyPage*HISTORY_PAGE,(historyPage+1)*HISTORY_PAGE);}
 function historyRender(){
  const list=$('#history-list');list.replaceChildren();
  $('#history-count').textContent=localHistory.length+' kayıt';
- if(!localHistory.length){const el=document.createElement('p');el.className='history-empty';el.textContent='Bu cihazdan henüz sipariş gönderilmedi.';list.append(el);return;}
- for(const row of localHistory.slice(0,50)){
-  const card=document.createElement('article');card.className='history-row';
-  const title=document.createElement('strong');title.textContent=row.shipping||'Kargo kodu bulunamadı';card.append(title);
-  const detail=document.createElement('div');detail.className='mini muted';
-  const date=new Date(row.at);const dateStr=Number.isFinite(date.getTime())?date.toLocaleString('tr-TR'):'';
-  detail.textContent=[dateStr,row.platform,row.count+' kitap','İstek '+String(row.requestId||'').slice(0,8).toUpperCase()].filter(Boolean).join(' · ');
-  card.append(detail);list.append(card);
+ const rows=historySelection(),total=historyFiltered().length,pages=Math.ceil(total/HISTORY_PAGE);
+ $('#history-prev').classList.toggle('hide',historyPage<=0);$('#history-more').classList.toggle('hide',historyPage+1>=pages);
+ $('#history-page').textContent=pages>1?(historyPage+1)+' / '+pages:'';
+ if(!rows.length){list.append(node('p','history-empty',localHistory.length?'Eşleşen geçmiş kaydı yok.':'Bu cihazdan henüz sipariş gönderilmedi.'));return;}
+ const catalog=new Map(books.map(b=>[String(b.code),b]));
+ for(const row of rows){
+  const key=requestKey(row),card=node('article','history-row'),cloud=historyCloud.get(key);
+  card.append(node('strong','',row.shipping||'Kargo kodu bulunamadı'));
+  const date=new Date(row.at),dateStr=Number.isFinite(date.getTime())?date.toLocaleString('tr-TR'):'';
+  card.append(node('div','mini muted',[dateStr,row.platform,Number(row.count||0)+' kitap',row.orderNumber?'Sipariş #'+row.orderNumber:'Sipariş no henüz doğrulanmadı','Talep '+key.slice(0,8).toUpperCase()].filter(Boolean).join(' · ')));
+  const lines=Array.isArray(row.books)?row.books:[],expand=node('details','history-books');
+  expand.open=historyExpanded.has(key);
+  expand.append(node('summary','',lines.length?'Kitapları göster ('+lines.length+' kalem)':'Kitapları / notu göster'));
+  if(lines.length){
+   const ul=node('ul','');
+   for(const b of lines)ul.append(node('li','',(b.name||catalog.get(String(b.code))?.name||'Kitap adı kayıtlı değil')+' · #'+b.code+' · '+b.kind+' × '+b.qty));
+   expand.append(ul);
+  }else expand.append(node('p','mini muted',cloud?.missingCheckout?'Eski talep bu oturumdan okunamıyor; kitap listesi doğrulanamadı.':'Eski kayıt: detaylar yenilenerek Firebase talebinden alınabilir.'));
+  if(row.orderNote)expand.append(node('p','history-note','Gönderilen not: '+row.orderNote));
+  if(cloud?.noteState)expand.append(node('p','mini muted',cloud.noteState));
+  if(cloud?.otherSession)expand.append(node('p','mini muted','Bu kayıt farklı bir cihaz oturumuna ait; bulut bilgileri doğrulanamıyor.'));
+  expand.addEventListener('toggle',()=>{if(expand.open)historyExpanded.add(key);else historyExpanded.delete(key);});
+  card.append(expand);list.append(card);
  }
- if(localHistory.length>50){const more=document.createElement('p');more.className='mini muted';more.textContent='Son 50 kayıt gösteriliyor; toplam '+localHistory.length+' kayıt saklandı.';list.append(more);}
 }
+function checkoutLines(entry){
+ return Object.values(entry.items||{}).filter(x=>x&&typeof x==='object').map(x=>({code:String(x.code||''),kind:String(x.print_type||''),qty:Number(x.quantity)||0})).filter(x=>x.code&&x.qty>0);
+}
+function sameCheckout(entry,body){
+ const canonical=x=>checkoutLines(x).map(v=>[v.code,v.kind,v.qty]).sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b)));
+ return !!entry&&entry.uid===body.uid&&entry.request_id===body.request_id&&shippingKey(entry.shipping_reference)===shippingKey(body.shipping_reference)&&entry.platform===body.platform&&String(entry.order_type||'')===String(body.order_type||'')&&Number(entry.gross_amount)===Number(body.gross_amount)&&String(entry.order_note||'')===String(body.order_note||'')&&JSON.stringify(canonical(entry))===JSON.stringify(canonical(body));
+}
+async function checkoutOrderId(uid,id){
+ const ns=Uint8Array.from(workspaceId.replace(/-/g,'').match(/../g).map(x=>parseInt(x,16))),name=new TextEncoder().encode('checkout:'+uid+':'+id),input=new Uint8Array(ns.length+name.length);
+ input.set(ns);input.set(name,ns.length);
+ const digest=new Uint8Array(await crypto.subtle.digest('SHA-1',input)).slice(0,16);
+ digest[6]=(digest[6]&15)|80;digest[8]=(digest[8]&63)|128;
+ const hex=Array.from(digest,b=>b.toString(16).padStart(2,'0')).join('');
+ return [hex.slice(0,8),hex.slice(8,12),hex.slice(12,16),hex.slice(16,20),hex.slice(20)].join('-');
+}
+async function hydrateHistoryRow(row,user,canReadOrders){
+ const id=requestKey(row);if(!/^[0-9a-f-]{36}$/.test(id))return;
+ const state={checkedAt:Date.now(),authorized:canReadOrders};historyCloud.set(id,state);
+ if(row.uid&&row.uid!==user.uid){state.otherSession=true;return;}
+ const root='alfa/'+workspaceId;
+ let entry=null;
+ try{
+  const snap=await get(ref(realtime,root+'/checkout/'+user.uid+'/'+id));
+  if(snap.exists()){
+   const candidate=snap.val();
+   if(candidate.uid===user.uid&&candidate.request_id===id&&shippingKey(candidate.shipping_reference)===row.key)entry=candidate;
+  }
+ }catch{}
+ if(entry){
+  const catalog=new Map(books.map(b=>[String(b.code),b])),old=new Map((row.books||[]).map(b=>[b.code+':'+b.kind,b]));
+  row.uid=user.uid;
+  row.books=checkoutLines(entry).map(b=>{const previous=old.get(b.code+':'+b.kind);return {...b,name:previous?.name||catalog.get(b.code)?.name||'',nameSource:previous?.nameSource||(previous?.name?'local':'catalog')};});
+  row.count=row.books.reduce((n,b)=>n+b.qty,0);
+  const sourceNote=String(entry.order_note||'');
+  if(row.orderNote&&sourceNote!==row.orderNote){state.noteMismatch=true;state.noteState='Yerel not ve Firebase talebindeki not farklı. Yerel kopya korunuyor.';}
+  else{row.orderNote=sourceNote;if(sourceNote)state.noteState='Not Firebase talebinde kayıtlı.';}
+ }else state.missingCheckout=true;
+ if(!canReadOrders)return;
+ try{
+  const oid=await checkoutOrderId(user.uid,id),snap=await get(ref(realtime,root+'/orders/'+oid));
+  if(!snap.exists()){
+   if(entry&&row.orderNote&&!state.noteMismatch)state.noteState='Not Firebase talebinde mevcut; siparişin havuza aktarımı henüz doğrulanmadı.';
+   return;
+  }
+  const order=snap.val();
+  if(order.client_request_id!==id)return;
+  if(Number(order.order_number)>0)row.orderNumber=Number(order.order_number);
+  const cloudItems=new Map(trackingItems(order).map(x=>[String(x.book_code)+':'+x.print_type,String(x.book_name_snapshot||'')]));
+  if(Array.isArray(row.books))for(const b of row.books){const historical=cloudItems.get(b.code+':'+b.kind);if(historical&&(!b.name||b.nameSource==='catalog')){b.name=historical;b.nameSource='order';}}
+  if(entry&&row.orderNote&&!state.noteMismatch)state.noteState=String(order.order_note||'').trim()===row.orderNote.trim()?'Not ERP siparişinde de doğrulandı.':'Not talepte kayıtlı, ancak ERP siparişindeki not farklı veya eksik. ERP tarafında inceleme gerekli.';
+  else if(!entry&&row.orderNote)state.noteState='Notun yerel kopyası var; Firebase talebi bu oturumdan doğrulanamadı.';
+ }catch{if(entry&&row.orderNote&&!state.noteMismatch)state.noteState='Not talepte kayıtlı; ERP siparişini doğrulamak için yetki/bağlantı gerekli.';}
+}
+async function historyRefresh(force=false){
+ if(!$('#order-history').open)return;
+ if(historyRefreshing){historyAgain=true;return;}
+ historyRefreshing=true;$('#history-refresh').disabled=true;$('#history-status').textContent='Kayıtlar doğrulanıyor…';
+ try{
+  const user=await mobileUser(),member=await get(ref(realtime,'alfa/'+workspaceId+'/members/'+user.uid)).catch(()=>null);
+  const authorized=member?.exists()&&member.val().active===true;
+  const rows=historySelection().filter(row=>{const cached=historyCloud.get(requestKey(row));return force||!cached||cached.authorized!==authorized||Date.now()-cached.checkedAt>60000;});
+  for(let i=0;i<rows.length;i+=3){if(!$('#order-history').open||document.hidden||$('#tracking-screen').classList.contains('hide'))break;await Promise.all(rows.slice(i,i+3).map(row=>hydrateHistoryRow(row,user,authorized)));}
+  const saved=await withDeviceLock(()=>{localHistory=mergeHistory(readHistory(),localHistory);return writeHistory(localHistory);});
+  $('#history-status').textContent=saved?'Görünen kayıtlar güncellendi.':'Bilgiler okundu ancak telefon hafızasına yazılamadı.';
+ }catch(err){$('#history-status').textContent='Geçmiş doğrulanamadı: '+err.message;}
+ finally{historyRefreshing=false;$('#history-refresh').disabled=false;historyRender();if(historyAgain){historyAgain=false;historyRefresh();}}
+}
+$('#order-history').addEventListener('toggle',()=>{if($('#order-history').open){historyRender();historyRefresh();}});
+$('#history-refresh').addEventListener('click',()=>historyRefresh(true));
+$('#history-search').addEventListener('input',()=>{historyPage=0;historyRender();});
+window.addEventListener('storage',event=>{if(event.key===HISTORY_KEY){localHistory=mergeHistory(readHistory(),localHistory);historyRender();}});
+$('#history-prev').addEventListener('click',()=>{historyPage=Math.max(0,historyPage-1);historyRender();historyRefresh();});
+$('#history-more').addEventListener('click',()=>{historyPage++;historyRender();historyRefresh();});
 historyRender();
-$('#order-form').addEventListener('change',()=>{if(!busy)requestId=crypto.randomUUID()});
-$('#order-form').addEventListener('input',event=>{if(!busy&&event.target.id!=='shipping')requestId=crypto.randomUUID()});
-$('#shipping').addEventListener('input',()=>{if(!busy)requestId=crypto.randomUUID()});
 function normalizeTr(value){return String(value??'').replace(/İ/g,'i').replace(/I/g,'i').replace(/ı/g,'i').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('tr').replace(/[^a-z0-9]+/g,' ').trim()}
-function getFiltered(){const query=normalizeTr($('#filter').value),words=query.split(' ').filter(Boolean);return books.filter(book=>{
- if(!words.length)return true;
- const name=normalizeTr(book.name),series=normalizeTr(book.group_name),code=String(book.code??'').trim();
- // A code only matches when the complete search is an exact code or an explicit #code.
- if((/^#?\\d+$/.test($('#filter').value.trim()))&&query===code)return true;
- // Match words against name/group, not numeric substrings of the internal ID.
- const haystack=name+' '+series;
- return words.every(word=>haystack.split(' ').some(token=>token===word||(!/^\\d+$/.test(word)&&token.startsWith(word))));});}
+function catalogMatches(book,raw){
+ const q=normalizeTr(raw);if(!q)return !String(raw||'').trim();
+ const code=String(book.code??'').trim(),description=normalizeTr([book.name,book.group_name,book.group_clean,book.subgroup].filter(Boolean).join(' '));
+ const tokens=v=>(v.replace(/\b(tus|dus)\s+data\b/g,'$1data').match(/[a-z]+|[0-9]+/g)||[]);
+ const terms=tokens(q),numbers=terms.filter(t=>/^\d+$/.test(t)),letters=terms.filter(t=>!(/^\d+$/.test(t)));
+ if(!terms.length)return false;
+ if(!numbers.length)return q.split(' ').every(word=>(code+' '+description).includes(word));
+ const words=tokens(description),seriesNumbers=new Set(words.filter(t=>/^\d+$/.test(t)).map(t=>String(Number(t))));
+ if(!letters.length&&numbers.length===1&&/^\d+$/.test(code)&&Number(code)===Number(numbers[0]))return true;
+ if(!numbers.every(t=>seriesNumbers.has(String(Number(t)))))return false;
+ const wordSet=new Set(words.filter(t=>!(/^\d+$/.test(t)))),aliases={tus:'tusdata',dus:'dusdata'};
+ return letters.every(t=>aliases[t]?wordSet.has(aliases[t]):[...wordSet].some(w=>w.startsWith(t)));
+}
+function getFiltered(){return books.filter(book=>catalogMatches(book,$('#filter').value));}
 function canBulk(){return Boolean($('#filter').value.trim());}
 function syncBulkControls(){const ok=canBulk()&&visibleBooks.length>0;document.querySelectorAll('.bulk-btn').forEach(btn=>btn.disabled=!ok);
  $('#bulk-info').textContent=ok?visibleBooks.length+' kitap hedefte (tamamı)': 'Önce kitap ara';
 }
-function bulkAction(kind,delta){if(!canBulk())return msg('Yanlışlıkla tüm kataloğu eklememek için önce kitap ara.');
+function bulkAction(kind,delta){if(busy)return;if(!canBulk())return msg('Yanlışlıkla tüm kataloğu eklememek için önce kitap ara.');
  const targets=getFiltered();if(!targets.length)return msg('Filtrede hiç kitap bulunamadı.');
  if(targets.length>=20&&!window.confirm(targets.length+' kitap için toplu '+(delta>0?'ekleme':'çıkarma')+' yapılsın mı?'))return;
  const nextCart=new Map(cart);let changed=0,skipped=0;
@@ -275,7 +405,7 @@ function bulkAction(kind,delta){if(!canBulk())return msg('Yanlışlıkla tüm ka
   if(next===0)nextCart.delete(key);else nextCart.set(key,{book,kind:k,qty:next});changed++;}}
  if(nextCart.size>MAX_CART_LINES)return msg('Sepette en fazla '+MAX_CART_LINES+' farklı kitap/baskı satırı olabilir. Aramayı daralt veya sepeti azalt.');
  if(changed===0){showToast('Değişiklik yok'+(skipped?' · '+skipped+' RNK atlandı':''));return;}
- cart=nextCart;requestId=crypto.randomUUID();renderCart();
+ cart=nextCart;renderCart();
  showToast(changed+' kitap/baskı '+(delta>0?'eklendi':'çıkarıldı')+(skipped?' · '+skipped+' RNK atlandı':''));}
 document.querySelectorAll('.bulk-btn').forEach(btn=>btn.addEventListener('click',()=>bulkAction(btn.dataset.kind,Number(btn.dataset.delta))));
 function node(tag,cls,content){const e=document.createElement(tag);if(cls)e.className=cls;if(content!==undefined)e.textContent=content;return e;}
@@ -284,52 +414,51 @@ function render(){visibleBooks=getFiltered();const filtered=visibleBooks;
  const items=filtered.slice(0,180).map(b=>{const c=node('article','book');c.append(node('span','code','#'+b.code+' · '+b.page_count+' sayfa'),node('strong','',b.name),node('span','mini muted',b.group_name));
  const r=node('div','actions');for(const kind of ['SB','RNK']){const btn=node('button',kind==='SB'?'secondary':'primary','+ '+kind);btn.disabled=kind==='RNK'&&!b.supports_color;btn.title=btn.disabled?'Bu kitapta renkli seçenek yok':'Sepete ekle';btn.addEventListener('click',()=>addBook(b,kind,1));r.append(btn)}c.append(r);return c;});
  $('#books').replaceChildren(...items);if(filtered.length>180)$('#books').append(node('p','muted','İlk 180 sonuç. Daha fazlası için aramayı daralt.'));renderCart();}
-function addBook(book,kind,delta){const key=book.code+':'+kind;const value=cart.get(key),next=(value?value.qty:0)+delta;
+function addBook(book,kind,delta){if(busy)return;const key=book.code+':'+kind;const value=cart.get(key),next=(value?value.qty:0)+delta;
  if(next>100000)return msg('Bir kitap türü için en fazla 100.000 adet.');
  if(!value&&next>0&&cart.size>=MAX_CART_LINES)return msg('Sepet satırı üst sınırı: '+MAX_CART_LINES+'.');
- if(next<=0)cart.delete(key);else cart.set(key,{book,kind,qty:next});requestId=crypto.randomUUID();renderCart();}
+ if(next<=0)cart.delete(key);else cart.set(key,{book,kind,qty:next});renderCart();}
 function renderCart(){const list=$('#cart-items');const all=[...cart.values()];list.replaceChildren(...all.map(x=>{
  const r=node('div','cart-row'),desc=node('span','description',x.book.name+' · '+x.kind+' ('+x.qty+')');r.append(desc);
  for(const [v,t] of [[-1,'−'],[1,'+']]){const b=node('button','quiet',t);b.addEventListener('click',()=>addBook(x.book,x.kind,v));r.append(b)}
  const d=node('button','remove','×');d.title='Kaldır';d.addEventListener('click',()=>addBook(x.book,x.kind,-x.qty));r.append(d);return r;}));
  $('#cart-count').textContent=all.reduce((s,x)=>s+x.qty,0)+' adet';}
-$('#order-form').addEventListener('submit',async e=>{e.preventDefault();if(busy)return;
+$('#order-form').addEventListener('submit',async e=>{
+ e.preventDefault();if(busy)return;
  if(!cart.size)return msg('Sepete kitap ekle.');if(!books.length)return msg('Katalog bağlantısını kontrol et.');
- const amount=Number($('#amount').value);if(!Number.isFinite(amount)||amount<0||amount>=1000000000)return msg('Geçerli ciro gir.');
- const payload={platform:autoPlatform($('#shipping').value.trim()),
- shipping_reference:$('#shipping').value.trim(),order_type:$('#order-type').value,
- gross_amount:amount,items:[...cart.values()].map(x=>({code:x.book.code,print_type:x.kind,quantity:x.qty})),request_id:requestId};
- if(!payload.shipping_reference)return msg('Kargo kodu / adres gerekli.');
- const orderNote=noteField.value.trim();
- if(orderNote.length>2000)return msg('Sipariş notu en fazla 2000 karakter olabilir.');
-
- const existing=recordedOrder(payload.shipping_reference);
- if(existing)return msg('Bu sipariş kodu daha önce bu telefondan gönderildi ('+new Date(existing.at).toLocaleString('tr-TR')+'). Tekrar gönderim engellendi.');
- busy=true;$('#order-form').classList.add('busy');msg('Sipariş kaydediliyor...');
+ const amount=Number($('#amount').value);if(!Number.isFinite(amount)||amount<0||amount>999999999)return msg('Geçerli ciro gir.');
+ const shipping=formatShipping($('#shipping').value.trim()),key=shippingKey(shipping);
+ if(!shipping||!key)return msg('Kargo kodu / adres gerekli.');
+ const orderNote=noteField.value.trim();if(orderNote.length>2000)return msg('Sipariş notu en fazla 2000 karakter olabilir.');
+ const snapshots=[...cart.values()].map(x=>({code:String(x.book.code),name:String(x.book.name),nameSource:'local',kind:x.kind,qty:x.qty}));
+ const count=snapshots.reduce((n,x)=>n+x.qty,0);
+ if(count>1000000)return msg('Sipariş toplamı en fazla 1.000.000 kitap olabilir.');
+ if(recordedOrder(shipping))return msg('Bu sipariş kodu daha önce bu telefondan gönderildi. Geçmişten kontrol edebilirsin.');
+ const orderType=$('#order-type').value,platform=autoPlatform(shipping);
+ busy=true;const form=$('#order-form');form.classList.add('busy');msg('Sipariş kaydediliyor...');
+ const controls=[...form.querySelectorAll('input,select,textarea,button')];controls.forEach(x=>x.disabled=true);
  try{
-  const user=auth.currentUser||(await signInAnonymously(auth)).user;
-  const orderRef=ref(realtime,"alfa/"+workspaceId+"/checkout/"+user.uid+"/"+requestId);
-  const prior=await get(orderRef);
-  if(prior.exists()&&String(prior.val()?.order_note||'').trim()!==orderNote){
-   throw new Error('Bu işlem kimliği daha önce farklı notla gönderilmiş. Notu kaybetmemek için tekrar gönderim durduruldu.');
-  }
-  if(!prior.exists()){
-   await set(orderRef,{
-    uid:user.uid,request_id:requestId,
-    platform:payload.platform,shipping_reference:payload.shipping_reference,
-    order_type:payload.order_type,gross_amount:payload.gross_amount,
-    ...(orderNote?{order_note:orderNote}:{}),
-    items:Object.fromEntries(payload.items.map((item,i)=>[String(i),item]))
-   });
-  }
-  const received=requestId.slice(0,8).toUpperCase();
-  const saved=historyAdd({key:shippingKey(payload.shipping_reference),shipping:payload.shipping_reference,platform:payload.platform,count:payload.items.reduce((n,x)=>n+x.quantity,0),at:new Date().toISOString(),requestId});
-  cart.clear();requestId=crypto.randomUUID();$('#shipping').value='';$('#amount').value='0';
-  noteField.value='';try{localStorage.removeItem(ORDER_NOTE_DRAFT_KEY)}catch{}
+  await withDeviceLock(async()=>{
+  if(recordedOrder(shipping))throw new Error('Bu kod bu cihazdan zaten gönderilmiş.');
+  const user=await mobileUser(),pending=readPending(),pendingKey='code:'+key,old=pending[pendingKey];
+  if(old&&old.uid!==user.uid)throw new Error('Bu kod için önceki gönderim başka cihaz oturumuna ait. Mükerrer sipariş riskinden dolayı durduruldu.');
+  const id=old?.requestId||crypto.randomUUID();
+  pending[pendingKey]={uid:user.uid,requestId:id};
+  persistPending(pending);
+  const body={uid:user.uid,request_id:id,platform,shipping_reference:shipping,order_type:orderType,gross_amount:amount,...(orderNote?{order_note:orderNote}:{}),items:Object.fromEntries(snapshots.map((x,i)=>[String(i),{code:x.code,print_type:x.kind,quantity:x.qty}]))};
+  const orderRef=ref(realtime,'alfa/'+workspaceId+'/checkout/'+user.uid+'/'+id),prior=await get(orderRef);
+  if(prior.exists()){
+   if(!sameCheckout(prior.val(),body))throw new Error('Bu kod için önceki gönderim farklı içerikle zaten kayıtlı. İkinci sipariş açılmadı; ERP havuzunu kontrol et.');
+  }else await set(orderRef,body);
+  const check=await get(orderRef);
+  if(!check.exists()||!sameCheckout(check.val(),body))throw new Error('Firebase sipariş içeriği doğrulanamadı; sipariş ve not silinmedi.');
+  const saved=historyAdd({key,shipping,platform,count,books:snapshots,orderNote,at:new Date().toISOString(),requestId:id,uid:user.uid});
+  if(saved){const latest=readPending();if(latest[pendingKey]?.requestId===id){delete latest[pendingKey];try{persistPending(latest)}catch{}}}
+  cart.clear();$('#shipping').value='';$('#amount').value='0';noteField.value='';try{localStorage.removeItem(ORDER_NOTE_DRAFT_KEY)}catch{}
   renderCart();
-  msg('Sipariş talebi '+received+' alındı. '+(saved?'Telefon geçmişine kaydedildi.':'Telefon geçmişine yazılamadı; tarayıcı depolamasını kontrol et.'));
-
- }catch(err){msg('Sipariş doğrulanamadı: '+err.message+' · Yeniden denersen aynı istek kimliği kullanılır.');}
- finally{busy=false;$('#order-form').classList.remove('busy')}
+  msg('Sipariş talebi '+id.slice(0,8).toUpperCase()+' Firebase kaydı doğrulandı. '+(orderNote?'Not da talepte doğrulandı. ':'')+(saved?'Telefon geçmişine kaydedildi.':'Telefon geçmişine yazılamadı; önceki işlem kimliği korundu.'));
+  });
+ }catch(err){msg('Sipariş doğrulanamadı: '+err.message+' · Not ve sepet korunuyor. Aynı kodla tekrar denemek yeni işlem kimliği üretmez.');}
+ finally{busy=false;controls.forEach(x=>x.disabled=false);form.classList.remove('busy')}
 });
 </script></body></html>
