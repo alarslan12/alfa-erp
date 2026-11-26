@@ -81,6 +81,8 @@ def _ensure_tone(directory,mode):
 
 def play_order_sound(mode="klasik",directory=None):
     """Play a user-selected or alternating tone without blocking GUI."""
+    from bildirim_dogal_ses import stop_local_media
+    stop_local_media()
     mode=str(mode or "klasik")
     if mode not in SOUND_IDS:
         mode="klasik"
@@ -95,7 +97,7 @@ def play_order_sound(mode="klasik",directory=None):
         from bildirim_dogal_ses import play_local_announcement
         if play_local_announcement(mode):
             return True
-        mode="klasik"  # Missing local WAV and Turkish TTS unavailable.
+        mode="klasik"  # Missing local audio and Turkish TTS unavailable.
     if mode=="karisik":
         mode=random.choice(("yumusak","net","kisa"))
     try:
