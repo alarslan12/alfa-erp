@@ -197,15 +197,18 @@ class AuditFeed(QWidget):
             icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
             icon.setFixedSize(38,38);body.addWidget(icon)
             info=QVBoxLayout();info.setSpacing(4)
-            title=QLabel(row['title']);title.setObjectName('OwnerAuditTitle')
+            title=QLabel(row['title']);title.setTextFormat(Qt.TextFormat.PlainText)
+            title.setObjectName('OwnerAuditTitle')
             title.setWordWrap(True);info.addWidget(title)
             subtitle=QLabel(row['orders']+'  •  '+row['detail'])
+            subtitle.setTextFormat(Qt.TextFormat.PlainText)
             subtitle.setObjectName('OwnerBody');subtitle.setWordWrap(True)
             info.addWidget(subtitle)
             stamp=_timestamp(row['stamp'])
             if row.get('first_stamp') and row['first_stamp']!=row['stamp']:
                 stamp=_timestamp(row['first_stamp'])+' — '+stamp
             foot=QLabel(stamp+'   ·   '+row['source'])
+            foot.setTextFormat(Qt.TextFormat.PlainText)
             foot.setObjectName('OwnerAuditTime');info.addWidget(foot)
             foot.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
             lines=row.get('lines') or []
@@ -214,6 +217,7 @@ class AuditFeed(QWidget):
                 expand.setObjectName('OwnerAuditExpand')
                 expand.setCheckable(True)
                 detail=QLabel('\n'.join('•  '+str(line) for line in lines))
+                detail.setTextFormat(Qt.TextFormat.PlainText)
                 detail.setObjectName('OwnerBody');detail.setWordWrap(True)
                 detail.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
                 detail.setVisible(False)
