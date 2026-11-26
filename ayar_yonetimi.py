@@ -6,7 +6,7 @@ import tempfile
 import shutil
 import zipfile
 
-DEFAULTS = {'tema': 'koyu', 'colorblind_mode': False, 'ozel_katalog': None, 'bildirim_sesi': 'klasik',
+DEFAULTS = {'tema': 'koyu', 'colorblind_mode': False, 'ozel_katalog': None, 'bildirim_sesi': 'ozan_karisik',
             'show_books_without_pages': False,
             'hide_blank_pages_migrated_v2026': False}
 BACKUP_NAMES = ('alfa_siparisler.json', 'alfa_sepet_hafiza.json', 'alfa_siparis_sayac.json',
@@ -27,8 +27,8 @@ class UserSettings:
                     self.values.update({k:v for k,v in stored.items() if k in DEFAULTS})
             except (OSError,ValueError,TypeError):
                 pass
-        # Migrate retired cloud audio preferences without deleting user files.
-        if str(self.values.get('bildirim_sesi') or '').startswith('eleven_'):
+        # Automatically use only the four bundled order announcements.
+        if self.values.get('bildirim_sesi')!='ozan_karisik':
             self.values['bildirim_sesi']='ozan_karisik'
             self.save()
         # One-time preference migration: users requested blank-page books
@@ -796,7 +796,7 @@ def apply_visual_preferences(config):
     enabled=config.get('colorblind_mode',False) is True
     app.setProperty('alfa_theme',name)
     app.setProperty('alfa_colorblind',enabled)
-    base=QSS+theme_styles(name)+static_completed_styles(name)
+    base=QSS+theme_styles(name)+static_completed_styles(name)+settings_hud_styles(name)
     app.setStyleSheet((replace_red_green(base)+colorblind_styles(name=='acik') if enabled else base)+return_card_styles(name,enabled))
     from kart_siparis import refresh_accessible_order_widgets
     refresh_accessible_order_widgets()
@@ -858,3 +858,30 @@ def return_card_styles(name,accessible):
         s='QFrame#OrderRow[orderStatus="tamamlandi"][orderReturned="true"]'+st
         selectors.extend([s,s+':hover'])
     return ','.join(selectors)+f' {{background:{bg};border:2px solid {edge};border-left:5px solid {edge};}}'+f' QLabel#OrderReturnedTag {{background:{bg};color:{ink};border:1px solid {edge};border-radius:6px;font-weight:900;padding:4px;}} QLabel#OrderReturnedDate {{color:{ink};font-weight:800;}}'
+
+def settings_hud_styles(name):
+    palettes={
+        'koyu':('#102033','#15283d','#203951','#405f7b','#eff7ff','#a8c1d7','#79c9f5','#1e4965','#80e3be','#f1c27b'),
+        'acik':('#f0e7dc','#fff9f1','#ede1d1','#c7b69f','#263d53','#536779','#276b9b','#d7e9f1','#17694c','#875912'),
+        'kontrast':('#07111e','#101f31','#1d3652','#a2c9ef','#ffffff','#dceaff','#73d8ff','#234a70','#80ffda','#ffe57f'),
+    }
+    shell,card,button,border,ink,muted,accent,active,green,amber=palettes.get(name,palettes['koyu'])
+    return f"""
+    QFrame#SettingsNavShell,QFrame#HudShell {{background:{shell};border:1px solid {border};border-radius:13px;}}
+    QPushButton#SettingsNav {{background:{button};color:{ink};border:1px solid {border};border-radius:10px;padding:0 14px;font-size:12px;font-weight:750;}}
+    QPushButton#SettingsNav:checked {{background:{active};color:{ink};border:1px solid {accent};}}
+    QPushButton#SettingsNav:hover,QPushButton#SettingsControl:hover,QPushButton#HudAction:hover {{border-color:{accent};background:{active};}}
+    QFrame#SettingsCard {{background:{card};border:1px solid {border};border-radius:14px;}}
+    QFrame#SettingsInset {{background:{shell};border:1px solid {border};border-radius:10px;}}
+    QLabel#SettingsHeading {{color:{ink};font-size:14px;font-weight:800;}}
+    QLabel#SettingsHint {{color:{muted};font-size:12px;}}
+    QLabel#SettingsStatusPill {{color:{green};background:{shell};border:1px solid {border};border-radius:10px;padding:8px 10px;font-size:12px;font-weight:750;}}
+    QPushButton#SettingsControl,QPushButton#HudAction {{color:{ink};background:{button};border:1px solid {border};border-radius:10px;padding:0 8px;font-weight:700;}}
+    QPushButton#HudAction {{font-family:'Segoe UI Symbol';font-size:18px;min-width:0;min-height:0;padding:0;}}
+    QPushButton#HudAction:checked {{background:{active};border-color:{accent};}}
+    QPushButton#HudAction[updateAvailable="true"] {{color:{amber};border-color:{amber};}}
+    QLabel#HudCloud {{background:{button};color:{muted};border:1px solid {border};border-radius:10px;font-size:11px;font-weight:750;padding:0 3px;}}
+    QLabel#HudCloud[connectionState="online"] {{color:{green};}}
+    QLabel#HudCloud[connectionState="pending"],QLabel#HudCloud[connectionState="warning"] {{color:{amber};}}
+    QSplitter::handle:horizontal {{background:transparent;}}
+    """
