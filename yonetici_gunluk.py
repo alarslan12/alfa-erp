@@ -8,7 +8,7 @@ from datetime import datetime
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QWidget,QVBoxLayout,QHBoxLayout,QLabel,QPushButton,
-    QFrame,QScrollArea
+    QFrame,QScrollArea,QLineEdit,QComboBox
 )
 
 
@@ -155,6 +155,20 @@ class AuditFeed(QWidget):
         head.addWidget(title);head.addStretch()
         self.counter=QLabel('Henüz yüklenmedi');self.counter.setObjectName('OwnerMuted')
         head.addWidget(self.counter);root.addLayout(head)
+        filters=QHBoxLayout()
+        self.search=QLineEdit()
+        self.search.setPlaceholderText('Sipariş no, bilgisayar, işlem veya tarih…')
+        self.search.textChanged.connect(self.render)
+        filters.addWidget(self.search,1)
+        self.kind_filter=QComboBox()
+        self.kind_filter.addItem('Tüm aktiviteler','')
+        for name in ('Kitapların durumu değiştirildi','Sipariş durumu değiştirildi',
+                     'Sipariş kaydedildi','Sipariş notu onaylandı','Envanter satışı yapıldı',
+                     'Kargo ücreti güncellendi','İade durumu değiştirildi'):
+            self.kind_filter.addItem(name,name)
+        self.kind_filter.currentIndexChanged.connect(self.render)
+        filters.addWidget(self.kind_filter)
+        root.addLayout(filters)
         hint=QLabel('Tek bir işlem başlığına tıklayarak kitap bazındaki ayrıntıları görebilirsin.')
         hint.setObjectName('OwnerMuted');hint.setWordWrap(True);root.addWidget(hint)
         self.scroll=QScrollArea();self.scroll.setObjectName('OwnerAuditScroll')
@@ -171,19 +185,27 @@ class AuditFeed(QWidget):
         self.entries=make_audit_entries(payload,orders)
         self.render()
 
-    def render(self):
+    def render(self,*_):
+        if not hasattr(self,'cards') or not hasattr(self,'entries'):
+            return
         while self.cards.count():
             item=self.cards.takeAt(0)
             if item.widget():item.widget().deleteLater()
-        self.counter.setText(str(len(self.entries))+' işlem grubu')
-        if not self.entries:
+        query=self.search.text().strip().casefold()
+        kind=self.kind_filter.currentData()
+        rows=[row for row in self.entries if (not kind or row['title']==kind)
+              and (not query or query in (
+                  row['title']+' '+row['orders']+' '+row['source']+' '+
+                  _timestamp(row['stamp'])+' '+' '.join(str(x) for x in row.get('lines',[]))).casefold())]
+        self.counter.setText(str(len(rows))+'/'+str(len(self.entries))+' işlem grubu')
+        if not rows:
             note=QLabel('Gösterilecek işlem bulunmuyor.')
             note.setObjectName('OwnerMuted')
             note.setAlignment(Qt.AlignmentFlag.AlignCenter)
             note.setMinimumHeight(100)
             self.cards.addWidget(note)
         previous_day=None
-        for row in self.entries[:240]:
+        for row in rows[:240]:
             moment=_datetime(row['stamp'])
             day=moment.astimezone().strftime('%d.%m.%Y') if moment else 'Tarihi bilinmeyen'
             if day!=previous_day:
@@ -194,6 +216,8 @@ class AuditFeed(QWidget):
             body=QHBoxLayout(card);body.setContentsMargins(12,8,12,8)
             body.setSpacing(12)
             icon=QLabel(row['icon']);icon.setObjectName('OwnerAuditIcon')
+            icon.setProperty('level','major' if row['title'] in (
+                'Sipariş kaydedildi','Sipariş durumu değiştirildi','İade durumu değiştirildi') else 'minor')
             icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
             icon.setFixedSize(38,38);body.addWidget(icon)
             info=QVBoxLayout();info.setSpacing(4)
