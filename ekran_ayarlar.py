@@ -142,7 +142,7 @@ class SettingsPage(QWidget):
         from bildirim_dogal_ses import announcement_asset
         available=sum(announcement_asset(i).is_file() for i in range(4))
         sound_col.addWidget(text(
-            'Yerel anonslar · '+str(available)+'/4 ses dosyası. '
+            'Yerel anonslar · '+str(available)+'/4 ses dosyası (M4A / WAV / MP3). '
             'Dosya yoksa yüklü Türkçe Windows sesi, o da yoksa uyarı tonu kullanılır. '
             'Bulut ses API bağlantısı kullanılmaz.','SettingsHint',wrap=True))
         col.addWidget(sound_card)

@@ -37,7 +37,8 @@ if($Edition -eq 'personel') {
  # are embedded in executable assets.
  Run $Virtual @('-m','PyInstaller','--noconfirm','--clean','--onedir','--windowed',
   '--name','AlfaERP','--icon=assets\icons\alfa_personel.ico','--add-data','KİTAPS.xlsx;.','--add-data','katalog.json;.',
-  '--add-data','assets;assets','--exclude-module=siparis_derle','--hidden-import=PySide6.QtPdf','main.py')
+  '--add-data','assets;assets','--exclude-module=siparis_derle','--hidden-import=PySide6.QtPdf',
+  '--hidden-import=PySide6.QtMultimedia','main.py')
  Run $Virtual @('-m','PyInstaller','--noconfirm','--clean','--onedir','--windowed',
   '--name','AlfaBildirim','--icon=assets\icons\alfa_personel.ico',
   '--add-data','assets;assets',
@@ -50,10 +51,26 @@ if($Edition -eq 'personel') {
  Run $Virtual @('-m','PyInstaller','--noconfirm','--clean','--onedir','--windowed',
   '--name','AlfaERPYonetici','--icon=assets\icons\alfa_yonetici.ico','--add-data','YONETICI_SURUMU.flag;.',
   '--add-data','KİTAPS.xlsx;.','--add-data','katalog.json;.',
-  '--add-data','assets;assets','--hidden-import=PySide6.QtPdf','--hidden-import=yonetici_kompakt','main.py')
+  '--add-data','assets;assets','--hidden-import=PySide6.QtPdf','--hidden-import=yonetici_kompakt',
+  '--hidden-import=PySide6.QtMultimedia','main.py')
 
 } else {
  throw 'ALFA_BUILD_WINDOWS.ps1 sadece ERP personel / yonetici bilesenlerini derler. Suite icin ALFA_BUILD_SUITE_WINDOWS.ps1 kullanin.'
+}
+# Ensure every ERP executable bundle contains all four original local clips.
+$audioBundles = if ($Edition -eq 'personel') { @('AlfaERP','AlfaBildirim') } else { @('AlfaERPYonetici') }
+foreach ($bundle in $audioBundles) {
+ foreach ($index in 1..4) {
+  $relative = "assets\notifications\ozan_${index}.m4a"
+  $source = Join-Path $PSScriptRoot $relative
+  $packaged = Join-Path $PSScriptRoot ("dist\$bundle\_internal\" + $relative)
+  if (!(Test-Path -LiteralPath $source) -or !(Test-Path -LiteralPath $packaged)) {
+   throw "Missing local announcement: $bundle / $relative"
+  }
+  if ((Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash -ne (Get-FileHash -LiteralPath $packaged -Algorithm SHA256).Hash) {
+   throw "Announcement checksum mismatch: $bundle / $relative"
+  }
+ }
 }
 if(-not $SkipInstaller) {
  Write-Host 'Tek dagitim bicimi Suite Setup. ALFA_BUILD_SUITE_WINDOWS.ps1 dosyasini kullanin.'
