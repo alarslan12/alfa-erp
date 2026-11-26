@@ -19,7 +19,7 @@
 <header><div><h1>ALFA <span style="color:var(--accent)">ERP</span></h1><small>Mobil sipariş kataloğu · Firebase</small></div><div class="mobile-tools"><button class="quiet" id="theme" title="Tema değiştir">◐</button><button class="quiet hide" id="logout">Çıkış</button></div></header>
 <div id="toast" role="status" aria-live="polite"></div><div class="container"><div id="message" role="status" aria-live="polite" class="banner hide"></div>
 <section id="login-screen" class="panel auth hide"><h2>Buluta giriş</h2><p class="muted">Yalnızca ALFA ERP çalışma alanına yetkili kullanıcılar sipariş oluşturabilir.</p><form id="login-form"><div class="field"><label>E-posta</label><input id="email" type="email" autocomplete="username" required></div><div class="field"><label>Parola</label><input id="password" type="password" autocomplete="current-password" minlength="8" required></div><div class="actions"><button class="primary" type="submit">Giriş Yap</button></div></form><p class="foot">Doğrulanmış ALFA ERP kullanıcı hesabınla giriş yap. Şifreler bu sayfada saklanmaz.</p></section>
-<nav class="tabs" aria-label="Mobil bölümler"><button id="tab-catalog" class="primary" type="button">Kitap kataloğu</button><button id="tab-tracking" class="secondary" type="button">Sipariş takip</button></nav><section id="tracking-screen" class="hide"><h2>Sipariş Takip</h2><details class="order-history" id="order-history" aria-label="Bu cihazın sipariş geçmişi"><summary class="history-heading"><strong>Bu telefondaki geçmiş</strong><span class="mini muted" id="history-count"></span></summary><div class="history-tools"><input type="search" id="history-search" placeholder="Geçmişte kod veya sipariş no ara" aria-label="Geçmişte ara"><button class="secondary" id="history-refresh" type="button">Yenile</button></div><p class="mini muted" id="history-status" aria-live="polite"></p><div id="history-list" class="history-list"></div><div class="history-pages"><button class="secondary hide" id="history-prev" type="button">‹ Önceki</button><span class="mini muted" id="history-page"></span><button class="secondary hide" id="history-more" type="button">Sonraki ›</button></div></details><p class="muted mini" id="tracking-note">Bu ekran yalnızca Firebase'de yetkilendirilmiş cihazlara açıktır.</p><div id="tracking-setup" class="panel"><p>Bu telefonda siparişleri görmek için cihazını ALFA ERP yönetici panelinden yetkilendirmen gerekir. Yetki verildikten sonra bu tarayıcıda oturum hatırlanır.</p><button class="primary" id="tracking-connect" type="button">Cihaz bağlantısını başlat</button><p class="mini muted" id="tracking-device"></p></div><div id="tracking-content" class="hide"><div class="tracking-stats" id="tracking-stats"></div><div class="tracking-status"><button class="secondary is-active" data-status="aktif">Aktif</button><button class="secondary" data-status="havuz">Havuz</button><button class="secondary" data-status="tamamlandi">Tamamlanan</button></div><div class="tracking-list" id="tracking-list"></div></div></section><section id="main-screen"><div class="main-grid"><section><h2 class="section-title">Kitap kataloğu <span class="mini muted" id="book-count"></span></h2><div class="search-bar"><input id="filter" type="search" placeholder="Kod, kitap, seri veya alt grup ara (ÇTS Klinik)..."></div><div class="bulk-panel"><div class="bulk-head"><strong>Filtredeki kitapları toplu ekle</strong><small class="muted" id="bulk-info">Önce kitap ara</small></div><div class="bulk-actions"><button class="bulk-btn secondary" type="button" data-kind="SB" data-delta="1">+ SB</button><button class="bulk-btn secondary" type="button" data-kind="SB" data-delta="-1">− SB</button><button class="bulk-btn primary" type="button" data-kind="RNK" data-delta="1">+ RNK</button><button class="bulk-btn secondary" type="button" data-kind="RNK" data-delta="-1">− RNK</button><button class="bulk-btn secondary" type="button" data-kind="BOTH" data-delta="1" aria-label="Siyah beyaz ve renkli toplu ekle" title="SB ve RNK toplu ekle">+ İkisi</button></div></div><div id="books" class="grid"></div></section><aside class="panel cart"><h2>Yeni sipariş</h2><p class="muted mini">Seçtiğin kitapları SB veya RNK baskı olarak sepete ekle.</p><div id="cart-items"></div><p class="total" id="cart-count">0 adet</p><form id="order-form"><div class="field"><label>Kargo kodu / açık adres</label><input id="shipping" type="text" inputmode="text" autocomplete="off" spellcheck="false" required maxlength="500" placeholder="123 456 789 veya açık adres"><small class="muted mini">Sayısal kodlar platforma göre otomatik gruplandırılır. Tekrar girilen kodlar bu cihazda engellenir.</small></div><div class="field"><label>Sipariş türü</label><select id="order-type"><option value="">Normal</option><option value="Telafi">Telafi</option><option value="Açık Adres">Açık Adres</option></select></div><div class="field"><label>Ciro (₺)</label><input id="amount" type="number" min="0" max="999999999" step="0.01" value="0" required></div><div class="field"><label for="order-note">Sipariş notu (isteğe bağlı)</label><textarea id="order-note" maxlength="2000" rows="3" placeholder="Baskı veya hazırlama için personel notu"></textarea><small class="muted mini" id="order-note-status">Not, siparişle birlikte masaüstüne iletilir. Yeni not için inceleme uyarısı oluşturulur.</small></div><button class="primary" type="submit" style="width:100%">Siparişi Havuz'a Gönder</button></form><p class="foot">Siparişleri merkezi havuza iletir. Gönderim sırasında bağlantı koparsa aynı işlem kimliğiyle tekrar dener.</p></aside></div></section></div>
+<nav class="tabs" aria-label="Mobil bölümler"><button id="tab-catalog" class="primary" type="button">Kitap kataloğu</button><button id="tab-tracking" class="secondary" type="button">Sipariş takip</button></nav><section id="tracking-screen" class="hide"><h2>Sipariş Takip</h2><details class="order-history" id="order-history" aria-label="Bu cihazın sipariş geçmişi"><summary class="history-heading"><strong>Bu telefondaki geçmiş</strong><span class="mini muted" id="history-count"></span></summary><div class="history-tools"><input type="search" id="history-search" placeholder="Geçmişte kod veya sipariş no ara" aria-label="Geçmişte ara"><button class="secondary" id="history-refresh" type="button">Yenile</button></div><p class="mini muted" id="history-status" aria-live="polite"></p><div id="history-list" class="history-list"></div><div class="history-pages"><button class="secondary hide" id="history-prev" type="button">‹ Önceki</button><span class="mini muted" id="history-page"></span><button class="secondary hide" id="history-more" type="button">Sonraki ›</button></div></details><p class="muted mini" id="tracking-note">Canlı takip yalnızca Firebase'de yetkilendirilmiş cihazlara açıktır. Telefon geçmişi yerel olarak korunur.</p><div id="tracking-setup" class="panel"><p>Bu telefonda siparişleri görmek için cihazını ALFA ERP yönetici panelinden yetkilendirmen gerekir. Yetki verildikten sonra bu tarayıcıda oturum hatırlanır.</p><button class="primary" id="tracking-connect" type="button">Cihaz bağlantısını başlat</button><p class="mini muted" id="tracking-device"></p></div><div id="tracking-content" class="hide"><div class="tracking-stats" id="tracking-stats"></div><div class="tracking-status"><button class="secondary is-active" data-status="aktif">Aktif</button><button class="secondary" data-status="havuz">Havuz</button><button class="secondary" data-status="tamamlandi">Tamamlanan</button></div><div class="tracking-list" id="tracking-list"></div></div></section><section id="main-screen"><div class="main-grid"><section><h2 class="section-title">Kitap kataloğu <span class="mini muted" id="book-count"></span></h2><div class="search-bar"><input id="filter" type="search" placeholder="Kod, kitap, seri veya alt grup ara (ÇTS Klinik)..."></div><div class="bulk-panel"><div class="bulk-head"><strong>Filtredeki kitapları toplu ekle</strong><small class="muted" id="bulk-info">Önce kitap ara</small></div><div class="bulk-actions"><button class="bulk-btn secondary" type="button" data-kind="SB" data-delta="1">+ SB</button><button class="bulk-btn secondary" type="button" data-kind="SB" data-delta="-1">− SB</button><button class="bulk-btn primary" type="button" data-kind="RNK" data-delta="1">+ RNK</button><button class="bulk-btn secondary" type="button" data-kind="RNK" data-delta="-1">− RNK</button><button class="bulk-btn secondary" type="button" data-kind="BOTH" data-delta="1" aria-label="Siyah beyaz ve renkli toplu ekle" title="SB ve RNK toplu ekle">+ İkisi</button></div></div><div id="books" class="grid"></div></section><aside class="panel cart"><h2>Yeni sipariş</h2><p class="muted mini">Seçtiğin kitapları SB veya RNK baskı olarak sepete ekle.</p><div id="cart-items"></div><p class="total" id="cart-count">0 adet</p><form id="order-form"><div class="field"><label>Kargo kodu / açık adres</label><input id="shipping" type="text" inputmode="text" autocomplete="off" spellcheck="false" required maxlength="500" placeholder="123 456 789 veya açık adres"><small class="muted mini">Sayısal kodlar platforma göre otomatik gruplandırılır. Tekrar girilen kodlar bu cihazda engellenir.</small></div><div class="field"><label>Sipariş türü</label><select id="order-type"><option value="">Normal</option><option value="Telafi">Telafi</option><option value="Açık Adres">Açık Adres</option></select></div><div class="field"><label>Ciro (₺)</label><input id="amount" type="number" min="0" max="999999999" step="0.01" value="0" required></div><div class="field"><label for="order-note">Sipariş notu (isteğe bağlı)</label><textarea id="order-note" maxlength="2000" rows="3" placeholder="Baskı veya hazırlama için personel notu"></textarea><small class="muted mini" id="order-note-status">Not, siparişle birlikte masaüstüne iletilir. Yeni not için inceleme uyarısı oluşturulur.</small></div><button class="primary" type="submit" style="width:100%">Siparişi Havuz'a Gönder</button></form><p class="foot">Siparişleri merkezi havuza iletir. Gönderim sırasında bağlantı koparsa aynı işlem kimliğiyle tekrar dener.</p></aside></div></section></div>
 <script type="module">
 'use strict';
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
@@ -244,13 +244,28 @@ const PENDING_KEY='alfa-mobile-pending-checkout-v1',HISTORY_PAGE=20;
 const historyExpanded=new Set(),historyCloud=new Map();
 let historyPage=0,historyRefreshing=false,historyAgain=false;
 function readHistory(){try{const value=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');return Array.isArray(value)?value.filter(x=>x&&typeof x==='object'&&typeof x.key==='string').slice(0,HISTORY_LIMIT):[];}catch{return []}}
-function writeHistory(rows){try{localStorage.setItem(HISTORY_KEY,JSON.stringify(rows.slice(0,HISTORY_LIMIT)));return true}catch{return false}}
+function writeHistory(rows){
+ try{localStorage.setItem(HISTORY_KEY,JSON.stringify(rows.slice(0,HISTORY_LIMIT)));return true}catch{return false}
+}
+function mergeHistory(stored,updated){
+ const byKey=new Map();
+ for(const row of [...stored,...updated]){
+  if(!row||typeof row.key!=='string')continue;
+  const old=byKey.get(row.key);
+  if(!old||old.requestId===row.requestId)byKey.set(row.key,{...old,...row});
+  else if((Date.parse(row.at)||0)>=(Date.parse(old.at)||0))byKey.set(row.key,row);
+ }
+ return [...byKey.values()].sort((a,b)=>(Date.parse(b.at)||0)-(Date.parse(a.at)||0)).slice(0,HISTORY_LIMIT);
+}
+function withDeviceLock(task){
+ return typeof navigator!=='undefined'&&navigator.locks?.request?navigator.locks.request('alfa-mobile-checkout-v1',task):task();
+}
 let localHistory=readHistory();
 function readPending(){try{const p=JSON.parse(localStorage.getItem(PENDING_KEY)||'{}');return p&&typeof p==='object'&&!Array.isArray(p)?p:{};}catch{return {}}}
 function persistPending(p){localStorage.setItem(PENDING_KEY,JSON.stringify(p));}
 function recordedOrder(shipping){const key=shippingKey(shipping);return key?localHistory.find(row=>row.key===key)||readHistory().find(row=>row.key===key):null;}
 function historyAdd(record){
- localHistory=[record,...localHistory.filter(row=>row.key!==record.key)].slice(0,HISTORY_LIMIT);
+ localHistory=mergeHistory(readHistory(),[...localHistory,record]);
  const saved=writeHistory(localHistory);historyRender();return saved;
 }
 function requestKey(row){return String(row.requestId||'');}
@@ -320,14 +335,15 @@ async function hydrateHistoryRow(row,user,canReadOrders){
   row.uid=user.uid;
   row.books=checkoutLines(entry).map(b=>{const previous=old.get(b.code+':'+b.kind);return {...b,name:previous?.name||catalog.get(b.code)?.name||'',nameSource:previous?.nameSource||(previous?.name?'local':'catalog')};});
   row.count=row.books.reduce((n,b)=>n+b.qty,0);
-  row.orderNote=String(entry.order_note||'');
-  if(row.orderNote)state.noteState='Not Firebase talebinde kayıtlı.';
+  const sourceNote=String(entry.order_note||'');
+  if(row.orderNote&&sourceNote!==row.orderNote){state.noteMismatch=true;state.noteState='Yerel not ve Firebase talebindeki not farklı. Yerel kopya korunuyor.';}
+  else{row.orderNote=sourceNote;if(sourceNote)state.noteState='Not Firebase talebinde kayıtlı.';}
  }else state.missingCheckout=true;
  if(!canReadOrders)return;
  try{
   const oid=await checkoutOrderId(user.uid,id),snap=await get(ref(realtime,root+'/orders/'+oid));
   if(!snap.exists()){
-   if(entry&&row.orderNote)state.noteState='Not Firebase talebinde mevcut; siparişin havuza aktarımı henüz doğrulanmadı.';
+   if(entry&&row.orderNote&&!state.noteMismatch)state.noteState='Not Firebase talebinde mevcut; siparişin havuza aktarımı henüz doğrulanmadı.';
    return;
   }
   const order=snap.val();
@@ -335,9 +351,9 @@ async function hydrateHistoryRow(row,user,canReadOrders){
   if(Number(order.order_number)>0)row.orderNumber=Number(order.order_number);
   const cloudItems=new Map(trackingItems(order).map(x=>[String(x.book_code)+':'+x.print_type,String(x.book_name_snapshot||'')]));
   if(Array.isArray(row.books))for(const b of row.books){const historical=cloudItems.get(b.code+':'+b.kind);if(historical&&(!b.name||b.nameSource==='catalog')){b.name=historical;b.nameSource='order';}}
-  if(entry&&row.orderNote)state.noteState=String(order.order_note||'').trim()===row.orderNote.trim()?'Not ERP siparişinde de doğrulandı.':'Not talepte kayıtlı, ancak ERP siparişindeki not farklı veya eksik. ERP tarafında inceleme gerekli.';
+  if(entry&&row.orderNote&&!state.noteMismatch)state.noteState=String(order.order_note||'').trim()===row.orderNote.trim()?'Not ERP siparişinde de doğrulandı.':'Not talepte kayıtlı, ancak ERP siparişindeki not farklı veya eksik. ERP tarafında inceleme gerekli.';
   else if(!entry&&row.orderNote)state.noteState='Notun yerel kopyası var; Firebase talebi bu oturumdan doğrulanamadı.';
- }catch{if(entry&&row.orderNote)state.noteState='Not talepte kayıtlı; ERP siparişini doğrulamak için yetki/bağlantı gerekli.';}
+ }catch{if(entry&&row.orderNote&&!state.noteMismatch)state.noteState='Not talepte kayıtlı; ERP siparişini doğrulamak için yetki/bağlantı gerekli.';}
 }
 async function historyRefresh(force=false){
  if(!$('#order-history').open)return;
@@ -348,7 +364,7 @@ async function historyRefresh(force=false){
   const authorized=member?.exists()&&member.val().active===true;
   const rows=historySelection().filter(row=>{const cached=historyCloud.get(requestKey(row));return force||!cached||cached.authorized!==authorized||Date.now()-cached.checkedAt>60000;});
   for(let i=0;i<rows.length;i+=3){if(!$('#order-history').open||document.hidden||$('#tracking-screen').classList.contains('hide'))break;await Promise.all(rows.slice(i,i+3).map(row=>hydrateHistoryRow(row,user,authorized)));}
-  const saved=writeHistory(localHistory);
+  const saved=await withDeviceLock(()=>{localHistory=mergeHistory(readHistory(),localHistory);return writeHistory(localHistory);});
   $('#history-status').textContent=saved?'Görünen kayıtlar güncellendi.':'Bilgiler okundu ancak telefon hafızasına yazılamadı.';
  }catch(err){$('#history-status').textContent='Geçmiş doğrulanamadı: '+err.message;}
  finally{historyRefreshing=false;$('#history-refresh').disabled=false;historyRender();if(historyAgain){historyAgain=false;historyRefresh();}}
@@ -356,6 +372,7 @@ async function historyRefresh(force=false){
 $('#order-history').addEventListener('toggle',()=>{if($('#order-history').open){historyRender();historyRefresh();}});
 $('#history-refresh').addEventListener('click',()=>historyRefresh(true));
 $('#history-search').addEventListener('input',()=>{historyPage=0;historyRender();});
+window.addEventListener('storage',event=>{if(event.key===HISTORY_KEY){localHistory=mergeHistory(readHistory(),localHistory);historyRender();}});
 $('#history-prev').addEventListener('click',()=>{historyPage=Math.max(0,historyPage-1);historyRender();historyRefresh();});
 $('#history-more').addEventListener('click',()=>{historyPage++;historyRender();historyRefresh();});
 historyRender();
@@ -421,6 +438,8 @@ $('#order-form').addEventListener('submit',async e=>{
  busy=true;const form=$('#order-form');form.classList.add('busy');msg('Sipariş kaydediliyor...');
  const controls=[...form.querySelectorAll('input,select,textarea,button')];controls.forEach(x=>x.disabled=true);
  try{
+  await withDeviceLock(async()=>{
+  if(recordedOrder(shipping))throw new Error('Bu kod bu cihazdan zaten gönderilmiş.');
   const user=await mobileUser(),pending=readPending(),pendingKey='code:'+key,old=pending[pendingKey];
   if(old&&old.uid!==user.uid)throw new Error('Bu kod için önceki gönderim başka cihaz oturumuna ait. Mükerrer sipariş riskinden dolayı durduruldu.');
   const id=old?.requestId||crypto.randomUUID();
@@ -438,6 +457,7 @@ $('#order-form').addEventListener('submit',async e=>{
   cart.clear();$('#shipping').value='';$('#amount').value='0';noteField.value='';try{localStorage.removeItem(ORDER_NOTE_DRAFT_KEY)}catch{}
   renderCart();
   msg('Sipariş talebi '+id.slice(0,8).toUpperCase()+' Firebase kaydı doğrulandı. '+(orderNote?'Not da talepte doğrulandı. ':'')+(saved?'Telefon geçmişine kaydedildi.':'Telefon geçmişine yazılamadı; önceki işlem kimliği korundu.'));
+  });
  }catch(err){msg('Sipariş doğrulanamadı: '+err.message+' · Not ve sepet korunuyor. Aynı kodla tekrar denemek yeni işlem kimliği üretmez.');}
  finally{busy=false;controls.forEach(x=>x.disabled=false);form.classList.remove('busy')}
 });
