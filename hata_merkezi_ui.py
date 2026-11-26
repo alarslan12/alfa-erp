@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import re
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QWidget,QVBoxLayout,QHBoxLayout,QLabel,QPushButton,QTableWidget,
@@ -21,8 +22,8 @@ def local_time(value):
 
 class ErrorInbox(QWidget):
     refresh_requested=Signal()
-    review_requested=Signal(str)
-    remove_requested=Signal(str)
+    review_requested=Signal(list)
+    remove_requested=Signal(list)
     purge_reviewed_requested=Signal(list)
 
     def __init__(self,parent=None):
@@ -46,13 +47,15 @@ class ErrorInbox(QWidget):
         refresh.setObjectName("OwnerPrimary")
         refresh.clicked.connect(self.refresh_requested.emit)
         actions.addWidget(refresh)
+        select=QPushButton('Tümünü seç');select.clicked.connect(self.table_select_all)
+        actions.addWidget(select)
         root.addLayout(actions)
         self.table=QTableWidget(0,6)
         self.table.setObjectName("OwnerErrorTable")
         self.table.setHorizontalHeaderLabels(
             ["Zaman","Bilgisayar","Sürüm","Hata türü","Durum","Kaynak"])
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.setAlternatingRowColors(True)
         self.table.setShowGrid(False)
@@ -64,13 +67,13 @@ class ErrorInbox(QWidget):
         self.table.doubleClicked.connect(lambda _index:self.open_details())
         root.addWidget(self.table,1)
         bottom=QHBoxLayout()
-        detail=QPushButton("Seçili raporun ayrıntıları")
+        detail=QPushButton("Rapor ayrıntısı")
         detail.setObjectName("OwnerPrimary")
         detail.clicked.connect(self.open_details)
-        review=QPushButton("Seçili rapor · İncelendi")
+        review=QPushButton("Seçilenleri incele")
         review.setObjectName("OwnerPrimary")
         review.clicked.connect(self.mark_reviewed)
-        remove=QPushButton("Seçili raporu sil")
+        remove=QPushButton("Seçilenleri sil")
         remove.setObjectName("OwnerDanger")
         remove.clicked.connect(self.delete_selected)
         purge=QPushButton("İncelenenleri temizle")
@@ -113,6 +116,14 @@ class ErrorInbox(QWidget):
             " · canlı bildirim açıkken otomatik yenilenir")
         return unseen
 
+    def table_select_all(self):
+        self.table.selectAll()
+
+    def _selected_ids(self):
+        return [str(self.table.item(i.row(),0).data(Qt.ItemDataRole.UserRole))
+                for i in self.table.selectionModel().selectedRows()
+                if self.table.item(i.row(),0) is not None]
+
     def _selected(self):
         row=self.table.currentRow()
         if row<0:return None,None
@@ -143,11 +154,29 @@ class ErrorInbox(QWidget):
         frames=entry.get("frames") or []
         details=QTextEdit()
         details.setReadOnly(True)
+        kind=str(entry.get("type") or "")
+        code=re.search(r"(\d{3})$",kind)
+        descriptions={
+            "409":("İşlem çakışması","Sunucu siparişi ya da sürümünü değiştirmiş olabilir. "
+                   "Reddedilen işlem yerel çakışma arşivinde tutulur. "
+                   "Güncel siparişi kontrol etmeden tekrar uygulamayın."),
+            "403":("Erişim reddedildi","Yetkili owner rolünü ve yayımlanmış Firebase kurallarını kontrol edin."),
+            "401":("Oturum doğrulanamadı","Cihaz oturumunu ve Firebase bağlantısını kontrol edin."),
+            "422":("İş kuralı doğrulaması","İşlem mevcut sipariş durumuna veya veri kuralına uygun olmayabilir."),
+            "429":("İstek sınırı","Geçici yoğunluk; uygulamanın yeniden denemesine izin verin."),
+            "503":("Geçici hizmet hatası","İşlemi zorla tekrar göndermeyin; bağlantı ve kuyruk durumunu kontrol edin."),
+        }
+        number=code.group(1) if code else ""
+        heading,help_text=descriptions.get(number,("Teknik olay",
+            "Kesin neden için olay kaynağı ve varsa Python yığınını inceleyin."))
+        trace="\n".join(f"{x.get('file','?')}:{x.get('line','?')} → {x.get('function','?')}"
+                        for x in frames if isinstance(x,dict))
         details.setPlainText(
-            "\n".join(f"{x.get('file','?')}:{x.get('line','?')} "
-                      f"→ {x.get('function','?')}"
-                      for x in frames if isinstance(x,dict))
-            or "Yerel/native hata: Python yığın bilgisi bulunmuyor.")
+            "OLAY SINIFI: "+heading+"\n"
+            +"HTTP KODU: "+(number or "Kayıtlı değil")+"\n"
+            +"OLASI NEDEN / KONTROL: "+help_text+"\n\n"
+            +"TEKNİK YIĞIN\n"+(trace or "Bu olay için Python yığını kaydedilmemiş.")+
+            "\n\nNot: Raporlar gizlilik nedeniyle müşteri verisi ve ham hata metni içermez.")
         col.addWidget(details,1)
         close=QPushButton("Kapat")
         close.clicked.connect(dialog.accept)
@@ -155,25 +184,23 @@ class ErrorInbox(QWidget):
         dialog.exec()
 
     def mark_reviewed(self):
-        report_id,entry=self._selected()
-        if entry is None:
-            QMessageBox.information(self,"Hata Merkezi","Önce rapor seç.")
+        ids=[key for key in self._selected_ids() if key not in self._acks]
+        if not ids:
+            QMessageBox.information(self,"Hata Merkezi","İncelenmemiş rapor seç.")
             return
-        if report_id in self._acks:return
-        self.review_requested.emit(report_id)
+        self.review_requested.emit(ids)
 
     def delete_selected(self):
-        report_id,entry=self._selected()
-        if entry is None:
+        ids=self._selected_ids()
+        if not ids:
             QMessageBox.information(self,"Hata Merkezi","Önce hata kaydı seç.")
             return
         if QMessageBox.question(
-            self,"Hata raporunu kalıcı sil",
-            "Seçili hata raporu Firebase'den kalıcı olarak silinsin mi?\n"+
-            str(entry.get("type") or "Hata")[:70],
+            self,"Hata raporlarını kalıcı sil",
+            str(len(ids))+" seçili hata raporu Firebase'den kalıcı olarak silinsin mi?",
             QMessageBox.StandardButton.Yes|QMessageBox.StandardButton.No
         )==QMessageBox.StandardButton.Yes:
-            self.remove_requested.emit(report_id)
+            self.remove_requested.emit(ids)
 
     def purge_reviewed(self):
         ids=[key for key in self._by_id if key in self._acks]
