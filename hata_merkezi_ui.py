@@ -3,11 +3,11 @@ from __future__ import annotations
 
 from datetime import datetime
 import re
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, QItemSelectionModel
 from PySide6.QtWidgets import (
     QWidget,QVBoxLayout,QHBoxLayout,QLabel,QPushButton,QTableWidget,
     QTableWidgetItem,QHeaderView,QAbstractItemView,QDialog,QTextEdit,
-    QMessageBox
+    QMessageBox,QLineEdit,QComboBox
 )
 
 
@@ -43,6 +43,14 @@ class ErrorInbox(QWidget):
         self.summary=QLabel("Hata kayıtları henüz yüklenmedi.")
         self.summary.setObjectName("OwnerBody")
         actions.addWidget(self.summary,1)
+        self.search=QLineEdit()
+        self.search.setPlaceholderText("Hata kodu, bilgisayar veya kaynak…")
+        self.search.textChanged.connect(self._render)
+        actions.addWidget(self.search,1)
+        self.filter=QComboBox()
+        self.filter.addItems(["Tümü","İncelenmemiş","İncelenen"])
+        self.filter.currentIndexChanged.connect(self._render)
+        actions.addWidget(self.filter)
         refresh=QPushButton("↻ Elle yenile")
         refresh.setObjectName("OwnerPrimary")
         refresh.clicked.connect(self.refresh_requested.emit)
@@ -90,7 +98,26 @@ class ErrorInbox(QWidget):
             str(key):dict(value) for key,value in (reports or {}).items()
             if isinstance(value,dict) and len(str(key))<=90}
         self._acks=acks if isinstance(acks,dict) else {}
-        rows=sorted(self._by_id.items(),key=lambda v:v[0],reverse=True)
+        self._render()
+        return sum(key not in self._acks for key in self._by_id)
+
+    def _render(self,*_):
+        if not hasattr(self,"_by_id"):
+            return
+        selected=set(self._selected_ids())
+        needle=self.search.text().strip().casefold()
+        mode=self.filter.currentIndex()
+        rows=[]
+        for key,entry in sorted(self._by_id.items(),key=lambda v:v[0],reverse=True):
+            reviewed=key in self._acks
+            if (mode==1 and reviewed) or (mode==2 and not reviewed):
+                continue
+            haystack=" ".join(str(entry.get(k) or "") for k in
+                             ("type","device_name","source","version","fingerprint","created_at")).casefold()
+            if needle and needle not in haystack:
+                continue
+            rows.append((key,entry))
+        self.table.clearSelection()
         self.table.setRowCount(len(rows))
         unseen=0
         for row,(report_id,entry) in enumerate(rows):
@@ -111,10 +138,11 @@ class ErrorInbox(QWidget):
                     from PySide6.QtGui import QColor
                     cell.setForeground(QColor("#ffbc62"))
                 self.table.setItem(row,col,cell)
+            if report_id in selected:
+                self.table.selectionModel().select(self.table.model().index(row,0),
+                    QItemSelectionModel.SelectionFlag.Select|QItemSelectionModel.SelectionFlag.Rows)
         self.summary.setText(
-            f"{len(rows)} son hata kaydı · {unseen} incelenmemiş"
-            " · canlı bildirim açıkken otomatik yenilenir")
-        return unseen
+            f"{len(rows)}/{len(self._by_id)} rapor · {unseen} incelenmemiş")
 
     def table_select_all(self):
         self.table.selectAll()
@@ -209,7 +237,11 @@ class ErrorInbox(QWidget):
             self.remove_requested.emit(ids)
 
     def purge_reviewed(self):
-        ids=[key for key in self._by_id if key in self._acks]
+        # Only reviewed reports in the current filtered list.
+        ids=[str(self.table.item(row,0).data(Qt.ItemDataRole.UserRole))
+             for row in range(self.table.rowCount())
+             if self.table.item(row,0) is not None
+             and str(self.table.item(row,0).data(Qt.ItemDataRole.UserRole)) in self._acks]
         if not ids:
             QMessageBox.information(self,"Hata Merkezi",
                                     "Görünen kayıtlar içinde incelenmiş hata yok.")
