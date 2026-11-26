@@ -354,6 +354,35 @@ def _payment(client,days,paid,fingerprints):
     return {"accounting_days":list((client._get("accounting") or {}).values())}
 
 
+def _report_keys(raw):
+    if not isinstance(raw,list) or len(raw)>70:
+        raise DeviceError("En fazla 70 hata kaydı seçilebilir.",422)
+    keys=list(dict.fromkeys(str(x) for x in raw))
+    if any(not k or len(k)>90 or any(c in k for c in ".#$[]/") for k in keys):
+        raise DeviceError("Hata raporu kimliği geçersiz",422)
+    return keys
+
+
+def _remove_error_reports(client,ids,reviewed_only=False):
+    reviewed=client.read_error_acks() if reviewed_only else None
+    removed=0
+    failures=[]
+    for key in _report_keys(ids):
+        if reviewed is not None and key not in reviewed:
+            continue
+        try:
+            # Delete the report first; if live rules reject deletion, keep its
+            # review receipt. A missing report can still have an orphan ack.
+            if client._get("error_reports/"+key) is not None:
+                client._request("DELETE","error_reports/"+key)
+            if client._get("error_acks/"+key) is not None:
+                client._request("DELETE","error_acks/"+key)
+            removed+=1
+        except DeviceError as exc:
+            failures.append({"id":key,"status":exc.status})
+    return {"removed":removed,"failures":failures}
+
+
 def admin_request(cloud,action,timeout=None,**kwargs):
     client=cloud if isinstance(cloud,Workstation) else Workstation()
     _owner(client)
@@ -366,7 +395,9 @@ def admin_request(cloud,action,timeout=None,**kwargs):
                 (requests.get(uid) or {}).get("name") or uid,
                 "active":bool(row.get("active")),
                 "device_role":row.get("role"),
-                "last_seen_at":row.get("last_seen_at")}
+                "last_seen_at":row.get("last_seen_at"),
+                "created_at":row.get("created_at") or (requests.get(uid) or {}).get("created_at"),
+                "is_current":uid==client.uid}
                 for uid,row in members.items() if isinstance(row,dict)]}
     if action=="admin_revoke":
         uid=str(kwargs.get("id") or "")
@@ -385,41 +416,48 @@ def admin_request(cloud,action,timeout=None,**kwargs):
                     if isinstance(record,dict) and record.get("active") is False
                     and uid!=client.uid][:80]
         removed=0
+        failures=[]
         for uid in candidates:
-            record=client._get("members/"+uid)
-            if not isinstance(record,dict) or record.get("active") is not False:
-                continue
-            client._request("DELETE","members/"+uid)
             try:
-                client._request("DELETE","device_requests/"+uid)
-            except DeviceError:
-                pass
-            removed+=1
-        return {"removed":removed}
+                record,etag,_=client._request("GET","members/"+uid,etag=True)
+                if (not isinstance(record,dict) or record.get("active") is not False
+                        or uid==client.uid):
+                    continue
+                # A concurrently re-approved device must never be deleted.
+                if not etag:
+                    raise DeviceError("Cihaz sürümü doğrulanamadı",409)
+                client._request("DELETE","members/"+uid,match=etag)
+                removed+=1
+                try:
+                    request,request_etag,_=client._request(
+                        "GET","device_requests/"+uid,etag=True)
+                    if request is not None and request_etag:
+                        client._request("DELETE","device_requests/"+uid,match=request_etag)
+                except DeviceError:
+                    # The inactive membership was removed. Leave an unrelated
+                    # or newly changed pairing request for explicit review.
+                    pass
+            except DeviceError as exc:
+                failures.append({"id":uid,"status":exc.status})
+        return {"removed":removed,"failures":failures}
+    if action=="admin_review_errors":
+        done=0
+        failures=[]
+        for key in _report_keys(kwargs.get("ids")):
+            try:
+                if client._get("error_reports/"+key) is not None:
+                    if client._get("error_acks/"+key) is None:
+                        client.review_error_report(key)
+                    done+=1
+            except DeviceError as exc:
+                failures.append({"id":key,"status":exc.status})
+        return {"reviewed":done,"failures":failures}
     if action=="admin_delete_error":
-        key=str(kwargs.get("id") or "")
-        if not key or len(key)>90 or any(c in key for c in ".#$[]/"):
-            raise DeviceError("Hata raporu kimliği geçersiz",422)
-        if client._get("error_acks/"+key) is not None:
-            client._request("DELETE","error_acks/"+key)
-        client._request("DELETE","error_reports/"+key)
-        return {"deleted":1}
+        return _remove_error_reports(client,[kwargs.get("id") or ""])
+    if action=="admin_delete_errors":
+        return _remove_error_reports(client,kwargs.get("ids"))
     if action=="admin_purge_reviewed_errors":
-        ids=kwargs.get("ids")
-        if not isinstance(ids,list) or len(ids)>70:
-            raise DeviceError("En fazla 70 hata kaydı temizlenebilir",422)
-        reviewed=client.read_error_acks()
-        removed=0
-        for raw in list(dict.fromkeys(ids)):
-            key=str(raw)
-            if not key or len(key)>90 or any(c in key for c in ".#$[]/"):
-                continue
-            if key not in reviewed:
-                continue
-            client._request("DELETE","error_acks/"+key)
-            client._request("DELETE","error_reports/"+key)
-            removed+=1
-        return {"removed":removed}
+        return _remove_error_reports(client,kwargs.get("ids"),reviewed_only=True)
     if action=="admin_audit":
         # Archived legacy records are intentionally NOT readable by
         # staff/owner RTDB rules. Fetching it used to return HTTP 401, falsely
