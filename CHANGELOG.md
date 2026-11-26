@@ -1,3 +1,11 @@
+## [v2.0.53] — 2026-11-26
+
+- **Issue #32:** PR #30 ve PR #31'de üretime alınmış fakat v2.0.52 Setup'ta bulunmayan mobil sipariş notu aktarımı ve ZIP baskı talimatındaki not alanı ortak Windows kurulumuna eklendi.
+- UUIDv5 checkout siparişlerinde geçmiş not eksikse kaynakta saklı not ile koşullu ETag onarımı yapılır. Sadece id/workspace/request eşleşen, hiç not veya uyarı kaydı olmayan, silinmemiş siparişler güncellenir; mevcut not ve uyarı asla ezilmez (PR #34).
+- Güncel mobil PR #33 kaynakları Suite üretim dalında; Hosting ve Firebase Rules yayını yapılmaz. Kaynak checkout'ta not yoksa onarılamaz.
+- Mevcut siparişler, sipariş numarası/durumu, üretim/koli durumu, kitaplar, Firebase veritabanı ve kullanıcı arşivleri korunur.
+- Tek kurulumda Personel, Yönetici, Banner Studio ve Print Surveillance sürümleri birlikte güncellendi.
+
 ## [v2.0.52] — 2026-11-22
 
 - Fason sipariş ZIP PDF dosya adları, baskı adedi önde olacak şekilde düzenlendi: `2 ADET - DOSYA_XXXXXXXXXXXX.pdf`.
