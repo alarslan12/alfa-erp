@@ -8,7 +8,18 @@
 
 **Korunacaklar:** Onaylanan Katalog/Siparişler arayüzü, ortak Havuz, personel/owner rolleri, Firebase Auth/RTDB, offline işlem kuyruğu, iade/kargo/ciro hesabı, FlexFlow hareketli gün/takvim filtresi ve günlük değerlendirme.
 
-## Son iş: Sipariş notunu fason baskı talimatına ekleme
+## Son iş: Issue #32 — Eski mobil checkout notlarını zarar vermeden kurtarma
+**Dal:** `fix/erp-reconcile-mobile-checkout-notes-issue32` · **PR:** Bu dalın ERP PR'ı.
+
+- **Kök neden:** Son yayımlanan Suite v2.0.52, PR #30'un not aktarımını ve PR #31'in ZIP notunu içermiyordu. Mobil PR #33 üretime birleştirildi; ERP kurulumunun güncellenmesi gerekiyor.
+- `alfa_rtdb.py`: `_adopt_checkout` mevcut UUIDv5 checkout order'ı için orijinal istekte dolu not varsa ETag korumalı salt alan onarımı yapar. Sadece mevcut `id`, `workspace_id`, `client_request_id` eşleşiyorsa; `order_note` ve `order_notice` anahtarları hiç yoksa onarım yapılır. Başka not, mevcut/okunmuş uyarı, silinmiş sipariş, sahipsiz kayıt korunur.
+- Kurtarılan note + `make_notice(None, order)` ile `initial_note` bir defada eklenir; sadece `version`, `updated_at` güncellenir. Mevcut sipariş numarası, kitaplar, hazırlık/koli, durum, ciro, kargo, geçmiş ve event_log dokunulmaz. ETag yarışında yeniden kontrol edilir; yinelenen order oluşturulmaz.
+- Bellek içi `_checkout_notes_checked` aynı oturumda eski checkout kayıtlarının sürekli yeniden sorgulanmasını azaltır; tekrar başlatma/retry idempotenttir.
+- `tests/test_mobile_checkout_note_adoption.py`: önceden notsuz içe alınmış sipariş, mevcut farklı not/uyarı/okunmuş uyarı/silinmiş/mismatch kayıt, tekrar çalışma, kaynakta not yoksa onarımsız bırakma testleri.
+- **Sınırlar:** Yalnız Firebase checkout isteğinde hâlâ saklı not kurtarılabilir. Kaynak checkout notu yoksa uydurulmaz. Canlı Firebase erişimi veya veri onarımı bu PR'da yapılmadı; düzeltilmiş importer ancak güncellenen Windows kurulumundan sonra çalışır. Canlı Rules ve Hosting değiştirilmez.
+- Mobil PR #33 dosyalarına dokunulmaz. Merkezi Suite Release ayrı `integration/release-...` PR'ıyla yürütülür.
+
+## Önceki iş: Sipariş notunu fason baskı talimatına ekleme
 **Dal:** `fix/erp-compile-print-instruction-order-note-20261126` · **PR:** GitHub'da bu dalın PR'ı.
 
 - `editor_siparis.py`: derleme worker'ının sipariş snapshot'ına mevcut `order_note` alanı eklenir.
