@@ -399,15 +399,31 @@ def admin_request(cloud,action,timeout=None,**kwargs):
                 "created_at":row.get("created_at") or (requests.get(uid) or {}).get("created_at"),
                 "is_current":uid==client.uid}
                 for uid,row in members.items() if isinstance(row,dict)]}
-    if action=="admin_revoke":
+    if action in ("admin_revoke","admin_rename_device"):
         uid=str(kwargs.get("id") or "")
-        if not uid or uid==client.uid:
-            raise DeviceError("Kendi yönetici cihazını iptal edemezsin", 422)
-        old=client._get("members/"+uid)
-        if not old:
-            raise DeviceError("Cihaz bulunamadı", 404)
-        client._request("PUT","members/"+uid,{**old,"active":False})
-        return {"revoked":True}
+        if not uid or len(uid)>128 or any(c in uid for c in ".#$[]/"):
+            raise DeviceError("Cihaz kimliği geçersiz",422)
+        if action=="admin_revoke" and uid==client.uid:
+            raise DeviceError("Kendi yönetici cihazını iptal edemezsin",422)
+        name=str(kwargs.get("name") or "").strip()
+        if action=="admin_rename_device" and (not name or len(name)>120):
+            raise DeviceError("Cihaz adı 1–120 karakter olmalıdır",422)
+        for _ in range(4):
+            old,etag,_=client._request("GET","members/"+uid,etag=True)
+            if not isinstance(old,dict) or not etag:
+                raise DeviceError("Cihaz bulunamadı veya sürümü doğrulanamadı",404)
+            fresh=dict(old)
+            if action=="admin_revoke":
+                fresh["active"]=False
+            else:
+                fresh["name"]=name
+            try:
+                client._request("PUT","members/"+uid,fresh,match=etag)
+                return {"updated":True}
+            except DeviceError as exc:
+                if exc.status!=409:
+                    raise
+        raise DeviceError("Cihaz başka bir yönetici tarafından değiştirildi",409)
     if action=="admin_prune_devices":
         members=client._get("members") or {}
         if not isinstance(members,dict):
