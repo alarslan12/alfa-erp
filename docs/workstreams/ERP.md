@@ -2,13 +2,26 @@
 
 **Sohbet:** ERP Personel / Yönetici. **Repo:** `alarslan12/alfa-erp`; üretim `firebase-rtdb-final`.
 
-**Son doğrulanmış kararlı Suite:** v2.0.51 (21.11.2026). Yeni görevlerde GitHub Release, üretim SHA ve açık PR'ları yeniden kontrol et.
+**Son doğrulanmış kararlı Suite:** v2.0.53 (26.11.2026); hedef yeni ortak sürüm **v2.1.0**. Yeni görevlerde GitHub Release, üretim SHA ve açık PR'ları yeniden kontrol et.
 
 **Kod sahipliği:** `main.py`, `ekran_katalog.py`, `ekran_siparis.py`, `ekran_analitik.py`, `ekran_verimlilik.py`, `flexflow*.py`, ERP/Firebase istemcisi, analitik/muhasebe ve ilgili testler.
 
 **Korunacaklar:** Onaylanan Katalog/Siparişler arayüzü, ortak Havuz, personel/owner rolleri, Firebase Auth/RTDB, offline işlem kuyruğu, iade/kargo/ciro hesabı, FlexFlow hareketli gün/takvim filtresi ve günlük değerlendirme.
 
-## Son iş: Issue #32 — Eski mobil checkout notlarını zarar vermeden kurtarma
+## Son iş: v2.1.0 Yönetici / Personel sadeleştirme ve kararlılık
+**Dal:** `integration/erp-v210-admin-refurb` · ERP + ortak Rules/kurulum hazırlığı içeren entegrasyon PR'ı. Mobil, Banner ve Print iş mantığı değiştirilmez.
+
+- Kullanıcı isteğiyle geçmiş checkout notlarının otomatik kurtarması tamamen kaldırıldı. Yeni mobil siparişlerde `order_note`, 2000 karakter ve ilk uyarı davranışı korunur. Mevcut siparişler ve geçmiş notlar yeniden yazılmaz. ETag sayaç/revision çakışmasının tekrarı 503 geçici durumudur; iş kuyruğu kalıcı reddedilmiş sayılmaz.
+- Hata Merkezi: çoklu seçim, arama, filtre, toplu inceleme/silme, görünür incelenmiş kayıtların temizlenmesi, HTTP kodu ve yeni raporlarda güvenli işlem aşaması. Eski bulut çakışma arşivi buraya taşındı. Rapor silinmeden inceleme onayı silinmez; başarısız kayıtlar HTTP koduyla gösterilir.
+- Cihazlar: isim/UID araması, kısa UID, kendi cihazı etiketi, kayıt zamanı/varsa son bağlantı, yeniden adlandırma ve pasif kayıtların ETag korumalı temizlenmesi. Etkin owner rolü zorunlu, aktif cihazlar ve kendi cihazı korunur. Personel onayında mevcut owner rolü ezilmez. Repo Rules üyelik silmeyi yalnız pasif diğer üyeyle sınırlar; canlı Rules **yayımlanmadı**.
+- İşlem günlüğü: tarih başlıkları, yeni/eskiden yeniye göre zaman gruplaması, aynı sipariş/cihaz/aktivitenin 120 saniyelik grupları, her hareketin gerçek zaman damgası, arama/aktivite filtresi, temaya uygun renk/hover. Erişilemeyen eski audit kaydı yeni işlem listesini bozmaz. Sistem sağlığı ekranı kaldırıldı.
+- Derleme yalnız Yönetici'de: bütün ZIP kontrolleri ve giriş koruması, Personel PyInstaller paketinde `siparis_derle` modülü hariç bırakıldı. Personel PDF açma/kapak işlemleri korunur.
+- Uygulama Ayarları: PDF kitaplık sol, Excel katalog sağ, temalar ve kontrast altında; ayrı Bildirimler ve Güncelleme tabı. Sağ üstte kalkan cihaz yetkisi ve en sağda ayarlar, çakışma uyarısı 14 saniye.
+- ElevenLabs ağ/API ve UI entegrasyonu kaldırıldı. Dört sabit Türkçe anons metni, yerel WAV oynatma ve yüklü Windows Türkçe sesi/ton fallback'i. Canva Ozan gerçek ses varlıkları **henüz temin edilemedi**; bu dosyalar olmadan Ozan sesi olduğu iddia edilmez. Eski şifreli dosyalar ve kullanıcı ayarları zorla silinmedi.
+- **Denetim:** Başlangıçta 52 dal ve sıfır açık PR incelendi; kapatılmış PR kayıtları ve 11 seçili eski ERP/Firebase dalının ancestry/diff özeti kontrol edildi. Eski ayrışmış dallar yeniden merge edilmedi; diğer workstream'ler değiştirilmedi. Kullanıcı isteğine uygun elle test/Windows derlemesi çalıştırılmadı; otomatik PR kapıları devreye girebilir. Gerçek Firebase canlı izinleri ve kullanıcı bilgisayarları test edilmedi.
+- **Yayın:** Hedef 2.1.0 ayrı merkezi release dalında hazırlanacak. PR/CI/Release ve canlı Rules onayı ayrı tutulur. Canva Ozan WAV kaynakları ve canlı yetkiler doğrulanmadan tüm istekler bitmiş/yayımlanmış sayılmaz.
+
+## Önceki iş: Issue #32 — Eski mobil checkout notlarını zarar vermeden kurtarma (kaldırıldı)
 **Dal:** `fix/erp-reconcile-mobile-checkout-notes-issue32` · **PR:** Bu dalın ERP PR'ı.
 
 - **Kök neden:** Son yayımlanan Suite v2.0.52, PR #30'un not aktarımını ve PR #31'in ZIP notunu içermiyordu. Mobil PR #33 üretime birleştirildi; ERP kurulumunun güncellenmesi gerekiyor.
