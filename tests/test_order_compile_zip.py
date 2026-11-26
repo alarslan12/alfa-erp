@@ -55,6 +55,30 @@ class LocalOrderBundleTests(unittest.TestCase):
             ])
         self.assertEqual(self.source.read_bytes(), self.original_bytes)
 
+    def test_order_note_is_appended_after_summary(self):
+        self.order['order_note'] = 'Önce renkli basın.\nİkinci satır Türkçe not.'
+        target = derle_siparis(self.order, self.catalog, self.pdfs, self.desktop)
+        with ZipFile(target) as archive:
+            self.assertEqual(
+                archive.read('BASKI_TALIMATI.txt').decode('utf-8-sig').splitlines(),
+                ['Sipariş Kodu: KARGO-XX-99',
+                 'Toplam Sayfa Sayısı: 300',
+                 'Toplam Kitap Sayısı: 3',
+                 '',
+                 'Sipariş Notu:',
+                 'Önce renkli basın.',
+                 'İkinci satır Türkçe not.'])
+
+    def test_whitespace_only_note_does_not_change_three_line_instruction(self):
+        self.order['order_note'] = '  \n  '
+        target = derle_siparis(self.order, self.catalog, self.pdfs, self.desktop)
+        with ZipFile(target) as archive:
+            self.assertEqual(
+                archive.read('BASKI_TALIMATI.txt').decode('utf-8-sig').splitlines(),
+                ['Sipariş Kodu: KARGO-XX-99',
+                 'Toplam Sayfa Sayısı: 300',
+                 'Toplam Kitap Sayısı: 3'])
+
     def test_selected_book_only_and_existing_zip_not_overwritten(self):
         other = self.pdfs / '12-Diger-Gizli.pdf'
         other.write_bytes(b'%PDF-1.4\nother')

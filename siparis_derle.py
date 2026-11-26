@@ -146,6 +146,9 @@ def derle_siparis(order, catalog, pdf_folder, desktop, *, codes=None,
         'Toplam Sayfa Sayısı: ' + str(total_pages),
         'Toplam Kitap Sayısı: ' + str(sum(x[2] for x in entries)),
     ]
+    order_note = str(order.get('order_note') or '').strip()
+    if order_note:
+        note.extend(['', 'Sipariş Notu:', order_note])
 
     base = 'Sipariş ' + sid
     # Keep the temporary archive on the same drive as the Desktop, so the
