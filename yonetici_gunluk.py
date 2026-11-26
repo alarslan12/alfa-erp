@@ -102,9 +102,19 @@ def make_audit_entries(payload,orders):
             title='İade durumu değiştirildi';icon='↶';lines=['İade işlemi kaydedildi']
         else:
             title='Diğer işlem';icon='•';lines=[action or 'İşlem kaydı']
-        entries.append({'stamp':stamp,'icon':icon,'title':title,
-                        'detail':'İşlem ayrıntıları','orders':names,
-                        'source':source,'lines':lines})
+        lines=[_timestamp(stamp)+'  ·  '+str(line) for line in (lines or [title])]
+        key=(key_order,str(raw.get('device_id') or source),action)
+        group=groups.get(key)
+        if key_order and group is not None and (
+                _sort_time(stamp)-_sort_time(group['first_stamp'])<=120):
+            group['stamp']=stamp
+            group['lines'].extend(lines)
+        else:
+            group={'stamp':stamp,'first_stamp':stamp,'icon':icon,'title':title,
+                   'detail':'İşlem ayrıntıları','orders':names,'source':source,'lines':lines}
+            entries.append(group)
+            if key_order:
+                groups[key]=group
 
     # Preserve meaningful historical business audit after migration without
     # flooding the screen with SQL trigger rows for each book.
@@ -183,6 +193,7 @@ class AuditFeed(QWidget):
 
     def set_entries(self,payload,orders):
         self.entries=make_audit_entries(payload,orders)
+        self.legacy_unavailable=bool(payload.get('legacy_unavailable'))
         self.render()
 
     def render(self,*_):
@@ -197,7 +208,8 @@ class AuditFeed(QWidget):
               and (not query or query in (
                   row['title']+' '+row['orders']+' '+row['source']+' '+
                   _timestamp(row['stamp'])+' '+' '.join(str(x) for x in row.get('lines',[]))).casefold())]
-        self.counter.setText(str(len(rows))+'/'+str(len(self.entries))+' işlem grubu')
+        self.counter.setText(str(len(rows))+'/'+str(len(self.entries))+' işlem grubu'+
+            (' · Eski arşive erişilemiyor' if getattr(self,'legacy_unavailable',False) else ''))
         if not rows:
             note=QLabel('Gösterilecek işlem bulunmuyor.')
             note.setObjectName('OwnerMuted')
