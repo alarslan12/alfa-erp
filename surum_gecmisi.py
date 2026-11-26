@@ -12,7 +12,7 @@ _RELEASES = [
         "İşlem günlüğü tarih ve 120 saniyelik aktivite grupları; filtre ve zaman damgaları.",
         "PDF, Excel ve görünüm tek Uygulama Ayarları sayfasında; sistem sağlığı kaldırıldı.",
         "Derleme yalnız Yönetici; geçmiş not kurtarma kaldırıldı, yeni mobil notlar korunuyor.",
-        "Bulut çakışma uyarısı 14 saniye; ElevenLabs kaldırıldı, yerel anons desteği eklendi.",
+        "Bulut çakışma uyarısı 14 saniye; ElevenLabs kaldırıldı, dört özgün Canva Ozan M4A anonsu eklendi.",
     ]),
     ("2.0.53", "Mobil not havuz aktarımı ve güvenli eski checkout onarımı", [
         "Mobil checkout sipariş notları masaüstü havuz siparişine ve ilk not uyarısına aktarılır.",
