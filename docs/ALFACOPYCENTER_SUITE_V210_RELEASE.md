@@ -11,7 +11,7 @@
 - Bulut çakışması bildirimi 14 saniye; arşivler silinmez. Sayaç/revision ETag yarışları geçici hata olarak kuyrukta kalır.
 
 ## Yerel ses sistemi
-ElevenLabs API, key/voice ayarları ve ağ sentezi kaldırıldı. Dört yerel sabit Türkçe anons için paketleme ve oynatma yolu hazırdır. **Canva Ozan WAV dosyaları bu adayda mevcut değildir.** Bkz. assets/notifications/README.md. Dosya yoksa yüklü Türkçe Windows sesi, o da yoksa yerel uyarı tonu kullanılır. Gerçek Canva çıktısı olmadan Ozan sesi olarak tanıtılmaz.
+ElevenLabs API, key/voice ayarları ve ağ sentezi kaldırıldı. Kullanıcı tarafından sağlanan dört özgün Türkçe Canva Ozan M4A dosyası PR #38'de kaynakla SHA-256 eşleştirilerek doğrulanmıştır. Personel, Yönetici ve AlfaBildirim paketlerinin üçünde dosyaların bulunması ve aynı SHA-256 değerlerini taşıması derleme sırasında denetlenir. Yerel Qt Multimedia oynatma; WAV/MP3, Windows Türkçe sesi ve uyarı tonu fallback olarak korunur. Bkz. assets/notifications/README.md.
 
 ## Yetki, kapsam ve yayın durumu
 - Repo Firebase Rules yalnız aktif owner'a rapor silme hakkı tanır; pasif cihaz silme koşulu daraltılmıştır. **Canlı Firebase Rules veya Hosting değiştirilmemiştir.** Canlı 403/owner üyeliği ayrıca doğrulanmalıdır.
