@@ -88,7 +88,7 @@ def _play_compressed(path,fallback):
         return False
 
 
-def play_local_announcement(mode):
+def play_local_announcement(mode,on_error=None):
     index=random.randrange(len(ANNOUNCEMENTS)) if mode=="ozan_karisik" else int(mode[-1])-1
     path=announcement_asset(index)
     def fallback():
@@ -96,10 +96,14 @@ def play_local_announcement(mode):
         wav=path.with_suffix(".wav")
         return path.suffix!=".wav" and wav.is_file() and _play_wav(wav)
 
+    def media_failed():
+        if not fallback() and on_error is not None:
+            on_error()
+
     stop_local_media()
     if path.is_file():
         if path.suffix==".wav" and _play_wav(path):
             return True
-        if path.suffix in (".m4a",".mp3") and _play_compressed(path,fallback):
+        if path.suffix in (".m4a",".mp3") and _play_compressed(path,media_failed):
             return True
     return fallback()
