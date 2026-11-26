@@ -133,11 +133,26 @@ class NotificationDeploymentContracts(unittest.TestCase):
 
     def test_announcements_have_four_offline_scripts(self):
         self.assertEqual(len(ANNOUNCEMENTS),4)
-        self.assertEqual(announcement_asset(0).name,"ozan_1.wav")
+        self.assertIn(announcement_asset(0).suffix,(".m4a",".wav",".mp3"))
+        self.assertEqual(announcement_asset(0).stem,"ozan_1")
         root=Path(__file__).resolve().parents[1]
         voices=(root/"bildirim_dogal_ses.py").read_text("utf-8")
         self.assertNotIn("api.elevenlabs.io",voices)
         self.assertNotIn("urllib.request",voices)
+
+    def test_packaged_ozan_audio_matches_original_uploads(self):
+        import hashlib
+        expected=(
+            "c739714885ade863d1c5b90bd3e9ddaa2894463469dd3cffc1975ef95df30550",
+            "8bc5866332cc3c8fac9cd966737f3b23567f1f475397f781879cf79cf24b3162",
+            "8c31c1e5c03b905825236cfdf5998bc8e21a06fb130e4bb5d88b003c75f0ba3d",
+            "bd57be0b1d048eaa7fc206e982ff5c8dc452dd480d3af7cac2ba08f224e50b0f",
+        )
+        for index,digest in enumerate(expected):
+            path=announcement_asset(index)
+            self.assertEqual(path.name,f"ozan_{index+1}.m4a")
+            self.assertTrue(path.is_file())
+            self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(),digest)
 
 
 if __name__=="__main__":
