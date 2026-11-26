@@ -30,3 +30,8 @@ Bu durum kaydını **yalnız Mobil sohbeti** kendi PR'larında yeniler.
 - Not içeren siparişin notu kaybolmasın diye gönderim bloke ediliyor; boş not ile mevcut sipariş akışı aynı kalıyor. Not gönderimi/ERP görünümü henüz çalışır ilan edilmemeli.
 - Bağımlılık: ERP/entegrasyon sohbetinde mobil checkout `order_note` (0..2000) için sunucu eşleştirmesi ve kurallarda açık onaylı doğrulama. Ardından mobil PR'da not payload'a eklenmeli.
 - Test/CI: henüz doğrulanmadı; PR birleştirilmedi, canlı Hosting'e yayımlanmadı.
+
+## 26.11.2026 — Mobil not aktarımı etkin (PR #29)
+- ERP/entegrasyon PR #30 üretim dalına 25.11.2026 tarihinde birleştirildi. `alfa_rtdb.py::_adopt_checkout` artık `order_note` değerini `clean_note` ile doğrulayıp `make_notice(None, order)` uyarısını oluşturuyor; `firebase/database.rules.json` checkout notu için 2000 karakter sınırını içeriyor.
+- Yalnız Mobil PR #29'daki `mobil_panel/index.html` değiştirildi: sipariş gönderiminde boş olmayan `order_note` alanı Firebase checkout payload'ına eklenir, başarılı kayıttan sonra yerel not taslağı temizlenir; aynı işlem kimliğiyle farklı notu yeniden gönderme engellenir.
+- Test/CI ve canlı Firebase Rules uygulanmış olma durumu ayrıca doğrulanmalıdır. PR açık, henüz üretim dalına birleştirilmedi ve Hosting yayını yapılmadı. Suite sürümü değiştirilmedi.
