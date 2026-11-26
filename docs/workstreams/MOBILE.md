@@ -17,3 +17,21 @@
 **Sıradaki iş / bağımlılık:** Kullanıcı talepleri. Windows Suite Setup sürümünü bağımsız değiştirme.
 
 Bu durum kaydını **yalnız Mobil sohbeti** kendi PR'larında yeniler.
+
+## 24.11.2026 — Mobil sipariş girişinde yerel geçmiş ve Dolap kodu
+- Dal: `feature/mobile-order-history-dolap-code-20261124`; PR: [#29](https://github.com/alarslan12/alfa-erp/pull/29).
+- `mobil_panel/index.html`: Dolap kodu son dört hane ayrı blok; kategori açılır menüsü ve hızlı kategori düğmeleri kaldırıldı; cihazda `localStorage` tabanlı son 500 başarılı gönderim kaydı, 50 kayıt görünümü ve cihaz içi mükerrer kod engeli eklendi.
+- Kapsam: yalnız bu tarayıcı/cihaz. Önceden girilmiş siparişler geriye dönük alınmaz; farklı cihaz/masaüstü siparişleri kontrol edilmez. Tarayıcı site verisi silinirse geçmiş kaybolur. Yeni Firebase izinleri, sunucu fonksiyonları, merkezi mükerrer koruması veya Rules değişikliği yok.
+- Test/CI: test çalıştırılmadı; PR CI durumu ayrıca doğrulanacak. Üretim dalına birleştirilmedi, Hosting'e yayımlanmadı; Suite sürümü değiştirilmedi.
+
+## 25.11.2026 — Mobil sipariş notu hazırlığı (PR #29)
+- Mobil sipariş ekranına isteğe bağlı `order_note` taslak alanı eklendi, maksimum 2000 karakter; taslak bu tarayıcının `localStorage` alanında saklanır.
+- **Entegrasyon bekliyor:** `firebase/database.rules.json` checkout yolunda `order_note` alanını kabul etmiyor; `alfa_rtdb.py` `_adopt_checkout` mobil istekteki notu siparişe taşımıyor ve `siparis_uyari.make_notice` oluşturmuyor. Bu iki paylaşılan/ERP dosyası Mobil PR kapsamında değiştirilmedi.
+- Not içeren siparişin notu kaybolmasın diye gönderim bloke ediliyor; boş not ile mevcut sipariş akışı aynı kalıyor. Not gönderimi/ERP görünümü henüz çalışır ilan edilmemeli.
+- Bağımlılık: ERP/entegrasyon sohbetinde mobil checkout `order_note` (0..2000) için sunucu eşleştirmesi ve kurallarda açık onaylı doğrulama. Ardından mobil PR'da not payload'a eklenmeli.
+- Test/CI: henüz doğrulanmadı; PR birleştirilmedi, canlı Hosting'e yayımlanmadı.
+
+## 26.11.2026 — Mobil not aktarımı etkin (PR #29)
+- ERP/entegrasyon PR #30 üretim dalına 25.11.2026 tarihinde birleştirildi. `alfa_rtdb.py::_adopt_checkout` artık `order_note` değerini `clean_note` ile doğrulayıp `make_notice(None, order)` uyarısını oluşturuyor; `firebase/database.rules.json` checkout notu için 2000 karakter sınırını içeriyor.
+- Yalnız Mobil PR #29'daki `mobil_panel/index.html` değiştirildi: sipariş gönderiminde boş olmayan `order_note` alanı Firebase checkout payload'ına eklenir, başarılı kayıttan sonra yerel not taslağı temizlenir; aynı işlem kimliğiyle farklı notu yeniden gönderme engellenir.
+- Test/CI ve canlı Firebase Rules uygulanmış olma durumu ayrıca doğrulanmalıdır. PR açık, henüz üretim dalına birleştirilmedi ve Hosting yayını yapılmadı. Suite sürümü değiştirilmedi.
