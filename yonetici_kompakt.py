@@ -157,9 +157,9 @@ class OwnerSettingsPage(SettingsPage):
         self.code_note.setReadOnly(True)
         self.code_note.setPlaceholderText('Firebase cihaz kimliği (UID) ile yetkilendirme')
         col.addWidget(self.code_note)
-        self.device_table=QTableWidget(0,3)
+        self.device_table=QTableWidget(0,5)
         self.device_table.setObjectName('OwnerDeviceTable')
-        self.device_table.setHorizontalHeaderLabels(['Bilgisayar','Durum','Son bağlantı'])
+        self.device_table.setHorizontalHeaderLabels(['Bilgisayar','Yetki / durum','Cihaz kimliği','Kayıt zamanı','Son bağlantı'])
         self.device_table.horizontalHeader().setStretchLastSection(True)
         self.device_table.horizontalHeader().setMinimumSectionSize(100)
         self.device_table.horizontalHeader().setSectionResizeMode(0,QHeaderView.ResizeMode.Stretch)
@@ -204,17 +204,25 @@ class OwnerSettingsPage(SettingsPage):
 
     def _render_devices(self,*_):
         data=self._all_device_rows
-        active=[r for r in data if r.get("active")]
-        inactive=[r for r in data if not r.get("active")]
+        from hata_merkezi_ui import local_time
+        active=sorted((r for r in data if r.get("active")),
+                      key=lambda r:(not r.get("is_current"),str(r.get("device_name","")).casefold()))
+        inactive=sorted((r for r in data if not r.get("active")),
+                        key=lambda r:str(r.get("device_name","")).casefold())
         visible=active+(inactive if self.show_inactive.isChecked() else [])
         self.device_table.setRowCount(len(visible))
         for i,r in enumerate(visible):
             for col,value in enumerate([
-                r.get("device_name") or r.get("id") or "",
+                str(r.get("device_name") or r.get("id") or "")+
+                    (" · Bu cihaz" if r.get("is_current") else ""),
                 ("Yönetici" if r.get("device_role")=="owner" else "Personel")+
                 (" · Aktif" if r.get("active") else " · İptal"),
-                str(r.get("last_seen_at") or "—")[:19]]):
-                self.device_table.setItem(i,col,QTableWidgetItem(str(value)))
+                str(r.get("id") or "")[-12:],
+                local_time(r.get("created_at")),
+                local_time(r.get("last_seen_at"))]):
+                cell=QTableWidgetItem(str(value))
+                cell.setToolTip(str(r.get("id") or ""))
+                self.device_table.setItem(i,col,cell)
             self.device_table.item(i,0).setData(Qt.ItemDataRole.UserRole,r["id"])
         self.code_note.setText(
             str(len(active))+" aktif cihaz · "+str(len(inactive))+
@@ -254,9 +262,7 @@ class OwnerSettingsPage(SettingsPage):
             QMessageBox.StandardButton.Yes|QMessageBox.StandardButton.No
         )!=QMessageBox.StandardButton.Yes:return
         self._job(lambda:self._admin("admin_prune_devices"),
-                  lambda result:(self.refresh_devices(),
-                       QMessageBox.information(self,"Cihaz kayıtları",
-                           str(result.get("removed",0))+" pasif kayıt temizlendi.")))
+                  lambda result:self._bulk_result(result,"Cihaz kayıtları","removed",self.refresh_devices))
 
     def audit_page(self):
         page=QWidget();page.setObjectName('OwnerToolPage')
@@ -415,27 +421,31 @@ class OwnerSettingsPage(SettingsPage):
                 " · Firebase Rules henüz dağıtılmadıysa önce yetkilendir.")
         self._job(fetch,accepted,failed)
 
-    def review_error_report(self,report_id):
-        client=self._error_client or getattr(self.window(),"device",None)
-        if client is None or not client.paired:
-            QMessageBox.warning(self,"Hata Merkezi","Yönetici cihazı bağlı değil.")
-            return
-        self._job(
-            lambda:client.review_error_report(report_id),
-            lambda _response:self.refresh_error_reports(force=True))
+    def _bulk_result(self,result,title,key,refresh):
+        refresh()
+        failed=result.get("failures") or []
+        message=str(result.get(key,0))+" kayıt işlendi."
+        if failed:
+            codes=", ".join(sorted({str(x.get("status") or "?") for x in failed}))
+            message+="\n"+str(len(failed))+" kayıt tamamlanamadı (HTTP "+codes+")."
+            if any(x.get("status")==403 for x in failed):
+                message+="\nCanlı Firebase Rules ve etkin owner üyeliğini doğrulayın. Veriler zorla silinmedi."
+        QMessageBox.information(self,title,message)
 
-    def delete_error_report(self,report_id):
-        self._job(
-            lambda:self._admin("admin_delete_error",id=report_id),
-            lambda _result:self.refresh_error_reports(force=True))
+    def review_error_report(self,ids):
+        self._job(lambda:self._admin("admin_review_errors",ids=ids),
+                  lambda result:self._bulk_result(result,"Hata Merkezi","reviewed",
+                      lambda:self.refresh_error_reports(force=True)))
+
+    def delete_error_report(self,ids):
+        self._job(lambda:self._admin("admin_delete_errors",ids=ids),
+                  lambda result:self._bulk_result(result,"Hata Merkezi","removed",
+                      lambda:self.refresh_error_reports(force=True)))
 
     def purge_reviewed_errors(self,ids):
-        self._job(
-            lambda:self._admin("admin_purge_reviewed_errors",ids=ids),
-            lambda result:(self.refresh_error_reports(force=True),
-                QMessageBox.information(
-                    self,"Hata Merkezi",
-                    str(result.get("removed",0))+" incelenmiş rapor temizlendi.")))
+        self._job(lambda:self._admin("admin_purge_reviewed_errors",ids=ids),
+                  lambda result:self._bulk_result(result,"Hata Merkezi","removed",
+                      lambda:self.refresh_error_reports(force=True)))
 
     def _apply_owner_theme(self):
         # Three palettes keep the same hierarchy and contrast in every theme.
