@@ -139,7 +139,12 @@ class SettingsPage(QWidget):
         preview.clicked.connect(self.preview_sound)
         sound_row.addWidget(preview)
         sound_col.addLayout(sound_row)
-        sound_col.addWidget(text('Sesler cihazda oynatılır; bulut ses API bağlantısı kullanılmaz.','SettingsHint',wrap=True))
+        from bildirim_dogal_ses import announcement_asset
+        available=sum(announcement_asset(i).is_file() for i in range(4))
+        sound_col.addWidget(text(
+            'Yerel anonslar · '+str(available)+'/4 ses dosyası. '
+            'Dosya yoksa yüklü Türkçe Windows sesi, o da yoksa uyarı tonu kullanılır. '
+            'Bulut ses API bağlantısı kullanılmaz.','SettingsHint',wrap=True))
         col.addWidget(sound_card)
         update_card=QFrame();update_card.setObjectName('SettingsCard')
         update_layout=QVBoxLayout(update_card)
