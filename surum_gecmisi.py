@@ -6,6 +6,11 @@ https://github.com/alarslan12/alfa-erp/releases.
 """
 
 _RELEASES = [
+    ("2.1.3", "Sipariş düzenleme, akıllı kitap arama ve kare HUD", [
+        "Adet kutularında sayı görünürlüğü ve +/- hizalaması düzeltildi.",
+        "Altı karakterden sonra kitap önerileri, tam kodla doğrudan ekleme.",
+        "Sipariş kartları dinamik kompakt grid, üst araçlar kare vektör ikonlar.",
+    ]),
     ("2.1.2", "Üst çubuk sadeleştirme ve sekme etiketi düzeltmesi", [
         "Tek Duyurular ve Güncelleme Merkezi; mükerrer düğme kaldırıldı.",
         "Üst kontroller genişletildi, bulut göstergesi daraltıldı ve kapsül düzenlendi.",

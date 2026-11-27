@@ -1,3 +1,11 @@
+## [v2.1.3] — 2026-11-28
+
+- Sipariş düzenleme adet kutularının sayı görünürlüğü ve +/- hizalaması düzeltildi.
+- Kitap adıyla aramada 6 karakterden sonra 150 ms gecikmeli filtrelenen öneriler; tam kitap koduyla doğrudan ekleme korunur.
+- Kitap kartları pencere genişliğine uyarlanan soldan sağa kompakt grid kullanır.
+- Personel ve Yönetici ortak 48×48 vektör ikonlu HUD ve 110×48 bulut durumu göstergesi.
+- ERP PR #43 kapsam ve Windows regresyon testleri başarılı. Canlı Firebase Rules, Hosting, kullanıcı verileri ve diğer uygulamaların iş mantığı değişmedi.
+
 ## [v2.1.2] — 2026-11-27
 
 - Personel ve Yönetici üst araç çubuğunda mükerrer duyuru/güncelleme düğmesi kaldırıldı; tek Duyurular ve Güncelleme Merkezi kaldı.
