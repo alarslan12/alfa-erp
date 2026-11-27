@@ -1,4 +1,4 @@
-# ALFACOPYCENTER Suite v2.1.1
+# ALFACOPYCENTER Suite v2.1.2
 
 **Tek Windows kurulumu**, dört seçilebilir bileşen:
 
@@ -10,9 +10,16 @@
 | ALFA Print Center | PrintSurveillance/AlfaPrintSurveillance.exe | Seçilebilir, varsayılan |
 | Arka plan yardımcıları | Bildirim, PrintAgent, PrintSupervisor | Seçilen bileşene bağlı |
 
-Kurulum: `ALFACOPYCENTER_Suite_Setup_V2_1_1.exe`. Aynı Inno Setup AppId
+Kurulum: `ALFACOPYCENTER_Suite_Setup_V2_1_2.exe`. Aynı Inno Setup AppId
 (`ALFACOPYCENTER.Suite`) ve kurulum yolu korundu:
 `%LOCALAPPDATA%\Programs\ALFACOPYCENTER`.
+
+## v2.1.2 — Üst çubuk sadeleştirme ve sekme etiketi düzeltmesi
+
+- Personel ve Yönetici üst araç çubuğunda mükerrer duyuru/güncelleme düğmesi kaldırıldı; tek Duyurular ve Güncelleme Merkezi kaldı.
+- Üst kontroller 48×38, bulut göstergesi 110×38; ortak kapsül içindeki boşluklar ve hizalama düzenlendi.
+- Bildirimler & Cihazlar sekmesinde Qt ampersand gösterimi düzeltildi.
+- PR #41 kapsam ve Windows regresyon testleri başarılı. Canlı Firebase Rules, Hosting, siparişler ve diğer Suite uygulamalarının iş mantığı korunur.
 
 ## v2.1.1 — Ayar kartları, cihaz paneli ve bildirim iyileştirmeleri
 
