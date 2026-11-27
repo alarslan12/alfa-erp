@@ -6,6 +6,11 @@ https://github.com/alarslan12/alfa-erp/releases.
 """
 
 _RELEASES = [
+    ("2.1.2", "Üst çubuk sadeleştirme ve sekme etiketi düzeltmesi", [
+        "Tek Duyurular ve Güncelleme Merkezi; mükerrer düğme kaldırıldı.",
+        "Üst kontroller genişletildi, bulut göstergesi daraltıldı ve kapsül düzenlendi.",
+        "Bildirimler & Cihazlar sekmesindeki ampersand gösterimi düzeltildi.",
+    ]),
     ("2.1.1", "Ayar kartları, cihaz paneli ve bildirim iyileştirmeleri", [
         "PDF, Excel ve görünüm kartları hizalandı; ayar sekmeleri pillbox görünümünde.",
         "Bildirimler & Cihazlar ortak ekranı: Yönetici cihaz listesi, Personel kendi cihazı.",

@@ -1,3 +1,10 @@
+## [v2.1.2] — 2026-11-27
+
+- Personel ve Yönetici üst araç çubuğunda mükerrer duyuru/güncelleme düğmesi kaldırıldı; tek Duyurular ve Güncelleme Merkezi kaldı.
+- Üst kontroller 48×38, bulut göstergesi 110×38; ortak kapsül içindeki boşluklar ve hizalama düzenlendi.
+- Bildirimler & Cihazlar sekmesinde Qt ampersand gösterimi düzeltildi.
+- PR #41 kapsam ve Windows regresyon testleri başarılı. Canlı Firebase Rules, Hosting, siparişler ve diğer Suite uygulamalarının iş mantığı korunur.
+
 ## [v2.1.1] — 2026-11-26
 
 - PDF kitaplık, Excel katalog ve görünüm kartlarının hizası; çalışma ayarlarında eş yükseklikte pillbox gezinme.
