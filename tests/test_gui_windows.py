@@ -29,6 +29,8 @@ class WindowsGuiTests(unittest.TestCase):
                     self.assertFalse(hasattr(win,"announcements_button"))
                     self.assertEqual(win.update_button.size(),win.cloud_connect.size())
                     self.assertEqual(win.report_button.size(),win.settings_btn.size())
+                    self.assertEqual(win.update_button.width(),win.update_button.height())
+                    self.assertEqual(win.cloud_badge.height(),win.update_button.height())
                     self.assertEqual(win.cloud_badge.width(),110)
                     win.navigate(3)
                     app.processEvents()
@@ -46,6 +48,68 @@ class WindowsGuiTests(unittest.TestCase):
                 finally:
                     win.close()
                     app.processEvents()
+
+    def test_edit_order_quantity_grid_and_delayed_search(self):
+        os.environ['QT_QPA_PLATFORM']='offscreen'
+        from pathlib import Path
+        from PySide6.QtWidgets import QApplication, QPushButton
+        from database import ERPDatabase
+        from widgets import Covers
+        from editor_siparis import SiparisEditor
+        from tema import QSS
+        from ayar_yonetimi import theme_styles
+        app=QApplication.instance() or QApplication(['alfa-editor-ci'])
+        original_style=app.styleSheet()
+        root=Path(__file__).resolve().parents[1]
+        with tempfile.TemporaryDirectory(prefix='alfa_edit_ci_') as data:
+            db=ERPDatabase(root/'KİTAPS.xlsx',data_dir=data)
+            codes=list(db.katalog)[:5]
+            order=db.yeni_siparis_olustur(
+                {'kod':'CI-EDIT','platform':'Manuel','ciro':50,'siparis_turu':''},
+                [{'kod':code,'tur':'SB','adet':1,'hazir':0,'koli':0} for code in codes[:4]])
+            editor=SiparisEditor(db,Covers(db,root),order['id'],lambda:None,mode='edit')
+            try:
+                app.setStyleSheet(QSS+theme_styles('koyu'))
+                editor.resize(1050,780)
+                editor.show()
+                app.processEvents()
+                editor._reflow_edit_cards()
+                self.assertGreaterEqual(editor._edit_columns,2)
+                self.assertEqual(editor.rows_lay.getItemPosition(1)[:2],(0,1))
+                spin=editor.qty_inputs[codes[0],'SB']
+                self.assertEqual(spin.value(),1)
+                for theme in ('koyu','acik','kontrast'):
+                    app.setStyleSheet(QSS+theme_styles(theme))
+                    app.processEvents()
+                    self.assertEqual(spin.height(),36)
+                    self.assertGreaterEqual(spin.lineEdit().contentsRect().height(),16)
+                    self.assertEqual(spin.lineEdit().text(),'1')
+                steps=editor._edit_cards[0].findChildren(QPushButton,'OrderEditQtyStep')
+                steps[1].click()
+                self.assertEqual(spin.value(),2)
+                steps[0].click()
+                self.assertEqual(spin.value(),1)
+                editor._schedule_book_suggestions('abcde')
+                self.assertFalse(editor._book_search_timer.isActive())
+                self.assertEqual(editor._book_model.rowCount(),0)
+                editor._schedule_book_suggestions('abcdef')
+                self.assertTrue(editor._book_search_timer.isActive())
+                editor._book_search_timer.stop()
+                self.assertEqual(editor._resolve_book_code(codes[4]),codes[4])
+                label=editor._book_label(db.katalog[codes[4]])
+                self.assertEqual(editor._resolve_book_code(label),codes[4])
+                editor.add_search.setText(codes[4])
+                editor.add_book('SB')
+                self.assertEqual(editor.qty_inputs[codes[4],'SB'].value(),1)
+                editor.resize(760,650)
+                app.processEvents()
+                editor._reflow_edit_cards()
+                self.assertEqual(editor.qty_inputs[codes[4],'SB'].value(),1)
+                self.assertEqual(len(order['kitaplar']),4)  # no mutation before save
+            finally:
+                editor.close()
+                app.setStyleSheet(original_style)
+                app.processEvents()
 
     def test_order_tabs_detach_and_return_without_losing_page(self):
         os.environ['QT_QPA_PLATFORM']='offscreen'
@@ -182,6 +246,7 @@ class WindowsGuiTests(unittest.TestCase):
                     self.assertEqual(win.settings_btn.size(),win.cloud_connect.size())
                     self.assertFalse(hasattr(win,"announcements_button"))
                     self.assertEqual(win.update_button.width(),48)
+                    self.assertEqual(win.update_button.height(),48)
                     self.assertEqual(win.cloud_badge.width(),110)
                     self.assertEqual(win.update_button.accessibleName(),"Duyurular ve Güncelleme Merkezi")
                     with patch("main.AnnouncementsDialog") as dialog:
