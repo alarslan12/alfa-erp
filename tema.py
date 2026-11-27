@@ -409,7 +409,7 @@ QLabel#OrderEditPlatform {
 QFrame#OrderEditBookRow { background:#1c2939; border:1px solid #374b63; border-radius:8px; }
 QFrame#OrderEditBookRow:hover { border-color:#65819e; }
 QLabel#OrderEditBookName { color:#f2f6fb; font-size:12px; font-weight:750; }
-QComboBox#OrderBookSearch { background:#132133; border:1px solid #485e78; }
+QLineEdit#OrderBookSearch { background:#132133; border:1px solid #485e78; }
 QFrame#TrackBookCard { background:#1b2a3b; border:1px solid #3b536b; border-radius:8px; }
 QFrame#TrackBookCard:hover { border-color:#7698b7; }
 """
@@ -1713,7 +1713,9 @@ QPushButton#OrderNoticeInline {font-size:14px;font-weight:850;background:#ad5a00
 
 QSS += """
 QFrame#OrderRow[orderStatus="tamamlandi"],QFrame#OrderRow[orderStatus="tamamlandi"]:hover,QFrame#OrderRow[orderStatus="tamamlandi"][orderRecent="true"],QFrame#OrderRow[orderStatus="tamamlandi"][orderRecent="true"]:hover {background:#19302f;border:1px solid #468b78;border-left:4px solid #29d79a;}
-QSpinBox#OrderEditQty {padding:3px;color:#f2f6ff;min-height:30px;}
+QSpinBox#OrderEditQty {padding:0;margin:0;color:#f2f6ff;min-height:0;border-radius:5px;font-size:13px;font-weight:800;}
+QLineEdit#OrderEditQtyText {background:transparent;border:0;padding:0;margin:0;min-height:0;color:#f2f6ff;font-size:13px;font-weight:800;}
+QLineEdit#OrderEditQtyText:disabled {color:#8796a6;}
 QPushButton#OrderEditQtyStep {padding:0;font-size:17px;font-weight:900;border:1px solid #6b8daf;border-radius:5px;background:#2a4562;color:#ecf5ff;}
 QPushButton#OrderEditQtyStep:hover {background:#406b93;}
 QPushButton#OrderEditQtyStep:disabled {background:#26323d;color:#7b8b9a;}
