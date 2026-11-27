@@ -702,6 +702,9 @@ def theme_styles(name):
         QPlainTextEdit#OrderNoteInput {background:#fffaf3;color:#23384f;border:1px solid #b5a18a;placeholder-text-color:#687887;selection-background-color:#bad8e9;selection-color:#203c52;}
         QPlainTextEdit#OrderNoteInput:focus {border-color:#688eae;}
         QSpinBox#OrderEditQty {color:#23384f;background:#fffaf3;}
+        QLineEdit#OrderBookSearch {color:#23384f;background:#fffaf3;border-color:#7d9bb1;}
+        QLineEdit#OrderEditQtyText {color:#23384f;background:transparent;border:0;padding:0;margin:0;min-height:0;}
+        QLineEdit#OrderEditQtyText:disabled {color:#818181;}
         QPushButton#OrderEditQtyStep {background:#e5edf3;color:#23384f;border-color:#7d9bb1;}
         QPushButton#OrderEditQtyStep:hover {background:#c7dfed;}
         QPushButton#OrderEditQtyStep:disabled {background:#e2e1dc;color:#818181;}
@@ -879,7 +882,7 @@ def settings_hud_styles(name):
     QLabel#SettingsHint {{color:{muted};font-size:12px;}}
     QLabel#SettingsStatusPill {{color:{green};background:{shell};border:1px solid {border};border-radius:10px;padding:8px 10px;font-size:12px;font-weight:750;}}
     QPushButton#SettingsControl,QPushButton#HudAction {{color:{ink};background:{button};border:1px solid {border};border-radius:10px;padding:0 8px;font-weight:700;}}
-    QPushButton#HudAction {{font-family:'Segoe UI Symbol';font-size:18px;min-width:0;min-height:0;padding:0;}}
+    QPushButton#HudAction {{border-radius:10px;min-width:0;min-height:0;padding:0;margin:0;}}
     QPushButton#HudAction:checked {{background:{active};border-color:{accent};}}
     QPushButton#HudAction[updateAvailable="true"] {{color:{amber};border-color:{amber};}}
     QLabel#HudCloud {{background:{button};color:{muted};border:1px solid {border};border-radius:10px;font-size:11px;font-weight:750;padding:0 3px;}}
