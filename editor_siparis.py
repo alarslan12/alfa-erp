@@ -1,11 +1,11 @@
 """Yerel Qt pencereleri: takip ve düzenleme ayrı açılır."""
 from pathlib import Path
-from utils import otomatik_platform_bul, format_kargo_kodu
-from PySide6.QtCore import Qt, QUrl, QTimer, QMimeData, Signal, QThread, QStandardPaths
+from utils import otomatik_platform_bul, format_kargo_kodu, metin_eslesiyor_mu, tr_kucult
+from PySide6.QtCore import Qt, QUrl, QTimer, QMimeData, Signal, QThread, QStandardPaths, QStringListModel, QEvent
 from PySide6.QtGui import QDesktopServices, QColor, QDrag
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QWidget, QFrame, QLabel, QScrollArea,
-    QCheckBox, QSpinBox, QDoubleSpinBox, QLineEdit, QComboBox, QFormLayout, QGridLayout, QAbstractSpinBox,
+    QCheckBox, QSpinBox, QDoubleSpinBox, QLineEdit, QComboBox, QFormLayout, QGridLayout, QAbstractSpinBox, QCompleter,
     QMessageBox, QFileDialog, QTabWidget, QTabBar, QPushButton, QSizePolicy, QApplication, QPlainTextEdit, QProgressDialog
 )
 from widgets import text, button, cover_label, scrollable, clear_layout, error, confirm
@@ -139,6 +139,11 @@ class SiparisEditor(QDialog):
     def build_ui(self):
         # Reset references to widgets before scheduling their destruction.
         self.track_scroll=None
+        self.edit_scroll=None
+        if hasattr(self, '_book_search_timer'):
+            self._book_search_timer.stop()
+        if hasattr(self, '_book_completer'):
+            self._book_completer.popup().hide()
         self.track_variant_widgets={}
         self.track_covers={}
         self.track_cards_by_code={}
@@ -1029,39 +1034,48 @@ class SiparisEditor(QDialog):
         top.setSpacing(8)
         top.addWidget(text('KİTAPLAR VE BASKI ADETLERİ', 'OrderEditSection'))
         top.addStretch()
-        self.add_combo = QComboBox()
-        self.add_combo.setObjectName('OrderBookSearch')
-        self.add_combo.setEditable(True)
-        self.add_combo.setMinimumWidth(320)
-        self.add_combo.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
-        for book in self.db.kitaplar:
-            self.add_combo.addItem(f"#{book['kod']} · {book['isim']}", str(book['kod']))
-        completer = self.add_combo.completer()
-        if completer:
-            completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
-            completer.setFilterMode(Qt.MatchFlag.MatchContains)
-        self.add_combo.lineEdit().setPlaceholderText('Kod veya kitap adıyla ekle...')
+        self.add_search = QLineEdit()
+        self.add_search.setObjectName('OrderBookSearch')
+        self.add_search.setMinimumWidth(210)
+        self.add_search.setPlaceholderText('Kitap kodu veya en az 6 karakter...')
+        self._book_model = QStringListModel(self.add_search)
+        self._book_completer = QCompleter(self._book_model, self.add_search)
+        self._book_completer.setCompletionMode(QCompleter.CompletionMode.UnfilteredPopupCompletion)
+        self._book_completer.setMaxVisibleItems(8)
+        self.add_search.setCompleter(self._book_completer)
+        self._book_search_timer = QTimer(self.add_search)
+        self._book_search_timer.setSingleShot(True)
+        self._book_search_timer.setInterval(150)
+        self._book_search_timer.timeout.connect(self._refresh_book_suggestions)
+        self.add_search.textEdited.connect(self._schedule_book_suggestions)
+        self._book_completer.activated[str].connect(self._choose_book_suggestion)
         add_sb = button('+ SB ekle', 'QuickSB')
         add_sb.clicked.connect(lambda checked=False: self.add_book('SB'))
         add_rnk = button('+ RNK ekle', 'QuickRNK')
         add_rnk.clicked.connect(lambda checked=False: self.add_book('RNK'))
-        self.add_combo.setEnabled(editable)
+        self.add_search.setEnabled(editable)
         add_sb.setEnabled(editable)
         add_rnk.setEnabled(editable)
-        top.addWidget(self.add_combo)
+        top.addWidget(self.add_search, 1)
         top.addWidget(add_sb)
         top.addWidget(add_rnk)
         self.body_lay.addLayout(top)
 
         rows = QWidget(); rows.setObjectName('OrderEditBooks')
-        self.rows_lay = QVBoxLayout(rows)
-        self.rows_lay.setContentsMargins(1, 1, 5, 1)
-        self.rows_lay.setSpacing(5)
+        self.rows_lay = QGridLayout(rows)
+        self.rows_lay.setContentsMargins(2, 2, 5, 2)
+        self.rows_lay.setSpacing(8)
+        self.rows_lay.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
         self.qty_inputs = {}
+        self._edit_cards = []
+        self._edit_columns = 0
+        self.edit_scroll = scrollable(rows)
+        self.edit_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.edit_scroll.viewport().installEventFilter(self)
+        self.body_lay.addWidget(self.edit_scroll, 1)
         for group in self.db.siparis_gruplari(order):
-            self.add_book_row(str(group['kod']))
-        self.rows_lay.addStretch()
-        self.body_lay.addWidget(scrollable(rows), 1)
+            self.add_book_row(str(group['kod']), reflow=False)
+        self._reflow_edit_cards()
 
         footer = QHBoxLayout()
         footer.setSpacing(10)
@@ -1084,7 +1098,84 @@ class SiparisEditor(QDialog):
         self.revenue.setEnabled(
             not is_telafi and self.db.siparis_durumu(self.current()) in ('havuz','aktif'))
 
-    def add_book_row(self, code):
+    @staticmethod
+    def _book_label(book):
+        return f"#{book['kod']} · {book['isim']}"
+
+    def _matching_books(self, typed):
+        typed = typed.strip()
+        if len(typed) < 6:
+            return []
+        return [book for book in self.db.kitaplar if metin_eslesiyor_mu(typed, book)]
+
+    def _schedule_book_suggestions(self, typed):
+        self._book_search_timer.stop()
+        self._book_completer.popup().hide()
+        self._book_model.setStringList([])
+        if len(typed.strip()) >= 6:
+            self._book_search_timer.start()
+
+    def _refresh_book_suggestions(self):
+        if not self.add_search.hasFocus():
+            return
+        typed = self.add_search.text().strip()
+        matches = self._matching_books(typed)
+        self._book_model.setStringList([self._book_label(book) for book in matches[:60]])
+        if matches:
+            self._book_completer.setCompletionPrefix('')
+            self._book_completer.complete()
+        else:
+            self._book_completer.popup().hide()
+
+    def _choose_book_suggestion(self, label):
+        self._book_search_timer.stop()
+        self.add_search.setText(label)
+        self._book_completer.popup().hide()
+        self._book_model.setStringList([])
+
+    def _resolve_book_code(self, typed):
+        typed = typed.strip()
+        direct = typed.removeprefix('#').strip()
+        if direct in self.db.katalog:
+            return direct
+        # Only accept a complete generated dropdown label, not a numeric
+        # prefix accidentally followed by an unrelated title.
+        if typed.startswith('#') and ' · ' in typed:
+            code = typed[1:].split(' · ', 1)[0]
+            book = self.db.katalog.get(code)
+            if book and self._book_label(book) == typed:
+                return code
+        if len(typed) < 6:
+            return None
+        found = self._matching_books(typed)
+        exact = [book for book in found if tr_kucult(book['isim']) == tr_kucult(typed)]
+        if len(exact) == 1:
+            return str(exact[0]['kod'])
+        if len(found) == 1:
+            return str(found[0]['kod'])
+        return None
+
+    def eventFilter(self, watched, event):
+        if (getattr(self, 'edit_scroll', None) is not None
+                and watched is self.edit_scroll.viewport()
+                and event.type() == QEvent.Type.Resize):
+            QTimer.singleShot(0, self._reflow_edit_cards)
+        return super().eventFilter(watched, event)
+
+    def _reflow_edit_cards(self):
+        if getattr(self, 'edit_scroll', None) is None:
+            return
+        width = self.edit_scroll.viewport().width()
+        columns = max(1, (width - 7 + 8) // (220 + 8))
+        if columns == self._edit_columns and self.rows_lay.count() == len(self._edit_cards):
+            return
+        self._edit_columns = columns
+        while self.rows_lay.count():
+            self.rows_lay.takeAt(0)
+        for index, card in enumerate(self._edit_cards):
+            self.rows_lay.addWidget(card, index // columns, index % columns)
+
+    def add_book_row(self, code, reflow=True):
         code = str(code)
         if (code, 'SB') in self.qty_inputs:
             return
@@ -1092,69 +1183,68 @@ class SiparisEditor(QDialog):
         if not book:
             return
         group = QFrame(); group.setObjectName('OrderEditBookRow')
-        line = QHBoxLayout(group)
-        line.setContentsMargins(10, 7, 10, 7)
-        line.setSpacing(12)
-        line.addWidget(cover_label(book, self.covers, 49, 69))
-        name_box = QVBoxLayout(); name_box.setSpacing(2)
+        group.setFixedWidth(220)
+        line = QVBoxLayout(group)
+        line.setContentsMargins(8, 7, 8, 7)
+        line.setSpacing(4)
         name = QLabel(book['isim'])
         name.setObjectName('OrderEditBookName')
         name.setWordWrap(True)
-        name_box.addWidget(name)
-        name_box.addWidget(text(f"#{code}  ·  {book['sayfa']} sayfa", 'Tiny'))
-        line.addLayout(name_box, 1)
+        name.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        name.setFixedHeight(36)
+        name.setToolTip(book['isim'])
+        line.addWidget(name)
+        details = text(f"#{code} · {book['sayfa']} sayfa", 'Tiny')
+        details.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        line.addWidget(details)
+        line.addWidget(cover_label(book, self.covers, 90, 127), 0, Qt.AlignmentFlag.AlignHCenter)
         for kind in ('SB', 'RNK'):
-            block = QVBoxLayout(); block.setSpacing(4)
-            block.addWidget(text(kind, 'BadgeRNK' if kind == 'RNK' else 'BadgeSB'))
+            controls = QHBoxLayout(); controls.setSpacing(3)
+            tag = text(kind, 'BadgeRNK' if kind == 'RNK' else 'BadgeSB')
+            tag.setFixedWidth(45)
+            tag.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            controls.addWidget(tag)
             spin = QSpinBox(); spin.setRange(0, 100000)
             spin.setObjectName('OrderEditQty')
-            spin.setMinimumWidth(68)
+            spin.setFixedSize(76, 36)
             spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
             spin.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            spin.lineEdit().setObjectName('OrderEditQtyText')
+            spin.lineEdit().setAlignment(Qt.AlignmentFlag.AlignCenter)
+            spin.lineEdit().setTextMargins(0, 0, 0, 0)
             entry = next((x for x in self.current()['kitaplar'] if str(x.get('kod')) == code and str(x.get('tur', 'SB')).upper() == kind), None)
             spin.setValue(int(entry.get('adet', 0)) if entry else 0)
-            spin.setEnabled((kind == 'SB' or bool(book.get('renkli_opsiyon')) or bool(entry)) and self.db.siparis_durumu(self.current()) != 'tamamlandi')
+            spin.setEnabled((kind == 'SB' or bool(book.get('renkli_opsiyon')) or bool(entry)) and self.db.siparis_durumu(self.current()) in ('havuz', 'aktif'))
             self.qty_inputs[code, kind] = spin
-            controls=QHBoxLayout();controls.setSpacing(3)
             minus=button('−','OrderEditQtyStep');plus=button('+','OrderEditQtyStep')
-            for step in (minus,plus):step.setFixedSize(28,34)
+            for step in (minus,plus):
+                step.setFixedSize(30,36)
+                step.setEnabled(spin.isEnabled())
+                step.setAutoDefault(False)
             minus.clicked.connect(lambda checked=False,s=spin:s.stepDown())
             plus.clicked.connect(lambda checked=False,s=spin:s.stepUp())
-            for step in (minus,plus):step.setEnabled(spin.isEnabled())
             controls.addWidget(minus);controls.addWidget(spin);controls.addWidget(plus)
-            block.addLayout(controls)
-            line.addLayout(block)
-        self.rows_lay.insertWidget(max(0, self.rows_lay.count() - 1), group)
+            line.addLayout(controls)
+        self._edit_cards.append(group)
+        if reflow:
+            self._reflow_edit_cards()
 
     def add_book(self, kind='SB'):
         """Seçilen kitap, tercih edilen SB/RNK sayacına doğrudan eklenir."""
-        from utils import tr_kucult
-        typed = self.add_combo.currentText().strip()
-        code = None
-        idx = self.add_combo.currentIndex()
-        if idx >= 0 and self.add_combo.itemText(idx) == typed:
-            code = str(self.add_combo.itemData(idx))
-        if code is None:
-            import re
-            match = re.match(r'^#?(\d+)(?:\D|$)', typed)
-            if match and match.group(1) in self.db.katalog:
-                code = match.group(1)
-        if code is None:
-            typed_fold = tr_kucult(typed)
-            found = [str(b['kod']) for b in self.db.kitaplar
-                     if tr_kucult(str(b.get('isim',''))) == typed_fold or
-                     tr_kucult(str(b.get('isim',''))).startswith(typed_fold)]
-            if len(found) == 1:
-                code = found[0]
+        code = self._resolve_book_code(self.add_search.text())
         if not code or code not in self.db.katalog:
-            return error(self,'Kitap kodunu yaz veya listeden bir kitap seç.')
+            return error(self,'Kitap kodunu yaz veya en az 6 karakter girip listeden bir kitap seç.')
         book = self.db.katalog[code]
         if kind == 'RNK' and not book.get('renkli_opsiyon', False):
             return error(self,'Bu kitabın katalogda renkli baskı seçeneği bulunmuyor.')
+        self._book_search_timer.stop()
+        self._book_completer.popup().hide()
+        self._book_model.setStringList([])
         self.add_book_row(code)
         spin = self.qty_inputs.get((code,kind))
         if spin and spin.isEnabled():
             spin.setValue(spin.value()+1)
+            self.edit_scroll.ensureWidgetVisible(spin)
             spin.setFocus()
         else:
             return error(self,'Seçilen baskı türü bu kitap için kullanılamıyor.')
