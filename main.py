@@ -85,10 +85,10 @@ class AlfaMain(QMainWindow):
             nav_row.addWidget(action)
         main_bar.addWidget(nav_box,0,1,Qt.AlignmentFlag.AlignCenter)
         right_box=QFrame();right_box.setObjectName('HudShell');right_row=QHBoxLayout(right_box)
-        right_row.setContentsMargins(5,4,5,4);right_row.setSpacing(5)
+        right_row.setContentsMargins(7,5,7,5);right_row.setSpacing(7)
         def hud_action(symbol,label,callback,checkable=False):
             action=button(symbol,'HudAction')
-            action.setFixedSize(38,38)
+            action.setFixedSize(48,38)
             action.setToolTip(label);action.setAccessibleName(label)
             action.setCheckable(checkable)
             action.clicked.connect(lambda _=False:callback())
@@ -96,19 +96,17 @@ class AlfaMain(QMainWindow):
         self.settings_btn=hud_action('⚙','Ayarlar',lambda:self.navigate(4),True)
         self.cloud_badge=text('◌ Bağlanıyor…','HudCloud')
         self.cloud_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.cloud_badge.setFixedSize(134,38)
+        self.cloud_badge.setFixedSize(110,38)
         self.cloud_badge.setProperty('connectionState','pending')
         self.cloud_badge.setToolTip('Siparişler yalnızca eşleştirilmiş cihazlarda buluta aktarılır.')
         right_row.addWidget(self.cloud_badge)
-        self.announcements_button=hud_action('◉','Duyurular ve sürüm notları',self.open_announcements)
-        right_row.addWidget(self.announcements_button)
         if not OWNER_EDITION:
             self.report_button=hud_action('⚠','Hata bildir',self.open_manual_report)
             right_row.addWidget(self.report_button)
         self.cloud_connect=hud_action('🛡','Cihaz yetkisi',self.connect_cloud)
         right_row.addWidget(self.cloud_connect)
-        self.update_button=hud_action('↻','Güncellemeleri denetle',
-                                      lambda:self.settings_page.open_update_center())
+        self.update_button=hud_action('↻','Duyurular ve Güncelleme Merkezi',
+                                      self.open_announcements)
         right_row.addWidget(self.update_button)
         right_row.addWidget(self.settings_btn)
         main_bar.addWidget(right_box,0,2,Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignVCenter)
@@ -379,7 +377,7 @@ class AlfaMain(QMainWindow):
                 self._update_available=data
                 tag=str(data.get('version') or '')
                 self.update_button.setProperty('updateAvailable',True)
-                self.update_button.setToolTip('Yeni sürüm v'+tag+' · Güncellemeleri denetle')
+                self.update_button.setToolTip('Yeni sürüm v'+tag+' · Duyurular ve Güncelleme Merkezi')
                 self.update_button.style().unpolish(self.update_button)
                 self.update_button.style().polish(self.update_button)
                 notice=Path(self.config.data_dir)/('alfa_last_update_popup_'+edition+'.json')
@@ -579,7 +577,7 @@ class AlfaMain(QMainWindow):
                               'online' if online else 'offline')
         marker='● ' if online else '◌ '
         self.cloud_badge.setText(marker + ('Bulut bağlı' if online and not self.db.pending_count
-            else f'{self.db.pending_count} işlem sırada' if online else 'Çevrimdışı'))
+            else f'{self.db.pending_count} sırada' if online else 'Çevrimdışı'))
         if online and conflicts and 'çakışma' in str(message).lower():
             message='Bulut bağlı · eski çakışmalar arşivde'
         self.cloud_badge.setToolTip(message)
