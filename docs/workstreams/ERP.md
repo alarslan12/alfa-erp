@@ -2,13 +2,21 @@
 
 **Sohbet:** ERP Personel / Yönetici. **Repo:** `alarslan12/alfa-erp`; üretim `firebase-rtdb-final`.
 
-**Son doğrulanmış kararlı Suite:** v2.1.1 (26.11.2026). Yeni görevlerde GitHub Release, üretim SHA ve açık PR'ları yeniden kontrol et.
+**Son doğrulanmış kararlı Suite:** v2.1.2 (27.11.2026). Yeni görevlerde GitHub Release, üretim SHA ve açık PR'ları yeniden kontrol et.
 
 **Kod sahipliği:** `main.py`, `ekran_katalog.py`, `ekran_siparis.py`, `ekran_analitik.py`, `ekran_verimlilik.py`, `flexflow*.py`, ERP/Firebase istemcisi, analitik/muhasebe ve ilgili testler.
 
 **Korunacaklar:** Onaylanan Katalog/Siparişler arayüzü, ortak Havuz, personel/owner rolleri, Firebase Auth/RTDB, offline işlem kuyruğu, iade/kargo/ciro hesabı, FlexFlow hareketli gün/takvim filtresi ve günlük değerlendirme.
 
-## Son iş: v2.1.1 HUD sadeleştirme ve Qt ampersand düzeltmesi
+## Son iş: Sipariş düzenleme kartları, arama ve kare HUD
+- Dal: `fix/erp-order-editor-grid-hud-20261127` · PR: bu dalın GitHub PR'ı.
+- `editor_siparis.py`: iç miktar editörü ayrı stil, sabit boyut ve sıfır iç boşluk; mevcut +/- ve doğrudan yazma korunur. Kartlar mevcut miktar widget'ları kaybedilmeden viewport genişliğine göre soldan sağa yerleşir.
+- Kitap önerileri 6 karakterden sonra 150 ms gecikmeyle mevcut katalog arama mantığıyla filtrelenir, en fazla 60 sonuç gösterilir. Tam kitap kodu (# ile veya olmadan) doğrudan eklenebilir. SB/RNK doğrulaması ve sipariş kayıt mekanizması korunur.
+- `main.py`, `tema.py`, `ayar_yonetimi.py`: Personel/Yönetici ortak 48×48 vektör ikonlu HUD, tema uyumlu arama/adet kontrolü. Bulut durum etiketi ayrı 110×48; diğer uygulamaların iş mantığı değişmez.
+- `tests/test_gui_windows.py`: yeni regresyon senaryoları eklendi; Windows CI sonucu PR üzerinden doğrulanmalı. Yerel/gerçek Windows ekran ve canlı Firebase testi yapılmadı.
+- Veri, canlı Firebase Rules/Hosting ve ortak Suite sürüm dosyaları değiştirilmedi. Patch sürümü v2.1.3 ayrı merkezi release PR'ı ile, kalite kapıları geçtikten sonra hazırlanabilir.
+
+## Önceki iş: v2.1.1 HUD sadeleştirme ve Qt ampersand düzeltmesi
 - Dal: `fix/erp-hud-single-update-mnemonic`. Tek Duyurular ve Güncelleme Merkezi düğmesi, daha geniş 48×38 kontroller, 110 px bulut göstergesi; Personel hata bildirimi korunur.
 - Qt QPushButton literal ampersand için `&&` kullanır; kullanıcıya Bildirimler & Cihazlar görünür. Yönetici/Personel smoke testleri güncellendi.
 - Yeni Suite sürümü bu PR'da yükseltilmez; canlı veriler ve diğer uygulamalar değişmez.
