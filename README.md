@@ -1,4 +1,4 @@
-# ALFACOPYCENTER Suite v2.1.2
+# ALFACOPYCENTER Suite v2.1.3
 
 **Tek Windows kurulumu**, dört seçilebilir bileşen:
 
@@ -10,9 +10,17 @@
 | ALFA Print Center | PrintSurveillance/AlfaPrintSurveillance.exe | Seçilebilir, varsayılan |
 | Arka plan yardımcıları | Bildirim, PrintAgent, PrintSupervisor | Seçilen bileşene bağlı |
 
-Kurulum: `ALFACOPYCENTER_Suite_Setup_V2_1_2.exe`. Aynı Inno Setup AppId
+Kurulum: `ALFACOPYCENTER_Suite_Setup_V2_1_3.exe`. Aynı Inno Setup AppId
 (`ALFACOPYCENTER.Suite`) ve kurulum yolu korundu:
 `%LOCALAPPDATA%\Programs\ALFACOPYCENTER`.
+
+## v2.1.3 — Sipariş düzenleme, akıllı kitap arama ve kare HUD
+
+- Sipariş düzenleme adet kutularının sayı görünürlüğü ve +/- hizalaması düzeltildi.
+- Kitap adıyla aramada 6 karakterden sonra 150 ms gecikmeli filtrelenen öneriler; tam kitap koduyla doğrudan ekleme korunur.
+- Kitap kartları pencere genişliğine uyarlanan soldan sağa kompakt grid kullanır.
+- Personel ve Yönetici ortak 48×48 vektör ikonlu HUD ve 110×48 bulut durumu göstergesi.
+- ERP PR #43 kapsam ve Windows regresyon testleri başarılı. Canlı Firebase Rules, Hosting, kullanıcı verileri ve diğer uygulamaların iş mantığı değişmedi.
 
 ## v2.1.2 — Üst çubuk sadeleştirme ve sekme etiketi düzeltmesi
 
