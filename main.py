@@ -3,8 +3,8 @@ import sys, traceback, os, json
 from pathlib import Path
 from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBoxLayout,QStackedWidget,
  QLabel,QFrame,QGridLayout,QPushButton,QMessageBox,QInputDialog,QLineEdit,QSystemTrayIcon)
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QIcon,QPixmap,QPainter,QFont,QColor
+from PySide6.QtCore import Qt, QTimer, QPointF, QRectF
+from PySide6.QtGui import QIcon,QPixmap,QPainter,QFont,QColor,QPen,QPalette,QPainterPath
 from database import ERPDatabase
 from ekran_katalog import KatalogView
 from ekran_siparis import SiparisView
@@ -25,6 +25,54 @@ from duyuru_merkezi import AnnouncementsDialog,ManualReportDialog
 ROOT=Path(__file__).resolve().parent
 VERSION='2.1.2'
 OWNER_EDITION=(ROOT/'YONETICI_SURUMU.flag').exists()
+
+
+class HudActionButton(QPushButton):
+    """Paint monochrome vector icons at the actual center, independent of emoji fonts."""
+    def __init__(self, glyph):
+        super().__init__()
+        self.glyph = glyph
+        self.setObjectName('HudAction')
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setFixedSize(48, 48)
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.translate(self.width()/2, self.height()/2)
+        palette = self.palette()
+        group = QPalette.ColorGroup.Active if self.isEnabled() else QPalette.ColorGroup.Disabled
+        pen = QPen(palette.color(group, QPalette.ColorRole.ButtonText), 1.8)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        painter.setPen(pen)
+        def line(x1, y1, x2, y2):
+            painter.drawLine(QPointF(x1, y1), QPointF(x2, y2))
+        if self.glyph == 'settings':
+            from math import sin, cos, pi
+            painter.drawEllipse(QPointF(0, 0), 6.5, 6.5)
+            painter.drawEllipse(QPointF(0, 0), 2.5, 2.5)
+            for i in range(8):
+                angle = i*pi/4
+                line(6.5*cos(angle), 6.5*sin(angle), 10*cos(angle), 10*sin(angle))
+        elif self.glyph == 'shield':
+            shape = QPainterPath(QPointF(0, -10))
+            shape.lineTo(8, -6); shape.lineTo(8, 0)
+            shape.quadTo(8, 5, 0, 10)
+            shape.quadTo(-8, 5, -8, 0)
+            shape.lineTo(-8, -6); shape.closeSubpath()
+            painter.drawPath(shape)
+            line(-3, 0, -1, 3); line(-1, 3, 4, -3)
+        elif self.glyph == 'update':
+            painter.drawArc(QRectF(-8, -8, 16, 16), 40*16, 300*16)
+            line(6, -9, 6, -4); line(6, -4, 1, -4)
+        elif self.glyph == 'report':
+            shape = QPainterPath(QPointF(0, -10))
+            shape.lineTo(10, 8); shape.lineTo(-10, 8); shape.closeSubpath()
+            painter.drawPath(shape)
+            line(0, -4, 0, 2); painter.drawPoint(QPointF(0, 5))
+        painter.end()
 
 
 class AlfaMain(QMainWindow):
@@ -87,30 +135,29 @@ class AlfaMain(QMainWindow):
         right_box=QFrame();right_box.setObjectName('HudShell');right_row=QHBoxLayout(right_box)
         right_row.setContentsMargins(7,5,7,5);right_row.setSpacing(7)
         def hud_action(symbol,label,callback,checkable=False):
-            action=button(symbol,'HudAction')
-            action.setFixedSize(48,38)
+            action=HudActionButton(symbol)
             action.setToolTip(label);action.setAccessibleName(label)
             action.setCheckable(checkable)
             action.clicked.connect(lambda _=False:callback())
             return action
-        self.settings_btn=hud_action('⚙','Ayarlar',lambda:self.navigate(4),True)
+        self.settings_btn=hud_action('settings','Ayarlar',lambda:self.navigate(4),True)
         self.cloud_badge=text('◌ Bağlanıyor…','HudCloud')
         self.cloud_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.cloud_badge.setFixedSize(110,38)
+        self.cloud_badge.setFixedSize(110,48)
         self.cloud_badge.setProperty('connectionState','pending')
         self.cloud_badge.setToolTip('Siparişler yalnızca eşleştirilmiş cihazlarda buluta aktarılır.')
         right_row.addWidget(self.cloud_badge)
         if not OWNER_EDITION:
-            self.report_button=hud_action('⚠','Hata bildir',self.open_manual_report)
+            self.report_button=hud_action('report','Hata bildir',self.open_manual_report)
             right_row.addWidget(self.report_button)
-        self.cloud_connect=hud_action('🛡','Cihaz yetkisi',self.connect_cloud)
+        self.cloud_connect=hud_action('shield','Cihaz yetkisi',self.connect_cloud)
         right_row.addWidget(self.cloud_connect)
-        self.update_button=hud_action('↻','Duyurular ve Güncelleme Merkezi',
+        self.update_button=hud_action('update','Duyurular ve Güncelleme Merkezi',
                                       self.open_announcements)
         right_row.addWidget(self.update_button)
         right_row.addWidget(self.settings_btn)
         main_bar.addWidget(right_box,0,2,Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignVCenter)
-        header.setFixedHeight(60)
+        header.setFixedHeight(72)
         self._hud_header=header
         self._hud_grid=main_bar
         self._hud_nav=nav_box
@@ -224,7 +271,6 @@ class AlfaMain(QMainWindow):
             self.cloud_badge.setToolTip(
                 'Uygulama girişsiz açıldı. Katalog yerelde kullanılabilir. '
                 'Bulut siparişlerini görmek ve değiştirmek için cihazı bir kez eşleştir.')
-        self.cloud_connect.setText('🛡')
         self.cloud_connect.setToolTip('Cihaz yetkisi · '+('Bağlı cihaz' if self.device.paired else 'Cihazı eşleştir'))
         # Merge rapid cloud signals and never repaint hidden order cards.
         self._cloud_changed_ids=set()
@@ -303,10 +349,10 @@ class AlfaMain(QMainWindow):
         grid.removeWidget(self._hud_nav)
         if compact:
             grid.addWidget(self._hud_nav,1,0,1,3,Qt.AlignmentFlag.AlignCenter)
-            self._hud_header.setFixedHeight(106)
+            self._hud_header.setFixedHeight(118)
         else:
             grid.addWidget(self._hud_nav,0,1,Qt.AlignmentFlag.AlignCenter)
-            self._hud_header.setFixedHeight(60)
+            self._hud_header.setFixedHeight(72)
 
     def resizeEvent(self,event):
         super().resizeEvent(event)
@@ -380,6 +426,7 @@ class AlfaMain(QMainWindow):
                 self.update_button.setToolTip('Yeni sürüm v'+tag+' · Duyurular ve Güncelleme Merkezi')
                 self.update_button.style().unpolish(self.update_button)
                 self.update_button.style().polish(self.update_button)
+                self.update_button.update()
                 notice=Path(self.config.data_dir)/('alfa_last_update_popup_'+edition+'.json')
                 try:
                     saved=json.loads(notice.read_text(encoding='utf-8'))
@@ -456,7 +503,6 @@ class AlfaMain(QMainWindow):
                 self.live.pull()
             else:
                 self.live.activate()
-            self.cloud_connect.setText('🛡')
             connect_device(lambda:self.device)
             if OWNER_EDITION:
                 self.settings_page.enable_error_stream(self.device)
