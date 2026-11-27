@@ -2,13 +2,23 @@
 
 **Sohbet:** ERP Personel / Yönetici. **Repo:** `alarslan12/alfa-erp`; üretim `firebase-rtdb-final`.
 
-**Son doğrulanmış kararlı Suite:** v2.1.0 (26.11.2026). Yeni görevlerde GitHub Release, üretim SHA ve açık PR'ları yeniden kontrol et.
+**Son doğrulanmış kararlı Suite:** v2.1.1 (26.11.2026). Yeni görevlerde GitHub Release, üretim SHA ve açık PR'ları yeniden kontrol et.
 
 **Kod sahipliği:** `main.py`, `ekran_katalog.py`, `ekran_siparis.py`, `ekran_analitik.py`, `ekran_verimlilik.py`, `flexflow*.py`, ERP/Firebase istemcisi, analitik/muhasebe ve ilgili testler.
 
 **Korunacaklar:** Onaylanan Katalog/Siparişler arayüzü, ortak Havuz, personel/owner rolleri, Firebase Auth/RTDB, offline işlem kuyruğu, iade/kargo/ciro hesabı, FlexFlow hareketli gün/takvim filtresi ve günlük değerlendirme.
 
-## Son iş: Çalışma ayarları, birleşik cihaz/bildirim sekmesi ve HUD
+## Son iş: v2.1.1 HUD sadeleştirme ve Qt ampersand düzeltmesi
+- Dal: `fix/erp-hud-single-update-mnemonic`. Tek Duyurular ve Güncelleme Merkezi düğmesi, daha geniş 48×38 kontroller, 110 px bulut göstergesi; Personel hata bildirimi korunur.
+- Qt QPushButton literal ampersand için `&&` kullanır; kullanıcıya Bildirimler & Cihazlar görünür. Yönetici/Personel smoke testleri güncellendi.
+- Yeni Suite sürümü bu PR'da yükseltilmez; canlı veriler ve diğer uygulamalar değişmez.
+
+### GitHub erişimi / yeni sohbet başlangıcı
+- Doğrudan bağlı GitHub araçlarıyla depo, gerçek üretim dalı `firebase-rtdb-final`, latest release ve açık PR'ları kontrol et. Varsayılan `main` kullanılmaz.
+- GitHub bağlayıcısının okuma/yazma, branch ve PR işlemlerini önce keşfet ve gerçek repo yanıtındaki izinleri doğrula. Genel web veya git clone erişim hatası tek başına bağlayıcının yetkisiz olduğu anlamına gelmez.
+- Erişim yok demeden önce bağlı GitHub araçlarıyla dene, gerçek hata kodunu belirt. Başarılı olmayan commit/merge/release için tamamlandı deme.
+
+## Önceki iş: Çalışma ayarları, birleşik cihaz/bildirim sekmesi ve HUD
 
 - v2.1.0 kullanıcı ekran görüntülerine göre PDF ve Excel eş hizalı kartlar; ortak görünüm kartı, eş yükseklikte pillbox gezinme ve temaya uyumlu HUD.
 - Yönetici ve Personel: Bildirimler & Cihazlar; sol dört gerçek Ozan anonsunun ayrı dinleme düğmeleri ve rastgele dinleme, sağ Yönetici cihaz yönetimi veya Personel kendi cihazı. Güncelleme merkezi üst HUD'da, cihaz kalkanıyla ayarlar yanında; küçük ekranlarda ana gezinme ikinci satıra iner.

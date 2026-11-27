@@ -868,7 +868,8 @@ def settings_hud_styles(name):
     shell,card,button,border,ink,muted,accent,active,green,amber=palettes.get(name,palettes['koyu'])
     return f"""
     QFrame#ErpHudHeader {{background:{shell};border:0;border-bottom:1px solid {border};border-radius:0;}}
-    QFrame#SettingsNavShell,QFrame#HudShell {{background:{shell};border:1px solid {border};border-radius:13px;}}
+    QFrame#SettingsNavShell {{background:{shell};border:1px solid {border};border-radius:13px;}}
+    QFrame#HudShell {{background:{card};border:1px solid {border};border-radius:12px;}}
     QPushButton#SettingsNav {{background:{button};color:{ink};border:1px solid {border};border-radius:10px;padding:0 14px;font-size:12px;font-weight:750;}}
     QPushButton#SettingsNav:checked {{background:{active};color:{ink};border:1px solid {accent};}}
     QPushButton#SettingsNav:hover,QPushButton#SettingsControl:hover,QPushButton#HudAction:hover {{border-color:{accent};background:{active};}}

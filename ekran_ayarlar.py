@@ -75,7 +75,7 @@ class SettingsPage(QWidget):
         nav_frame=QFrame();nav_frame.setObjectName('SettingsNavShell')
         nav=QHBoxLayout(nav_frame);nav.setContentsMargins(6,6,6,6);nav.setSpacing(6)
         self.settings_nav=nav
-        for i,label in enumerate(('Uygulama Ayarları','Bildirimler & Cihazlar')):
+        for i,label in enumerate(('Uygulama Ayarları','Bildirimler && Cihazlar')):
             tab=button(label,'SettingsNav')
             self.style_nav(tab)
             tab.setCheckable(True)
