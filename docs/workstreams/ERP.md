@@ -2,13 +2,22 @@
 
 **Sohbet:** ERP Personel / Yönetici. **Repo:** `alarslan12/alfa-erp`; üretim `firebase-rtdb-final`.
 
-**Son doğrulanmış kararlı Suite:** v2.1.2 (27.11.2026). Yeni görevlerde GitHub Release, üretim SHA ve açık PR'ları yeniden kontrol et.
+**Son doğrulanmış kararlı Suite:** v2.1.3 (28.11.2026). Yeni görevlerde GitHub Release, üretim SHA ve açık PR'ları yeniden kontrol et.
 
 **Kod sahipliği:** `main.py`, `ekran_katalog.py`, `ekran_siparis.py`, `ekran_analitik.py`, `ekran_verimlilik.py`, `flexflow*.py`, ERP/Firebase istemcisi, analitik/muhasebe ve ilgili testler.
 
 **Korunacaklar:** Onaylanan Katalog/Siparişler arayüzü, ortak Havuz, personel/owner rolleri, Firebase Auth/RTDB, offline işlem kuyruğu, iade/kargo/ciro hesabı, FlexFlow hareketli gün/takvim filtresi ve günlük değerlendirme.
 
-## Son iş: Sipariş düzenleme kartları, arama ve kare HUD
+## Son iş: Yönetici yerel derleme havuzu ve bitiş onayı
+- Dal: `feature/erp-local-derleme-pool-20261128` · PR: bu dalın GitHub PR'ı.
+- `siparis_derleme_havuzu.py`: ayrı `owner_derleme/siparisler.sqlite3` deposu, bağımsız D-00001 numaraları, tarihsel kitap/sayfa fiyat snapshot'ı, kuruş cinsinden ciro, açık ve bitmiş siparişler. Toplu bitiş/geri alma tek SQLite transaction ile yapılır; hazırlama ve koli alanları yoktur.
+- `ekran_derleme_havuzu.py`: aynı ekranın iki alt grubu, her grubun tüm kayıtları üzerinden dört toplam, sipariş ayrıntısı, çoklu seçili ZIP derleme, son ZIP tarihi ve operatör bitiş onayı. ZIP üretimi bitiş onayı değildir. Her sipariş ayrı ZIP, mevcut orijinal PDF paketleme sistemi korunur.
+- `ekran_katalog.py`, `main.py`: Yöneticiye özel yerel kaydetme düğmesi ve iki Siparişler alt sekmesi, ortak ERP sipariş oluşturma fonksiyonuna uğramaz. Personel düğme/sekme/depo oluşturmaz; yerel kayıtlar genel ciro, analitik, bildirim ve RTDB kuyruğuna dahil edilmez. Normal sipariş rotası korunur. Aynı Windows kullanıcı hesabından dosya sistemi erişimi engellenmiş değildir; bu bir şifreli kasa değildir.
+- `siparis_derle.py`: yerel ZIP adı ayrı (`Derleme D-00001.zip`); orijinal normal sipariş ZIP adı değişmez. Yerel PDF kitaplık ayarları yeniden kullanılır. Bu ilk sürüm ayrıntıyı salt okunur gösterir; yerel kayıt düzenleme/silme ve buluta aktarım eklenmedi.
+- `tests/test_derleme_havuzu.py`, `tests/test_gui_windows.py`: kalıcılık, bağımsız toplamlar, atomik onay, ZIP'in tamamlamaması, Personel yalıtımı ve normal ERP oluşturma fonksiyonunu atlama testleri. Gerçek kullanıcı bilgisayarı ve canlı Firebase testi yapılmadı.
+- Özellik sürümü için merkezi hedef v2.2.0; bu PR ortak Suite sürüm dosyalarını, kurulum sistemini veya canlı veriyi değiştirmez. Yerel verinin yedeği ayrı SQLite dosyasıdır; normal sipariş JSON yedeğine dahil edilmez.
+
+## Önceki iş: Sipariş düzenleme kartları, arama ve kare HUD
 - Dal: `fix/erp-order-editor-grid-hud-20261127` · PR: bu dalın GitHub PR'ı.
 - `editor_siparis.py`: iç miktar editörü ayrı stil, sabit boyut ve sıfır iç boşluk; mevcut +/- ve doğrudan yazma korunur. Kartlar mevcut miktar widget'ları kaybedilmeden viewport genişliğine göre soldan sağa yerleşir.
 - Kitap önerileri 6 karakterden sonra 150 ms gecikmeyle mevcut katalog arama mantığıyla filtrelenir, en fazla 60 sonuç gösterilir. Tam kitap kodu (# ile veya olmadan) doğrudan eklenebilir. SB/RNK doğrulaması ve sipariş kayıt mekanizması korunur.
