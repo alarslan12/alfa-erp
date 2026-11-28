@@ -116,13 +116,18 @@ class DerlemeHavuzu:
         return self._decode(row)
 
     def set_completed(self, sid, completed):
+        self.set_completed_many([sid], completed)
+
+    def set_completed_many(self, ids, completed):
+        ids = list(dict.fromkeys(ids))
         with self._connection() as db:
-            cursor = db.execute(
-                'UPDATE orders SET completed_at=? WHERE id=? AND completed_at '
-                + ('IS NULL' if completed else 'IS NOT NULL'),
-                (_now() if completed else None, sid))
-            if cursor.rowcount != 1:
-                raise ValueError('Sipariş bulunamadı veya durumu zaten değişti.')
+            stamp = _now() if completed else None
+            for sid in ids:
+                cursor = db.execute(
+                    'UPDATE orders SET completed_at=? WHERE id=? AND completed_at '
+                    + ('IS NULL' if completed else 'IS NOT NULL'), (stamp, sid))
+                if cursor.rowcount != 1:
+                    raise ValueError('Sipariş bulunamadı veya durumu zaten değişti.')
 
     def record_zip(self, sid, path):
         with self._connection() as db:
