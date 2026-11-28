@@ -5,7 +5,7 @@ from PySide6.QtCore import Qt, QThread, Signal, QStandardPaths
 from PySide6.QtWidgets import (QApplication, QDialog, QFileDialog, QFrame, QGridLayout,
     QHeaderView, QHBoxLayout, QLabel, QMessageBox, QProgressDialog, QTableWidget,
     QTableWidgetItem, QAbstractItemView, QVBoxLayout, QWidget, QPlainTextEdit,
-    QButtonGroup, QComboBox, QCompleter, QDoubleSpinBox, QLineEdit, QSpinBox,
+    QButtonGroup, QComboBox, QDoubleSpinBox, QLineEdit, QSpinBox,
     QAbstractSpinBox, QFormLayout)
 
 from pdf_kitap import PdfKutuphane
@@ -168,7 +168,7 @@ class LocalDerlemeDialog(QDialog):
             self.matches.addItem(f"#{exact} · {book.get('isim', exact)}", exact)
         elif len(query) >= 6:
             for code, book in self.catalog.items():
-                if metin_eslesiyor_mu(query, str(book.get('isim', ''))):
+                if metin_eslesiyor_mu(query, dict(book, kod=str(code))):
                     self.matches.addItem(f"#{code} · {book.get('isim', code)}", str(code))
                     if self.matches.count() >= 60:
                         break
@@ -181,8 +181,9 @@ class LocalDerlemeDialog(QDialog):
         if code in self.rows:
             row = self.rows[code]
             spin = row['spins']['SB']
-            spin.setValue(max(1, spin.value()))
-            spin.setFocus()
+            if spin.isEnabled():
+                spin.setValue(max(1, spin.value()))
+                spin.setFocus()
         else:
             self.add_row(code, {})
         self.search.clear()
