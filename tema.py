@@ -1820,3 +1820,9 @@ QLabel#FlexFlowHourlyDate {
     color:#a9c7dd; font-weight:850; font-size:12px;
 }
 """
+
+QSS += """
+QTableWidget#LocalDerlemeTable {background:#12253b;alternate-background-color:#1c3045;color:#edf5ff;gridline-color:#38536e;selection-background-color:#276ea4;selection-color:#ffffff;}
+QTableWidget#LocalDerlemeTable::item:selected {background:#276ea4;color:#ffffff;}
+QTableWidget#LocalDerlemeTable::item {padding:4px;}
+"""
