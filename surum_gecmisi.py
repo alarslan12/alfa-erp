@@ -6,6 +6,11 @@ https://github.com/alarslan12/alfa-erp/releases.
 """
 
 _RELEASES = [
+    ("2.2.0", "Yönetici yerel derleme havuzu ve fason baskı takibi", [
+        "Yöneticiye özel yerel derleme siparişleri, ayrı açık ve bitmiş gruplar.",
+        "Her grubun ciro, sayfa, kitap ve sipariş toplamı; fason bitiş onayı ve geri alma.",
+        "Tekli/çoklu ZIP ve bağımsız D- numarası; Firebase ve genel analitik dışında.",
+    ]),
     ("2.1.3", "Sipariş düzenleme, akıllı kitap arama ve kare HUD", [
         "Adet kutularında sayı görünürlüğü ve +/- hizalaması düzeltildi.",
         "Altı karakterden sonra kitap önerileri, tam kodla doğrudan ekleme.",
