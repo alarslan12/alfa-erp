@@ -239,7 +239,7 @@ class LocalDerlemeDialog(QDialog):
                 row['spins'][kind] = spin
                 line.addLayout(controls)
             elif qty:
-                line.addWidget(_plain(f'{kind}  × {qty}', 'PoolOverviewCounts'))
+                line.addWidget(_plain(f'{kind}  × {qty}', 'LocalDerlemeCounts'))
         if self.editing:
             remove = button('Kaldır', 'PoolDeleteAction')
             remove.clicked.connect(lambda _=False, c=code: self.remove_row(c))
