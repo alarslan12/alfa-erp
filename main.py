@@ -176,7 +176,7 @@ class AlfaMain(QMainWindow):
         sub_entries=(('havuz','Sipariş Havuzu'),('aktif','Aktif Siparişler'),
                      ('tamamlandi','Tamamlanan'))
         if OWNER_EDITION:
-            sub_entries += (('derleme','Derleme Havuzu'),('derleme_bitti','Bitmiş Derleme Siparişleri'))
+            sub_entries += (('derleme','Yerel Derlemeler'),)
         for key,label in sub_entries:
             tab=button(label,'OrdersSubnav')
             tab.setCheckable(True)
@@ -646,7 +646,7 @@ class AlfaMain(QMainWindow):
         return self._local_derleme_store().add(info,items,self.db.katalog)
 
     def local_derleme_created(self,sid):
-        self.statusBar().showMessage(f'✓ D-{sid:05d} yerel derleme havuzuna kaydedildi.',6000)
+        self.statusBar().showMessage(f'✓ D{sid:03d} yerel derleme havuzuna kaydedildi.',6000)
 
     def open_derleme_status(self,status):
         if not OWNER_EDITION:
@@ -655,18 +655,19 @@ class AlfaMain(QMainWindow):
             if self._derleme_view is None:
                 from ekran_derleme_havuzu import DerlemeHavuzuView
                 self._derleme_view=DerlemeHavuzuView(self._local_derleme_store(),
-                                                     Path(self.db.sepet_dosyasi).parent,self)
+                                                     Path(self.db.sepet_dosyasi).parent,self,
+                                                     catalog=lambda:self.db.katalog, covers=self.covers)
                 self.stack.addWidget(self._derleme_view)
-            self._derleme_view.set_completed(status=='derleme_bitti')
+            self._derleme_view.refresh()
         except Exception as exc:
             QMessageBox.warning(self,'Yerel derleme havuzu',str(exc))
             return
-        self._last_orders_tab=status
+        self._last_orders_tab='derleme'
         self.stack.setCurrentWidget(self._derleme_view)
-        self._mark_navigation(1,status)
+        self._mark_navigation(1,'derleme')
 
     def open_order_status(self,status):
-        if status in ('derleme','derleme_bitti'):
+        if status == 'derleme':
             self.open_derleme_status(status)
             return
         if status not in ('havuz','aktif','tamamlandi'):
