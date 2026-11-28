@@ -2,6 +2,7 @@
 from pathlib import Path
 import tempfile
 import sqlite3
+from contextlib import closing
 import json
 import unittest
 from zipfile import ZipFile
@@ -119,14 +120,14 @@ class DerlemeHavuzuTests(unittest.TestCase):
         self.assertEqual(self.store.list(True), [])
         with self.assertRaises(ValueError):
             self.store.get(first)
-        with sqlite3.connect(self.store.path) as db:
+        with closing(sqlite3.connect(self.store.path)) as db, db:
             self.assertEqual(db.execute('SELECT COUNT(*) FROM orders WHERE deleted_at IS NOT NULL').fetchone()[0], 2)
         self.assertEqual(self.add(), 3)
         self.assertEqual(local_label(3), 'D003')
         self.assertEqual(local_label(1000), 'D1000')
 
     def test_existing_v220_database_migrates_without_changing_rows(self):
-        with sqlite3.connect(self.store.path) as db:
+        with closing(sqlite3.connect(self.store.path)) as db, db:
             db.execute('ALTER TABLE orders DROP COLUMN deleted_at')
             db.execute("""INSERT INTO orders (id, kod, ciro_kurus, order_note, kitaplar, created_at)
                         VALUES (?, ?, ?, ?, ?, ?)""",
