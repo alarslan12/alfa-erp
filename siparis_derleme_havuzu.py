@@ -33,7 +33,7 @@ def order_totals(orders):
 
 
 def local_label(sid):
-    return f'D-{int(sid):05d}'
+    return f'D{int(sid):03d}'
 
 
 class DerlemeHavuzu:
@@ -47,8 +47,11 @@ class DerlemeHavuzu:
                 kod TEXT NOT NULL, ciro_kurus INTEGER NOT NULL,
                 order_note TEXT NOT NULL, kitaplar TEXT NOT NULL,
                 created_at TEXT NOT NULL, completed_at TEXT,
-                last_zip_at TEXT, last_zip_path TEXT
+                last_zip_at TEXT, last_zip_path TEXT, deleted_at TEXT
             )""")
+            db.execute('BEGIN IMMEDIATE')
+            if 'deleted_at' not in {row[1] for row in db.execute('PRAGMA table_info(orders)')}:
+                db.execute('ALTER TABLE orders ADD COLUMN deleted_at TEXT')
 
     @contextmanager
     def _connection(self):
@@ -57,25 +60,30 @@ class DerlemeHavuzu:
             yield db
 
     @staticmethod
-    def _snapshot(items, catalog):
+    def _snapshot(items, catalog, previous=()):
+        old = {(str(item['kod']), item['tur']): item for item in previous}
         result = {}
         for item in items:
             code = str(item.get('kod', '')).strip()
             kind = str(item.get('tur', '')).upper()
             book = catalog.get(code)
-            if book is None or kind not in ('SB', 'RNK'):
+            key = (code, kind)
+            saved = old.get(key)
+            if (book is None and saved is None) or kind not in ('SB', 'RNK'):
                 raise ValueError('Kitap kodu veya baskı türü geçersiz.')
-            if kind == 'RNK' and not book.get('renkli_opsiyon'):
+            if kind == 'RNK' and saved is None and not book.get('renkli_opsiyon'):
                 raise ValueError(f'#{code}: renkli baskı seçeneği yok.')
             qty = int(item.get('adet', 0))
             if not 1 <= qty <= 100000:
                 raise ValueError('Adet 1–100000 aralığında olmalı.')
-            key = (code, kind)
             if key not in result:
-                pages = max(0, int(book.get('sayfa') or 0))
-                result[key] = dict(kod=code, tur=kind, adet=0,
-                                   isim=str(book.get('isim') or code),
-                                   sayfa=pages, sayfa_birim=pages)
+                if saved is not None:
+                    result[key] = dict(saved, adet=0)
+                else:
+                    pages = max(0, int(book.get('sayfa') or 0))
+                    result[key] = dict(kod=code, tur=kind, adet=0,
+                                       isim=str(book.get('isim') or code),
+                                       sayfa=pages, sayfa_birim=pages)
             result[key]['adet'] += qty
             if result[key]['adet'] > 100000:
                 raise ValueError('Toplam kitap adedi 100000 sınırını aşıyor.')
@@ -106,11 +114,11 @@ class DerlemeHavuzu:
         sort = 'completed_at DESC, id DESC' if completed else 'id DESC'
         with self._connection() as db:
             return [self._decode(row) for row in db.execute(
-                f'SELECT * FROM orders WHERE completed_at {clause} ORDER BY {sort}')]
+                f'SELECT * FROM orders WHERE deleted_at IS NULL AND completed_at {clause} ORDER BY {sort}')]
 
     def get(self, sid):
         with self._connection() as db:
-            row = db.execute('SELECT * FROM orders WHERE id=?', (sid,)).fetchone()
+            row = db.execute('SELECT * FROM orders WHERE id=? AND deleted_at IS NULL', (sid,)).fetchone()
         if row is None:
             raise ValueError('Yerel derleme siparişi bulunamadı.')
         return self._decode(row)
@@ -124,15 +132,49 @@ class DerlemeHavuzu:
             stamp = _now() if completed else None
             for sid in ids:
                 cursor = db.execute(
-                    'UPDATE orders SET completed_at=? WHERE id=? AND completed_at '
+                    'UPDATE orders SET completed_at=? WHERE id=? AND deleted_at IS NULL AND completed_at '
                     + ('IS NULL' if completed else 'IS NOT NULL'), (stamp, sid))
                 if cursor.rowcount != 1:
                     raise ValueError('Sipariş bulunamadı veya durumu zaten değişti.')
 
-    def record_zip(self, sid, path):
+    def update(self, sid, info, items, catalog, *, expected=None):
+        cents = _amount_cents(info.get('ciro', 0))
+        code = str(info.get('kod') or '').strip()[:500]
+        note = str(info.get('order_note') or '').strip()[:2000]
         with self._connection() as db:
+            db.execute('BEGIN IMMEDIATE')
+            row = db.execute('SELECT * FROM orders WHERE id=? AND deleted_at IS NULL', (sid,)).fetchone()
+            if row is None:
+                raise ValueError('Yerel derleme siparişi bulunamadı.')
+            order = self._decode(row)
+            if expected is not None and order != expected:
+                raise ValueError('Sipariş değişmiş. Yenileyip tekrar düzenleyin.')
+            books = self._snapshot(items, catalog, order['kitaplar'])
+            changed = (code != order['kod'] or note != order['order_note'] or books != order['kitaplar'])
+            db.execute('''UPDATE orders SET kod=?, ciro_kurus=?, order_note=?, kitaplar=?,
+                last_zip_at=?, last_zip_path=? WHERE id=?''',
+                (code, cents, note, json.dumps(books, ensure_ascii=False),
+                 None if changed else order['last_zip_at'],
+                 None if changed else order['last_zip_path'], sid))
+
+    def delete_many(self, ids):
+        # Soft delete: hide records from both groups, keep historical data and IDs.
+        with self._connection() as db:
+            stamp = _now()
+            for sid in dict.fromkeys(ids):
+                cursor = db.execute('UPDATE orders SET deleted_at=? WHERE id=? AND deleted_at IS NULL', (stamp, sid))
+                if cursor.rowcount != 1:
+                    raise ValueError('Sipariş bulunamadı veya zaten silinmiş.')
+
+    def record_zip(self, sid, path, *, expected=None):
+        with self._connection() as db:
+            db.execute('BEGIN IMMEDIATE')
+            if expected is not None:
+                row = db.execute('SELECT * FROM orders WHERE id=? AND deleted_at IS NULL', (sid,)).fetchone()
+                if row is None or any(self._decode(row)[key] != expected[key] for key in ('kod', 'order_note', 'kitaplar')):
+                    raise ValueError('Sipariş derleme sırasında değişti; yeni ZIP gerekiyor.')
             cursor = db.execute(
-                'UPDATE orders SET last_zip_at=?, last_zip_path=? WHERE id=?',
+                'UPDATE orders SET last_zip_at=?, last_zip_path=? WHERE id=? AND deleted_at IS NULL',
                 (_now(), str(path), sid))
             if cursor.rowcount != 1:
                 raise ValueError('Derleme siparişi bulunamadı.')

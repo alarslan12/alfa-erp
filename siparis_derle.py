@@ -150,7 +150,7 @@ def derle_siparis(order, catalog, pdf_folder, desktop, *, codes=None,
     if order_note:
         note.extend(['', 'Sipariş Notu:', order_note])
 
-    base = ('Derleme D-' + sid.zfill(5)) if order.get('local_derleme') else ('Sipariş ' + sid)
+    base = ('D' + sid.zfill(3)) if order.get('local_derleme') else ('Sipariş ' + sid)
     # Keep the temporary archive on the same drive as the Desktop, so the
     # final rename is fast and never uses a slow cross-volume copy.
     with tempfile.TemporaryDirectory(prefix='.alfa_siparis_derleme_', dir=desktop.parent) as workspace:
