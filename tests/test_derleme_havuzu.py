@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from zipfile import ZipFile
 
-from siparis_derleme import derle_siparis
+from siparis_derle import derle_siparis
 from siparis_derleme_havuzu import DerlemeHavuzu, compile_snapshot, order_totals
 
 
