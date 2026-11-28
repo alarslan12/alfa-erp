@@ -39,8 +39,12 @@ class _BatchDerleme(QThread):
         self.folder, self.desktop = folder, desktop
 
     def run(self):
-        from siparis_derle import derle_siparis
         succeeded, failed = [], []
+        try:
+            from siparis_derle import derle_siparis
+        except ImportError:
+            self.result.emit(([], ['Derleme modülü kullanılamıyor.'], False))
+            return
         for index, order in enumerate(self.orders, 1):
             if self.isInterruptionRequested():
                 break
@@ -74,6 +78,7 @@ class DerlemeHavuzuView(QWidget):
         self.completed = False
         self._worker = None
         self._progress = None
+        self._result = None
         self._rows = []
         root = QVBoxLayout(self)
         root.setContentsMargins(4, 4, 4, 4)
@@ -249,9 +254,10 @@ class DerlemeHavuzuView(QWidget):
         dialog.setMinimumDuration(0)
         dialog.setAutoClose(False)
         self._worker, self._progress = worker, dialog
+        self._result = None
         dialog.canceled.connect(worker.requestInterruption)
         worker.progress.connect(dialog.setLabelText)
-        worker.result.connect(self._compile_result)
+        worker.result.connect(self._store_result)
         worker.finished.connect(self._compile_finished)
         app.aboutToQuit.connect(self.stop_worker)
         self._update_actions()
@@ -271,6 +277,12 @@ class DerlemeHavuzuView(QWidget):
         dialog.deleteLater()
         worker.deleteLater()
         self.refresh()
+        result, self._result = self._result, None
+        if result is not None:
+            self._compile_result(result)
+
+    def _store_result(self, result):
+        self._result = result
 
     def _compile_result(self, result):
         paths, failed, cancelled = result
