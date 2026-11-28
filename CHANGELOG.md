@@ -1,3 +1,11 @@
+## [v2.2.1] — 2026-11-28
+
+- Yönetici Siparişler üst barında tek Yerel Derlemeler sekmesi; açık ve bitmiş gruplar içeride, ayrı toplamları korunur.
+- Sipariş ayrıntıları kapaklı yatay kitap şeritleri, SB/RNK adet ve sayfa bilgileriyle gösterilir; tema kontrastı düzeltilir.
+- Referans, ciro, not ve kitaplar düzenlenebilir; kitap ekleme/çıkarma ve adet kontrolü. Onaylı silme kayıtları listeden kaldırır, SQLite geçmişini korur.
+- D001, D002 numaraları ve D001.zip dosya adları; mevcut kimlikler ve eski ZIP dosyaları korunur. Baskı içeriği değişirse eski ZIP göstergesi temizlenir.
+- ERP PR #47 kapsam ve Windows regresyon testleri başarılı; canlı Firebase, Personel iş akışı ve diğer uygulamaların iş mantığı değiştirilmedi. Gerçek kullanıcı bilgisayarında manuel ekran testi yapılmadı.
+
 ## [v2.2.0] — 2026-11-28
 
 - Yönetici kataloğundan normal sipariş yerine bağımsız yerel Derleme Havuzu'na kayıt.
