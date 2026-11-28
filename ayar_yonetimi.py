@@ -198,7 +198,7 @@ def theme_styles(name):
         QComboBox QAbstractItemView {background:#fffaf2;color:#22384d;selection-background-color:#e8d9c5;}
         QTableWidget#LocalDerlemeTable {background:#fffaf4;alternate-background-color:#f5eee4;color:#22384d;gridline-color:#deceb7;selection-background-color:#c4ddeb;selection-color:#22384d;}
         QTableWidget#LocalDerlemeTable::item:selected {background:#c4ddeb;color:#22384d;}
-        QLabel#PoolOverviewCounts {color:#554687;}
+        QLabel#LocalDerlemeCounts {color:#554687;}
         QTableWidget#AnalyticsDataTable {
             background:#fffaf4; color:#22384d; alternate-background-color:#f5eee4; gridline-color:#deceb7;
         }
