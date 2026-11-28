@@ -1,4 +1,4 @@
-# ALFACOPYCENTER Suite v2.1.3
+# ALFACOPYCENTER Suite v2.2.0
 
 **Tek Windows kurulumu**, dört seçilebilir bileşen:
 
@@ -10,9 +10,18 @@
 | ALFA Print Center | PrintSurveillance/AlfaPrintSurveillance.exe | Seçilebilir, varsayılan |
 | Arka plan yardımcıları | Bildirim, PrintAgent, PrintSupervisor | Seçilen bileşene bağlı |
 
-Kurulum: `ALFACOPYCENTER_Suite_Setup_V2_1_3.exe`. Aynı Inno Setup AppId
+Kurulum: `ALFACOPYCENTER_Suite_Setup_V2_2_0.exe`. Aynı Inno Setup AppId
 (`ALFACOPYCENTER.Suite`) ve kurulum yolu korundu:
 `%LOCALAPPDATA%\Programs\ALFACOPYCENTER`.
+
+## v2.2.0 — Yönetici yerel derleme havuzu ve fason baskı takibi
+
+- Yönetici kataloğundan normal sipariş yerine bağımsız yerel Derleme Havuzu'na kayıt.
+- Derleme Havuzu ve Bitmiş Derleme Siparişleri gruplarında ayrı toplam ciro, sayfa, kitap ve sipariş sayısı.
+- Fason baskı tamamlanınca operatör onayı; yanlış onayda havuza geri alma. Hazırlandı/Kolilendi aşamaları yok.
+- Tekli/çoklu ZIP, bağımsız D-00001 numaralandırması ve son ZIP zamanı. ZIP üretimi bitiş onayı sayılmaz.
+- Yerel SQLite; Firebase, Personel, genel ciro ve analitik dışında. Normal siparişler ve diğer uygulama iş mantığı korunur.
+- ERP PR #45 kapsam ve Windows regresyon testleri başarılı. Gerçek kullanıcı bilgisayarında manuel test yapılmadı.
 
 ## v2.1.3 — Sipariş düzenleme, akıllı kitap arama ve kare HUD
 
