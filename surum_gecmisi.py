@@ -6,6 +6,11 @@ https://github.com/alarslan12/alfa-erp/releases.
 """
 
 _RELEASES = [
+    ("2.2.1", "Yerel Derlemeler: kapaklı ayrıntı, düzenleme ve sade numaralandırma", [
+        "Tek Yerel Derlemeler sekmesi; açık ve bitmiş gruplar içeride.",
+        "Kapaklı yatay kitap şeritleri, tema düzeltmesi, sipariş ve kitap düzenleme/silme.",
+        "D001 numarası ve D001.zip; mevcut yerel kayıtlar ve eski ZIP dosyaları korunur.",
+    ]),
     ("2.2.0", "Yönetici yerel derleme havuzu ve fason baskı takibi", [
         "Yöneticiye özel yerel derleme siparişleri, ayrı açık ve bitmiş gruplar.",
         "Her grubun ciro, sayfa, kitap ve sipariş toplamı; fason bitiş onayı ve geri alma.",
