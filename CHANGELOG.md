@@ -1,3 +1,12 @@
+## [v2.2.0] — 2026-11-28
+
+- Yönetici kataloğundan normal sipariş yerine bağımsız yerel Derleme Havuzu'na kayıt.
+- Derleme Havuzu ve Bitmiş Derleme Siparişleri gruplarında ayrı toplam ciro, sayfa, kitap ve sipariş sayısı.
+- Fason baskı tamamlanınca operatör onayı; yanlış onayda havuza geri alma. Hazırlandı/Kolilendi aşamaları yok.
+- Tekli/çoklu ZIP, bağımsız D-00001 numaralandırması ve son ZIP zamanı. ZIP üretimi bitiş onayı sayılmaz.
+- Yerel SQLite; Firebase, Personel, genel ciro ve analitik dışında. Normal siparişler ve diğer uygulama iş mantığı korunur.
+- ERP PR #45 kapsam ve Windows regresyon testleri başarılı. Gerçek kullanıcı bilgisayarında manuel test yapılmadı.
+
 ## [v2.1.3] — 2026-11-28
 
 - Sipariş düzenleme adet kutularının sayı görünürlüğü ve +/- hizalaması düzeltildi.
