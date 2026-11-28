@@ -2,13 +2,22 @@
 
 **Sohbet:** ERP Personel / Yönetici. **Repo:** `alarslan12/alfa-erp`; üretim `firebase-rtdb-final`.
 
-**Son doğrulanmış kararlı Suite:** v2.1.3 (28.11.2026). Yeni görevlerde GitHub Release, üretim SHA ve açık PR'ları yeniden kontrol et.
+**Son doğrulanmış kararlı Suite:** v2.2.0 (28.11.2026). Yeni görevlerde GitHub Release, üretim SHA ve açık PR'ları yeniden kontrol et.
 
 **Kod sahipliği:** `main.py`, `ekran_katalog.py`, `ekran_siparis.py`, `ekran_analitik.py`, `ekran_verimlilik.py`, `flexflow*.py`, ERP/Firebase istemcisi, analitik/muhasebe ve ilgili testler.
 
 **Korunacaklar:** Onaylanan Katalog/Siparişler arayüzü, ortak Havuz, personel/owner rolleri, Firebase Auth/RTDB, offline işlem kuyruğu, iade/kargo/ciro hesabı, FlexFlow hareketli gün/takvim filtresi ve günlük değerlendirme.
 
-## Son iş: Yönetici yerel derleme havuzu ve bitiş onayı
+## Son iş: Yerel Derlemeler ayrıntı, düzenleme, silme ve tek sekme
+- Dal: `fix/erp-local-derleme-detail-edit-20261128` · PR: bu dalın GitHub PR'ı.
+- `main.py`: üstte tek Yönetici sekmesi Yerel Derlemeler; içeride Derleme Havuzu ve Bitmiş Derleme Siparişleri geçişi, gruba özel toplamlar korunur.
+- `ekran_derleme_havuzu.py`: okunamayan salt metin popup yerine mevcut kitap kapak bileşeni, yatay şerit, SB/RNK adet ve sayfa bilgisi; düzenleme ekranında referans, ciro, not, kitap arama/ekleme, kaldırma ve adet kontrolü. Tekli düzenleme, çoklu onaylı silme. Bitmiş kayıt düzenlenirse bitiş durumu korunur; baskı içeriği değiştiğinde eski ZIP göstergesi temizlenir, dosya silinmez.
+- `siparis_derleme_havuzu.py`: mevcut SQLite kayıtlarını ve sayacı koruyan deleted_at kolon geçişi, atomik soft delete, snapshot korumalı edit, eski ZIP sonucunun yeni kaydı ezmesini önleyen kontrol. Eski ID'ler yeniden numaralanmaz; görünüm D001, D002... olur. Silinen kayıtlar iki listeden ve toplamdan çıkar, veritabanında saklanır; geri yükleme arayüzü eklenmedi.
+- `siparis_derle.py`: yeni yerel ZIP adı D001.zip; eski ZIP dosyaları yeniden adlandırılmaz/ezilmez. Aynı isim varsa mevcut benzersiz ad mantığı korunur. Normal ERP ZIP adları aynı.
+- `tema.py`, `ayar_yonetimi.py`: yerel tablo seçili satır ve adet bilgisi okunaklı; notlar mevcut tema uyumlu OrderNoteInput. Normal iş akışı, Personel ve Firebase etkilenmez.
+- `tests/test_derleme_havuzu.py`, `tests/test_gui_windows.py`: SQLite migration, snapshot/edit, soft delete, yeni ZIP adı, iç sekme ve kapak/adet UI regresyonları. Gerçek Windows cihazı/ekranı manuel test edilmedi. CI ve ortak yayın ayrı doğrulanır.
+
+## Önceki iş: Yönetici yerel derleme havuzu ve bitiş onayı
 - Dal: `feature/erp-local-derleme-pool-20261128` · PR: bu dalın GitHub PR'ı.
 - `siparis_derleme_havuzu.py`: ayrı `owner_derleme/siparisler.sqlite3` deposu, bağımsız D-00001 numaraları, tarihsel kitap/sayfa fiyat snapshot'ı, kuruş cinsinden ciro, açık ve bitmiş siparişler. Toplu bitiş/geri alma tek SQLite transaction ile yapılır; hazırlama ve koli alanları yoktur.
 - `ekran_derleme_havuzu.py`: aynı ekranın iki alt grubu, her grubun tüm kayıtları üzerinden dört toplam, sipariş ayrıntısı, çoklu seçili ZIP derleme, son ZIP tarihi ve operatör bitiş onayı. ZIP üretimi bitiş onayı değildir. Her sipariş ayrı ZIP, mevcut orijinal PDF paketleme sistemi korunur.
