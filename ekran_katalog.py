@@ -248,8 +248,10 @@ class SiparisBilgiDialog(QDialog):
 
 class KatalogView(QWidget):
     order_created = Signal()
-    def __init__(self,db,covers,config=None):
+    local_order_created = Signal(int)
+    def __init__(self,db,covers,config=None,local_order_sink=None):
         super().__init__();self.db=db;self.covers=covers;self.config=config
+        self._local_order_sink=local_order_sink
         raw=db.sepeti_oku();self.cart={str(k):{'SB':max(0,int(v.get('SB',0))), 'RNK':max(0,int(v.get('RNK',0)))} for k,v in raw.items() if isinstance(v,dict) and str(k) in db.katalog}
         self.page=0;self.last_filter=[];self._last_columns=0
         self._cart_timer=QTimer(self);self._cart_timer.setSingleShot(True)
@@ -325,7 +327,14 @@ class KatalogView(QWidget):
         self.note_toggle.toggled.connect(show_note)
         side_l.addWidget(self.note_toggle);side_l.addWidget(self.note)
         self.order_btn=button('🚀  Siparişi Sisteme Kaydet','Success')
-        self.order_btn.clicked.connect(self.make_order);side_l.addWidget(self.order_btn)
+        self.order_btn.clicked.connect(lambda _=False:self.make_order());side_l.addWidget(self.order_btn)
+        self.local_order_btn=None
+        if self._local_order_sink is not None:
+            self.order_btn.setText('Normal siparişi ortak havuza kaydet')
+            self.local_order_btn=button('Derleme havuzuna kaydet · Yerel','Accent')
+            self.local_order_btn.setToolTip('Yalnız bu bilgisayarda saklanır; Personel ve Firebase siparişlerine gönderilmez.')
+            self.local_order_btn.clicked.connect(lambda _=False:self.make_order(local=True))
+            side_l.addWidget(self.local_order_btn)
         root.addWidget(self.side)
         self.reset_results();self.update_cart()
 
@@ -437,6 +446,7 @@ class KatalogView(QWidget):
         self.cart_count.setText(f'📌  {len(self.cart)} Çeşit ({total} Kitap)')
         self.cart_pages.setText(f'Toplam: {pages:,} Sayfa')
         self.order_btn.setEnabled(total>0)
+        if self.local_order_btn is not None:self.local_order_btn.setEnabled(total>0)
     def auto_platform(self,value):
         if self._shipping_formatting:
             return
@@ -485,8 +495,9 @@ class KatalogView(QWidget):
         self.revenue.setVisible(not enabled)
         self.telafi_notice.setVisible(enabled)
 
-    def make_order(self):
+    def make_order(self, local=False):
         if not self.cart:return
+        if local and self._local_order_sink is None:return
         items=[]
         for code,variants in self.cart.items():
             for kind in ('SB','RNK'):
@@ -497,14 +508,22 @@ class KatalogView(QWidget):
               'ciro':0.0 if self.special_btn.isChecked() else self.revenue.value(),
               'siparis_turu':'Telafi Sipariş' if self.special_btn.isChecked() else 'Normal Sipariş',
               'order_note':self.note.toPlainText()}
-        if info['kod'] and not _ask_before_duplicate_shipping_code(self,self.db,info['kod']):
-            return
-        try:self.db.yeni_siparis_olustur(info,items)
-        except Exception as exc:return error(self,str(exc))
+        if local:
+            # Never pass outsourcing orders through the shared order database.
+            info['kod']=self.shipping.text().strip()
+            try:local_id=self._local_order_sink(info,items)
+            except Exception as exc:return error(self,str(exc))
+        else:
+            if info['kod'] and not _ask_before_duplicate_shipping_code(self,self.db,info['kod']):
+                return
+            try:self.db.yeni_siparis_olustur(info,items)
+            except Exception as exc:return error(self,str(exc))
         self.cart.clear();self.db.sepeti_yaz(self.cart)
         self.shipping.clear();self.revenue.clear();self.normal_btn.setChecked(True)
         self.note.clear();self.note_toggle.setChecked(False)
-        self.update_cart();self.refresh_grid();self.order_created.emit()
+        self.update_cart();self.refresh_grid()
+        if local:self.local_order_created.emit(local_id)
+        else:self.order_created.emit()
     def import_one_cover(self,book):
         path,_=QFileDialog.getOpenFileName(self,'Kitap kapağı seç','','Görseller (*.png *.jpg *.jpeg *.webp *.bmp)')
         if path:

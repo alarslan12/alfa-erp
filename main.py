@@ -96,6 +96,8 @@ class AlfaMain(QMainWindow):
         self._last_orders_tab='havuz'
         self._analytics_unlocked=False
         self.bookpool=None
+        self._derleme_store=None
+        self._derleme_view=None
 
         holder=QWidget();holder.setObjectName('AppRoot')
         self.setCentralWidget(holder)
@@ -173,6 +175,8 @@ class AlfaMain(QMainWindow):
         self.subnav={}
         sub_entries=(('havuz','Sipariş Havuzu'),('aktif','Aktif Siparişler'),
                      ('tamamlandi','Tamamlanan'))
+        if OWNER_EDITION:
+            sub_entries += (('derleme','Derleme Havuzu'),('derleme_bitti','Bitmiş Derleme Siparişleri'))
         for key,label in sub_entries:
             tab=button(label,'OrdersSubnav')
             tab.setCheckable(True)
@@ -206,7 +210,8 @@ class AlfaMain(QMainWindow):
         self.body.addWidget(self.stack,1)
         root.addWidget(content,1)
         # Katalog: exclusively printed books and checkout.
-        self.catalog=KatalogView(self.db,self.covers,config=self.config)
+        self.catalog=KatalogView(self.db,self.covers,config=self.config,
+                                 local_order_sink=self.add_local_derleme if OWNER_EDITION else None)
         self.title_line.insertWidget(1,self.catalog.toolbar,1)
         self.orders=SiparisView(self.db,self.covers,self.open_book_pool,admin_mode=OWNER_EDITION)
         self.analytics=AnalitikView(self.db,lambda sid:self.orders.open_editor(sid,'track'),
@@ -283,6 +288,7 @@ class AlfaMain(QMainWindow):
         self.live.changed.connect(self._cloud_orders_changed)
         self.live.status.connect(self._cloud_status)
         self.catalog.order_created.connect(self.order_created)
+        if OWNER_EDITION:self.catalog.local_order_created.connect(self.local_derleme_created)
         self.navigate(0)
         # One local daily timer; only a due check makes one GitHub API GET.
         # No Firebase reads or dedicated polling service are added.
@@ -628,7 +634,41 @@ class AlfaMain(QMainWindow):
             message='Bulut bağlı · eski çakışmalar arşivde'
         self.cloud_badge.setToolTip(message)
 
+    def _local_derleme_store(self):
+        if not OWNER_EDITION:
+            raise PermissionError('Derleme havuzu yalnız Yönetici uygulamasında kullanılabilir.')
+        if self._derleme_store is None:
+            from siparis_derleme_havuzu import DerlemeHavuzu
+            self._derleme_store=DerlemeHavuzu(self.config.data_dir)
+        return self._derleme_store
+
+    def add_local_derleme(self,info,items):
+        return self._local_derleme_store().add(info,items,self.db.katalog)
+
+    def local_derleme_created(self,sid):
+        self.statusBar().showMessage(f'✓ D-{sid:05d} yerel derleme havuzuna kaydedildi.',6000)
+
+    def open_derleme_status(self,status):
+        if not OWNER_EDITION:
+            return
+        try:
+            if self._derleme_view is None:
+                from ekran_derleme_havuzu import DerlemeHavuzuView
+                self._derleme_view=DerlemeHavuzuView(self._local_derleme_store(),
+                                                     Path(self.db.sepet_dosyasi).parent,self)
+                self.stack.addWidget(self._derleme_view)
+            self._derleme_view.set_completed(status=='derleme_bitti')
+        except Exception as exc:
+            QMessageBox.warning(self,'Yerel derleme havuzu',str(exc))
+            return
+        self._last_orders_tab=status
+        self.stack.setCurrentWidget(self._derleme_view)
+        self._mark_navigation(1,status)
+
     def open_order_status(self,status):
+        if status in ('derleme','derleme_bitti'):
+            self.open_derleme_status(status)
+            return
         if status not in ('havuz','aktif','tamamlandi'):
             return
         self._last_orders_tab=status
